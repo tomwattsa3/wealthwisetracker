@@ -803,15 +803,15 @@ const App: React.FC = () => {
           {activeTab === 'home' && (
             <div className="space-y-6 animate-in fade-in duration-500">
               
-              {/* Row 1: KPI Cards - Minimal Style */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                 <div className="h-28">
+              {/* Row 1: KPI Cards - Minimal Style - Always 3 columns, compact on mobile */}
+              <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                 <div className="h-20 sm:h-28">
                    <StatsCard label="Income" amount={summary.totalIncome} type="INCOME" filled />
                  </div>
-                 <div className="h-28">
+                 <div className="h-20 sm:h-28">
                    <StatsCard label="Expenses" amount={summary.totalExpense} type="EXPENSE" filled />
                  </div>
-                 <div className="h-28">
+                 <div className="h-20 sm:h-28">
                    <StatsCard label="Balance" amount={summary.balance} type="BALANCE" filled />
                  </div>
               </div>
