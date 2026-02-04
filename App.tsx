@@ -94,60 +94,60 @@ const App: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      
-      // 1. Fetch Banks
-      const { data: banksData, error: banksError } = await supabase.from('banks').select('*');
-      if (banksError) throw banksError;
-      
-      if (!banksData || banksData.length === 0) {
-         // Seed Initial Banks if DB is empty
-         const { data: seededBanks } = await supabase.from('banks').insert(INITIAL_BANKS).select();
-         setBanks(seededBanks || INITIAL_BANKS);
-      } else {
-         setBanks(banksData);
-      }
 
-      // 2. Fetch Categories
-      const { data: catData, error: catError } = await supabase.from('categories').select('*');
-      if (catError) throw catError;
+      // Use local constants for banks and categories (no DB tables for these)
+      setBanks(INITIAL_BANKS);
+      setCategories(INITIAL_CATEGORIES);
 
-      if (!catData || catData.length === 0) {
-         // Seed Initial Categories
-         const { data: seededCats } = await supabase.from('categories').insert(INITIAL_CATEGORIES).select();
-         setCategories(seededCats || INITIAL_CATEGORIES);
-      } else {
-         setCategories(catData);
-      }
-
-      // 3. Fetch Transactions
-      const { data: txData, error: txError } = await supabase.from('transactions').select('*');
+      // Fetch Transactions from Supabase
+      const { data: txData, error: txError } = await supabase.from('Transactions').select('*');
       if (txError) throw txError;
-      
-      // Map DB snake_case to TS camelCase
-      const mappedTxs: Transaction[] = (txData || []).map(t => ({
-          id: t.id,
-          date: t.date,
-          amount: t.amount,
-          originalAmount: t.original_amount,
-          originalCurrency: t.original_currency,
-          type: t.type,
-          categoryId: t.category_id,
-          categoryName: t.category_name,
-          subcategoryName: t.subcategory_name,
-          description: t.description,
-          notes: t.notes,
-          excluded: t.excluded,
-          bankName: t.bank_name
-      }));
+
+      // Map DB columns to app's expected format
+      const mappedTxs: Transaction[] = (txData || []).map(t => {
+          // Determine if income or expense based on which column has value
+          const moneyInGBP = t['Money In - GBP'] || 0;
+          const moneyOutGBP = t['Money Out - GBP'] || 0;
+          const moneyInAED = t['Money In - AED'] || 0;
+          const moneyOutAED = t['Money Out - AED'] || 0;
+
+          const isIncome = moneyInGBP > 0 || moneyInAED > 0;
+          const type: 'INCOME' | 'EXPENSE' = isIncome ? 'INCOME' : 'EXPENSE';
+          const amount = isIncome ? moneyInGBP : moneyOutGBP;
+          const originalAmount = isIncome ? moneyInAED : moneyOutAED;
+
+          // Find categoryId from category name
+          const categoryName = t['Catagory'] || '';
+          const matchedCategory = INITIAL_CATEGORIES.find(c =>
+            c.name.toLowerCase() === categoryName.toLowerCase()
+          );
+          const categoryId = matchedCategory?.id || '';
+
+          return {
+            id: String(t.id),
+            date: t['Transaction Date'] || new Date().toISOString().split('T')[0],
+            amount: Number(amount) || 0,
+            originalAmount: originalAmount > 0 ? Number(originalAmount) : undefined,
+            originalCurrency: originalAmount > 0 ? 'AED' : undefined,
+            type,
+            categoryId,
+            categoryName,
+            subcategoryName: t['Sub-Category'] || '',
+            description: t['Description'] || '',
+            notes: '',
+            excluded: false,
+            bankName: t['Bank Account'] || ''
+          };
+      });
 
       setTransactions(mappedTxs);
 
     } catch (error) {
       console.error('Error fetching data from Supabase:', error);
-      // Fallback to local constants if connection fails (e.g. invalid keys)
+      // Fallback to local constants if connection fails
       setCategories(INITIAL_CATEGORIES);
       setBanks(INITIAL_BANKS);
-      setTransactions([]); // Or MOCK_TRANSACTIONS if desired
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
@@ -159,58 +159,41 @@ const App: React.FC = () => {
 
   // --- HANDLERS (UPDATED FOR SUPABASE) ---
 
-  const handleAddCategory = async (newCat: Category) => {
-    // Optimistic Update
+  const handleAddCategory = (newCat: Category) => {
+    // Local only - no categories table in DB
     setCategories(prev => [...prev, newCat]);
-    // DB Update
-    await supabase.from('categories').insert(newCat);
   };
 
-  const handleAddSubcategory = async (catId: string, sub: string) => {
+  const handleAddSubcategory = (catId: string, sub: string) => {
     const categoryToUpdate = categories.find(c => c.id === catId);
     if (!categoryToUpdate) return;
-    
+
     if (!categoryToUpdate.subcategories.includes(sub)) {
         const updatedSubs = [...categoryToUpdate.subcategories, sub];
-        
-        // Optimistic
         setCategories(prev => prev.map(c => c.id === catId ? { ...c, subcategories: updatedSubs } : c));
-        
-        // DB
-        await supabase.from('categories').update({ subcategories: updatedSubs }).eq('id', catId);
     }
   };
 
-  const handleDeleteSubcategory = async (catId: string, sub: string) => {
+  const handleDeleteSubcategory = (catId: string, sub: string) => {
     const categoryToUpdate = categories.find(c => c.id === catId);
     if (!categoryToUpdate) return;
 
     const updatedSubs = categoryToUpdate.subcategories.filter(s => s !== sub);
-
-    // Optimistic
     setCategories(prev => prev.map(c => c.id === catId ? { ...c, subcategories: updatedSubs } : c));
-    
-    // DB
-    await supabase.from('categories').update({ subcategories: updatedSubs }).eq('id', catId);
   };
 
-  const handleDeleteCategory = async (catId: string) => {
+  const handleDeleteCategory = (catId: string) => {
     if (catId === 'excluded') return;
-    
-    // Optimistic
     setCategories(prev => prev.filter(c => c.id !== catId));
-    // DB
-    await supabase.from('categories').delete().eq('id', catId);
   };
 
-  const handleAddBank = async (newBank: Bank) => {
+  const handleAddBank = (newBank: Bank) => {
+    // Local only - no banks table in DB
     setBanks(prev => [...prev, newBank]);
-    await supabase.from('banks').insert(newBank);
   };
 
-  const handleDeleteBank = async (id: string) => {
+  const handleDeleteBank = (id: string) => {
     setBanks(prev => prev.filter(b => b.id !== id));
-    await supabase.from('banks').delete().eq('id', id);
   };
 
   const handleResetFilters = () => {
@@ -230,93 +213,104 @@ const App: React.FC = () => {
   const addTransaction = async (newTx: Omit<Transaction, 'id'>) => {
     const tempId = crypto.randomUUID();
     const txWithId = { ...newTx, id: tempId };
-    
+
     // Optimistic
     setTransactions(prev => [txWithId, ...prev]);
 
-    // DB - Map to snake_case
+    // DB - Map to your Supabase schema
+    const isIncome = newTx.type === 'INCOME';
     const dbPayload = {
-        date: newTx.date,
-        amount: newTx.amount,
-        original_amount: newTx.originalAmount,
-        original_currency: newTx.originalCurrency,
-        type: newTx.type,
-        category_id: newTx.categoryId,
-        category_name: newTx.categoryName,
-        subcategory_name: newTx.subcategoryName,
-        description: newTx.description,
-        notes: newTx.notes,
-        excluded: newTx.excluded,
-        bank_name: newTx.bankName
+        'Transaction Date': newTx.date,
+        'Type Of Transaction': newTx.type,
+        'Description': newTx.description,
+        'Catagory': newTx.categoryName,
+        'Sub-Category': newTx.subcategoryName,
+        'Money Out - GBP': isIncome ? null : newTx.amount,
+        'Money In - GBP': isIncome ? newTx.amount : null,
+        'Money Out - AED': isIncome ? null : (newTx.originalAmount || null),
+        'Money In - AED': isIncome ? (newTx.originalAmount || null) : null,
+        'Bank Account': newTx.bankName
     };
 
-    const { data } = await supabase.from('transactions').insert(dbPayload).select();
+    const { data } = await supabase.from('Transactions').insert(dbPayload).select();
 
     if (data && data[0]) {
-        // Update the temp ID with real ID from DB (though we use UUID gen so it might be consistent)
-        setTransactions(prev => prev.map(t => t.id === tempId ? { ...t, id: data[0].id } : t));
+        setTransactions(prev => prev.map(t => t.id === tempId ? { ...t, id: String(data[0].id) } : t));
     }
   };
 
   const handleImportTransactions = async (imported: Omit<Transaction, 'id'>[]) => {
-      // Map all to DB format
-      const dbPayloads = imported.map(t => ({
-          date: t.date,
-          amount: t.amount,
-          original_amount: t.originalAmount,
-          original_currency: t.originalCurrency,
-          type: t.type,
-          category_id: t.categoryId,
-          category_name: t.categoryName,
-          subcategory_name: t.subcategoryName,
-          description: t.description,
-          notes: t.notes,
-          excluded: t.excluded,
-          bank_name: t.bankName
-      }));
+      // Map all to your Supabase schema
+      const dbPayloads = imported.map(t => {
+          const isIncome = t.type === 'INCOME';
+          return {
+            'Transaction Date': t.date,
+            'Type Of Transaction': t.type,
+            'Description': t.description,
+            'Catagory': t.categoryName,
+            'Sub-Category': t.subcategoryName,
+            'Money Out - GBP': isIncome ? null : t.amount,
+            'Money In - GBP': isIncome ? t.amount : null,
+            'Money Out - AED': isIncome ? null : (t.originalAmount || null),
+            'Money In - AED': isIncome ? (t.originalAmount || null) : null,
+            'Bank Account': t.bankName
+          };
+      });
 
-      const { data } = await supabase.from('transactions').insert(dbPayloads).select();
+      const { data } = await supabase.from('Transactions').insert(dbPayloads).select();
 
       if (data) {
-          const newTxs: Transaction[] = data.map(t => ({
-            id: t.id,
-            date: t.date,
-            amount: t.amount,
-            originalAmount: t.original_amount,
-            originalCurrency: t.original_currency,
-            type: t.type,
-            categoryId: t.category_id,
-            categoryName: t.category_name,
-            subcategoryName: t.subcategory_name,
-            description: t.description,
-            notes: t.notes,
-            excluded: t.excluded,
-            bankName: t.bank_name
-          }));
+          const newTxs: Transaction[] = data.map(t => {
+            const moneyInGBP = t['Money In - GBP'] || 0;
+            const moneyOutGBP = t['Money Out - GBP'] || 0;
+            const moneyInAED = t['Money In - AED'] || 0;
+            const moneyOutAED = t['Money Out - AED'] || 0;
+            const isIncome = moneyInGBP > 0 || moneyInAED > 0;
+
+            return {
+              id: String(t.id),
+              date: t['Transaction Date'] || new Date().toISOString().split('T')[0],
+              amount: isIncome ? Number(moneyInGBP) : Number(moneyOutGBP),
+              originalAmount: isIncome ? (moneyInAED > 0 ? Number(moneyInAED) : undefined) : (moneyOutAED > 0 ? Number(moneyOutAED) : undefined),
+              originalCurrency: (moneyInAED > 0 || moneyOutAED > 0) ? 'AED' : undefined,
+              type: isIncome ? 'INCOME' as const : 'EXPENSE' as const,
+              categoryId: '',
+              categoryName: t['Catagory'] || '',
+              subcategoryName: t['Sub-Category'] || '',
+              description: t['Description'] || '',
+              notes: '',
+              excluded: false,
+              bankName: t['Bank Account'] || ''
+            };
+          });
           setTransactions(prev => [...newTxs, ...prev]);
       }
   };
 
   const deleteTransaction = async (id: string) => {
     setTransactions(prev => prev.filter(t => t.id !== id));
-    await supabase.from('transactions').delete().eq('id', id);
+    await supabase.from('Transactions').delete().eq('id', id);
   };
 
   const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
     setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
-    
-    // Map updates to snake_case
-    const dbUpdates: any = {};
-    if (updates.date !== undefined) dbUpdates.date = updates.date;
-    if (updates.amount !== undefined) dbUpdates.amount = updates.amount;
-    if (updates.categoryId !== undefined) dbUpdates.category_id = updates.categoryId;
-    if (updates.categoryName !== undefined) dbUpdates.category_name = updates.categoryName;
-    if (updates.subcategoryName !== undefined) dbUpdates.subcategory_name = updates.subcategoryName;
-    if (updates.description !== undefined) dbUpdates.description = updates.description;
-    if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
-    
+
+    // Map updates to your Supabase schema
+    const dbUpdates: Record<string, any> = {};
+    if (updates.date !== undefined) dbUpdates['Transaction Date'] = updates.date;
+    if (updates.categoryName !== undefined) dbUpdates['Catagory'] = updates.categoryName;
+    if (updates.subcategoryName !== undefined) dbUpdates['Sub-Category'] = updates.subcategoryName;
+    if (updates.description !== undefined) dbUpdates['Description'] = updates.description;
+
+    // Handle amount updates (need to know if income or expense)
+    if (updates.amount !== undefined && updates.type !== undefined) {
+        const isIncome = updates.type === 'INCOME';
+        dbUpdates['Money Out - GBP'] = isIncome ? null : updates.amount;
+        dbUpdates['Money In - GBP'] = isIncome ? updates.amount : null;
+    }
+
     if (Object.keys(dbUpdates).length > 0) {
-        await supabase.from('transactions').update(dbUpdates).eq('id', id);
+        await supabase.from('Transactions').update(dbUpdates).eq('id', id);
     }
   };
 
