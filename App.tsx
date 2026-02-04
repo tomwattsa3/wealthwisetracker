@@ -890,106 +890,47 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Mobile: Category Breakdown - Compact List */}
-              <div className="md:hidden px-2">
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                  {/* Header with filters */}
-                  <div className="flex items-center justify-between px-2 py-1.5 bg-slate-50 border-b border-slate-200">
-                    <div className="flex bg-slate-200/50 p-0.5 rounded">
-                      <button
-                        onClick={() => setBreakdownViewMode('category')}
-                        className={`px-2 py-0.5 text-[9px] font-bold rounded transition-all ${breakdownViewMode === 'category' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+              {/* Mobile: Category Cards Grid */}
+              <div className="md:hidden px-2 space-y-2">
+                {expenseCategories.slice(0, 6).map(cat => {
+                  const catTransactions = activeTransactions.filter(t => t.categoryId === cat.id);
+                  const catTotal = catTransactions.reduce((sum, t) => sum + t.amount, 0);
+                  const topTransactions = catTransactions
+                    .sort((a, b) => b.amount - a.amount)
+                    .slice(0, 3);
+
+                  if (catTotal === 0) return null;
+
+                  return (
+                    <div key={cat.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                      {/* Category Header */}
+                      <div
+                        className="flex items-center justify-between px-2.5 py-2"
+                        style={{ backgroundColor: cat.color }}
                       >
-                        Categories
-                      </button>
-                      <button
-                        onClick={() => setBreakdownViewMode('subcategory')}
-                        className={`px-2 py-0.5 text-[9px] font-bold rounded transition-all ${breakdownViewMode === 'subcategory' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
-                      >
-                        Subcats
-                      </button>
-                    </div>
-                    <span className="text-[10px] font-bold text-slate-600 font-mono">£{globalSummary.totalExpense.toLocaleString()}</span>
-                  </div>
-
-                  {/* Filter row */}
-                  <div className="flex gap-1.5 px-2 py-1.5 bg-slate-50/50 border-b border-slate-100">
-                    <select
-                      value={filterCategory}
-                      onChange={(e) => { setFilterCategory(e.target.value); setFilterSubcategory('all'); }}
-                      className="flex-1 bg-white border border-slate-200 text-slate-700 text-[9px] font-bold rounded px-1.5 py-1 outline-none"
-                    >
-                      <option value="all">All Categories</option>
-                      {expenseCategories.map(cat => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                      ))}
-                    </select>
-                    {(filterCategory !== 'all' || filterSubcategory !== 'all') && (
-                      <button onClick={handleResetFilters} className="text-[9px] font-bold text-rose-500 px-1.5">Reset</button>
-                    )}
-                  </div>
-
-                  {/* Category list - compact rows */}
-                  <div className="max-h-[200px] overflow-y-auto">
-                    {(() => {
-                      let displayData: any[] = [];
-                      if (filterCategory !== 'all') {
-                        displayData = subcategoryBreakdown;
-                      } else if (breakdownViewMode === 'subcategory') {
-                        displayData = allSubcategoryBreakdown;
-                      } else {
-                        displayData = categoryBreakdown.filter(c => c.category?.type === 'EXPENSE');
-                      }
-
-                      if (displayData.length === 0) {
-                        return <div className="py-4 text-center text-slate-400 text-[10px]">No expenses</div>;
-                      }
-
-                      return displayData.map((item: any) => {
-                        const label = item.category ? item.category.name : item.name;
-                        const color = item.category ? item.category.color : item.color;
-                        const percentage = globalSummary.totalExpense > 0 ? ((item.total / globalSummary.totalExpense) * 100).toFixed(0) : '0';
-
-                        return (
-                          <div key={label} className="flex items-center h-7 px-2 text-[11px] border-b border-slate-50 hover:bg-slate-50">
-                            <span className="w-2 h-2 rounded-full mr-2 shrink-0" style={{ backgroundColor: color || '#94a3b8' }}></span>
-                            <span className="flex-1 truncate text-slate-700 font-medium">{label}</span>
-                            <span className="text-[9px] text-slate-400 mr-2">{percentage}%</span>
-                            <span className="font-mono font-semibold text-slate-800">£{item.total.toLocaleString()}</span>
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                </div>
-              </div>
-
-              {/* Mobile: Recent Transactions */}
-              <div className="md:hidden px-2">
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="flex items-center justify-between px-2 py-1.5 bg-slate-50 border-b border-slate-200">
-                    <h3 className="text-[10px] font-bold text-slate-500 uppercase">Recent Transactions</h3>
-                    <span className="text-[10px] text-slate-400">{dateFilteredTransactions.length}</span>
-                  </div>
-                  <div className="max-h-[180px] overflow-y-auto">
-                    {dateFilteredTransactions.slice(0, 10).map(t => {
-                      const isExcluded = t.excluded || t.categoryId === 'excluded';
-                      const displayType = t.type;
-                      return (
-                        <div key={t.id} className={`flex items-center h-6 px-2 text-[10px] border-b border-slate-50 ${isExcluded ? 'opacity-40' : ''}`}>
-                          <span className={`w-1 h-3 rounded-sm mr-1.5 shrink-0 ${isExcluded ? 'bg-slate-300' : displayType === 'INCOME' ? 'bg-emerald-500' : 'bg-rose-400'}`}></span>
-                          <span className="flex-1 truncate text-slate-700">{t.description || 'Unknown'}</span>
-                          <span className={`ml-2 shrink-0 font-mono font-semibold ${isExcluded ? 'text-slate-400' : displayType === 'INCOME' ? 'text-emerald-600' : 'text-slate-800'}`}>
-                            {displayType === 'EXPENSE' ? '-' : ''}£{t.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
-                          </span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-white/80"></div>
+                          <span className="text-[11px] font-bold text-white">{cat.name}</span>
                         </div>
-                      );
-                    })}
-                    {dateFilteredTransactions.length === 0 && (
-                      <div className="py-3 text-center text-slate-400 text-[10px]">No transactions</div>
-                    )}
-                  </div>
-                </div>
+                        <span className="text-[11px] font-bold text-white/90 font-mono">£{catTotal.toLocaleString()}</span>
+                      </div>
+
+                      {/* Top Transactions */}
+                      <div>
+                        {topTransactions.map(t => (
+                          <div key={t.id} className="flex items-center h-6 px-2.5 text-[10px] border-b border-slate-50 last:border-b-0">
+                            <span className="flex-1 truncate text-slate-600">{t.description || 'Unknown'}</span>
+                            <span className="text-[9px] text-slate-400 mr-2">{t.subcategoryName}</span>
+                            <span className="font-mono font-semibold text-slate-700">£{t.amount.toLocaleString()}</span>
+                          </div>
+                        ))}
+                        {topTransactions.length === 0 && (
+                          <div className="py-2 text-center text-slate-400 text-[9px]">No transactions</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Row 2: Top 4 Transaction Widgets - Hidden on mobile */}
