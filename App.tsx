@@ -118,6 +118,40 @@ const App: React.FC = () => {
       'travel', 'apt',
       'food', 'groceries', 'personal'
   ]);
+
+  // Mobile Category Cards State
+  const [mobileCategoryIds, setMobileCategoryIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem('mobileCategoryIds');
+    return saved ? JSON.parse(saved) : ['groceries', 'personal', 'car', 'food'];
+  });
+
+  // Persist mobile category selection
+  useEffect(() => {
+    localStorage.setItem('mobileCategoryIds', JSON.stringify(mobileCategoryIds));
+  }, [mobileCategoryIds]);
+
+  const handleMobileCategoryChange = (index: number, newId: string) => {
+    const newIds = [...mobileCategoryIds];
+    newIds[index] = newId;
+    setMobileCategoryIds(newIds);
+  };
+
+  const handleAddMobileCard = () => {
+    // Find first category not already in the list
+    const unusedCat = expenseCategories.find(c => !mobileCategoryIds.includes(c.id));
+    if (unusedCat) {
+      setMobileCategoryIds([...mobileCategoryIds, unusedCat.id]);
+    } else if (expenseCategories.length > 0) {
+      // If all used, just add the first one
+      setMobileCategoryIds([...mobileCategoryIds, expenseCategories[0].id]);
+    }
+  };
+
+  const handleRemoveMobileCard = (index: number) => {
+    if (mobileCategoryIds.length > 1) {
+      setMobileCategoryIds(mobileCategoryIds.filter((_, i) => i !== index));
+    }
+  };
   
   // --- SUPABASE DATA FETCHING ---
   const fetchData = async () => {
@@ -890,29 +924,48 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Mobile: Category Cards Grid */}
+              {/* Mobile: Configurable Category Cards */}
               <div className="md:hidden px-2 space-y-2">
-                {expenseCategories.slice(0, 6).map(cat => {
+                {mobileCategoryIds.map((catId, index) => {
+                  const cat = expenseCategories.find(c => c.id === catId);
+                  if (!cat) return null;
+
                   const catTransactions = activeTransactions.filter(t => t.categoryId === cat.id);
                   const catTotal = catTransactions.reduce((sum, t) => sum + t.amount, 0);
                   const topTransactions = catTransactions
                     .sort((a, b) => b.amount - a.amount)
                     .slice(0, 3);
 
-                  if (catTotal === 0) return null;
-
                   return (
-                    <div key={cat.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                      {/* Category Header */}
+                    <div key={`mobile-${index}-${catId}`} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                      {/* Category Header with Selector */}
                       <div
-                        className="flex items-center justify-between px-2.5 py-2"
+                        className="flex items-center justify-between px-2 py-1.5"
                         style={{ backgroundColor: cat.color }}
                       >
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-white/80"></div>
-                          <span className="text-[11px] font-bold text-white">{cat.name}</span>
+                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                          <select
+                            value={catId}
+                            onChange={(e) => handleMobileCategoryChange(index, e.target.value)}
+                            className="bg-white/20 text-white text-[10px] font-bold rounded px-1.5 py-0.5 outline-none border-0 cursor-pointer appearance-none max-w-[100px] truncate"
+                            style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
+                          >
+                            {expenseCategories.map(c => (
+                              <option key={c.id} value={c.id} className="text-slate-900 bg-white">{c.name}</option>
+                            ))}
+                          </select>
                         </div>
-                        <span className="text-[11px] font-bold text-white/90 font-mono">£{catTotal.toLocaleString()}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold text-white/90 font-mono">£{catTotal.toLocaleString()}</span>
+                          {mobileCategoryIds.length > 1 && (
+                            <button
+                              onClick={() => handleRemoveMobileCard(index)}
+                              className="w-4 h-4 flex items-center justify-center bg-white/20 rounded text-white/80 hover:bg-white/30 text-[10px]"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {/* Top Transactions */}
@@ -931,6 +984,15 @@ const App: React.FC = () => {
                     </div>
                   );
                 })}
+
+                {/* Add Card Button */}
+                <button
+                  onClick={handleAddMobileCard}
+                  className="w-full py-2 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-[11px] font-bold hover:border-slate-300 hover:text-slate-500 transition-colors flex items-center justify-center gap-1"
+                >
+                  <Plus size={14} />
+                  Add Category Card
+                </button>
               </div>
 
               {/* Row 2: Top 4 Transaction Widgets - Hidden on mobile */}
