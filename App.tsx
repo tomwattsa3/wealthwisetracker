@@ -991,7 +991,7 @@ const App: React.FC = () => {
                       </div>
                       <div>
                         {topIncomeTransactions.map(t => (
-                          <div key={t.id} className="grid grid-cols-[1fr_80px_70px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0">
+                          <div key={t.id} className="grid grid-cols-[1fr_90px_65px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0">
                             <span className="truncate text-slate-600 px-2.5 border-r border-slate-100">{t.description || 'Unknown'}</span>
                             <span className="text-[9px] text-slate-400 px-2 border-r border-slate-100 truncate">{t.subcategoryName}</span>
                             <span className="font-mono font-semibold text-emerald-600 px-2 text-right">£{t.amount.toLocaleString()}</span>
@@ -1051,7 +1051,7 @@ const App: React.FC = () => {
                       {/* Top Transactions */}
                       <div>
                         {topTransactions.map(t => (
-                          <div key={t.id} className="grid grid-cols-[1fr_80px_70px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0">
+                          <div key={t.id} className="grid grid-cols-[1fr_90px_65px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0">
                             <span className="truncate text-slate-600 px-2.5 border-r border-slate-100">{t.description || 'Unknown'}</span>
                             <span className="text-[9px] text-slate-400 px-2 border-r border-slate-100 truncate">{t.subcategoryName}</span>
                             <span className="font-mono font-semibold text-slate-700 px-2 text-right">£{t.amount.toLocaleString()}</span>
