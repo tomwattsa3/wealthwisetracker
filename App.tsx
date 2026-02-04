@@ -101,7 +101,9 @@ const App: React.FC = () => {
       // Fetch Categories from Supabase (with fallback)
       let activeCategories = INITIAL_CATEGORIES;
       try {
+        console.log('Fetching categories...');
         const { data: catData, error: catError } = await supabase.from('Categories').select('*');
+        console.log('Categories response:', { data: catData, error: catError });
         if (!catError && catData && catData.length > 0) {
           activeCategories = catData.map(c => ({
             id: c.id,
@@ -110,9 +112,12 @@ const App: React.FC = () => {
             type: c.type as 'INCOME' | 'EXPENSE',
             color: c.color || '#94a3b8'
           }));
+          console.log('Loaded categories from Supabase:', activeCategories);
+        } else {
+          console.log('Using default categories');
         }
       } catch (catErr) {
-        console.log('Categories table not found, using defaults');
+        console.log('Categories table error, using defaults:', catErr);
       }
       setCategories(activeCategories);
 
