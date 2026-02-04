@@ -113,11 +113,31 @@ const App: React.FC = () => {
   const [breakdownViewMode, setBreakdownViewMode] = useState<'category' | 'subcategory'>('category');
 
   // Widget Configuration State
-  const [widgetCategoryIds, setWidgetCategoryIds] = useState<string[]>([
-      'groceries', 'personal', 'car', 'income_salary',
-      'travel', 'apt',
-      'food', 'groceries', 'personal'
-  ]);
+  const [widgetCategoryIds, setWidgetCategoryIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem('widgetCategoryIds');
+    return saved ? JSON.parse(saved) : ['groceries', 'personal', 'car', 'income_salary', 'travel', 'apt', 'food'];
+  });
+
+  // Persist desktop widget selection
+  useEffect(() => {
+    localStorage.setItem('widgetCategoryIds', JSON.stringify(widgetCategoryIds));
+  }, [widgetCategoryIds]);
+
+  const handleAddDesktopWidget = () => {
+    const allCats = [...expenseCategories, ...incomeCategories];
+    const unusedCat = allCats.find(c => !widgetCategoryIds.includes(c.id));
+    if (unusedCat) {
+      setWidgetCategoryIds([...widgetCategoryIds, unusedCat.id]);
+    } else if (allCats.length > 0) {
+      setWidgetCategoryIds([...widgetCategoryIds, allCats[0].id]);
+    }
+  };
+
+  const handleRemoveDesktopWidget = (index: number) => {
+    if (widgetCategoryIds.length > 1) {
+      setWidgetCategoryIds(widgetCategoryIds.filter((_, i) => i !== index));
+    }
+  };
 
   // Mobile Category Cards State
   const [mobileCategoryIds, setMobileCategoryIds] = useState<string[]>(() => {
@@ -995,42 +1015,46 @@ const App: React.FC = () => {
                 </button>
               </div>
 
-              {/* Row 2: Top 4 Transaction Widgets - Hidden on mobile */}
+              {/* Row 2: Category Widgets - Hidden on mobile */}
               <div className="hidden md:grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-                 {widgetCategoryIds.slice(0, 4).map((catId, index) => {
-                      const isIncomeWidget = index === 3;
+                 {widgetCategoryIds.map((catId, index) => {
+                      const cat = categories.find(c => c.id === catId);
+                      const isIncomeWidget = cat?.type === 'INCOME';
                       return (
-                        <CategoryTrendWidget
-                            key={`top-${index}-${catId}`}
-                            categoryId={catId}
-                            onCategoryChange={(newId) => handleWidgetCategoryChange(index, newId)}
-                            allCategories={isIncomeWidget ? incomeCategories : expenseCategories}
-                            transactions={activeTransactions}
-                        />
+                        <div key={`widget-${index}-${catId}`} className="relative group">
+                          <CategoryTrendWidget
+                              categoryId={catId}
+                              onCategoryChange={(newId) => handleWidgetCategoryChange(index, newId)}
+                              allCategories={isIncomeWidget ? incomeCategories : expenseCategories}
+                              transactions={activeTransactions}
+                          />
+                          {widgetCategoryIds.length > 1 && (
+                            <button
+                              onClick={() => handleRemoveDesktopWidget(index)}
+                              className="absolute -top-2 -right-2 w-5 h-5 bg-slate-200 hover:bg-rose-500 text-slate-500 hover:text-white rounded-full flex items-center justify-center text-xs font-bold opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+                              title="Remove widget"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
                       );
                  })}
+                 {/* Add Widget Button */}
+                 <button
+                   onClick={handleAddDesktopWidget}
+                   className="h-full min-h-[200px] border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 hover:border-slate-300 hover:text-slate-500 transition-colors flex flex-col items-center justify-center gap-2"
+                 >
+                   <Plus size={24} />
+                   <span className="text-sm font-semibold">Add Widget</span>
+                 </button>
               </div>
 
-              {/* Row 3: Summary + Remaining Widgets */}
+              {/* Row 3: Summary Card */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-6 px-2 sm:px-0">
 
-                 {/* Remaining Widgets - Left Side - Hidden on mobile */}
-                <div className="hidden lg:flex lg:col-span-8 xl:col-span-9 flex-col gap-6">
-                  <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                    {widgetCategoryIds.slice(4).map((catId, index) => (
-                      <CategoryTrendWidget
-                        key={`bottom-${index + 4}-${catId}`}
-                        categoryId={catId}
-                        onCategoryChange={(newId) => handleWidgetCategoryChange(index + 4, newId)}
-                        allCategories={expenseCategories}
-                        transactions={activeTransactions}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Summary Card - Full width on mobile */}
-                <div className="col-span-1 lg:col-span-4 xl:col-span-3 flex flex-col h-full">
+                {/* Summary Card - Full width on mobile, right side on desktop */}
+                <div className="col-span-1 lg:col-span-4 lg:col-start-9 flex flex-col h-full">
                   <div className="bg-white p-0 rounded-xl sm:rounded-2xl border border-slate-200 flex flex-col shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] h-full min-h-[300px] sm:min-h-[500px] overflow-hidden">
 
                     {/* Header - Compact on mobile */}
