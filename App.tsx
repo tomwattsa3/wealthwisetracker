@@ -92,25 +92,34 @@ const App: React.FC = () => {
   
   // --- SUPABASE DATA FETCHING ---
   const fetchData = async () => {
-    console.log('fetchData called');
     try {
       setLoading(true);
-      console.log('Loading set to true, setting banks and categories...');
 
-      // Use local constants for banks and categories (no DB tables for these)
+      // Use local constants for banks (no DB table)
       setBanks(INITIAL_BANKS);
-      setCategories(INITIAL_CATEGORIES);
+
+      // Fetch Categories from Supabase
+      const { data: catData, error: catError } = await supabase.from('Categories').select('*');
+      if (catError) throw catError;
+
+      const loadedCategories: Category[] = (catData || []).map(c => ({
+        id: c.id,
+        name: c.name,
+        subcategories: c.subcategories || [],
+        type: c.type as 'INCOME' | 'EXPENSE',
+        color: c.color || '#94a3b8'
+      }));
+
+      // Use loaded categories or fallback to initial
+      const activeCategories = loadedCategories.length > 0 ? loadedCategories : INITIAL_CATEGORIES;
+      setCategories(activeCategories);
 
       // Fetch Transactions from Supabase
-      console.log('About to fetch from Supabase...');
       const { data: txData, error: txError } = await supabase.from('Transactions').select('*');
-      console.log('Supabase response:', { data: txData, error: txError });
       if (txError) throw txError;
 
       // Map DB columns to app's expected format
-      console.log('Raw Supabase data:', txData);
       const mappedTxs: Transaction[] = (txData || []).map(t => {
-          // Determine if income or expense based on which column has value
           const moneyInGBP = t['Money In - GBP'] || 0;
           const moneyOutGBP = t['Money Out - GBP'] || 0;
           const moneyInAED = t['Money In - AED'] || 0;
@@ -123,14 +132,10 @@ const App: React.FC = () => {
 
           // Find categoryId from category name
           const categoryName = t['Catagory'] || '';
-          const matchedCategory = INITIAL_CATEGORIES.find(c =>
+          const matchedCategory = activeCategories.find(c =>
             c.name.toLowerCase() === categoryName.toLowerCase()
           );
           const categoryId = matchedCategory?.id || '';
-
-          if (!matchedCategory) {
-            console.log('No match for category:', categoryName, '| Available:', INITIAL_CATEGORIES.map(c => c.name));
-          }
 
           return {
             id: String(t.id),
@@ -143,18 +148,16 @@ const App: React.FC = () => {
             categoryName,
             subcategoryName: t['Sub-Category'] || '',
             description: t['Description'] || '',
-            notes: '',
-            excluded: false,
+            notes: t['Notes'] || '',
+            excluded: categoryId === 'excluded',
             bankName: t['Bank Account'] || ''
           };
       });
 
-      console.log('Mapped transactions:', mappedTxs);
       setTransactions(mappedTxs);
 
     } catch (error) {
       console.error('Error fetching data from Supabase:', error);
-      // Fallback to local constants if connection fails
       setCategories(INITIAL_CATEGORIES);
       setBanks(INITIAL_BANKS);
       setTransactions([]);
@@ -170,32 +173,41 @@ const App: React.FC = () => {
 
   // --- HANDLERS (UPDATED FOR SUPABASE) ---
 
-  const handleAddCategory = (newCat: Category) => {
-    // Local only - no categories table in DB
+  const handleAddCategory = async (newCat: Category) => {
     setCategories(prev => [...prev, newCat]);
+    await supabase.from('Categories').insert({
+      id: newCat.id,
+      name: newCat.name,
+      subcategories: newCat.subcategories,
+      type: newCat.type,
+      color: newCat.color
+    });
   };
 
-  const handleAddSubcategory = (catId: string, sub: string) => {
+  const handleAddSubcategory = async (catId: string, sub: string) => {
     const categoryToUpdate = categories.find(c => c.id === catId);
     if (!categoryToUpdate) return;
 
     if (!categoryToUpdate.subcategories.includes(sub)) {
         const updatedSubs = [...categoryToUpdate.subcategories, sub];
         setCategories(prev => prev.map(c => c.id === catId ? { ...c, subcategories: updatedSubs } : c));
+        await supabase.from('Categories').update({ subcategories: updatedSubs }).eq('id', catId);
     }
   };
 
-  const handleDeleteSubcategory = (catId: string, sub: string) => {
+  const handleDeleteSubcategory = async (catId: string, sub: string) => {
     const categoryToUpdate = categories.find(c => c.id === catId);
     if (!categoryToUpdate) return;
 
     const updatedSubs = categoryToUpdate.subcategories.filter(s => s !== sub);
     setCategories(prev => prev.map(c => c.id === catId ? { ...c, subcategories: updatedSubs } : c));
+    await supabase.from('Categories').update({ subcategories: updatedSubs }).eq('id', catId);
   };
 
-  const handleDeleteCategory = (catId: string) => {
+  const handleDeleteCategory = async (catId: string) => {
     if (catId === 'excluded') return;
     setCategories(prev => prev.filter(c => c.id !== catId));
+    await supabase.from('Categories').delete().eq('id', catId);
   };
 
   const handleAddBank = (newBank: Bank) => {
@@ -240,7 +252,8 @@ const App: React.FC = () => {
         'Money In - GBP': isIncome ? newTx.amount : null,
         'Money Out - AED': isIncome ? null : (newTx.originalAmount || null),
         'Money In - AED': isIncome ? (newTx.originalAmount || null) : null,
-        'Bank Account': newTx.bankName
+        'Bank Account': newTx.bankName,
+        'Notes': newTx.notes || null
     };
 
     const { data } = await supabase.from('Transactions').insert(dbPayload).select();
@@ -312,6 +325,7 @@ const App: React.FC = () => {
     if (updates.categoryName !== undefined) dbUpdates['Catagory'] = updates.categoryName;
     if (updates.subcategoryName !== undefined) dbUpdates['Sub-Category'] = updates.subcategoryName;
     if (updates.description !== undefined) dbUpdates['Description'] = updates.description;
+    if (updates.notes !== undefined) dbUpdates['Notes'] = updates.notes;
 
     // Handle amount updates (need to know if income or expense)
     if (updates.amount !== undefined && updates.type !== undefined) {
