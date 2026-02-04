@@ -870,10 +870,10 @@ const App: React.FC = () => {
 
           {/* DASHBOARD VIEW */}
           {activeTab === 'home' && (
-            <div className="space-y-6 animate-in fade-in duration-500">
-              
+            <div className="space-y-3 sm:space-y-6 animate-in fade-in duration-500">
+
               {/* Row 1: KPI Cards - Minimal Style - Always 3 columns, compact on mobile */}
-              <div className="pl-4 sm:pl-0">
+              <div className="pl-2 sm:pl-0">
                 <div className="grid grid-cols-3 gap-1.5 sm:gap-4">
                    <div className="h-16 sm:h-28">
                      <StatsCard label="Income" amount={summary.totalIncome} type="INCOME" filled />
@@ -887,8 +887,36 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Row 2: Top 4 Transaction Widgets */}
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+              {/* Mobile: Recent Transactions - Compact List */}
+              <div className="md:hidden px-2">
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="flex items-center justify-between px-2 py-1.5 bg-slate-50 border-b border-slate-200">
+                    <h3 className="text-[10px] font-bold text-slate-500 uppercase">Recent Transactions</h3>
+                    <span className="text-[10px] text-slate-400">{dateFilteredTransactions.length} total</span>
+                  </div>
+                  <div className="max-h-[250px] overflow-y-auto">
+                    {dateFilteredTransactions.slice(0, 15).map(t => {
+                      const isExcluded = t.excluded || t.categoryId === 'excluded';
+                      const displayType = t.type;
+                      return (
+                        <div key={t.id} className={`flex items-center h-6 px-2 text-[10px] border-b border-slate-50 ${isExcluded ? 'opacity-40' : ''}`}>
+                          <span className={`w-1 h-3 rounded-sm mr-1.5 shrink-0 ${isExcluded ? 'bg-slate-300' : displayType === 'INCOME' ? 'bg-emerald-500' : 'bg-rose-400'}`}></span>
+                          <span className="flex-1 truncate text-slate-700">{t.description || 'Unknown'}</span>
+                          <span className={`ml-2 shrink-0 font-mono font-semibold ${isExcluded ? 'text-slate-400' : displayType === 'INCOME' ? 'text-emerald-600' : 'text-slate-800'}`}>
+                            {displayType === 'EXPENSE' ? '-' : ''}£{t.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {dateFilteredTransactions.length === 0 && (
+                      <div className="py-4 text-center text-slate-400 text-xs">No transactions</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2: Top 4 Transaction Widgets - Hidden on mobile */}
+              <div className="hidden md:grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                  {widgetCategoryIds.slice(0, 4).map((catId, index) => {
                       const isIncomeWidget = index === 3;
                       return (
@@ -904,10 +932,10 @@ const App: React.FC = () => {
               </div>
 
               {/* Row 3: Summary + Remaining Widgets */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                
-                 {/* Remaining Widgets - Left Side */}
-                <div className="lg:col-span-8 xl:col-span-9 flex flex-col gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-6 px-2 sm:px-0">
+
+                 {/* Remaining Widgets - Left Side - Hidden on mobile */}
+                <div className="hidden lg:flex lg:col-span-8 xl:col-span-9 flex-col gap-6">
                   <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     {widgetCategoryIds.slice(4).map((catId, index) => (
                       <CategoryTrendWidget
@@ -921,53 +949,53 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Summary Card - Right Side */}
-                <div className="lg:col-span-4 xl:col-span-3 flex flex-col h-full">
-                  <div className="bg-white p-0 rounded-2xl border border-slate-200 flex flex-col shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] h-full min-h-[500px] overflow-hidden">
-                    
-                    {/* Header - Simple */}
-                    <div className="flex flex-col gap-3 p-3 border-b border-slate-50 flex-shrink-0 bg-white">
+                {/* Summary Card - Full width on mobile */}
+                <div className="col-span-1 lg:col-span-4 xl:col-span-3 flex flex-col h-full">
+                  <div className="bg-white p-0 rounded-xl sm:rounded-2xl border border-slate-200 flex flex-col shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] h-full min-h-[300px] sm:min-h-[500px] overflow-hidden">
+
+                    {/* Header - Compact on mobile */}
+                    <div className="flex flex-col gap-2 sm:gap-3 p-2 sm:p-3 border-b border-slate-50 flex-shrink-0 bg-white">
                        <div className="flex justify-between items-center">
                            {/* View Mode Toggle */}
                            {filterCategory === 'all' && filterSubcategory === 'all' ? (
                                <div className="flex bg-slate-100 p-0.5 rounded-lg">
-                                   <button 
+                                   <button
                                       onClick={() => setBreakdownViewMode('category')}
-                                      className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${breakdownViewMode === 'category' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                      className={`px-2 sm:px-3 py-1 text-[9px] sm:text-[10px] font-bold rounded-md transition-all ${breakdownViewMode === 'category' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                    >
                                        Categories
                                    </button>
-                                   <button 
+                                   <button
                                       onClick={() => setBreakdownViewMode('subcategory')}
-                                      className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${breakdownViewMode === 'subcategory' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                      className={`px-2 sm:px-3 py-1 text-[9px] sm:text-[10px] font-bold rounded-md transition-all ${breakdownViewMode === 'subcategory' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                    >
                                        Subcategories
                                    </button>
                                </div>
                            ) : (
-                               <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
+                               <h3 className="text-xs sm:text-sm font-bold text-slate-800 uppercase tracking-wide">
                                  {filterCategory !== 'all' ? 'Breakdown' : 'Filtered'}
                                </h3>
                            )}
 
                            {(filterCategory !== 'all' || filterSubcategory !== 'all') && (
-                              <button 
+                              <button
                                   onClick={handleResetFilters}
-                                  className="text-[10px] font-bold text-rose-500 bg-rose-50 px-2 py-1 rounded-full hover:bg-rose-100 transition-colors"
+                                  className="text-[9px] sm:text-[10px] font-bold text-rose-500 bg-rose-50 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full hover:bg-rose-100 transition-colors"
                               >
                                   Reset
                               </button>
                           )}
                        </div>
-                       
-                       <div className="flex flex-col gap-2">
-                          <select 
+
+                       <div className="flex gap-2">
+                          <select
                               value={filterCategory}
                               onChange={(e) => {
                                   setFilterCategory(e.target.value);
-                                  setFilterSubcategory('all'); 
+                                  setFilterSubcategory('all');
                               }}
-                              className="w-full bg-slate-50 border border-slate-100 text-slate-700 text-xs font-bold rounded-lg focus:border-slate-300 focus:ring-1 focus:ring-slate-200 block px-3 py-2 outline-none hover:bg-slate-100 transition-colors cursor-pointer appearance-none"
+                              className="flex-1 bg-slate-50 border border-slate-100 text-slate-700 text-[10px] sm:text-xs font-bold rounded-lg focus:border-slate-300 focus:ring-1 focus:ring-slate-200 block px-2 sm:px-3 py-1.5 sm:py-2 outline-none hover:bg-slate-100 transition-colors cursor-pointer appearance-none"
                           >
                               <option value="all">Category: All</option>
                               {expenseCategories.map(cat => (
@@ -975,12 +1003,12 @@ const App: React.FC = () => {
                               ))}
                           </select>
 
-                          <select 
+                          <select
                               value={filterSubcategory}
                               onChange={(e) => setFilterSubcategory(e.target.value)}
-                              className={`w-full bg-slate-50 border border-slate-100 text-slate-700 text-xs font-bold rounded-lg focus:border-slate-300 focus:ring-1 focus:ring-slate-200 block px-3 py-2 outline-none hover:bg-slate-100 transition-colors cursor-pointer appearance-none`}
+                              className="flex-1 bg-slate-50 border border-slate-100 text-slate-700 text-[10px] sm:text-xs font-bold rounded-lg focus:border-slate-300 focus:ring-1 focus:ring-slate-200 block px-2 sm:px-3 py-1.5 sm:py-2 outline-none hover:bg-slate-100 transition-colors cursor-pointer appearance-none"
                           >
-                              <option value="all">Subcategory: All</option>
+                              <option value="all">Sub: All</option>
                               {availableSubcategories.map(sub => (
                                   <option key={sub} value={sub}>{sub}</option>
                               ))}
@@ -989,8 +1017,8 @@ const App: React.FC = () => {
                     </div>
 
                     {/* Expandable Category List & Total */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-4">
-                        <div className="space-y-4">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-2 sm:p-4">
+                        <div className="space-y-2 sm:space-y-4">
                             {(() => {
                                 let displayData: { name?: string; category?: Category; total: number; color?: string; parentId?: string }[] = [];
                                 let listType: 'category' | 'subcategory' = 'category';
@@ -1010,7 +1038,7 @@ const App: React.FC = () => {
                                 }
 
                                 if (displayData.length === 0) {
-                                    return <div className="flex items-center justify-center h-20 text-slate-400 text-xs">No expenses found</div>;
+                                    return <div className="flex items-center justify-center h-16 sm:h-20 text-slate-400 text-[10px] sm:text-xs">No expenses found</div>;
                                 }
 
                                 return displayData.map((item: any) => {
@@ -1021,26 +1049,26 @@ const App: React.FC = () => {
 
                                     return (
                                         <div key={label} className="group">
-                                        <div className="flex items-center gap-3 mb-1.5">
-                                            <div className="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 group-hover:bg-slate-100 transition-colors">
+                                        <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-1.5">
+                                            <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 group-hover:bg-slate-100 transition-colors">
                                                 {getCategoryIcon(iconId)}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <div className="flex justify-between items-baseline mb-1">
-                                                    <span className="text-sm font-semibold text-slate-700 group-hover:text-slate-900 transition-colors truncate">{label}</span>
-                                                    <span className="text-xs font-medium text-slate-500">({percentage}%)</span>
+                                                <div className="flex justify-between items-baseline mb-0.5 sm:mb-1">
+                                                    <span className="text-[11px] sm:text-sm font-semibold text-slate-700 group-hover:text-slate-900 transition-colors truncate">{label}</span>
+                                                    <span className="text-[9px] sm:text-xs font-medium text-slate-500">({percentage}%)</span>
                                                 </div>
                                                 <div className="w-full bg-slate-100 rounded-full h-1 overflow-hidden">
-                                                    <div 
-                                                    className="h-full rounded-full transition-all duration-500 ease-out opacity-80" 
-                                                    style={{ 
+                                                    <div
+                                                    className="h-full rounded-full transition-all duration-500 ease-out opacity-80"
+                                                    style={{
                                                         width: `${percentage}%`,
-                                                        backgroundColor: color || '#94a3b8' 
+                                                        backgroundColor: color || '#94a3b8'
                                                     }}
                                                     ></div>
                                                 </div>
                                                 <div className="text-right mt-0.5">
-                                                    <span className="text-xs font-bold text-slate-900 font-mono">£{item.total.toLocaleString()}</span>
+                                                    <span className="text-[10px] sm:text-xs font-bold text-slate-900 font-mono">£{item.total.toLocaleString()}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -1049,12 +1077,12 @@ const App: React.FC = () => {
                                 });
                             })()}
                         </div>
-                        
+
                         {/* Total Display */}
-                        <div className="pt-6 mt-4 border-t border-slate-100 flex-shrink-0">
-                            <div className="flex flex-col gap-1">
-                                <span className="text-xs text-slate-400 uppercase font-bold tracking-wider">Total Expenses</span>
-                                <span className="text-3xl font-bold text-slate-900 font-mono">£{globalSummary.totalExpense.toLocaleString()}</span>
+                        <div className="pt-3 sm:pt-6 mt-2 sm:mt-4 border-t border-slate-100 flex-shrink-0">
+                            <div className="flex flex-col gap-0.5 sm:gap-1">
+                                <span className="text-[10px] sm:text-xs text-slate-400 uppercase font-bold tracking-wider">Total Expenses</span>
+                                <span className="text-xl sm:text-3xl font-bold text-slate-900 font-mono">£{globalSummary.totalExpense.toLocaleString()}</span>
                             </div>
                         </div>
 
