@@ -92,15 +92,17 @@ const App: React.FC = () => {
   
   // --- SUPABASE DATA FETCHING ---
   const fetchData = async () => {
+    console.log('fetchData called');
     try {
       setLoading(true);
+      console.log('Loading set to true, setting banks and categories...');
 
       // Use local constants for banks and categories (no DB tables for these)
       setBanks(INITIAL_BANKS);
       setCategories(INITIAL_CATEGORIES);
 
       // Fetch Transactions from Supabase
-      console.log('Fetching from Supabase...');
+      console.log('About to fetch from Supabase...');
       const { data: txData, error: txError } = await supabase.from('Transactions').select('*');
       console.log('Supabase response:', { data: txData, error: txError });
       if (txError) throw txError;
@@ -157,6 +159,7 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    console.log('App mounted, calling fetchData...');
     fetchData();
   }, []);
 
