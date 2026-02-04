@@ -991,14 +991,14 @@ const App: React.FC = () => {
                       </div>
                       <div>
                         {topIncomeTransactions.map(t => (
-                          <div key={t.id} className="flex items-center h-6 px-2.5 text-[10px] border-b border-slate-50 last:border-b-0">
-                            <span className="flex-1 truncate text-slate-600">{t.description || 'Unknown'}</span>
-                            <span className="text-[9px] text-slate-400 mr-2">{t.subcategoryName}</span>
-                            <span className="font-mono font-semibold text-emerald-600">£{t.amount.toLocaleString()}</span>
+                          <div key={t.id} className="grid grid-cols-[1fr_auto_auto] items-center h-8 text-xs border-b border-slate-100 last:border-b-0">
+                            <span className="truncate text-slate-600 px-2.5 border-r border-slate-100">{t.description || 'Unknown'}</span>
+                            <span className="text-[11px] text-slate-400 px-2.5 border-r border-slate-100 min-w-[70px] text-center">{t.subcategoryName}</span>
+                            <span className="font-mono font-semibold text-emerald-600 px-2.5 min-w-[70px] text-right">£{t.amount.toLocaleString()}</span>
                           </div>
                         ))}
                         {topIncomeTransactions.length === 0 && (
-                          <div className="py-2 text-center text-slate-400 text-[9px]">No income</div>
+                          <div className="py-3 text-center text-slate-400 text-xs">No income</div>
                         )}
                       </div>
                     </div>
@@ -1051,14 +1051,14 @@ const App: React.FC = () => {
                       {/* Top Transactions */}
                       <div>
                         {topTransactions.map(t => (
-                          <div key={t.id} className="flex items-center h-6 px-2.5 text-[10px] border-b border-slate-50 last:border-b-0">
-                            <span className="flex-1 truncate text-slate-600">{t.description || 'Unknown'}</span>
-                            <span className="text-[9px] text-slate-400 mr-2">{t.subcategoryName}</span>
-                            <span className="font-mono font-semibold text-slate-700">£{t.amount.toLocaleString()}</span>
+                          <div key={t.id} className="grid grid-cols-[1fr_auto_auto] items-center h-8 text-xs border-b border-slate-100 last:border-b-0">
+                            <span className="truncate text-slate-600 px-2.5 border-r border-slate-100">{t.description || 'Unknown'}</span>
+                            <span className="text-[11px] text-slate-400 px-2.5 border-r border-slate-100 min-w-[70px] text-center">{t.subcategoryName}</span>
+                            <span className="font-mono font-semibold text-slate-700 px-2.5 min-w-[70px] text-right">£{t.amount.toLocaleString()}</span>
                           </div>
                         ))}
                         {topTransactions.length === 0 && (
-                          <div className="py-2 text-center text-slate-400 text-[9px]">No transactions</div>
+                          <div className="py-3 text-center text-slate-400 text-xs">No transactions</div>
                         )}
                       </div>
                     </div>
