@@ -220,10 +220,14 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     return (
         <>
             {/* Mobile Row */}
-            <div className={`md:hidden flex items-center h-5 px-1 text-[10px] border-b border-slate-50 ${isExcluded ? 'opacity-40' : ''}`}>
-                <span className={`w-1 h-3 rounded-sm mr-1.5 shrink-0 ${isExcluded ? 'bg-slate-300' : displayType === 'INCOME' ? 'bg-emerald-500' : 'bg-rose-400'}`}></span>
-                <span className="flex-1 truncate text-slate-700">{t.description || 'No merchant'}</span>
-                <span className={`ml-2 shrink-0 font-mono font-semibold ${isExcluded ? 'text-slate-400' : displayType === 'INCOME' ? 'text-emerald-600' : 'text-slate-800'}`}>
+            <div className={`md:hidden grid grid-cols-[1fr_auto_auto_auto] items-center h-9 text-xs border-b border-slate-100 ${isExcluded ? 'opacity-40' : ''}`}>
+                <div className="flex items-center gap-1.5 px-2 border-r border-slate-100 min-w-0">
+                    <span className={`w-1.5 h-4 rounded-sm shrink-0 ${isExcluded ? 'bg-slate-300' : displayType === 'INCOME' ? 'bg-emerald-500' : 'bg-rose-400'}`}></span>
+                    <span className="truncate text-slate-700 font-medium">{t.description || 'No merchant'}</span>
+                </div>
+                <span className="px-2 text-[10px] text-slate-500 font-semibold border-r border-slate-100 min-w-[60px] text-center truncate">{currentCategory?.name || '-'}</span>
+                <span className="px-2 text-[10px] text-slate-400 border-r border-slate-100 min-w-[60px] text-center truncate">{t.subcategoryName || '-'}</span>
+                <span className={`px-2 min-w-[70px] text-right font-mono font-semibold ${isExcluded ? 'text-slate-400' : displayType === 'INCOME' ? 'text-emerald-600' : 'text-slate-800'}`}>
                     {displayType === 'EXPENSE' ? '-' : ''}£{t.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
                 </span>
             </div>
@@ -430,9 +434,11 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
         </div>
 
         {/* Mobile Header */}
-        <div className="md:hidden flex items-center h-4 px-1 text-[8px] font-bold text-slate-400 uppercase border-b border-slate-200 bg-slate-50">
-            <span className="flex-1 ml-2.5">Merchant</span>
-            <span>Amount</span>
+        <div className="md:hidden grid grid-cols-[1fr_auto_auto_auto] items-center h-6 text-[9px] font-bold text-slate-400 uppercase border-b border-slate-200 bg-slate-50">
+            <span className="px-2 border-r border-slate-200">Merchant</span>
+            <span className="px-2 min-w-[60px] text-center border-r border-slate-200">Category</span>
+            <span className="px-2 min-w-[60px] text-center border-r border-slate-200">Sub</span>
+            <span className="px-2 min-w-[70px] text-right">Amount</span>
         </div>
 
         {/* Rows */}
