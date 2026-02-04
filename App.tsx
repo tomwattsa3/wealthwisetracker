@@ -672,10 +672,10 @@ const App: React.FC = () => {
       <div className="max-w-[1920px] mx-auto h-full flex flex-col md:flex-row md:gap-0">
         
         {/* Collapsible Sidebar - Simplified Styles */}
-        <nav 
+        <nav
           className={`
-            fixed bottom-0 left-0 w-full bg-white border-t border-slate-100 z-50 
-            md:relative md:border-r md:border-t-0 md:flex-col md:h-full md:p-4 md:justify-start 
+            fixed bottom-0 left-0 w-full bg-white border-t border-slate-100 z-50 pb-2 pt-1
+            md:relative md:border-r md:border-t-0 md:flex-col md:h-full md:p-4 md:pb-4 md:pt-4 md:justify-start
             transition-all duration-300 ease-in-out
             ${isSidebarCollapsed ? 'md:w-20' : 'md:w-64'}
           `}
@@ -700,19 +700,19 @@ const App: React.FC = () => {
              )}
            </div>
 
-           <div className="flex justify-around items-center h-16 md:flex-col md:h-auto md:gap-1 md:items-stretch overflow-x-auto md:overflow-x-visible no-scrollbar">
+           <div className="flex justify-around items-center px-2 md:flex-col md:h-auto md:gap-1 md:items-stretch md:px-0 overflow-x-auto md:overflow-x-visible no-scrollbar">
              {[
-               { id: 'home', icon: Home, label: 'Dashboard', mobileOnly: true },
-               { id: 'history', icon: ArrowRightLeft, label: 'Transactions', mobileOnly: true },
-               { id: 'yearly', icon: CalendarRange, label: 'Yearly', mobileOnly: true },
-               { id: 'categories', icon: FolderCog, label: 'Categories', mobileOnly: true },
-               { id: 'settings', icon: Settings, label: 'Settings', mobileOnly: false }
+               { id: 'home', icon: Home, label: 'Dashboard', mobileLabel: 'Home', mobileOnly: true },
+               { id: 'history', icon: ArrowRightLeft, label: 'Transactions', mobileLabel: 'Trans', mobileOnly: true },
+               { id: 'yearly', icon: CalendarRange, label: 'Yearly', mobileLabel: 'Yearly', mobileOnly: true },
+               { id: 'categories', icon: FolderCog, label: 'Categories', mobileLabel: 'Cats', mobileOnly: true },
+               { id: 'settings', icon: Settings, label: 'Settings', mobileLabel: 'Settings', mobileOnly: false }
              ].map((item) => (
                <button
                  key={item.id}
                  onClick={() => setActiveTab(item.id as any)}
                  className={`
-                   flex md:gap-3 p-2.5 items-center justify-center rounded-xl transition-all duration-200 group relative flex-shrink-0
+                   flex flex-col md:flex-row md:gap-3 p-1.5 md:p-2.5 items-center justify-center rounded-lg md:rounded-xl transition-all duration-200 group relative flex-shrink-0
                    ${activeTab === item.id
                      ? 'text-slate-900 bg-slate-100 font-semibold'
                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}
@@ -721,6 +721,9 @@ const App: React.FC = () => {
                  `}
                >
                  <item.icon size={18} strokeWidth={activeTab === item.id ? 2.5 : 2} />
+                 {/* Mobile label */}
+                 <span className="text-[9px] mt-0.5 md:hidden">{item.mobileLabel}</span>
+                 {/* Desktop label */}
                  {!isSidebarCollapsed && <span className="text-sm hidden md:block">{item.id === 'yearly' ? 'Yearly Summary' : item.label}</span>}
 
                  {/* Tooltip for collapsed state */}
