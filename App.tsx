@@ -1040,7 +1040,7 @@ const App: React.FC = () => {
                  {widgetCategoryIds.slice(0, 4).map((catId, index) => {
                       const isIncomeWidget = index === 3;
                       return (
-                        <div key={`top-${index}-${catId}`} className="relative group">
+                        <div key={`top-${index}-${catId}`} className="relative">
                           <CategoryTrendWidget
                               categoryId={catId}
                               onCategoryChange={(newId) => handleWidgetCategoryChange(index, newId)}
@@ -1050,7 +1050,7 @@ const App: React.FC = () => {
                           {widgetCategoryIds.length > 1 && (
                             <button
                               onClick={() => handleRemoveDesktopWidget(index)}
-                              className="absolute top-2 right-2 w-6 h-6 bg-slate-900/80 hover:bg-rose-500 text-white rounded-lg flex items-center justify-center text-sm font-bold opacity-0 group-hover:opacity-100 transition-all shadow-md z-10"
+                              className="absolute top-3 right-3 w-6 h-6 bg-slate-200 hover:bg-rose-500 text-slate-500 hover:text-white rounded-full flex items-center justify-center text-sm font-bold transition-all shadow-sm z-20"
                               title="Remove widget"
                             >
                               ×
@@ -1068,7 +1068,7 @@ const App: React.FC = () => {
                 <div className="hidden lg:flex lg:col-span-8 xl:col-span-9 flex-col gap-6">
                   <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     {widgetCategoryIds.slice(4).map((catId, index) => (
-                      <div key={`bottom-${index + 4}-${catId}`} className="relative group">
+                      <div key={`bottom-${index + 4}-${catId}`} className="relative">
                         <CategoryTrendWidget
                           categoryId={catId}
                           onCategoryChange={(newId) => handleWidgetCategoryChange(index + 4, newId)}
@@ -1078,7 +1078,7 @@ const App: React.FC = () => {
                         {widgetCategoryIds.length > 1 && (
                           <button
                             onClick={() => handleRemoveDesktopWidget(index + 4)}
-                            className="absolute top-2 right-2 w-6 h-6 bg-slate-900/80 hover:bg-rose-500 text-white rounded-lg flex items-center justify-center text-sm font-bold opacity-0 group-hover:opacity-100 transition-all shadow-md z-10"
+                            className="absolute top-3 right-3 w-6 h-6 bg-slate-200 hover:bg-rose-500 text-slate-500 hover:text-white rounded-full flex items-center justify-center text-sm font-bold transition-all shadow-sm z-20"
                             title="Remove widget"
                           >
                             ×
