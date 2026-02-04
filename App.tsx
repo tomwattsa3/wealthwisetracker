@@ -133,10 +133,30 @@ const App: React.FC = () => {
     }
   };
 
+  // Widget deletion confirmation modal
+  const [widgetToDelete, setWidgetToDelete] = useState<{ type: 'desktop' | 'mobile', index: number } | null>(null);
+
   const handleRemoveDesktopWidget = (index: number) => {
-    if (widgetCategoryIds.length > 1) {
-      setWidgetCategoryIds(widgetCategoryIds.filter((_, i) => i !== index));
+    setWidgetToDelete({ type: 'desktop', index });
+  };
+
+  const handleRemoveMobileCardWithConfirm = (index: number) => {
+    setWidgetToDelete({ type: 'mobile', index });
+  };
+
+  const confirmWidgetDelete = () => {
+    if (!widgetToDelete) return;
+
+    if (widgetToDelete.type === 'desktop' && widgetCategoryIds.length > 1) {
+      setWidgetCategoryIds(widgetCategoryIds.filter((_, i) => i !== widgetToDelete.index));
+    } else if (widgetToDelete.type === 'mobile' && mobileCategoryIds.length > 1) {
+      setMobileCategoryIds(mobileCategoryIds.filter((_, i) => i !== widgetToDelete.index));
     }
+    setWidgetToDelete(null);
+  };
+
+  const cancelWidgetDelete = () => {
+    setWidgetToDelete(null);
   };
 
   // Mobile Category Cards State
@@ -979,8 +999,8 @@ const App: React.FC = () => {
                           <span className="text-[11px] font-bold text-white/90 font-mono">£{catTotal.toLocaleString()}</span>
                           {mobileCategoryIds.length > 1 && (
                             <button
-                              onClick={() => handleRemoveMobileCard(index)}
-                              className="w-4 h-4 flex items-center justify-center bg-white/20 rounded text-white/80 hover:bg-white/30 text-[10px]"
+                              onClick={() => handleRemoveMobileCardWithConfirm(index)}
+                              className="w-5 h-5 flex items-center justify-center bg-white/20 rounded text-white hover:bg-white/30 text-xs font-bold"
                             >
                               ×
                             </button>
@@ -1030,7 +1050,7 @@ const App: React.FC = () => {
                           {widgetCategoryIds.length > 1 && (
                             <button
                               onClick={() => handleRemoveDesktopWidget(index)}
-                              className="absolute -top-2 -right-2 w-5 h-5 bg-slate-200 hover:bg-rose-500 text-slate-500 hover:text-white rounded-full flex items-center justify-center text-xs font-bold opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+                              className="absolute top-2 right-2 w-6 h-6 bg-slate-900/80 hover:bg-rose-500 text-white rounded-lg flex items-center justify-center text-sm font-bold opacity-0 group-hover:opacity-100 transition-all shadow-md z-10"
                               title="Remove widget"
                             >
                               ×
@@ -1058,7 +1078,7 @@ const App: React.FC = () => {
                         {widgetCategoryIds.length > 1 && (
                           <button
                             onClick={() => handleRemoveDesktopWidget(index + 4)}
-                            className="absolute -top-2 -right-2 w-5 h-5 bg-slate-200 hover:bg-rose-500 text-slate-500 hover:text-white rounded-full flex items-center justify-center text-xs font-bold opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+                            className="absolute top-2 right-2 w-6 h-6 bg-slate-900/80 hover:bg-rose-500 text-white rounded-lg flex items-center justify-center text-sm font-bold opacity-0 group-hover:opacity-100 transition-all shadow-md z-10"
                             title="Remove widget"
                           >
                             ×
@@ -1414,13 +1434,42 @@ const App: React.FC = () => {
         </main>
       </div>
 
-      <TransactionForm 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onAddTransaction={addTransaction} 
+      <TransactionForm
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onAddTransaction={addTransaction}
         categories={categories}
         banks={banks}
       />
+
+      {/* Widget Delete Confirmation Modal */}
+      {widgetToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-center w-12 h-12 bg-rose-100 rounded-full mx-auto mb-4">
+              <X className="text-rose-600" size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 text-center mb-2">Remove Widget?</h3>
+            <p className="text-sm text-slate-500 text-center mb-6">
+              Are you sure you want to remove this category card from your dashboard?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={cancelWidgetDelete}
+                className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 font-semibold rounded-xl hover:bg-slate-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmWidgetDelete}
+                className="flex-1 px-4 py-2.5 bg-rose-500 text-white font-semibold rounded-xl hover:bg-rose-600 transition-colors"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
