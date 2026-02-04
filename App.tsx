@@ -438,11 +438,11 @@ const App: React.FC = () => {
     return transactions.filter(t => t.excluded || t.categoryId === 'excluded');
   }, [transactions]);
 
-  // 5. Search & Filter Logic (For Transaction List - Pulls direct from transactions)
+  // 5. Search & Filter Logic (For Transaction List - Uses date-filtered transactions)
   // Excluded transactions ARE shown in the list but not counted in totals
   const filteredTransactions = useMemo(() => {
-    // Always use full history for the transaction list to ensure "Feed" behavior
-    const sourceData = transactions;
+    // Use dateFilteredTransactions to respect the date selector
+    const sourceData = dateFilteredTransactions;
 
     return sourceData.filter(t => {
       if (filterType !== 'all' && t.type !== filterType) return false;
@@ -466,7 +466,7 @@ const App: React.FC = () => {
 
       return true;
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, searchQuery, filterCategory, filterSubcategory, filterType, filterBank]);
+  }, [dateFilteredTransactions, searchQuery, filterCategory, filterSubcategory, filterType, filterBank]);
 
   // Calculate total for filtered view (History Tab Total) - excludes excluded transactions
   const filteredTotal = useMemo(() => {
