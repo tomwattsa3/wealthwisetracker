@@ -468,14 +468,20 @@ const App: React.FC = () => {
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [dateFilteredTransactions, searchQuery, filterCategory, filterSubcategory, filterType, filterBank]);
 
-  // Calculate total for filtered view (History Tab Total) - excludes excluded transactions
+  // Check if any specific filters are active (not including date filter)
+  const hasActiveFilters = filterType !== 'all' || filterBank !== 'all' || filterCategory !== 'all' || filterSubcategory !== 'all' || searchQuery.trim() !== '';
+
+  // Calculate total for filtered view (History Tab Total) - only shows value when filters are active
   const filteredTotal = useMemo(() => {
+    // Return 0 if no filters are active
+    if (!hasActiveFilters) return 0;
+
     return filteredTransactions
       .filter(t => !t.excluded && t.categoryId !== 'excluded')
       .reduce((acc, t) => {
         return t.type === 'INCOME' ? acc + t.amount : acc - t.amount;
       }, 0);
-  }, [filteredTransactions]);
+  }, [filteredTransactions, hasActiveFilters]);
 
   // KPI Summary (Respects Date Filter)
   const summary = useMemo<FinancialSummary>(() => {
