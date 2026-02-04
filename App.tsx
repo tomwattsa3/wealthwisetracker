@@ -132,12 +132,23 @@ const App: React.FC = () => {
 
       // Map DB columns to app's expected format
       const mappedTxs: Transaction[] = (txData || []).map(t => {
-          const moneyInGBP = t['Money In - GBP'] || 0;
-          const moneyOutGBP = t['Money Out - GBP'] || 0;
-          const moneyInAED = t['Money In - AED'] || 0;
-          const moneyOutAED = t['Money Out - AED'] || 0;
+          // Parse money columns - ensure they're numbers, handle null/undefined/string
+          const moneyInGBP = Number(t['Money In - GBP']) || 0;
+          const moneyOutGBP = Number(t['Money Out - GBP']) || 0;
+          const moneyInAED = Number(t['Money In - AED']) || 0;
+          const moneyOutAED = Number(t['Money Out - AED']) || 0;
 
-          const isIncome = moneyInGBP > 0 || moneyInAED > 0;
+          // Debug: log raw values from Supabase
+          console.log('Transaction ID:', t.id, 'Raw values:', {
+            'Money In - GBP': t['Money In - GBP'],
+            'Money Out - GBP': t['Money Out - GBP'],
+            parsed: { moneyInGBP, moneyOutGBP }
+          });
+
+          // Determine type based on which column has a value
+          // If Money In > 0, it's income. If Money Out > 0, it's expense.
+          const isIncome = moneyInGBP > 0;
+          const isExpense = moneyOutGBP > 0;
           const type: 'INCOME' | 'EXPENSE' = isIncome ? 'INCOME' : 'EXPENSE';
           const amount = isIncome ? moneyInGBP : moneyOutGBP;
           const originalAmount = isIncome ? moneyInAED : moneyOutAED;
