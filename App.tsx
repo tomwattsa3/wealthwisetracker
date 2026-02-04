@@ -657,30 +657,31 @@ const App: React.FC = () => {
 
            <div className="flex justify-around items-center h-16 md:flex-col md:h-auto md:gap-1 md:items-stretch overflow-x-auto md:overflow-x-visible no-scrollbar">
              {[
-               { id: 'home', icon: Home, label: 'Dashboard' },
-               { id: 'yearly', icon: CalendarRange, label: 'Yearly Summary' },
-               { id: 'history', icon: ArrowRightLeft, label: 'Transactions' },
-               { id: 'categories', icon: FolderCog, label: 'Categories' },
-               { id: 'settings', icon: Settings, label: 'Settings' }
+               { id: 'home', icon: Home, label: 'Dashboard', mobileOnly: true },
+               { id: 'history', icon: ArrowRightLeft, label: 'Transactions', mobileOnly: true },
+               { id: 'yearly', icon: CalendarRange, label: 'Yearly', mobileOnly: true },
+               { id: 'categories', icon: FolderCog, label: 'Categories', mobileOnly: true },
+               { id: 'settings', icon: Settings, label: 'Settings', mobileOnly: false }
              ].map((item) => (
-               <button 
+               <button
                  key={item.id}
                  onClick={() => setActiveTab(item.id as any)}
                  className={`
                    flex md:gap-3 p-2.5 items-center justify-center rounded-xl transition-all duration-200 group relative flex-shrink-0
-                   ${activeTab === item.id 
-                     ? 'text-slate-900 bg-slate-100 font-semibold' 
+                   ${activeTab === item.id
+                     ? 'text-slate-900 bg-slate-100 font-semibold'
                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}
                    ${!isSidebarCollapsed ? 'md:justify-start md:px-3' : ''}
+                   ${!item.mobileOnly ? 'hidden md:flex' : ''}
                  `}
                >
                  <item.icon size={18} strokeWidth={activeTab === item.id ? 2.5 : 2} />
-                 {!isSidebarCollapsed && <span className="text-sm hidden md:block">{item.label}</span>}
-                 
+                 {!isSidebarCollapsed && <span className="text-sm hidden md:block">{item.id === 'yearly' ? 'Yearly Summary' : item.label}</span>}
+
                  {/* Tooltip for collapsed state */}
                  {isSidebarCollapsed && (
                    <span className="absolute left-14 bg-slate-900 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 border border-slate-700 pointer-events-none hidden md:block shadow-lg">
-                     {item.label}
+                     {item.id === 'yearly' ? 'Yearly Summary' : item.label}
                    </span>
                  )}
                </button>
