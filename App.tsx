@@ -687,15 +687,6 @@ const App: React.FC = () => {
                </button>
              ))}
 
-             {/* Mobile FAB */}
-             <div className="md:hidden absolute -top-6 left-1/2 -translate-x-1/2">
-                <button 
-                  onClick={() => setIsModalOpen(true)}
-                  className="bg-slate-900 text-white p-4 rounded-full shadow-lg hover:scale-105 transition-transform border-4 border-white"
-                >
-                  <Plus size={24} />
-                </button>
-             </div>
            </div>
            
            {/* Desktop Add Button */}
