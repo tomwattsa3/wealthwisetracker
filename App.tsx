@@ -804,16 +804,18 @@ const App: React.FC = () => {
             <div className="space-y-6 animate-in fade-in duration-500">
               
               {/* Row 1: KPI Cards - Minimal Style - Always 3 columns, compact on mobile */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                 <div className="h-20 sm:h-28">
-                   <StatsCard label="Income" amount={summary.totalIncome} type="INCOME" filled />
-                 </div>
-                 <div className="h-20 sm:h-28">
-                   <StatsCard label="Expenses" amount={summary.totalExpense} type="EXPENSE" filled />
-                 </div>
-                 <div className="h-20 sm:h-28">
-                   <StatsCard label="Balance" amount={summary.balance} type="BALANCE" filled />
-                 </div>
+              <div className="px-2 sm:px-0">
+                <div className="grid grid-cols-3 gap-1.5 sm:gap-4">
+                   <div className="h-16 sm:h-28">
+                     <StatsCard label="Income" amount={summary.totalIncome} type="INCOME" filled />
+                   </div>
+                   <div className="h-16 sm:h-28">
+                     <StatsCard label="Expenses" amount={summary.totalExpense} type="EXPENSE" filled />
+                   </div>
+                   <div className="h-16 sm:h-28">
+                     <StatsCard label="Balance" amount={summary.balance} type="BALANCE" filled />
+                   </div>
+                </div>
               </div>
 
               {/* Row 2: Top 4 Transaction Widgets */}
