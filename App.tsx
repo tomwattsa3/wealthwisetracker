@@ -117,8 +117,13 @@ const App: React.FC = () => {
       setCategories(activeCategories);
 
       // Fetch Transactions from Supabase
+      console.log('Fetching transactions...');
       const { data: txData, error: txError } = await supabase.from('Transactions').select('*');
-      if (txError) throw txError;
+      console.log('Transactions response:', { data: txData, error: txError, count: txData?.length });
+      if (txError) {
+        console.error('Transaction fetch error:', txError);
+        throw txError;
+      }
 
       // Map DB columns to app's expected format
       const mappedTxs: Transaction[] = (txData || []).map(t => {
@@ -156,6 +161,7 @@ const App: React.FC = () => {
           };
       });
 
+      console.log('Mapped transactions:', mappedTxs.length, mappedTxs);
       setTransactions(mappedTxs);
 
     } catch (error) {
