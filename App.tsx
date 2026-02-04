@@ -390,6 +390,7 @@ const App: React.FC = () => {
       }
       if (updates.notes !== undefined) {
         dbUpdates['Note'] = updates.notes;
+        console.log('Adding Note to update:', updates.notes);
       }
 
       console.log('DB Updates:', dbUpdates);
