@@ -226,7 +226,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                     <span className="truncate text-slate-700 font-medium">{t.description || 'No merchant'}</span>
                 </div>
                 <span className="pl-3 pr-2 text-[9px] text-slate-400 border-r border-slate-100 truncate">{t.subcategoryName || '-'}</span>
-                <span className={`pl-3 pr-2 font-mono font-semibold ${isExcluded ? 'text-slate-400' : displayType === 'INCOME' ? 'text-emerald-600' : 'text-slate-800'}`}>
+                <span className={`px-2 text-right font-mono font-semibold ${isExcluded ? 'text-slate-400' : displayType === 'INCOME' ? 'text-emerald-600' : 'text-slate-800'}`}>
                     {displayType === 'EXPENSE' ? '-' : ''}£{t.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
                 </span>
             </div>
@@ -436,7 +436,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
         <div className="md:hidden grid grid-cols-[1fr_1fr_75px] items-center h-6 text-[9px] font-bold text-slate-400 uppercase border-b border-slate-200 bg-slate-50">
             <span className="px-2 border-r border-slate-200">Merchant</span>
             <span className="pl-3 pr-2 border-r border-slate-200">Sub</span>
-            <span className="pl-3 pr-2">Amount</span>
+            <span className="px-2 text-right">Amount</span>
         </div>
 
         {/* Rows */}
