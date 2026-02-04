@@ -254,29 +254,41 @@ const App: React.FC = () => {
     const tempId = crypto.randomUUID();
     const txWithId = { ...newTx, id: tempId };
 
-    // Optimistic
+    // Optimistic update
     setTransactions(prev => [txWithId, ...prev]);
 
-    // DB - Map to your Supabase schema
-    const isIncome = newTx.type === 'INCOME';
-    const dbPayload = {
-        'Transaction Date': newTx.date,
-        'Type Of Transaction': newTx.type,
-        'Description': newTx.description,
-        'Catagory': newTx.categoryName,
-        'Sub-Category': newTx.subcategoryName,
-        'Money Out - GBP': isIncome ? null : newTx.amount,
-        'Money In - GBP': isIncome ? newTx.amount : null,
-        'Money Out - AED': isIncome ? null : (newTx.originalAmount || null),
-        'Money In - AED': isIncome ? (newTx.originalAmount || null) : null,
-        'Bank Account': newTx.bankName,
-        'Notes': newTx.notes || null
-    };
+    try {
+      // DB - Map to your Supabase schema
+      const isIncome = newTx.type === 'INCOME';
+      const dbPayload = {
+          'Transaction Date': newTx.date,
+          'Description': newTx.description,
+          'Catagory': newTx.categoryName,
+          'Sub-Category': newTx.subcategoryName,
+          'Money Out - GBP': isIncome ? null : newTx.amount,
+          'Money In - GBP': isIncome ? newTx.amount : null,
+          'Money Out - AED': isIncome ? null : (newTx.originalAmount || null),
+          'Money In - AED': isIncome ? (newTx.originalAmount || null) : null,
+          'Bank Account': newTx.bankName,
+          'Notes': newTx.notes || null
+      };
 
-    const { data } = await supabase.from('Transactions').insert(dbPayload).select();
+      console.log('Adding transaction to Supabase:', dbPayload);
+      const { data, error } = await supabase.from('Transactions').insert(dbPayload).select();
 
-    if (data && data[0]) {
+      if (error) {
+        console.error('Supabase insert error:', error.message);
+        // Remove optimistic update on error
+        setTransactions(prev => prev.filter(t => t.id !== tempId));
+        alert('Failed to add transaction: ' + error.message);
+      } else if (data && data[0]) {
+        // Update with real Supabase ID
         setTransactions(prev => prev.map(t => t.id === tempId ? { ...t, id: String(data[0].id) } : t));
+        console.log('Transaction added with ID:', data[0].id);
+      }
+    } catch (err) {
+      console.error('Add transaction exception:', err);
+      setTransactions(prev => prev.filter(t => t.id !== tempId));
     }
   };
 
@@ -286,7 +298,6 @@ const App: React.FC = () => {
           const isIncome = t.type === 'INCOME';
           return {
             'Transaction Date': t.date,
-            'Type Of Transaction': t.type,
             'Description': t.description,
             'Catagory': t.categoryName,
             'Sub-Category': t.subcategoryName,
@@ -299,7 +310,14 @@ const App: React.FC = () => {
           };
       });
 
-      const { data } = await supabase.from('Transactions').insert(dbPayloads).select();
+      console.log('Importing transactions to Supabase:', dbPayloads.length);
+      const { data, error } = await supabase.from('Transactions').insert(dbPayloads).select();
+
+      if (error) {
+        console.error('Supabase import error:', error.message);
+        alert('Failed to import transactions: ' + error.message);
+        return;
+      }
 
       if (data) {
           const newTxs: Transaction[] = data.map(t => {
@@ -331,29 +349,60 @@ const App: React.FC = () => {
 
   const deleteTransaction = async (id: string) => {
     setTransactions(prev => prev.filter(t => t.id !== id));
-    await supabase.from('Transactions').delete().eq('id', id);
+    const numericId = parseInt(id, 10);
+    const { error } = await supabase.from('Transactions').delete().eq('id', numericId);
+    if (error) {
+      console.error('Supabase delete error:', error);
+    }
   };
 
   const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
+    console.log('=== UPDATE TRANSACTION ===');
+    console.log('ID:', id, 'Updates:', updates);
+
     setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
 
-    // Map updates to your Supabase schema
-    const dbUpdates: Record<string, any> = {};
-    if (updates.date !== undefined) dbUpdates['Transaction Date'] = updates.date;
-    if (updates.categoryName !== undefined) dbUpdates['Catagory'] = updates.categoryName;
-    if (updates.subcategoryName !== undefined) dbUpdates['Sub-Category'] = updates.subcategoryName;
-    if (updates.description !== undefined) dbUpdates['Description'] = updates.description;
-    if (updates.notes !== undefined) dbUpdates['Notes'] = updates.notes;
+    try {
+      const numericId = parseInt(id, 10);
 
-    // Handle amount updates (need to know if income or expense)
-    if (updates.amount !== undefined && updates.type !== undefined) {
-        const isIncome = updates.type === 'INCOME';
-        dbUpdates['Money Out - GBP'] = isIncome ? null : updates.amount;
-        dbUpdates['Money In - GBP'] = isIncome ? updates.amount : null;
-    }
+      // Build update object - only include fields that are being updated
+      const dbUpdates: Record<string, any> = {};
 
-    if (Object.keys(dbUpdates).length > 0) {
-        await supabase.from('Transactions').update(dbUpdates).eq('id', id);
+      if (updates.description !== undefined) {
+        dbUpdates['Description'] = updates.description;
+      }
+      if (updates.categoryName !== undefined) {
+        dbUpdates['Catagory'] = updates.categoryName;
+      }
+      if (updates.subcategoryName !== undefined) {
+        dbUpdates['Sub-Category'] = updates.subcategoryName;
+      }
+      if (updates.notes !== undefined) {
+        dbUpdates['Notes'] = updates.notes;
+      }
+
+      console.log('DB Updates:', dbUpdates);
+      console.log('Numeric ID:', numericId);
+
+      if (Object.keys(dbUpdates).length > 0) {
+        const { data, error } = await supabase
+          .from('Transactions')
+          .update(dbUpdates)
+          .eq('id', numericId)
+          .select();
+
+        console.log('Supabase response - Data:', data, 'Error:', error);
+
+        if (error) {
+          console.error('Update failed:', error);
+          alert('Failed to save: ' + error.message);
+        } else {
+          console.log('Update successful!');
+        }
+      }
+    } catch (err) {
+      console.error('Exception:', err);
+      alert('Failed to save transaction');
     }
   };
 
@@ -385,6 +434,9 @@ const App: React.FC = () => {
     const sourceData = transactions;
 
     return sourceData.filter(t => {
+      // Skip excluded transactions from all sums and calculations
+      if (t.excluded || t.categoryId === 'excluded') return false;
+
       if (filterType !== 'all' && t.type !== filterType) return false;
       if (filterBank !== 'all' && t.bankName !== filterBank) return false;
 
@@ -912,17 +964,35 @@ const App: React.FC = () => {
                          {/* Excluded Transactions */}
                         {excludedTransactions.length > 0 && (
                             <div className="mt-6 pt-4 border-t border-dashed border-slate-100">
-                                <div className="flex items-center gap-2 mb-2 px-1">
-                                    <EyeOff size={10} className="text-slate-300" />
-                                    <h4 className="text-[10px] font-bold text-slate-300 uppercase tracking-wide">Excluded</h4>
-                                </div>
-                                <div className="rounded-lg overflow-hidden border border-slate-100 bg-slate-50/30 flex flex-col">
-                                    <div className="bg-white px-3 py-2 flex justify-between items-center">
-                                         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total</span>
-                                         <span className="text-[10px] font-bold text-slate-600 font-mono">
-                                             £{excludedTransactions.reduce((sum, t) => sum + t.amount, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                         </span>
+                                <div className="flex items-center justify-between mb-2 px-1">
+                                    <div className="flex items-center gap-2">
+                                        <EyeOff size={10} className="text-slate-300" />
+                                        <h4 className="text-[10px] font-bold text-slate-300 uppercase tracking-wide">Excluded ({excludedTransactions.length})</h4>
                                     </div>
+                                    <span className="text-[10px] font-bold text-slate-400 font-mono">
+                                        £{excludedTransactions.reduce((sum, t) => sum + t.amount, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                </div>
+                                <div className="rounded-lg overflow-hidden border border-slate-100 bg-slate-50/30 flex flex-col max-h-48 overflow-y-auto custom-scrollbar">
+                                    {excludedTransactions.map(t => (
+                                        <div key={t.id} className="bg-white px-3 py-2 flex justify-between items-start border-b border-slate-50 last:border-b-0 hover:bg-slate-50/50 transition-colors">
+                                            <div className="flex flex-col min-w-0 flex-1 mr-2">
+                                                <span className="text-xs font-semibold text-slate-600 truncate">{t.description}</span>
+                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                    <span className="text-[9px] text-slate-400">{t.date}</span>
+                                                    {t.subcategoryName && (
+                                                        <>
+                                                            <span className="text-slate-300">•</span>
+                                                            <span className="text-[9px] font-medium text-slate-400 uppercase tracking-tight">{t.subcategoryName}</span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <span className="text-[11px] font-bold text-slate-500 font-mono whitespace-nowrap">
+                                                £{t.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </span>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         )}
