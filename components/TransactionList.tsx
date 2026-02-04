@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Transaction, Category } from '../types';
-import { EyeOff, Eye, FileSpreadsheet, Save, AlertTriangle, Check } from 'lucide-react';
+import { EyeOff, Eye, FileSpreadsheet, Save, AlertTriangle, Check, Trash2 } from 'lucide-react';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -15,9 +15,55 @@ interface TransactionRowProps {
     categories: Category[];
     onUpdate: (id: string, updates: Partial<Transaction>) => void;
     onDelete: (id: string) => void;
+    onExclude: (id: string) => void;
     gridTemplate: string;
     index: number;
 }
+
+const DeleteConfirmationModal = ({
+    isOpen,
+    onClose,
+    onConfirm
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+}) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 border border-slate-100 animate-in zoom-in-95 duration-200">
+                <div className="flex flex-col items-center text-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100">
+                        <AlertTriangle size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-900">Delete Transaction?</h3>
+                        <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+                            This will permanently delete this transaction. This action cannot be undone.
+                        </p>
+                    </div>
+                    <div className="flex gap-3 w-full mt-2">
+                        <button
+                            onClick={onClose}
+                            className="flex-1 py-2.5 rounded-xl font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={onConfirm}
+                            className="flex-1 py-2.5 rounded-xl font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-200 transition-all active:scale-95"
+                        >
+                            Yes, Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const ExcludeConfirmationModal = ({
     isOpen,
@@ -70,11 +116,12 @@ const ExcludeConfirmationModal = ({
     );
 };
 
-const TransactionRow: React.FC<TransactionRowProps> = ({ 
-    t, 
-    categories, 
-    onUpdate, 
-    onDelete, 
+const TransactionRow: React.FC<TransactionRowProps> = ({
+    t,
+    categories,
+    onUpdate,
+    onDelete,
+    onExclude,
     gridTemplate,
     index
 }) => {
@@ -289,12 +336,22 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
+                        onExclude(t.id);
+                    }}
+                    className={`p-1.5 rounded-lg transition-colors ${isExcluded ? 'text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50' : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'}`}
+                    title={isExcluded ? "Include Transaction" : "Exclude Transaction"}
+                >
+                    {isExcluded ? <Eye size={14} /> : <EyeOff size={14} />}
+                </button>
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
                         onDelete(t.id);
                     }}
-                    className={`p-1.5 rounded-lg transition-colors ${t.excluded || t.categoryId === 'excluded' ? 'text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50' : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'}`}
-                    title={t.excluded || t.categoryId === 'excluded' ? "Include Transaction" : "Exclude Transaction"}
+                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                    title="Delete Transaction"
                 >
-                    {t.excluded || t.categoryId === 'excluded' ? <Eye size={14} /> : <EyeOff size={14} />}
+                    <Trash2 size={14} />
                 </button>
             </div>
         </div>
@@ -303,11 +360,25 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
 
 const TransactionList: React.FC<TransactionListProps> = ({ transactions, categories, onUpdate, onDelete }) => {
   // Updated Grid Template: Date | Merchant (Narrower) | Category | Subcategory (Wider) | Amount (Narrower) | Note | Action
-  // Widened Subcategory to 150px, Narrowed Amount to 160px
-  const gridTemplate = "grid-cols-[95px_1.2fr_110px_150px_160px_1fr_60px]";
+  // Widened Action column to 90px for 3 buttons
+  const gridTemplate = "grid-cols-[95px_1.2fr_110px_150px_160px_1fr_90px]";
+
+  // State for tracking which transaction is pending delete
+  const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
 
   // State for tracking which transaction is pending exclude/include toggle
   const [transactionToToggle, setTransactionToToggle] = useState<string | null>(null);
+
+  const handleDeleteRequest = (id: string) => {
+      setTransactionToDelete(id);
+  };
+
+  const handleConfirmDelete = () => {
+      if (transactionToDelete) {
+          onDelete(transactionToDelete);
+          setTransactionToDelete(null);
+      }
+  };
 
   const handleExcludeRequest = (id: string) => {
       setTransactionToToggle(id);
@@ -318,12 +389,20 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
           const transaction = transactions.find(t => t.id === transactionToToggle);
           if (transaction) {
               const isCurrentlyExcluded = transaction.excluded || transaction.categoryId === 'excluded';
+              console.log('Toggle exclude - Current state:', {
+                  id: transaction.id,
+                  excluded: transaction.excluded,
+                  categoryId: transaction.categoryId,
+                  isCurrentlyExcluded
+              });
               // Toggle: if excluded, set categoryId to empty; if not excluded, set to 'excluded'
-              onUpdate(transactionToToggle, {
+              const newState = {
                   categoryId: isCurrentlyExcluded ? '' : 'excluded',
                   categoryName: isCurrentlyExcluded ? '' : 'Excluded',
                   excluded: !isCurrentlyExcluded
-              });
+              };
+              console.log('Setting new state:', newState);
+              onUpdate(transactionToToggle, newState);
           }
           setTransactionToToggle(null);
       }
@@ -365,7 +444,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
                     t={t}
                     categories={categories}
                     onUpdate={onUpdate}
-                    onDelete={handleExcludeRequest}
+                    onDelete={handleDeleteRequest}
+                    onExclude={handleExcludeRequest}
                     gridTemplate={gridTemplate}
                     index={index}
                 />
@@ -373,7 +453,14 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
         </div>
         </div>
 
-        {/* Confirmation Modal */}
+        {/* Delete Confirmation Modal */}
+        <DeleteConfirmationModal
+            isOpen={!!transactionToDelete}
+            onClose={() => setTransactionToDelete(null)}
+            onConfirm={handleConfirmDelete}
+        />
+
+        {/* Exclude Confirmation Modal */}
         <ExcludeConfirmationModal
             isOpen={!!transactionToToggle}
             onClose={() => setTransactionToToggle(null)}
