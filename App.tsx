@@ -100,7 +100,9 @@ const App: React.FC = () => {
       setCategories(INITIAL_CATEGORIES);
 
       // Fetch Transactions from Supabase
+      console.log('Fetching from Supabase...');
       const { data: txData, error: txError } = await supabase.from('Transactions').select('*');
+      console.log('Supabase response:', { data: txData, error: txError });
       if (txError) throw txError;
 
       // Map DB columns to app's expected format
@@ -140,6 +142,7 @@ const App: React.FC = () => {
           };
       });
 
+      console.log('Mapped transactions:', mappedTxs);
       setTransactions(mappedTxs);
 
     } catch (error) {
