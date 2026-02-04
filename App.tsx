@@ -98,20 +98,22 @@ const App: React.FC = () => {
       // Use local constants for banks (no DB table)
       setBanks(INITIAL_BANKS);
 
-      // Fetch Categories from Supabase
-      const { data: catData, error: catError } = await supabase.from('Categories').select('*');
-      if (catError) throw catError;
-
-      const loadedCategories: Category[] = (catData || []).map(c => ({
-        id: c.id,
-        name: c.name,
-        subcategories: c.subcategories || [],
-        type: c.type as 'INCOME' | 'EXPENSE',
-        color: c.color || '#94a3b8'
-      }));
-
-      // Use loaded categories or fallback to initial
-      const activeCategories = loadedCategories.length > 0 ? loadedCategories : INITIAL_CATEGORIES;
+      // Fetch Categories from Supabase (with fallback)
+      let activeCategories = INITIAL_CATEGORIES;
+      try {
+        const { data: catData, error: catError } = await supabase.from('Categories').select('*');
+        if (!catError && catData && catData.length > 0) {
+          activeCategories = catData.map(c => ({
+            id: c.id,
+            name: c.name,
+            subcategories: c.subcategories || [],
+            type: c.type as 'INCOME' | 'EXPENSE',
+            color: c.color || '#94a3b8'
+          }));
+        }
+      } catch (catErr) {
+        console.log('Categories table not found, using defaults');
+      }
       setCategories(activeCategories);
 
       // Fetch Transactions from Supabase
