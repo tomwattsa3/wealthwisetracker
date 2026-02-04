@@ -966,6 +966,46 @@ const App: React.FC = () => {
 
               {/* Mobile: Configurable Category Cards */}
               <div className="md:hidden px-2 space-y-2">
+                {/* Fixed Income Card */}
+                {(() => {
+                  const incomeCat = incomeCategories[0];
+                  if (!incomeCat) return null;
+
+                  const incomeTransactions = activeTransactions.filter(t => t.type === 'INCOME');
+                  const incomeTotal = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
+                  const topIncomeTransactions = incomeTransactions
+                    .sort((a, b) => b.amount - a.amount)
+                    .slice(0, 3);
+
+                  return (
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                      <div
+                        className="flex items-center justify-between px-2 py-1.5"
+                        style={{ backgroundColor: '#10b981' }}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <DollarSign size={12} className="text-white/80" />
+                          <span className="text-[10px] font-bold text-white">Income</span>
+                        </div>
+                        <span className="text-[11px] font-bold text-white/90 font-mono">£{incomeTotal.toLocaleString()}</span>
+                      </div>
+                      <div>
+                        {topIncomeTransactions.map(t => (
+                          <div key={t.id} className="flex items-center h-6 px-2.5 text-[10px] border-b border-slate-50 last:border-b-0">
+                            <span className="flex-1 truncate text-slate-600">{t.description || 'Unknown'}</span>
+                            <span className="text-[9px] text-slate-400 mr-2">{t.subcategoryName}</span>
+                            <span className="font-mono font-semibold text-emerald-600">£{t.amount.toLocaleString()}</span>
+                          </div>
+                        ))}
+                        {topIncomeTransactions.length === 0 && (
+                          <div className="py-2 text-center text-slate-400 text-[9px]">No income</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Configurable Expense Cards */}
                 {mobileCategoryIds.map((catId, index) => {
                   const cat = expenseCategories.find(c => c.id === catId);
                   if (!cat) return null;
