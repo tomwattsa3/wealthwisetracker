@@ -161,7 +161,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
         <div className={`grid ${gridTemplate} gap-0 items-center text-sm group transition-all border border-slate-300 ring-1 ring-slate-200 rounded-lg mb-1.5 shadow-sm hover:shadow-md hover:border-slate-400 overflow-hidden ${rowBackground}`}>
             {/* 1. Date - Read Only - Smaller Font */}
             <div className={`${cellClass} pl-3`}>
-                <span className="font-semibold text-xs text-slate-500">{t.date}</span>
+                <span className="font-semibold text-xs text-slate-500 whitespace-nowrap">{t.date}</span>
             </div>
 
             {/* 2. Description (Merchant) - Smaller Font + Bank Name */}
@@ -289,7 +289,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
 const TransactionList: React.FC<TransactionListProps> = ({ transactions, categories, onUpdate, onDelete }) => {
   // Updated Grid Template: Date | Merchant (Narrower) | Category | Subcategory (Wider) | Amount (Narrower) | Note | Action
   // Widened Subcategory to 150px, Narrowed Amount to 160px
-  const gridTemplate = "grid-cols-[85px_1.2fr_110px_150px_160px_1fr_60px]";
+  const gridTemplate = "grid-cols-[95px_1.2fr_110px_150px_160px_1fr_60px]";
   
   // State for tracking which transaction is pending deletion
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
