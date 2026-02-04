@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Transaction, Category } from '../types';
-import { Trash2, FileSpreadsheet, Save, AlertTriangle, Check } from 'lucide-react';
+import { EyeOff, Eye, FileSpreadsheet, Save, AlertTriangle, Check } from 'lucide-react';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -19,14 +19,16 @@ interface TransactionRowProps {
     index: number;
 }
 
-const DeleteConfirmationModal = ({ 
-    isOpen, 
-    onClose, 
-    onConfirm 
-}: { 
-    isOpen: boolean; 
-    onClose: () => void; 
-    onConfirm: () => void; 
+const ExcludeConfirmationModal = ({
+    isOpen,
+    onClose,
+    onConfirm,
+    isCurrentlyExcluded
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+    isCurrentlyExcluded: boolean;
 }) => {
     if (!isOpen) return null;
 
@@ -35,27 +37,31 @@ const DeleteConfirmationModal = ({
             <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
             <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 border border-slate-100 animate-in zoom-in-95 duration-200">
                 <div className="flex flex-col items-center text-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100">
-                        <AlertTriangle size={24} />
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${isCurrentlyExcluded ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                        {isCurrentlyExcluded ? <Eye size={24} /> : <EyeOff size={24} />}
                     </div>
                     <div>
-                        <h3 className="text-lg font-bold text-slate-900">Delete Transaction?</h3>
+                        <h3 className="text-lg font-bold text-slate-900">
+                            {isCurrentlyExcluded ? 'Include Transaction?' : 'Exclude Transaction?'}
+                        </h3>
                         <p className="text-sm text-slate-500 mt-2 leading-relaxed">
-                            Do you really want to confirm that you are about to bin this transaction? This action cannot be undone.
+                            {isCurrentlyExcluded
+                                ? 'This will include the transaction back in your totals and reports.'
+                                : 'This will exclude the transaction from your totals and reports. You can include it again later.'}
                         </p>
                     </div>
                     <div className="flex gap-3 w-full mt-2">
-                        <button 
+                        <button
                             onClick={onClose}
                             className="flex-1 py-2.5 rounded-xl font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
                         >
                             Cancel
                         </button>
-                        <button 
+                        <button
                             onClick={onConfirm}
-                            className="flex-1 py-2.5 rounded-xl font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-200 transition-all active:scale-95"
+                            className={`flex-1 py-2.5 rounded-xl font-bold text-white shadow-lg transition-all active:scale-95 ${isCurrentlyExcluded ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200' : 'bg-amber-600 hover:bg-amber-700 shadow-amber-200'}`}
                         >
-                            Yes, Delete
+                            {isCurrentlyExcluded ? 'Yes, Include' : 'Yes, Exclude'}
                         </button>
                     </div>
                 </div>
@@ -150,15 +156,22 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
         }
     };
 
+    // Check if transaction is excluded
+    const isExcluded = t.excluded || t.categoryId === 'excluded';
+
     // Determine row styling - Use white vs slate-100 to clearly alternate against slate-50 app bg
     const isEven = index % 2 === 0;
-    const rowBackground = isDirty ? 'bg-indigo-50/60' : (isEven ? 'bg-white' : 'bg-slate-50/50');
+    const rowBackground = isExcluded
+        ? 'bg-slate-100/80 opacity-60'
+        : isDirty
+            ? 'bg-indigo-50/60'
+            : (isEven ? 'bg-white' : 'bg-slate-50/50');
 
     // Common cell styles for the "sheet" look - Compact padding py-2
     const cellClass = "h-full flex flex-col justify-center px-2 py-2 border-r border-slate-200/60 last:border-r-0";
 
     return (
-        <div className={`grid ${gridTemplate} gap-0 items-center text-sm group transition-all border border-slate-300 ring-1 ring-slate-200 rounded-lg mb-1.5 shadow-sm hover:shadow-md hover:border-slate-400 overflow-hidden ${rowBackground}`}>
+        <div className={`grid ${gridTemplate} gap-0 items-center text-sm group transition-all border rounded-lg mb-1.5 shadow-sm hover:shadow-md overflow-hidden ${isExcluded ? 'border-slate-200 ring-1 ring-slate-100' : 'border-slate-300 ring-1 ring-slate-200 hover:border-slate-400'} ${rowBackground}`}>
             {/* 1. Date - Read Only - Smaller Font */}
             <div className={`${cellClass} pl-3`}>
                 <span className="font-semibold text-xs text-slate-500 whitespace-nowrap">{t.date}</span>
@@ -216,16 +229,18 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 <div className="flex flex-col justify-center w-full h-full">
                     <div className="flex items-center justify-end gap-2 w-full">
                         <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-[4px] uppercase tracking-wide border border-opacity-60 shrink-0 ${
-                            displayType === 'INCOME'
-                                ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                                : 'bg-rose-50 text-rose-600 border-rose-200'
+                            isExcluded
+                                ? 'bg-slate-100 text-slate-400 border-slate-200'
+                                : displayType === 'INCOME'
+                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                    : 'bg-rose-50 text-rose-600 border-rose-200'
                         }`}>
-                            {displayType === 'INCOME' ? 'INCOME' : 'EXPENSE'}
+                            {isExcluded ? 'EXCLUDED' : displayType === 'INCOME' ? 'INCOME' : 'EXPENSE'}
                         </span>
-                        
+
                         <div className="flex items-center">
-                             <span className={`text-sm font-bold select-none ${displayType === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>£</span>
-                             <span className={`font-mono font-bold text-sm text-right ${displayType === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                             <span className={`text-sm font-bold select-none ${isExcluded ? 'text-slate-400' : displayType === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>£</span>
+                             <span className={`font-mono font-bold text-sm text-right ${isExcluded ? 'text-slate-400 line-through' : displayType === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
                                 {displayType === 'EXPENSE' ? '-' : ''}{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                         </div>
@@ -276,10 +291,10 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                         e.stopPropagation();
                         onDelete(t.id);
                     }}
-                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                    title="Delete Transaction"
+                    className={`p-1.5 rounded-lg transition-colors ${t.excluded || t.categoryId === 'excluded' ? 'text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50' : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'}`}
+                    title={t.excluded || t.categoryId === 'excluded' ? "Include Transaction" : "Exclude Transaction"}
                 >
-                    <Trash2 size={14} />
+                    {t.excluded || t.categoryId === 'excluded' ? <Eye size={14} /> : <EyeOff size={14} />}
                 </button>
             </div>
         </div>
@@ -290,20 +305,32 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
   // Updated Grid Template: Date | Merchant (Narrower) | Category | Subcategory (Wider) | Amount (Narrower) | Note | Action
   // Widened Subcategory to 150px, Narrowed Amount to 160px
   const gridTemplate = "grid-cols-[95px_1.2fr_110px_150px_160px_1fr_60px]";
-  
-  // State for tracking which transaction is pending deletion
-  const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
 
-  const handleDeleteRequest = (id: string) => {
-      setTransactionToDelete(id);
+  // State for tracking which transaction is pending exclude/include toggle
+  const [transactionToToggle, setTransactionToToggle] = useState<string | null>(null);
+
+  const handleExcludeRequest = (id: string) => {
+      setTransactionToToggle(id);
   };
 
-  const handleConfirmDelete = () => {
-      if (transactionToDelete) {
-          onDelete(transactionToDelete);
-          setTransactionToDelete(null);
+  const handleConfirmToggle = () => {
+      if (transactionToToggle) {
+          const transaction = transactions.find(t => t.id === transactionToToggle);
+          if (transaction) {
+              const isCurrentlyExcluded = transaction.excluded || transaction.categoryId === 'excluded';
+              // Toggle: if excluded, set categoryId to empty; if not excluded, set to 'excluded'
+              onUpdate(transactionToToggle, {
+                  categoryId: isCurrentlyExcluded ? '' : 'excluded',
+                  categoryName: isCurrentlyExcluded ? '' : 'Excluded',
+                  excluded: !isCurrentlyExcluded
+              });
+          }
+          setTransactionToToggle(null);
       }
   };
+
+  const transactionBeingToggled = transactions.find(t => t.id === transactionToToggle);
+  const isCurrentlyExcluded = transactionBeingToggled ? (transactionBeingToggled.excluded || transactionBeingToggled.categoryId === 'excluded') : false;
 
   if (transactions.length === 0) {
     return (
@@ -333,13 +360,13 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
         {/* Rows */}
         <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
             {transactions.map((t, index) => (
-                <TransactionRow 
-                    key={t.id} 
-                    t={t} 
-                    categories={categories} 
-                    onUpdate={onUpdate} 
-                    onDelete={handleDeleteRequest} 
-                    gridTemplate={gridTemplate} 
+                <TransactionRow
+                    key={t.id}
+                    t={t}
+                    categories={categories}
+                    onUpdate={onUpdate}
+                    onDelete={handleExcludeRequest}
+                    gridTemplate={gridTemplate}
                     index={index}
                 />
             ))}
@@ -347,10 +374,11 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
         </div>
 
         {/* Confirmation Modal */}
-        <DeleteConfirmationModal 
-            isOpen={!!transactionToDelete} 
-            onClose={() => setTransactionToDelete(null)} 
-            onConfirm={handleConfirmDelete} 
+        <ExcludeConfirmationModal
+            isOpen={!!transactionToToggle}
+            onClose={() => setTransactionToToggle(null)}
+            onConfirm={handleConfirmToggle}
+            isCurrentlyExcluded={isCurrentlyExcluded}
         />
     </>
   );

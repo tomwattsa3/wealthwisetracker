@@ -428,20 +428,18 @@ const App: React.FC = () => {
   }, [transactions]);
 
   // 5. Search & Filter Logic (For Transaction List - Pulls direct from transactions)
+  // Excluded transactions ARE shown in the list but not counted in totals
   const filteredTransactions = useMemo(() => {
     // Always use full history for the transaction list to ensure "Feed" behavior
     const sourceData = transactions;
 
     return sourceData.filter(t => {
-      // Skip excluded transactions from all sums and calculations
-      if (t.excluded || t.categoryId === 'excluded') return false;
-
       if (filterType !== 'all' && t.type !== filterType) return false;
       if (filterBank !== 'all' && t.bankName !== filterBank) return false;
 
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
-        const matches = 
+        const matches =
           t.description.toLowerCase().includes(query) ||
           t.amount.toString().includes(query) ||
           t.date.includes(query) ||
@@ -459,11 +457,13 @@ const App: React.FC = () => {
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [transactions, searchQuery, filterCategory, filterSubcategory, filterType, filterBank]);
 
-  // Calculate total for filtered view (History Tab Total)
+  // Calculate total for filtered view (History Tab Total) - excludes excluded transactions
   const filteredTotal = useMemo(() => {
-    return filteredTransactions.reduce((acc, t) => {
+    return filteredTransactions
+      .filter(t => !t.excluded && t.categoryId !== 'excluded')
+      .reduce((acc, t) => {
         return t.type === 'INCOME' ? acc + t.amount : acc - t.amount;
-    }, 0);
+      }, 0);
   }, [filteredTransactions]);
 
   // KPI Summary (Respects Date Filter)
