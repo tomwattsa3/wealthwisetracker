@@ -171,7 +171,7 @@ const App: React.FC = () => {
             categoryName,
             subcategoryName: t['Sub-Category'] || '',
             description: t['Description'] || '',
-            notes: t['Notes'] || '',
+            notes: t['Note'] || '',
             excluded: categoryId === 'excluded',
             bankName: t['Bank Account'] || ''
           };
@@ -281,7 +281,7 @@ const App: React.FC = () => {
           'Money Out - AED': isIncome ? null : (newTx.originalAmount || null),
           'Money In - AED': isIncome ? (newTx.originalAmount || null) : null,
           'Bank Account': newTx.bankName,
-          'Notes': newTx.notes || null
+          'Note': newTx.notes || null
       };
 
       console.log('Adding transaction to Supabase:', dbPayload);
@@ -317,7 +317,7 @@ const App: React.FC = () => {
             'Money Out - AED': isIncome ? null : (t.originalAmount || null),
             'Money In - AED': isIncome ? (t.originalAmount || null) : null,
             'Bank Account': t.bankName,
-            'Notes': t.notes || null
+            'Note': t.notes || null
           };
       });
 
@@ -349,7 +349,7 @@ const App: React.FC = () => {
               categoryName: t['Catagory'] || '',
               subcategoryName: t['Sub-Category'] || '',
               description: t['Description'] || '',
-              notes: t['Notes'] || '',
+              notes: t['Note'] || '',
               excluded: false,
               bankName: t['Bank Account'] || ''
             };
@@ -389,7 +389,7 @@ const App: React.FC = () => {
         dbUpdates['Sub-Category'] = updates.subcategoryName;
       }
       if (updates.notes !== undefined) {
-        dbUpdates['Notes'] = updates.notes;
+        dbUpdates['Note'] = updates.notes;
       }
 
       console.log('DB Updates:', dbUpdates);
