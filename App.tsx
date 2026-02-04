@@ -468,6 +468,14 @@ const App: React.FC = () => {
 
   // KPI Summary (Respects Date Filter)
   const summary = useMemo<FinancialSummary>(() => {
+    const incomeTransactions = activeTransactions.filter(t => t.type === 'INCOME');
+    const expenseTransactions = activeTransactions.filter(t => t.type === 'EXPENSE');
+
+    console.log('=== SUMMARY CALCULATION ===');
+    console.log('Active transactions:', activeTransactions.length);
+    console.log('Income transactions:', incomeTransactions.length, incomeTransactions);
+    console.log('Expense transactions:', expenseTransactions.length);
+
     return activeTransactions.reduce(
       (acc, curr) => {
         if (curr.type === 'INCOME') {
