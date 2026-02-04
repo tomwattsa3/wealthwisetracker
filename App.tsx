@@ -423,9 +423,9 @@ const App: React.FC = () => {
     );
   }, [activeTransactions]);
 
-  // Global Summary (For Breakdown Percentages based on all data)
+  // Summary for Breakdown Percentages (respects date filter)
   const globalSummary = useMemo<FinancialSummary>(() => {
-    return globalActiveTransactions.reduce(
+    return activeTransactions.reduce(
       (acc, curr) => {
         if (curr.type === 'INCOME') {
           acc.totalIncome += curr.amount;
@@ -438,18 +438,18 @@ const App: React.FC = () => {
       },
       { totalIncome: 0, totalExpense: 0, balance: 0 }
     );
-  }, [globalActiveTransactions]);
+  }, [activeTransactions]);
 
-  // Main Category Breakdown (Global View)
+  // Main Category Breakdown (respects date filter)
   const categoryBreakdown = useMemo(() => {
     return categories.map(cat => {
-      const catTransactions = globalActiveTransactions.filter(t => t.categoryId === cat.id);
+      const catTransactions = activeTransactions.filter(t => t.categoryId === cat.id);
       const total = catTransactions.reduce((sum, t) => sum + t.amount, 0);
       return { category: cat, transactions: catTransactions, total };
     }).filter(c => c.total > 0).sort((a, b) => b.total - a.total);
-  }, [globalActiveTransactions, categories]);
+  }, [activeTransactions, categories]);
 
-  // Subcategory Breakdown (Global View)
+  // Subcategory Breakdown (respects date filter)
   const subcategoryBreakdown = useMemo(() => {
     if (filterCategory === 'all') return [];
 
@@ -457,8 +457,8 @@ const App: React.FC = () => {
     if (!activeCat) return [];
 
     const groups: Record<string, number> = {};
-    
-    globalActiveTransactions.forEach(t => {
+
+    activeTransactions.forEach(t => {
       if (t.type === 'EXPENSE' && t.categoryId === filterCategory) {
         groups[t.subcategoryName] = (groups[t.subcategoryName] || 0) + t.amount;
       }
@@ -470,20 +470,20 @@ const App: React.FC = () => {
       color: activeCat.color,
       parentId: activeCat.id
     })).sort((a, b) => b.total - a.total);
-  }, [globalActiveTransactions, filterCategory, categories]);
+  }, [activeTransactions, filterCategory, categories]);
 
-  // All Subcategories Breakdown (Global View)
+  // All Subcategories Breakdown (respects date filter)
   const allSubcategoryBreakdown = useMemo(() => {
      const groups: Record<string, { total: number, parentId: string, color: string }> = {};
-     globalActiveTransactions.forEach(t => {
+     activeTransactions.forEach(t => {
         if (t.type === 'EXPENSE') {
             // Group by subcategory name
             if (!groups[t.subcategoryName]) {
                 const parent = categories.find(c => c.id === t.categoryId);
-                groups[t.subcategoryName] = { 
-                    total: 0, 
-                    parentId: t.categoryId, 
-                    color: parent?.color || '#94a3b8' 
+                groups[t.subcategoryName] = {
+                    total: 0,
+                    parentId: t.categoryId,
+                    color: parent?.color || '#94a3b8'
                 };
             }
             groups[t.subcategoryName].total += t.amount;
@@ -495,7 +495,7 @@ const App: React.FC = () => {
          color: data.color,
          parentId: data.parentId,
      })).sort((a, b) => b.total - a.total);
-  }, [globalActiveTransactions, categories]);
+  }, [activeTransactions, categories]);
 
   // Derive available banks for filter (Configured Banks + Historical Banks)
   const availableBanks = useMemo(() => {
@@ -739,7 +739,7 @@ const App: React.FC = () => {
                             categoryId={catId}
                             onCategoryChange={(newId) => handleWidgetCategoryChange(index, newId)}
                             allCategories={isIncomeWidget ? incomeCategories : expenseCategories}
-                            transactions={globalActiveTransactions}
+                            transactions={activeTransactions}
                         />
                       );
                  })}
@@ -757,7 +757,7 @@ const App: React.FC = () => {
                         categoryId={catId}
                         onCategoryChange={(newId) => handleWidgetCategoryChange(index + 4, newId)}
                         allCategories={expenseCategories}
-                        transactions={globalActiveTransactions}
+                        transactions={activeTransactions}
                       />
                     ))}
                   </div>
