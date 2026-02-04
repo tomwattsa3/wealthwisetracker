@@ -1080,11 +1080,11 @@ const App: React.FC = () => {
                  {widgetCategoryIds.slice(0, 4).map((catId, index) => {
                       const isIncomeWidget = index === 3;
                       return (
-                        <div key={`top-${index}-${catId}`} className="relative">
+                        <div key={`top-${index}-${catId}`} className="relative group">
                           {widgetCategoryIds.length > 1 && (
                             <button
                               onClick={() => handleRemoveDesktopWidget(index)}
-                              className="absolute top-2 right-2 w-7 h-7 bg-white border border-slate-200 hover:bg-rose-500 hover:border-rose-500 text-slate-400 hover:text-white rounded-full flex items-center justify-center text-base font-bold transition-all shadow-md z-50"
+                              className="absolute -top-2 -right-2 w-6 h-6 bg-white border border-slate-200 hover:bg-rose-500 hover:border-rose-500 text-slate-400 hover:text-white rounded-full flex items-center justify-center text-sm font-bold transition-all shadow-md z-50 opacity-0 group-hover:opacity-100"
                               title="Remove widget"
                             >
                               ×
@@ -1108,11 +1108,11 @@ const App: React.FC = () => {
                 <div className="hidden lg:flex lg:col-span-8 xl:col-span-9 flex-col gap-6">
                   <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     {widgetCategoryIds.slice(4).map((catId, index) => (
-                      <div key={`bottom-${index + 4}-${catId}`} className="relative">
+                      <div key={`bottom-${index + 4}-${catId}`} className="relative group">
                         {widgetCategoryIds.length > 1 && (
                           <button
                             onClick={() => handleRemoveDesktopWidget(index + 4)}
-                            className="absolute top-2 right-2 w-7 h-7 bg-white border border-slate-200 hover:bg-rose-500 hover:border-rose-500 text-slate-400 hover:text-white rounded-full flex items-center justify-center text-base font-bold transition-all shadow-md z-50"
+                            className="absolute -top-2 -right-2 w-6 h-6 bg-white border border-slate-200 hover:bg-rose-500 hover:border-rose-500 text-slate-400 hover:text-white rounded-full flex items-center justify-center text-sm font-bold transition-all shadow-md z-50 opacity-0 group-hover:opacity-100"
                             title="Remove widget"
                           >
                             ×
