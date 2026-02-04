@@ -804,7 +804,7 @@ const App: React.FC = () => {
             <div className="space-y-6 animate-in fade-in duration-500">
               
               {/* Row 1: KPI Cards - Minimal Style - Always 3 columns, compact on mobile */}
-              <div className="pl-2 sm:pl-0">
+              <div className="pl-4 sm:pl-0">
                 <div className="grid grid-cols-3 gap-1.5 sm:gap-4">
                    <div className="h-16 sm:h-28">
                      <StatsCard label="Income" amount={summary.totalIncome} type="INCOME" filled />
