@@ -1,8 +1,10 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { Session } from '@supabase/supabase-js';
 import { Transaction, FinancialSummary, Category, Bank } from './types';
 import { INITIAL_CATEGORIES, INITIAL_BANKS } from './constants';
 import { supabase } from './supabaseClient';
+import LoginPage from './components/LoginPage';
 import TransactionForm from './components/TransactionForm';
 import TransactionList from './components/TransactionList';
 import StatsCard from './components/StatsCard';
@@ -17,7 +19,7 @@ import {
   ChevronLeft, ChevronRight, Filter, EyeOff,
   Car, Plane, Smartphone, Coffee, ShoppingBag, DollarSign, Activity, X,
   ArrowUpDown, FolderCog, CalendarRange, Building, ArrowRightLeft, Settings,
-  RotateCcw, Loader2
+  RotateCcw, Loader2, LogOut
 } from 'lucide-react';
 
 // Helper for category icons
@@ -35,6 +37,33 @@ const getCategoryIcon = (categoryId: string) => {
 };
 
 const App: React.FC = () => {
+  // Auth State
+  const [session, setSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Check auth on mount
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Logout handler
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
   // State Initialization
   const [categories, setCategories] = useState<Category[]>([]);
   const [banks, setBanks] = useState<Bank[]>([]);
@@ -611,6 +640,22 @@ const App: React.FC = () => {
     return Array.from(subs).sort();
   }, [categories, filterCategory]);
 
+  // Auth loading state
+  if (authLoading) {
+    return (
+        <div className="h-screen w-full flex items-center justify-center bg-slate-50 flex-col gap-3">
+             <Loader2 size={32} className="animate-spin text-slate-400" />
+             <p className="text-slate-500 font-medium text-sm">Checking authentication...</p>
+        </div>
+    );
+  }
+
+  // Show login if not authenticated
+  if (!session) {
+    return <LoginPage />;
+  }
+
+  // Data loading state
   if (loading) {
     return (
         <div className="h-screen w-full flex items-center justify-center bg-slate-50 flex-col gap-3">
@@ -691,7 +736,7 @@ const App: React.FC = () => {
            
            {/* Desktop Add Button */}
            <div className="hidden md:block mt-8">
-             <button 
+             <button
                 onClick={() => setIsModalOpen(true)}
                 className={`
                   w-full bg-slate-900 text-white py-2.5 rounded-xl font-semibold shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 hover:bg-slate-800
@@ -700,6 +745,20 @@ const App: React.FC = () => {
               >
                 <Plus size={18} />
                 {!isSidebarCollapsed && <span className="text-sm">Add New</span>}
+              </button>
+           </div>
+
+           {/* Logout Button - Desktop */}
+           <div className="hidden md:block mt-auto pt-4 border-t border-slate-100">
+             <button
+                onClick={handleLogout}
+                className={`
+                  w-full text-slate-500 hover:text-rose-600 hover:bg-rose-50 py-2.5 rounded-xl font-medium transition-all flex items-center justify-center gap-2
+                  ${isSidebarCollapsed ? 'px-0' : 'px-4'}
+                `}
+              >
+                <LogOut size={18} />
+                {!isSidebarCollapsed && <span className="text-sm">Logout</span>}
               </button>
            </div>
         </nav>
@@ -716,12 +775,21 @@ const App: React.FC = () => {
                    <h1 className="text-2xl font-bold text-slate-900">
                      {activeTab === 'home' ? 'Dashboard' : 'Transactions'}
                    </h1>
-                   <button 
-                     onClick={() => window.location.reload()}
-                     className="p-2 bg-white border border-slate-200 rounded-full text-slate-500 shadow-sm active:scale-95 transition-transform"
-                   >
-                     <RotateCcw size={18} />
-                   </button>
+                   <div className="flex items-center gap-2">
+                     <button
+                       onClick={() => window.location.reload()}
+                       className="p-2 bg-white border border-slate-200 rounded-full text-slate-500 shadow-sm active:scale-95 transition-transform"
+                     >
+                       <RotateCcw size={18} />
+                     </button>
+                     <button
+                       onClick={handleLogout}
+                       className="p-2 bg-white border border-slate-200 rounded-full text-slate-500 hover:text-rose-600 hover:border-rose-200 shadow-sm active:scale-95 transition-all"
+                       title="Logout"
+                     >
+                       <LogOut size={18} />
+                     </button>
+                   </div>
                 </div>
 
                 {/* Mobile Header */}
@@ -779,12 +847,21 @@ const App: React.FC = () => {
                     </div>
 
                     {/* Refresh Button */}
-                    <button 
+                    <button
                       onClick={() => window.location.reload()}
                       className="hidden md:flex p-2 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-slate-900 hover:border-slate-300 transition-all shadow-sm active:scale-95 items-center justify-center h-[38px] w-[38px]"
                       title="Refresh Application"
                     >
                       <RotateCcw size={16} />
+                    </button>
+
+                    {/* Logout Button */}
+                    <button
+                      onClick={handleLogout}
+                      className="hidden md:flex p-2 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm active:scale-95 items-center justify-center h-[38px] w-[38px]"
+                      title="Logout"
+                    >
+                      <LogOut size={16} />
                     </button>
                   </div>
                 </div>
@@ -1047,34 +1124,35 @@ const App: React.FC = () => {
            {/* SETTINGS VIEW */}
            {activeTab === 'settings' && (
              <div className="h-full">
-                 <SettingsManager 
+                 <SettingsManager
                     webhookUrl={webhookUrl}
                     onWebhookChange={setWebhookUrl}
                     banks={banks}
                     onAddBank={handleAddBank}
                     onDeleteBank={handleDeleteBank}
+                    onLogout={handleLogout}
                  />
              </div>
           )}
 
           {/* HISTORY VIEW */}
           {activeTab === 'history' && (
-            <div className="flex flex-col space-y-6">
+            <div className="flex flex-col space-y-4 sm:space-y-6 px-2 sm:px-0">
                <BankFeedUpload
                   onImport={handleImportTransactions}
                   webhookUrl={webhookUrl}
                   banks={banks}
                />
 
-              <div className="bg-white rounded-2xl border border-slate-200 p-3 animate-in fade-in shadow-sm min-h-[600px] flex flex-col">
-                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-6 gap-4 border-b border-slate-100 pb-6">
+              <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-2 sm:p-3 animate-in fade-in shadow-sm min-h-[400px] sm:min-h-[600px] flex flex-col">
+                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-3 sm:mb-6 gap-2 sm:gap-4 border-b border-slate-100 pb-3 sm:pb-6">
                   <div className="flex items-center gap-2">
-                      <div className="p-2 bg-slate-100 rounded-lg text-slate-700">
-                          <ListFilter size={20} />
+                      <div className="p-1.5 sm:p-2 bg-slate-100 rounded-lg text-slate-700">
+                          <ListFilter size={16} className="sm:w-5 sm:h-5" />
                       </div>
                       <div>
-                          <h3 className="font-bold text-slate-800 text-lg">Transaction Log</h3>
-                          <div className="flex items-center gap-2 mt-0.5 text-xs font-medium">
+                          <h3 className="font-bold text-slate-800 text-sm sm:text-lg">Transaction Log</h3>
+                          <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 text-[10px] sm:text-xs font-medium">
                               <span className="text-slate-500">{filteredTransactions.length} records found</span>
                               {filteredTransactions.length > 0 && (
                                   <>
@@ -1089,60 +1167,60 @@ const App: React.FC = () => {
                       </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                  <div className="flex flex-wrap items-center gap-1 sm:gap-2 w-full lg:w-auto">
                       {/* Bank Filter */}
                       <div className="relative">
-                          <select 
+                          <select
                               value={filterBank}
                               onChange={(e) => setFilterBank(e.target.value)}
-                              className="appearance-none pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors"
+                              className="appearance-none pl-2 sm:pl-3 pr-6 sm:pr-8 py-1.5 sm:py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] sm:text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors"
                           >
                               <option value="all">Bank: All</option>
                               {availableBanks.map(bank => (
                                   <option key={bank} value={bank}>{bank}</option>
                               ))}
                           </select>
-                          <Building size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                          <Building size={10} className="sm:w-3 sm:h-3 absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                       </div>
 
                       {/* Type Filter */}
                       <div className="relative">
-                          <select 
+                          <select
                               value={filterType}
                               onChange={(e) => setFilterType(e.target.value as any)}
-                              className="appearance-none pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors"
+                              className="appearance-none pl-2 sm:pl-3 pr-6 sm:pr-8 py-1.5 sm:py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] sm:text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors"
                           >
                               <option value="all">Type: All</option>
                               <option value="INCOME">Income</option>
                               <option value="EXPENSE">Expense</option>
                           </select>
-                          <ArrowUpDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                          <ArrowUpDown size={10} className="sm:w-3 sm:h-3 absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                       </div>
 
                       {/* Category Filter */}
                       <div className="relative">
-                          <select 
+                          <select
                               value={filterCategory}
                               onChange={(e) => {
                                   setFilterCategory(e.target.value);
-                                  setFilterSubcategory('all'); 
+                                  setFilterSubcategory('all');
                               }}
-                              className="appearance-none pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors"
+                              className="appearance-none pl-2 sm:pl-3 pr-6 sm:pr-8 py-1.5 sm:py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] sm:text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors"
                           >
                               <option value="all">Category: All</option>
                               {allCategories.map(cat => (
                                   <option key={cat.id} value={cat.id}>{cat.name}</option>
                               ))}
                           </select>
-                          <Filter size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                          <Filter size={10} className="sm:w-3 sm:h-3 absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                       </div>
 
-                      {/* Subcategory Filter */}
-                      <div className="relative">
-                          <select 
+                      {/* Subcategory Filter - Hide on mobile */}
+                      <div className="relative hidden sm:block">
+                          <select
                               value={filterSubcategory}
                               onChange={(e) => setFilterSubcategory(e.target.value)}
-                              className={`appearance-none pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors`}
+                              className="appearance-none pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors"
                           >
                               <option value="all">Subcategory: All</option>
                               {availableSubcategories.map(sub => (
@@ -1154,11 +1232,11 @@ const App: React.FC = () => {
 
                       {/* Reset Button */}
                       {(filterCategory !== 'all' || filterSubcategory !== 'all' || filterType !== 'all' || filterBank !== 'all') && (
-                          <button 
+                          <button
                               onClick={handleResetFilters}
-                              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors"
+                              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors"
                           >
-                              <X size={12} />
+                              <X size={10} className="sm:w-3 sm:h-3" />
                               Reset
                           </button>
                       )}

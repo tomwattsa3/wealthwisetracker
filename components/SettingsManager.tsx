@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Save, Trash2, Webhook, CheckCircle2, Building, Plus, CreditCard, ChevronRight } from 'lucide-react';
+import { Save, Trash2, Webhook, CheckCircle2, Building, Plus, CreditCard, ChevronRight, LogOut } from 'lucide-react';
 import { Bank } from '../types';
 
 interface SettingsManagerProps {
@@ -9,14 +9,16 @@ interface SettingsManagerProps {
   banks: Bank[];
   onAddBank: (bank: Bank) => void;
   onDeleteBank: (id: string) => void;
+  onLogout?: () => void;
 }
 
-const SettingsManager: React.FC<SettingsManagerProps> = ({ 
-  webhookUrl, 
+const SettingsManager: React.FC<SettingsManagerProps> = ({
+  webhookUrl,
   onWebhookChange,
   banks,
   onAddBank,
-  onDeleteBank
+  onDeleteBank,
+  onLogout
 }) => {
   const [activeTab, setActiveTab] = useState<'general' | 'banks'>('general');
   const [urlInput, setUrlInput] = useState(webhookUrl);
@@ -168,8 +170,8 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
                                 <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">{bank.currency}</span>
                              </div>
                           </div>
-                          
-                          <button 
+
+                          <button
                             onClick={() => onDeleteBank(bank.id)}
                             className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
                             title="Delete Bank"
@@ -191,12 +193,12 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
                      <form onSubmit={handleAddBankSubmit} className="p-5 space-y-4">
                         <div>
                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Bank Name</label>
-                           <input 
+                           <input
                              type="text"
                              required
                              value={newBankName}
                              onChange={(e) => setNewBankName(e.target.value)}
-                             placeholder="e.g. HSBC" 
+                             placeholder="e.g. HSBC"
                              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold focus:border-[#635bff] focus:ring-2 focus:ring-[#635bff]/10 outline-none"
                            />
                         </div>
@@ -204,7 +206,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
                         <div>
                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Currency</label>
                            <div className="relative">
-                              <select 
+                              <select
                                 value={newBankCurrency}
                                 onChange={(e) => setNewBankCurrency(e.target.value)}
                                 className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold focus:border-[#635bff] focus:ring-2 focus:ring-[#635bff]/10 outline-none appearance-none cursor-pointer"
@@ -218,7 +220,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
                            </div>
                         </div>
 
-                        <button 
+                        <button
                           type="submit"
                           className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg shadow-md transition-all flex items-center justify-center gap-2"
                         >
@@ -228,6 +230,27 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
                      </form>
                   </div>
                </div>
+            </div>
+          )}
+
+          {/* Logout Section */}
+          {onLogout && (
+            <div className="mt-8 pt-6 border-t border-slate-200">
+              <div className="bg-white rounded-xl border border-slate-200 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-slate-800">Sign Out</h3>
+                    <p className="text-sm text-slate-500">Log out of your account</p>
+                  </div>
+                  <button
+                    onClick={onLogout}
+                    className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <LogOut size={16} />
+                    Logout
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
