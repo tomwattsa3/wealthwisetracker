@@ -1081,21 +1081,21 @@ const App: React.FC = () => {
                       const isIncomeWidget = index === 3;
                       return (
                         <div key={`top-${index}-${catId}`} className="relative">
+                          {widgetCategoryIds.length > 1 && (
+                            <button
+                              onClick={() => handleRemoveDesktopWidget(index)}
+                              className="absolute top-2 right-2 w-7 h-7 bg-white border border-slate-200 hover:bg-rose-500 hover:border-rose-500 text-slate-400 hover:text-white rounded-full flex items-center justify-center text-base font-bold transition-all shadow-md z-50"
+                              title="Remove widget"
+                            >
+                              ×
+                            </button>
+                          )}
                           <CategoryTrendWidget
                               categoryId={catId}
                               onCategoryChange={(newId) => handleWidgetCategoryChange(index, newId)}
                               allCategories={isIncomeWidget ? incomeCategories : expenseCategories}
                               transactions={activeTransactions}
                           />
-                          {widgetCategoryIds.length > 1 && (
-                            <button
-                              onClick={() => handleRemoveDesktopWidget(index)}
-                              className="absolute top-3 right-3 w-6 h-6 bg-slate-200 hover:bg-rose-500 text-slate-500 hover:text-white rounded-full flex items-center justify-center text-sm font-bold transition-all shadow-sm z-20"
-                              title="Remove widget"
-                            >
-                              ×
-                            </button>
-                          )}
                         </div>
                       );
                  })}
@@ -1109,21 +1109,21 @@ const App: React.FC = () => {
                   <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     {widgetCategoryIds.slice(4).map((catId, index) => (
                       <div key={`bottom-${index + 4}-${catId}`} className="relative">
+                        {widgetCategoryIds.length > 1 && (
+                          <button
+                            onClick={() => handleRemoveDesktopWidget(index + 4)}
+                            className="absolute top-2 right-2 w-7 h-7 bg-white border border-slate-200 hover:bg-rose-500 hover:border-rose-500 text-slate-400 hover:text-white rounded-full flex items-center justify-center text-base font-bold transition-all shadow-md z-50"
+                            title="Remove widget"
+                          >
+                            ×
+                          </button>
+                        )}
                         <CategoryTrendWidget
                           categoryId={catId}
                           onCategoryChange={(newId) => handleWidgetCategoryChange(index + 4, newId)}
                           allCategories={expenseCategories}
                           transactions={activeTransactions}
                         />
-                        {widgetCategoryIds.length > 1 && (
-                          <button
-                            onClick={() => handleRemoveDesktopWidget(index + 4)}
-                            className="absolute top-3 right-3 w-6 h-6 bg-slate-200 hover:bg-rose-500 text-slate-500 hover:text-white rounded-full flex items-center justify-center text-sm font-bold transition-all shadow-sm z-20"
-                            title="Remove widget"
-                          >
-                            ×
-                          </button>
-                        )}
                       </div>
                     ))}
                     {/* Add Widget Button */}
