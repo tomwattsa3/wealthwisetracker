@@ -285,7 +285,8 @@ const App: React.FC = () => {
             'Money In - GBP': isIncome ? t.amount : null,
             'Money Out - AED': isIncome ? null : (t.originalAmount || null),
             'Money In - AED': isIncome ? (t.originalAmount || null) : null,
-            'Bank Account': t.bankName
+            'Bank Account': t.bankName,
+            'Notes': t.notes || null
           };
       });
 
@@ -310,7 +311,7 @@ const App: React.FC = () => {
               categoryName: t['Catagory'] || '',
               subcategoryName: t['Sub-Category'] || '',
               description: t['Description'] || '',
-              notes: '',
+              notes: t['Notes'] || '',
               excluded: false,
               bankName: t['Bank Account'] || ''
             };
