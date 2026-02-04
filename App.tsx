@@ -1152,18 +1152,7 @@ const App: React.FC = () => {
                       </div>
                       <div>
                           <h3 className="font-bold text-slate-800 text-sm sm:text-lg">Transaction Log</h3>
-                          <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 text-[10px] sm:text-xs font-medium">
-                              <span className="text-slate-500">{filteredTransactions.length} records found</span>
-                              {filteredTransactions.length > 0 && (
-                                  <>
-                                      <span className="text-slate-300">•</span>
-                                      <span className="text-slate-600 font-bold">Total: </span>
-                                      <span className={`font-mono font-bold ${filteredTotal >= 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
-                                          {filteredTotal > 0 ? '+' : ''}{new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(filteredTotal)}
-                                      </span>
-                                  </>
-                              )}
-                          </div>
+                          <p className="text-[10px] sm:text-xs text-slate-500 font-medium mt-0.5">{filteredTransactions.length} records found</p>
                       </div>
                   </div>
 
@@ -1243,12 +1232,23 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex-1">
-                  <TransactionList 
-                      transactions={filteredTransactions} 
+                <div className="flex-1 flex flex-col">
+                  {/* Total Amount Header Row */}
+                  {filteredTransactions.length > 0 && (
+                    <div className="flex items-center justify-end px-2 py-2 mb-1 bg-slate-50 border border-slate-200 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-500 uppercase">Total:</span>
+                        <span className={`text-lg font-bold font-mono ${filteredTotal >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {filteredTotal >= 0 ? '+' : ''}£{Math.abs(filteredTotal).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  <TransactionList
+                      transactions={filteredTransactions}
                       categories={categories}
                       onUpdate={updateTransaction}
-                      onDelete={deleteTransaction} 
+                      onDelete={deleteTransaction}
                     />
                 </div>
               </div>
