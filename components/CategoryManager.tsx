@@ -224,154 +224,154 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
     <button
       key={cat.id}
       onClick={() => setSelectedCategoryId(cat.id)}
-      className={`w-full flex items-center justify-between p-4 rounded-xl transition-all border group ${
-        selectedCategoryId === cat.id 
-          ? 'bg-violet-50 border-violet-200 shadow-sm ring-1 ring-violet-200' 
+      className={`w-full flex items-center justify-between p-2 sm:p-4 rounded-lg sm:rounded-xl transition-all border group ${
+        selectedCategoryId === cat.id
+          ? 'bg-violet-50 border-violet-200 shadow-sm ring-1 ring-violet-200'
           : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-100'
       }`}
     >
-       <div className="flex items-center gap-4">
-          <div className="w-4 h-4 rounded-full ring-2 ring-offset-2 ring-offset-white shadow-sm" style={{ backgroundColor: cat.color, '--tw-ring-color': cat.color } as any}></div>
+       <div className="flex items-center gap-2 sm:gap-4">
+          <div className="w-3 sm:w-4 h-3 sm:h-4 rounded-full ring-2 ring-offset-1 sm:ring-offset-2 ring-offset-white shadow-sm" style={{ backgroundColor: cat.color, '--tw-ring-color': cat.color } as any}></div>
           <div className="text-left">
-             <p className={`text-base font-bold ${selectedCategoryId === cat.id ? 'text-violet-900' : 'text-slate-800'}`}>{cat.name}</p>
-             <p className="text-xs text-slate-400 font-medium mt-0.5">{cat.subcategories.length} subcategories</p>
+             <p className={`text-xs sm:text-base font-bold ${selectedCategoryId === cat.id ? 'text-violet-900' : 'text-slate-800'}`}>{cat.name}</p>
+             <p className="text-[10px] sm:text-xs text-slate-400 font-medium">{cat.subcategories.length} subs</p>
           </div>
        </div>
-       
-       <div className="flex items-center gap-3">
-          <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide border ${
-             cat.type === 'INCOME' 
-               ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
+
+       <div className="flex items-center gap-1.5 sm:gap-3">
+          <span className={`text-[8px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md uppercase tracking-wide border ${
+             cat.type === 'INCOME'
+               ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
                : 'bg-rose-50 text-rose-700 border-rose-100'
           }`}>
-            {cat.type === 'INCOME' ? 'Income' : 'Expense'}
+            {cat.type === 'INCOME' ? 'In' : 'Out'}
           </span>
-          {selectedCategoryId === cat.id && <ChevronRight size={18} className="text-violet-500" />}
+          {selectedCategoryId === cat.id && <ChevronRight size={14} className="sm:w-[18px] sm:h-[18px] text-violet-500" />}
        </div>
     </button>
   );
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 h-[calc(100vh-140px)] min-h-[600px] gap-6 animate-in fade-in">
-      
-      {/* Left Panel: Category List - Now 50% width, with "Bigger" items */}
-      <div className="flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden h-full">
-        
+    <div className="grid grid-cols-1 md:grid-cols-2 h-[calc(100vh-180px)] sm:h-[calc(100vh-140px)] min-h-[400px] sm:min-h-[600px] gap-2 sm:gap-6 animate-in fade-in px-2 sm:px-0">
+
+      {/* Left Panel: Category List */}
+      <div className="flex flex-col bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm overflow-hidden h-full">
+
         {/* Header */}
-        <div className="p-3 border-b border-slate-100 bg-slate-50/50 space-y-3">
+        <div className="p-2 sm:p-3 border-b border-slate-100 bg-slate-50/50 space-y-2 sm:space-y-3">
            <div className="flex items-center justify-between">
-              <h2 className="font-bold text-slate-800 flex items-center gap-2 text-lg">
-                <Layers className="text-violet-600" size={20} />
+              <h2 className="font-bold text-slate-800 flex items-center gap-1.5 sm:gap-2 text-sm sm:text-lg">
+                <Layers className="text-violet-600" size={16} />
                 Categories
               </h2>
-              <button 
+              <button
                 onClick={() => setIsCreating(true)}
-                className="p-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors shadow-sm"
+                className="p-1.5 sm:p-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors shadow-sm"
                 title="Add Category"
               >
-                <Plus size={18} />
+                <Plus size={14} className="sm:w-[18px] sm:h-[18px]" />
               </button>
            </div>
-           
+
            {/* Search */}
            <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Search categories..." 
+              <Search size={14} className="sm:w-4 sm:h-4 absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-semibold focus:border-violet-500 focus:ring-2 focus:ring-violet-100 outline-none"
+                className="w-full pl-7 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 bg-white border border-slate-200 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold focus:border-violet-500 focus:ring-2 focus:ring-violet-100 outline-none"
               />
            </div>
         </div>
 
-        {/* List - Spacious Items (Bigger) grouped by Income / Expense / Excluded */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-6">
+        {/* List - grouped by Income / Expense / Excluded */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-2 sm:p-3 space-y-3 sm:space-y-6">
            
            {/* Income Section */}
            {groupedCategories.income.length > 0 && (
-             <div className="space-y-2">
-               <h3 className="px-2 text-xs font-bold text-slate-400 uppercase tracking-wider">Income Sources</h3>
+             <div className="space-y-1 sm:space-y-2">
+               <h3 className="px-1 sm:px-2 text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Income</h3>
                {groupedCategories.income.map(renderCategoryRow)}
              </div>
            )}
 
            {/* Expense Section */}
            {groupedCategories.expense.length > 0 && (
-             <div className="space-y-2">
-               <h3 className="px-2 text-xs font-bold text-slate-400 uppercase tracking-wider">Expenses</h3>
+             <div className="space-y-1 sm:space-y-2">
+               <h3 className="px-1 sm:px-2 text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Expenses</h3>
                {groupedCategories.expense.map(renderCategoryRow)}
              </div>
            )}
 
            {/* Excluded Section */}
            {groupedCategories.excluded.length > 0 && (
-             <div className="space-y-2">
-               <h3 className="px-2 text-xs font-bold text-slate-400 uppercase tracking-wider">Excluded</h3>
+             <div className="space-y-1 sm:space-y-2">
+               <h3 className="px-1 sm:px-2 text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Excluded</h3>
                {groupedCategories.excluded.map(renderCategoryRow)}
              </div>
            )}
 
            {filteredCategories.length === 0 && (
-             <div className="p-8 text-center text-slate-400">
-               <p className="text-sm">No categories found.</p>
+             <div className="p-4 sm:p-8 text-center text-slate-400">
+               <p className="text-xs sm:text-sm">No categories found.</p>
              </div>
            )}
         </div>
       </div>
 
-      {/* Right Panel: Subcategories - Now 50% width, with "Smaller" items */}
-      <div className="flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden h-full relative">
+      {/* Right Panel: Subcategories */}
+      <div className="flex flex-col bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm overflow-hidden h-full relative">
          {selectedCategory ? (
            <>
               {/* Header */}
-              <div className="p-3 border-b border-slate-100 flex justify-between items-start bg-slate-50/30">
+              <div className="p-2 sm:p-3 border-b border-slate-100 flex justify-between items-start bg-slate-50/30">
                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                       <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: selectedCategory.color }}></div>
-                       <h2 className="text-xl font-bold text-slate-900">{selectedCategory.name}</h2>
+                    <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
+                       <div className="w-2 sm:w-3 h-2 sm:h-3 rounded-full shadow-sm" style={{ backgroundColor: selectedCategory.color }}></div>
+                       <h2 className="text-sm sm:text-xl font-bold text-slate-900">{selectedCategory.name}</h2>
                     </div>
-                    <p className="text-slate-500 text-xs font-medium">Manage subcategories</p>
+                    <p className="text-slate-500 text-[10px] sm:text-xs font-medium">Subcategories</p>
                  </div>
-                 <div className="flex items-center gap-2">
-                     <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border uppercase tracking-wider ${
-                        selectedCategory.type === 'INCOME' 
-                          ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                 <div className="flex items-center gap-1.5 sm:gap-2">
+                     <span className={`px-1.5 sm:px-2 py-0.5 rounded-md text-[8px] sm:text-[10px] font-bold border uppercase tracking-wider ${
+                        selectedCategory.type === 'INCOME'
+                          ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
                           : 'bg-rose-50 text-rose-600 border-rose-100'
                      }`}>
-                        {selectedCategory.type}
+                        {selectedCategory.type === 'INCOME' ? 'In' : 'Out'}
                      </span>
                      {selectedCategory.id !== 'excluded' && (
-                        <button 
+                        <button
                             onClick={handleDeleteClick}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                            className="p-1 sm:p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
                             title="Delete Category"
                         >
-                            <Trash2 size={16} />
+                            <Trash2 size={14} className="sm:w-4 sm:h-4" />
                         </button>
                      )}
                  </div>
               </div>
 
-              {/* Subcategory List - Compact Items (Smaller) */}
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-5">
-                 <div className="grid grid-cols-1 gap-2">
+              {/* Subcategory List */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-2 sm:p-5">
+                 <div className="grid grid-cols-1 gap-1 sm:gap-2">
                     {selectedCategory.subcategories.map(sub => (
-                       <div key={sub} className="group flex items-center justify-between p-2.5 bg-white border border-slate-100 rounded-lg hover:border-violet-200 hover:shadow-sm transition-all">
-                          <div className="flex items-center gap-3">
-                             <div className="p-1.5 bg-slate-50 rounded text-slate-400 group-hover:text-violet-500 transition-colors">
-                                <Tag size={14} />
+                       <div key={sub} className="group flex items-center justify-between p-1.5 sm:p-2.5 bg-white border border-slate-100 rounded-lg hover:border-violet-200 hover:shadow-sm transition-all">
+                          <div className="flex items-center gap-2 sm:gap-3">
+                             <div className="p-1 sm:p-1.5 bg-slate-50 rounded text-slate-400 group-hover:text-violet-500 transition-colors">
+                                <Tag size={12} className="sm:w-3.5 sm:h-3.5" />
                              </div>
-                             <span className="font-medium text-sm text-slate-700 group-hover:text-slate-900">{sub}</span>
+                             <span className="font-medium text-xs sm:text-sm text-slate-700 group-hover:text-slate-900">{sub}</span>
                           </div>
-                          
+
                           <button
                             onClick={() => handleSubcategoryDeleteClick(sub)}
-                            className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded transition-all opacity-0 group-hover:opacity-100"
+                            className="p-1 sm:p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded transition-all sm:opacity-0 sm:group-hover:opacity-100"
                             title="Delete Subcategory"
                           >
-                             <Trash2 size={14} />
+                             <Trash2 size={12} className="sm:w-3.5 sm:h-3.5" />
                           </button>
                        </div>
                     ))}
@@ -379,21 +379,21 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
               </div>
 
               {/* Footer: Add Subcategory */}
-              <div className="p-4 border-t border-slate-100 bg-slate-50">
-                 <form onSubmit={handleAddSubcategory} className="flex gap-2">
-                    <input 
-                      type="text" 
+              <div className="p-2 sm:p-4 border-t border-slate-100 bg-slate-50">
+                 <form onSubmit={handleAddSubcategory} className="flex gap-1.5 sm:gap-2">
+                    <input
+                      type="text"
                       value={newSubcatName}
                       onChange={(e) => setNewSubcatName(e.target.value)}
                       placeholder="New subcategory..."
-                      className="flex-1 px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 outline-none transition-all"
+                      className="flex-1 px-2 sm:px-3 py-2 sm:py-2.5 bg-white border border-slate-200 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 outline-none transition-all"
                     />
-                    <button 
+                    <button
                       type="submit"
                       disabled={!newSubcatName.trim()}
-                      className="px-5 py-2.5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-slate-200 flex items-center gap-2 text-sm"
+                      className="px-3 sm:px-5 py-2 sm:py-2.5 bg-slate-900 text-white font-bold rounded-lg sm:rounded-xl hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-slate-200 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm"
                     >
-                       <Plus size={16} />
+                       <Plus size={14} className="sm:w-4 sm:h-4" />
                        <span className="hidden sm:inline">Add</span>
                     </button>
                  </form>
@@ -401,8 +401,8 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
            </>
          ) : (
            <div className="flex-1 flex flex-col items-center justify-center text-slate-300">
-              <FolderPlus size={48} className="mb-4 opacity-20" />
-              <p className="font-medium text-sm">Select a category</p>
+              <FolderPlus size={32} className="sm:w-12 sm:h-12 mb-2 sm:mb-4 opacity-20" />
+              <p className="font-medium text-xs sm:text-sm">Select a category</p>
            </div>
          )}
       </div>
@@ -425,44 +425,44 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
 
       {/* Create Category Modal */}
       {isCreating && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsCreating(false)}></div>
-           <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                 <h3 className="text-lg font-bold text-slate-800">Create New Category</h3>
+           <div className="relative w-full max-w-sm sm:max-w-lg bg-white rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-3 sm:p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                 <h3 className="text-sm sm:text-lg font-bold text-slate-800">Create Category</h3>
                  <button onClick={() => setIsCreating(false)} className="text-slate-400 hover:text-slate-600">
-                    <X size={20} />
+                    <X size={18} className="sm:w-5 sm:h-5" />
                  </button>
               </div>
-              
-              <form onSubmit={handleCreateCategory} className="p-6 space-y-6">
-                 <div className="space-y-4">
+
+              <form onSubmit={handleCreateCategory} className="p-3 sm:p-6 space-y-4 sm:space-y-6">
+                 <div className="space-y-3 sm:space-y-4">
                     <div>
-                       <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Category Name</label>
-                       <input 
+                       <label className="block text-[10px] sm:text-xs font-bold text-slate-500 uppercase mb-1 sm:mb-1.5">Name</label>
+                       <input
                          autoFocus
-                         type="text" 
+                         type="text"
                          value={newCatName}
                          onChange={(e) => setNewCatName(e.target.value)}
                          placeholder="e.g. Entertainment"
-                         className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 outline-none transition-all"
+                         className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-white border border-slate-200 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base text-slate-800 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 outline-none transition-all"
                        />
                     </div>
 
                     <div>
-                       <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Transaction Type</label>
-                       <div className="grid grid-cols-2 gap-3">
+                       <label className="block text-[10px] sm:text-xs font-bold text-slate-500 uppercase mb-1 sm:mb-1.5">Type</label>
+                       <div className="grid grid-cols-2 gap-2 sm:gap-3">
                           <button
                             type="button"
                             onClick={() => setNewCatType('EXPENSE')}
-                            className={`py-3 rounded-xl text-sm font-bold border transition-all ${newCatType === 'EXPENSE' ? 'bg-rose-50 border-rose-200 text-rose-700 ring-2 ring-rose-500/20' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                            className={`py-2 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold border transition-all ${newCatType === 'EXPENSE' ? 'bg-rose-50 border-rose-200 text-rose-700 ring-2 ring-rose-500/20' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
                           >
                              Expense
                           </button>
                           <button
                             type="button"
                             onClick={() => setNewCatType('INCOME')}
-                            className={`py-3 rounded-xl text-sm font-bold border transition-all ${newCatType === 'INCOME' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 ring-2 ring-emerald-500/20' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                            className={`py-2 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold border transition-all ${newCatType === 'INCOME' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 ring-2 ring-emerald-500/20' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
                           >
                              Income
                           </button>
@@ -470,30 +470,30 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
                     </div>
 
                     <div>
-                       <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Color Tag</label>
-                       <div className="flex flex-wrap gap-3">
+                       <label className="block text-[10px] sm:text-xs font-bold text-slate-500 uppercase mb-1.5 sm:mb-2">Color</label>
+                       <div className="flex flex-wrap gap-2 sm:gap-3">
                           {PRESET_COLORS.map(c => (
                             <button
                               key={c}
                               type="button"
                               onClick={() => setNewCatColor(c)}
-                              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${newCatColor === c ? 'ring-2 ring-offset-2 ring-slate-900 scale-110' : 'hover:scale-110'}`}
+                              className={`w-7 h-7 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all ${newCatColor === c ? 'ring-2 ring-offset-1 sm:ring-offset-2 ring-slate-900 scale-110' : 'hover:scale-110'}`}
                               style={{ backgroundColor: c }}
                             >
-                               {newCatColor === c && <Check size={16} className="text-white drop-shadow-md" />}
+                               {newCatColor === c && <Check size={12} className="sm:w-4 sm:h-4 text-white drop-shadow-md" />}
                             </button>
                           ))}
                        </div>
                     </div>
                  </div>
 
-                 <div className="pt-2">
-                    <button 
+                 <div className="pt-1 sm:pt-2">
+                    <button
                       type="submit"
                       disabled={!newCatName.trim()}
-                      className="w-full py-3.5 bg-violet-600 text-white font-bold rounded-xl hover:bg-violet-700 shadow-lg shadow-violet-200 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
+                      className="w-full py-2.5 sm:py-3.5 bg-violet-600 text-white font-bold rounded-lg sm:rounded-xl text-sm sm:text-base hover:bg-violet-700 shadow-lg shadow-violet-200 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
                     >
-                       Create Category
+                       Create
                     </button>
                  </div>
               </form>
