@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Calendar, DollarSign, Type, Tag, EyeOff, Building } from 'lucide-react';
+import { Plus, X, Calendar, PoundSterling, Type, Tag, EyeOff, Building } from 'lucide-react';
 import { Transaction, TransactionType, Category, Bank } from '../types';
 
 interface TransactionFormProps {
@@ -123,7 +123,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction, isO
             <label className="text-[11px] font-bold text-slate-500 uppercase ml-1 mb-2 block tracking-wider">Amount</label>
             <div className="relative group">
               <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-violet-600 transition-colors">
-                <DollarSign size={20} />
+                <PoundSterling size={20} />
               </div>
               <input
                 type="number"

@@ -17,7 +17,7 @@ import SettingsManager from './components/SettingsManager';
 import {
   LayoutDashboard, Plus, Home, ListFilter, Search,
   ChevronLeft, ChevronRight, Filter, EyeOff,
-  Car, Plane, Smartphone, Coffee, ShoppingBag, DollarSign, Activity, X,
+  Car, Plane, Smartphone, Coffee, ShoppingBag, PoundSterling, Activity, X,
   ArrowUpDown, FolderCog, CalendarRange, Building, ArrowRightLeft, Settings,
   RotateCcw, Loader2, LogOut
 } from 'lucide-react';
@@ -31,7 +31,7 @@ const getCategoryIcon = (categoryId: string) => {
         case 'personal': return <Smartphone size={16} />;
         case 'food': return <Coffee size={16} />;
         case 'groceries': return <ShoppingBag size={16} />;
-        case 'income_salary': return <DollarSign size={16} />;
+        case 'income_salary': return <PoundSterling size={16} />;
         default: return <Activity size={16} />;
     }
 };
@@ -984,7 +984,7 @@ const App: React.FC = () => {
                         style={{ backgroundColor: '#10b981' }}
                       >
                         <div className="flex items-center gap-1.5">
-                          <DollarSign size={12} className="text-white/80" />
+                          <PoundSterling size={12} className="text-white/80" />
                           <span className="text-[10px] font-bold text-white">Income</span>
                         </div>
                         <span className="text-[11px] font-bold text-white/90 font-mono">£{incomeTotal.toLocaleString()}</span>
