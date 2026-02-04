@@ -187,14 +187,16 @@ const App: React.FC = () => {
   // --- HANDLERS (UPDATED FOR SUPABASE) ---
 
   const handleAddCategory = async (newCat: Category) => {
+    console.log('Adding category:', newCat);
     setCategories(prev => [...prev, newCat]);
-    await supabase.from('Categories').insert({
+    const { data, error } = await supabase.from('Categories').insert({
       id: newCat.id,
       name: newCat.name,
       subcategories: newCat.subcategories,
       type: newCat.type,
       color: newCat.color
-    });
+    }).select();
+    console.log('Category insert result:', { data, error });
   };
 
   const handleAddSubcategory = async (catId: string, sub: string) => {
@@ -203,8 +205,10 @@ const App: React.FC = () => {
 
     if (!categoryToUpdate.subcategories.includes(sub)) {
         const updatedSubs = [...categoryToUpdate.subcategories, sub];
+        console.log('Adding subcategory:', { catId, sub, updatedSubs });
         setCategories(prev => prev.map(c => c.id === catId ? { ...c, subcategories: updatedSubs } : c));
-        await supabase.from('Categories').update({ subcategories: updatedSubs }).eq('id', catId);
+        const { data, error } = await supabase.from('Categories').update({ subcategories: updatedSubs }).eq('id', catId).select();
+        console.log('Subcategory update result:', { data, error });
     }
   };
 
