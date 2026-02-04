@@ -269,8 +269,7 @@ const App: React.FC = () => {
           'Money In - GBP': isIncome ? newTx.amount : null,
           'Money Out - AED': isIncome ? null : (newTx.originalAmount || null),
           'Money In - AED': isIncome ? (newTx.originalAmount || null) : null,
-          'Bank Account': newTx.bankName,
-          'Notes': newTx.notes || null
+          'Bank Account': newTx.bankName
       };
 
       console.log('Adding transaction to Supabase:', dbPayload);
@@ -305,8 +304,7 @@ const App: React.FC = () => {
             'Money In - GBP': isIncome ? t.amount : null,
             'Money Out - AED': isIncome ? null : (t.originalAmount || null),
             'Money In - AED': isIncome ? (t.originalAmount || null) : null,
-            'Bank Account': t.bankName,
-            'Notes': t.notes || null
+            'Bank Account': t.bankName
           };
       });
 
@@ -377,9 +375,10 @@ const App: React.FC = () => {
       if (updates.subcategoryName !== undefined) {
         dbUpdates['Sub-Category'] = updates.subcategoryName;
       }
-      if (updates.notes !== undefined) {
-        dbUpdates['Notes'] = updates.notes;
-      }
+      // Note: 'Notes' column doesn't exist in Supabase yet - uncomment when added
+      // if (updates.notes !== undefined) {
+      //   dbUpdates['Notes'] = updates.notes;
+      // }
 
       console.log('DB Updates:', dbUpdates);
       console.log('Numeric ID:', numericId);
