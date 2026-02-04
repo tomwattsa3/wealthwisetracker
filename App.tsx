@@ -108,6 +108,7 @@ const App: React.FC = () => {
       if (txError) throw txError;
 
       // Map DB columns to app's expected format
+      console.log('Raw Supabase data:', txData);
       const mappedTxs: Transaction[] = (txData || []).map(t => {
           // Determine if income or expense based on which column has value
           const moneyInGBP = t['Money In - GBP'] || 0;
@@ -126,6 +127,10 @@ const App: React.FC = () => {
             c.name.toLowerCase() === categoryName.toLowerCase()
           );
           const categoryId = matchedCategory?.id || '';
+
+          if (!matchedCategory) {
+            console.log('No match for category:', categoryName, '| Available:', INITIAL_CATEGORIES.map(c => c.name));
+          }
 
           return {
             id: String(t.id),
