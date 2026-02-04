@@ -17,15 +17,15 @@ const PRESET_COLORS = [
   '#6366f1', '#64748b', '#84cc16', '#14b8a6'
 ];
 
-const DeleteCategoryModal = ({ 
-    isOpen, 
-    onClose, 
+const DeleteCategoryModal = ({
+    isOpen,
+    onClose,
     onConfirm,
     categoryName
-}: { 
-    isOpen: boolean; 
-    onClose: () => void; 
-    onConfirm: () => void; 
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
     categoryName: string;
 }) => {
     if (!isOpen) return null;
@@ -41,18 +41,66 @@ const DeleteCategoryModal = ({
                     <div>
                         <h3 className="text-lg font-bold text-slate-900">Delete Category?</h3>
                         <p className="text-sm text-slate-500 mt-2 leading-relaxed">
-                            Are you sure you want to delete <span className="font-bold text-slate-900">{categoryName}</span>? 
+                            Are you sure you want to delete <span className="font-bold text-slate-900">{categoryName}</span>?
                             This action cannot be undone.
                         </p>
                     </div>
                     <div className="flex gap-3 w-full mt-2">
-                        <button 
+                        <button
                             onClick={onClose}
                             className="flex-1 py-2.5 rounded-xl font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
                         >
                             Cancel
                         </button>
-                        <button 
+                        <button
+                            onClick={onConfirm}
+                            className="flex-1 py-2.5 rounded-xl font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-200 transition-all active:scale-95"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const DeleteSubcategoryModal = ({
+    isOpen,
+    onClose,
+    onConfirm,
+    subcategoryName
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+    subcategoryName: string;
+}) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 border border-slate-100 animate-in zoom-in-95 duration-200">
+                <div className="flex flex-col items-center text-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100">
+                        <AlertTriangle size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-900">Delete Subcategory?</h3>
+                        <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+                            Are you sure you want to delete <span className="font-bold text-slate-900">{subcategoryName}</span>?
+                            This action cannot be undone.
+                        </p>
+                    </div>
+                    <div className="flex gap-3 w-full mt-2">
+                        <button
+                            onClick={onClose}
+                            className="flex-1 py-2.5 rounded-xl font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
                             onClick={onConfirm}
                             className="flex-1 py-2.5 rounded-xl font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-200 transition-all active:scale-95"
                         >
@@ -87,6 +135,9 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
 
   // Delete Confirmation State
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Subcategory Delete Confirmation State
+  const [subcategoryToDelete, setSubcategoryToDelete] = useState<string | null>(null);
 
   // Initialize selection
   useEffect(() => {
@@ -152,6 +203,19 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
        onDeleteCategory(selectedCategoryId);
        setShowDeleteConfirm(false);
        setSelectedCategoryId(null); // Deselect after delete
+    }
+  };
+
+  // Handler for opening subcategory delete confirmation
+  const handleSubcategoryDeleteClick = (subcategoryName: string) => {
+    setSubcategoryToDelete(subcategoryName);
+  };
+
+  // Handler for confirming subcategory delete
+  const handleConfirmSubcategoryDelete = () => {
+    if (selectedCategoryId && subcategoryToDelete) {
+      onDeleteSubcategory(selectedCategoryId, subcategoryToDelete);
+      setSubcategoryToDelete(null);
     }
   };
 
@@ -302,8 +366,8 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
                              <span className="font-medium text-sm text-slate-700 group-hover:text-slate-900">{sub}</span>
                           </div>
                           
-                          <button 
-                            onClick={() => onDeleteSubcategory(selectedCategory.id, sub)}
+                          <button
+                            onClick={() => handleSubcategoryDeleteClick(sub)}
                             className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded transition-all opacity-0 group-hover:opacity-100"
                             title="Delete Subcategory"
                           >
@@ -343,12 +407,20 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
          )}
       </div>
 
-      {/* Delete Confirmation Modal */}
-      <DeleteCategoryModal 
-         isOpen={showDeleteConfirm} 
+      {/* Delete Category Confirmation Modal */}
+      <DeleteCategoryModal
+         isOpen={showDeleteConfirm}
          onClose={() => setShowDeleteConfirm(false)}
          onConfirm={handleConfirmDelete}
          categoryName={selectedCategory?.name || ''}
+      />
+
+      {/* Delete Subcategory Confirmation Modal */}
+      <DeleteSubcategoryModal
+         isOpen={!!subcategoryToDelete}
+         onClose={() => setSubcategoryToDelete(null)}
+         onConfirm={handleConfirmSubcategoryDelete}
+         subcategoryName={subcategoryToDelete || ''}
       />
 
       {/* Create Category Modal */}
