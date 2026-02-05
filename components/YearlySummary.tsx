@@ -185,37 +185,35 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
 
       {/* KPI Cards Row */}
       <div className="px-4 md:px-8 pb-6">
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="grid grid-cols-3 divide-x divide-slate-100">
-            {/* Total Income */}
-            <div className="p-4 md:p-6">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp size={14} className="text-emerald-500" />
-                <span className="text-[10px] md:text-xs font-medium text-emerald-600 uppercase tracking-wide">Income</span>
-              </div>
-              <p className="text-lg md:text-3xl font-semibold text-slate-900">{formatAmount(totalIncome)}</p>
-              <p className="text-[10px] md:text-xs text-slate-400 mt-1">Total Earnings</p>
+        <div className="grid grid-cols-3 gap-3 md:gap-4">
+          {/* Total Income */}
+          <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingUp size={16} className="text-slate-400" />
+              <span className="text-[10px] md:text-xs font-medium text-slate-400 uppercase tracking-wide">Income</span>
             </div>
+            <p className="text-xl md:text-3xl font-semibold text-slate-900 mb-1">{formatAmount(totalIncome)}</p>
+            <p className="text-[10px] md:text-xs text-slate-400">Total Earnings</p>
+          </div>
 
-            {/* Total Expenses */}
-            <div className="p-4 md:p-6">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingDown size={14} className="text-rose-500" />
-                <span className="text-[10px] md:text-xs font-medium text-rose-600 uppercase tracking-wide">Expenses</span>
-              </div>
-              <p className="text-lg md:text-3xl font-semibold text-slate-900">{formatAmount(totalExpense)}</p>
-              <p className="text-[10px] md:text-xs text-slate-400 mt-1">Total Spending</p>
+          {/* Total Expenses */}
+          <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingDown size={16} className="text-slate-400" />
+              <span className="text-[10px] md:text-xs font-medium text-slate-400 uppercase tracking-wide">Expenses</span>
             </div>
+            <p className="text-xl md:text-3xl font-semibold text-slate-900 mb-1">{formatAmount(totalExpense)}</p>
+            <p className="text-[10px] md:text-xs text-slate-400">Total Spending</p>
+          </div>
 
-            {/* Avg Monthly Spend */}
-            <div className="p-4 md:p-6">
-              <div className="flex items-center gap-2 mb-2">
-                <PieChart size={14} className="text-violet-500" />
-                <span className="text-[10px] md:text-xs font-medium text-violet-600 uppercase tracking-wide">Avg. Monthly</span>
-              </div>
-              <p className="text-lg md:text-3xl font-semibold text-slate-900">{formatAmount(avgMonthlySpend)}</p>
-              <p className="text-[10px] md:text-xs text-slate-400 mt-1">Per Month Spend</p>
+          {/* Avg Monthly Spend */}
+          <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <PieChart size={16} className="text-slate-400" />
+              <span className="text-[10px] md:text-xs font-medium text-slate-400 uppercase tracking-wide">Avg. Monthly</span>
             </div>
+            <p className="text-xl md:text-3xl font-semibold text-slate-900 mb-1">{formatAmount(avgMonthlySpend)}</p>
+            <p className="text-[10px] md:text-xs text-slate-400">Per Month Spend</p>
           </div>
         </div>
       </div>
