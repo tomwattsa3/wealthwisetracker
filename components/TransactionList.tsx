@@ -234,10 +234,10 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                     <span className="text-[11px] text-slate-400 mt-0.5 block">{t.categoryName || 'Uncategorized'}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                    <span className={`px-1.5 py-0.5 text-[9px] font-medium rounded border ${displayType === 'INCOME' ? 'text-emerald-600 border-emerald-200' : 'text-slate-400 border-slate-200'}`}>
+                    <span className={`w-8 text-center px-1 py-0.5 text-[9px] font-medium rounded border ${displayType === 'INCOME' ? 'text-emerald-600 border-emerald-200' : 'text-slate-400 border-slate-200'}`}>
                         {displayType === 'INCOME' ? 'IN' : 'OUT'}
                     </span>
-                    <span className={`text-sm font-medium ${isExcluded ? 'text-slate-400' : 'text-slate-700'}`}>
+                    <span className={`text-sm font-medium tabular-nums ${isExcluded ? 'text-slate-400' : 'text-slate-700'}`}>
                         £{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                 </div>
