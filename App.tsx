@@ -1501,6 +1501,10 @@ const App: React.FC = () => {
                         <p className="font-bold text-slate-700 font-mono">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { minimumFractionDigits: 2 })}</p>
                       </div>
                       <div>
+                        <p className="text-slate-400 text-xs">Avg Transaction</p>
+                        <p className="font-bold text-slate-700 font-mono">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalSpend / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</p>
+                      </div>
+                      <div>
                         <p className="text-slate-400 text-xs">Days</p>
                         <p className="font-bold text-slate-700">{dailyAverageData.daysInRange}</p>
                       </div>
@@ -1533,16 +1537,20 @@ const App: React.FC = () => {
                       <span className="text-xs text-slate-400">/day</span>
                     </div>
                   </div>
-                  <div className="flex gap-4 text-[10px]">
-                    <div className="bg-white/10 rounded-lg px-3 py-1.5 text-center">
+                  <div className="flex gap-2 text-[10px]">
+                    <div className="bg-white/10 rounded-lg px-2 py-1.5 text-center">
                       <span className="text-slate-400 block">Total</span>
                       <span className="font-bold">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</span>
                     </div>
-                    <div className="bg-white/10 rounded-lg px-3 py-1.5 text-center">
+                    <div className="bg-white/10 rounded-lg px-2 py-1.5 text-center">
+                      <span className="text-slate-400 block">Avg Trans</span>
+                      <span className="font-bold">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalSpend / dailyAverageData.transactionCount).toLocaleString('en-GB', { maximumFractionDigits: 0 }) : '0'}</span>
+                    </div>
+                    <div className="bg-white/10 rounded-lg px-2 py-1.5 text-center">
                       <span className="text-slate-400 block">Days</span>
                       <span className="font-bold">{dailyAverageData.daysInRange}</span>
                     </div>
-                    <div className="bg-white/10 rounded-lg px-3 py-1.5 text-center">
+                    <div className="bg-white/10 rounded-lg px-2 py-1.5 text-center">
                       <span className="text-slate-400 block">Trans</span>
                       <span className="font-bold">{dailyAverageData.transactionCount}</span>
                     </div>
