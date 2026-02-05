@@ -1095,14 +1095,14 @@ const App: React.FC = () => {
                         {topIncomeGrouped.map((g, idx) => (
                           <div key={g.description} className="flex items-center justify-between px-4 py-3 border-b border-slate-100 last:border-b-0">
                             <div className="flex-1 min-w-0 mr-3">
-                              <span className="text-sm font-semibold text-slate-900 truncate block">{g.description}</span>
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className="text-[11px] font-medium text-slate-400 uppercase">Income</span>
-                                <span className="text-slate-300">•</span>
-                                <span className="text-[11px] text-slate-400">{g.subcategoryName}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-slate-900 truncate">{g.description}</span>
                                 {g.count > 1 && (
-                                  <span className="text-[11px] text-slate-400">x{g.count}</span>
+                                  <span className="text-[10px] text-slate-400">x{g.count}</span>
                                 )}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-1">
+                                <span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] text-slate-500 font-medium">{g.subcategoryName}</span>
                               </div>
                             </div>
                             <span className="text-sm font-semibold text-slate-900">£{g.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -1177,14 +1177,14 @@ const App: React.FC = () => {
                         {topGrouped.map((g, idx) => (
                           <div key={g.description} className="flex items-center justify-between px-4 py-3 border-b border-slate-100 last:border-b-0">
                             <div className="flex-1 min-w-0 mr-3">
-                              <span className="text-sm font-semibold text-slate-900 truncate block">{g.description}</span>
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className="text-[11px] font-medium text-slate-400 uppercase">{cat?.name}</span>
-                                <span className="text-slate-300">•</span>
-                                <span className="text-[11px] text-slate-400">{g.subcategoryName}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-slate-900 truncate">{g.description}</span>
                                 {g.count > 1 && (
-                                  <span className="text-[11px] text-slate-400">x{g.count}</span>
+                                  <span className="text-[10px] text-slate-400">x{g.count}</span>
                                 )}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-1">
+                                <span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] text-slate-500 font-medium">{g.subcategoryName}</span>
                               </div>
                             </div>
                             <span className="text-sm font-semibold text-slate-900">£{g.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>

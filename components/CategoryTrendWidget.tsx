@@ -148,14 +148,14 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
                 className="flex items-center justify-between px-4 py-3 border-b border-slate-100 last:border-b-0"
               >
                  <div className="flex-1 min-w-0 mr-3">
-                    <span className="text-sm font-semibold text-slate-900 truncate block" title={t.description}>{t.description || "Unknown"}</span>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="text-[11px] font-medium text-slate-400 uppercase">{category?.name}</span>
-                      <span className="text-slate-300">•</span>
-                      <span className="text-[11px] text-slate-400">{t.subcategoryName}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-slate-900 truncate" title={t.description}>{t.description || "Unknown"}</span>
                       {t.count > 1 && (
-                          <span className="text-[11px] text-slate-400">x{t.count}</span>
+                          <span className="text-[10px] text-slate-400">x{t.count}</span>
                       )}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] text-slate-500 font-medium">{t.subcategoryName}</span>
                     </div>
                  </div>
 
