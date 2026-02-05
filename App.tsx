@@ -1004,7 +1004,7 @@ const App: React.FC = () => {
                       </div>
                       <div className="max-h-[192px] overflow-y-auto">
                         {topIncomeGrouped.map((g, idx) => (
-                          <div key={g.description} className={`grid grid-cols-[1fr_1fr_75px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                          <div key={g.description} className={`grid grid-cols-[1fr_1fr_75px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-100'}`}>
                             <div className="flex items-center justify-between px-2.5 border-r border-slate-100 min-w-0">
                               <span className="truncate text-slate-600">{g.description}</span>
                               {g.count > 1 && (
@@ -1082,7 +1082,7 @@ const App: React.FC = () => {
                       {/* Top Transactions - Grouped */}
                       <div className="max-h-[192px] overflow-y-auto">
                         {topGrouped.map((g, idx) => (
-                          <div key={g.description} className={`grid grid-cols-[1fr_1fr_75px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                          <div key={g.description} className={`grid grid-cols-[1fr_1fr_75px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-100'}`}>
                             <div className="flex items-center justify-between px-2.5 border-r border-slate-100 min-w-0">
                               <span className="truncate text-slate-600">{g.description}</span>
                               {g.count > 1 && (
