@@ -954,7 +954,8 @@ const App: React.FC = () => {
                    </div>
                 </div>
 
-                {/* Mobile Header */}
+                {/* Mobile Header - Hidden on home tab */}
+                {activeTab !== 'home' && (
                 <div className="flex md:hidden items-center gap-3 w-full px-1">
                     {activeTab === 'history' && (
                         <div className="relative flex-1 group">
@@ -974,6 +975,7 @@ const App: React.FC = () => {
                         <DashboardDateFilter range={dateRange} onRangeChange={setDateRange} />
                     </div>
                 </div>
+                )}
 
                 <div className="hidden md:flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
                   <div className="flex-1">
