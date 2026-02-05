@@ -235,7 +235,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     return (
         <>
             {/* Mobile Row */}
-            <div className={`md:hidden grid grid-cols-[1fr_1fr_75px] items-center h-9 text-xs rounded-lg border border-slate-300 ${isCategoryMissing ? 'bg-amber-50 border-l-4 border-l-amber-400' : 'bg-white'} ${isExcluded ? 'opacity-40' : ''}`}>
+            <div className={`md:hidden grid grid-cols-[1fr_1fr_75px] items-center h-9 text-xs rounded-lg border border-slate-400 ${isCategoryMissing ? 'bg-amber-50 border-l-4 border-l-amber-400' : 'bg-white'} ${isExcluded ? 'opacity-40' : ''}`}>
                 <div className="flex items-center gap-1.5 px-2 border-r border-slate-100 min-w-0">
                     {isCategoryMissing ? (
                         <AlertTriangle size={14} className="text-amber-500 shrink-0" />
@@ -253,14 +253,14 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
             </div>
 
             {/* Desktop Grid View - Card style with outline */}
-            <div className={`hidden md:grid ${gridTemplate} gap-0 items-center text-sm group transition-colors border border-slate-300 rounded-lg hover:border-slate-400 hover:shadow-sm ${rowBackground} ${isExcluded ? 'opacity-50' : ''}`}>
+            <div className={`hidden md:grid ${gridTemplate} gap-0 items-center text-sm group transition-colors border border-slate-400 rounded-lg hover:border-slate-500 hover:shadow-sm ${rowBackground} ${isExcluded ? 'opacity-50' : ''}`}>
                 {/* 1. Date */}
-                <div className="h-full flex items-center px-4 py-4 border-r border-slate-100">
+                <div className="h-full flex items-center px-4 pr-6 py-4 border-r border-slate-200">
                     <span className="text-sm text-slate-500 font-medium whitespace-nowrap">{t.date}</span>
                 </div>
 
                 {/* 2. Description (Merchant) */}
-                <div className="h-full flex flex-col justify-center px-4 py-4 border-r border-slate-100 min-w-0">
+                <div className="h-full flex flex-col justify-center px-6 py-4 border-r border-slate-200 min-w-0">
                      <input
                         type="text"
                         value={description}
