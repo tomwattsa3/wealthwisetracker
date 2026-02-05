@@ -220,15 +220,15 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     // Check if the category was deleted (categoryId exists but not found in categories)
     const isCategoryMissing = t.categoryId !== '' && t.categoryId !== 'excluded' && !categories.find(c => c.id === t.categoryId);
 
-    // Determine row styling - Alternating white and grey with more contrast
+    // Determine row styling - Alternating white and light grey
     const isEven = index % 2 === 0;
     const rowBackground = isExcluded
-        ? 'bg-slate-300/80 opacity-60'
+        ? 'bg-slate-200/80 opacity-60'
         : isCategoryMissing
             ? 'bg-amber-50 border-amber-300'
             : isDirty
                 ? 'bg-indigo-50/60'
-                : (isEven ? 'bg-white' : 'bg-slate-200');
+                : (isEven ? 'bg-white' : 'bg-slate-100');
 
     // Common cell styles for the "sheet" look - More spacious padding
     const cellClass = "h-full flex flex-col justify-center px-4 py-3 border-r border-slate-200/60 last:border-r-0";
