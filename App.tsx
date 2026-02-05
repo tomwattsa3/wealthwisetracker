@@ -1483,66 +1483,45 @@ const App: React.FC = () => {
               {/* Daily Average Spending Card - Desktop */}
               <div className="hidden md:block">
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                  <div className="flex items-center justify-between gap-6">
-                    {/* Left: Title and Stats */}
-                    <div className="flex-1">
-                      <h3 className="text-base font-bold text-slate-800 mb-2">Daily Average Spending</h3>
+                  <div className="flex items-center gap-8">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-1">Daily Average Spending</h3>
                       <div className="flex items-baseline gap-2">
                         <span className="text-3xl font-bold text-slate-900 font-mono">
                           £{dailyAverageData.dailyAverage.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                         <span className="text-sm text-slate-500">/ day</span>
                       </div>
-                      <div className="flex gap-4 mt-2 text-xs text-slate-400">
-                        <span>Total: <span className="font-bold text-slate-600">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { minimumFractionDigits: 2 })}</span></span>
-                        <span>Days: <span className="font-bold text-slate-600">{dailyAverageData.daysInRange}</span></span>
-                        <span>Transactions: <span className="font-bold text-slate-600">{dailyAverageData.transactionCount}</span></span>
+                    </div>
+                    <div className="flex gap-6 text-sm">
+                      <div>
+                        <p className="text-slate-400 text-xs">Total Spend</p>
+                        <p className="font-bold text-slate-700 font-mono">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { minimumFractionDigits: 2 })}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 text-xs">Days</p>
+                        <p className="font-bold text-slate-700">{dailyAverageData.daysInRange}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 text-xs">Transactions</p>
+                        <p className="font-bold text-slate-700">{dailyAverageData.transactionCount}</p>
                       </div>
                     </div>
-
-                    {/* Right: Category Filter */}
-                    <div className="flex-1 max-w-[500px]">
-                      <p className="text-xs font-bold text-slate-500 uppercase mb-2">
-                        Filter by Category
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => { setFilterCategory('all'); setFilterSubcategory('all'); }}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                            filterCategory === 'all'
-                              ? 'bg-slate-800 text-white shadow-sm'
-                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                          }`}
-                        >
-                          All
-                        </button>
-                        {expenseCategories.filter(c => c.id !== 'excluded').map(cat => {
-                          const isSelected = filterCategory === cat.id;
-                          return (
-                            <button
-                              key={cat.id}
-                              onClick={() => { setFilterCategory(cat.id); setFilterSubcategory('all'); }}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                                isSelected
-                                  ? 'text-white shadow-sm'
-                                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                              }`}
-                              style={isSelected ? { backgroundColor: cat.color } : {}}
-                            >
-                              {cat.name}
-                            </button>
-                          );
-                        })}
+                    {filterCategory !== 'all' && (
+                      <div className="ml-auto">
+                        <span className="text-xs text-slate-400">Filtered by:</span>
+                        <span className="ml-2 px-3 py-1 rounded-lg text-xs font-bold text-white" style={{ backgroundColor: expenseCategories.find(c => c.id === filterCategory)?.color || '#64748b' }}>
+                          {expenseCategories.find(c => c.id === filterCategory)?.name || 'Category'}
+                        </span>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
 
               {/* Daily Average Spending Card - Mobile */}
               <div className="md:hidden bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-4 text-white">
-                {/* Header with amount */}
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between">
                   <div>
                     <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Daily Average</p>
                     <div className="flex items-baseline gap-1 mt-1">
@@ -1552,57 +1531,29 @@ const App: React.FC = () => {
                       <span className="text-xs text-slate-400">/day</span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-slate-400 text-[10px]">Total Spend</p>
-                    <p className="text-sm font-bold font-mono">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</p>
+                  <div className="flex gap-4 text-[10px]">
+                    <div className="bg-white/10 rounded-lg px-3 py-1.5 text-center">
+                      <span className="text-slate-400 block">Total</span>
+                      <span className="font-bold">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</span>
+                    </div>
+                    <div className="bg-white/10 rounded-lg px-3 py-1.5 text-center">
+                      <span className="text-slate-400 block">Days</span>
+                      <span className="font-bold">{dailyAverageData.daysInRange}</span>
+                    </div>
+                    <div className="bg-white/10 rounded-lg px-3 py-1.5 text-center">
+                      <span className="text-slate-400 block">Trans</span>
+                      <span className="font-bold">{dailyAverageData.transactionCount}</span>
+                    </div>
                   </div>
                 </div>
-
-                {/* Stats row */}
-                <div className="flex gap-4 mb-4 text-[10px]">
-                  <div className="bg-white/10 rounded-lg px-3 py-1.5">
-                    <span className="text-slate-400">Days:</span> <span className="font-bold">{dailyAverageData.daysInRange}</span>
+                {filterCategory !== 'all' && (
+                  <div className="mt-3 pt-3 border-t border-white/10">
+                    <span className="text-[10px] text-slate-400">Filtered by:</span>
+                    <span className="ml-2 px-2 py-1 rounded text-[10px] font-bold text-white" style={{ backgroundColor: expenseCategories.find(c => c.id === filterCategory)?.color || '#64748b' }}>
+                      {expenseCategories.find(c => c.id === filterCategory)?.name || 'Category'}
+                    </span>
                   </div>
-                  <div className="bg-white/10 rounded-lg px-3 py-1.5">
-                    <span className="text-slate-400">Transactions:</span> <span className="font-bold">{dailyAverageData.transactionCount}</span>
-                  </div>
-                </div>
-
-                {/* Category Filter */}
-                <div>
-                  <p className="text-[10px] text-slate-400 mb-2">
-                    Tap to filter by category
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => { setFilterCategory('all'); setFilterSubcategory('all'); }}
-                      className={`px-3 py-2 rounded-lg text-[11px] font-bold transition-all ${
-                        filterCategory === 'all'
-                          ? 'bg-white text-slate-800 ring-2 ring-white/30'
-                          : 'bg-white/10 text-slate-300 active:bg-white/20'
-                      }`}
-                    >
-                      All
-                    </button>
-                    {expenseCategories.filter(c => c.id !== 'excluded').map(cat => {
-                      const isSelected = filterCategory === cat.id;
-                      return (
-                        <button
-                          key={cat.id}
-                          onClick={() => { setFilterCategory(cat.id); setFilterSubcategory('all'); }}
-                          className={`px-3 py-2 rounded-lg text-[11px] font-bold transition-all ${
-                            isSelected
-                              ? 'text-white ring-2 ring-white/30'
-                              : 'bg-white/10 text-slate-300 active:bg-white/20'
-                          }`}
-                          style={isSelected ? { backgroundColor: cat.color } : {}}
-                        >
-                          {cat.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                )}
               </div>
 
               <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-2 sm:p-3 animate-in fade-in shadow-sm min-h-[400px] sm:min-h-[600px] flex flex-col">
