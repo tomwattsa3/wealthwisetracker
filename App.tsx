@@ -955,7 +955,7 @@ const App: React.FC = () => {
                 </div>
 
                 {/* Mobile Header */}
-                <div className="flex md:hidden items-center gap-3 w-full">
+                <div className="flex md:hidden items-center gap-3 w-full px-1">
                     {activeTab === 'history' && (
                         <div className="relative flex-1 group">
                             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors">
@@ -966,7 +966,7 @@ const App: React.FC = () => {
                                 placeholder="Search..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-full text-sm text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all shadow-sm placeholder:text-slate-400"
+                                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all shadow-sm placeholder:text-slate-400"
                             />
                         </div>
                     )}
