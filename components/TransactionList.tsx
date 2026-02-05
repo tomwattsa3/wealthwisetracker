@@ -238,7 +238,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     return (
         <>
             {/* Mobile Row */}
-            <div className={`md:hidden grid grid-cols-[1fr_1fr_75px] items-center h-9 text-xs rounded-lg border border-slate-400 ${isCategoryMissing ? 'bg-amber-50 border-l-4 border-l-amber-400' : isEven ? 'bg-white' : 'bg-slate-50'} ${isExcluded ? 'opacity-40' : ''}`}>
+            <div className={`md:hidden grid grid-cols-[1.4fr_0.8fr_70px] items-center h-9 text-xs rounded-lg border border-slate-400 ${isCategoryMissing ? 'bg-amber-50 border-l-4 border-l-amber-400' : isEven ? 'bg-white' : 'bg-slate-50'} ${isExcluded ? 'opacity-40' : ''}`}>
                 <div className="flex items-center gap-1.5 px-2 border-r border-slate-100 min-w-0">
                     {isCategoryMissing ? (
                         <AlertTriangle size={14} className="text-amber-500 shrink-0" />
@@ -450,7 +450,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
         </div>
 
         {/* Mobile Header */}
-        <div className="md:hidden grid grid-cols-[1fr_1fr_75px] items-center h-6 text-[9px] font-bold text-slate-400 uppercase border-b border-slate-200 bg-slate-50">
+        <div className="md:hidden grid grid-cols-[1.4fr_0.8fr_70px] items-center h-6 text-[9px] font-bold text-slate-400 uppercase border-b border-slate-200 bg-slate-50">
             <span className="px-2 border-r border-slate-200">Merchant</span>
             <span className="pl-3 pr-2 border-r border-slate-200">Category</span>
             <span className="px-2 text-right">Amount</span>
