@@ -685,32 +685,35 @@ const App: React.FC = () => {
     );
   }, [activeTransactions]);
 
-  // Daily Average Spending Calculation - uses the same filters as transaction log
+  // Daily Average Calculation - uses the same filters as transaction log including type filter
   const dailyAverageData = useMemo(() => {
-    // Get expenses from the filtered transactions (respects all filters: category, date, bank, type, search)
-    // Only count EXPENSE transactions that are not excluded
-    const selectedExpenses = filteredTransactions.filter(t =>
-      t.type === 'EXPENSE' &&
+    // Filter transactions based on type filter selection
+    // If 'all' or 'EXPENSE' selected, show expenses. If 'INCOME' selected, show income.
+    const targetType = filterType === 'INCOME' ? 'INCOME' : 'EXPENSE';
+
+    const selectedTransactions = filteredTransactions.filter(t =>
+      t.type === targetType &&
       !t.excluded &&
       t.categoryId !== 'excluded'
     );
 
-    const totalSpend = selectedExpenses.reduce((sum, t) => sum + t.amount, 0);
+    const totalAmount = selectedTransactions.reduce((sum, t) => sum + t.amount, 0);
 
     // Calculate number of days in the selected date range
     const startDate = new Date(dateRange.start);
     const endDate = new Date(dateRange.end);
     const daysDiff = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
 
-    const dailyAverage = totalSpend / daysDiff;
+    const dailyAverage = totalAmount / daysDiff;
 
     return {
-      totalSpend,
+      totalSpend: totalAmount,
       dailyAverage,
       daysInRange: daysDiff,
-      transactionCount: selectedExpenses.length
+      transactionCount: selectedTransactions.length,
+      isIncome: targetType === 'INCOME'
     };
-  }, [filteredTransactions, dateRange]);
+  }, [filteredTransactions, dateRange, filterType]);
 
   // Main Category Breakdown (respects date filter)
   const categoryBreakdown = useMemo(() => {
@@ -1482,42 +1485,44 @@ const App: React.FC = () => {
                  />
                </div>
 
-              {/* Daily Average Spending Card - Desktop */}
+              {/* Daily Average Card - Desktop */}
               <div className="hidden md:block">
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                <div className={`rounded-2xl border shadow-sm p-5 ${dailyAverageData.isIncome ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200'}`}>
                   <div className="flex items-center gap-8">
                     <div>
-                      <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-1">Daily Average Spending</h3>
+                      <h3 className={`text-sm font-bold uppercase tracking-wide mb-1 ${dailyAverageData.isIncome ? 'text-emerald-600' : 'text-slate-500'}`}>
+                        Daily Average {dailyAverageData.isIncome ? 'Income' : 'Spending'}
+                      </h3>
                       <div className="flex items-baseline gap-2">
-                        <span className="text-3xl font-bold text-slate-900 font-mono">
+                        <span className={`text-3xl font-bold font-mono ${dailyAverageData.isIncome ? 'text-emerald-700' : 'text-slate-900'}`}>
                           £{dailyAverageData.dailyAverage.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
-                        <span className="text-sm text-slate-500">/ day</span>
+                        <span className={`text-sm ${dailyAverageData.isIncome ? 'text-emerald-500' : 'text-slate-500'}`}>/ day</span>
                       </div>
                     </div>
                     <div className="flex gap-6 text-sm">
                       <div>
-                        <p className="text-slate-400 text-xs">Total Spend</p>
-                        <p className="font-bold text-slate-700 font-mono">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { minimumFractionDigits: 2 })}</p>
+                        <p className={`text-xs ${dailyAverageData.isIncome ? 'text-emerald-500' : 'text-slate-400'}`}>Total {dailyAverageData.isIncome ? 'Income' : 'Spend'}</p>
+                        <p className={`font-bold font-mono ${dailyAverageData.isIncome ? 'text-emerald-700' : 'text-slate-700'}`}>£{dailyAverageData.totalSpend.toLocaleString('en-GB', { minimumFractionDigits: 2 })}</p>
                       </div>
                       <div>
-                        <p className="text-slate-400 text-xs">Avg Transaction</p>
-                        <p className="font-bold text-slate-700 font-mono">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalSpend / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</p>
+                        <p className={`text-xs ${dailyAverageData.isIncome ? 'text-emerald-500' : 'text-slate-400'}`}>Avg Transaction</p>
+                        <p className={`font-bold font-mono ${dailyAverageData.isIncome ? 'text-emerald-700' : 'text-slate-700'}`}>£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalSpend / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</p>
                       </div>
                       <div>
-                        <p className="text-slate-400 text-xs">Days</p>
-                        <p className="font-bold text-slate-700">{dailyAverageData.daysInRange}</p>
+                        <p className={`text-xs ${dailyAverageData.isIncome ? 'text-emerald-500' : 'text-slate-400'}`}>Days</p>
+                        <p className={`font-bold ${dailyAverageData.isIncome ? 'text-emerald-700' : 'text-slate-700'}`}>{dailyAverageData.daysInRange}</p>
                       </div>
                       <div>
-                        <p className="text-slate-400 text-xs">Transactions</p>
-                        <p className="font-bold text-slate-700">{dailyAverageData.transactionCount}</p>
+                        <p className={`text-xs ${dailyAverageData.isIncome ? 'text-emerald-500' : 'text-slate-400'}`}>Transactions</p>
+                        <p className={`font-bold ${dailyAverageData.isIncome ? 'text-emerald-700' : 'text-slate-700'}`}>{dailyAverageData.transactionCount}</p>
                       </div>
                     </div>
                     {filterCategory !== 'all' && (
                       <div className="ml-auto">
                         <span className="text-xs text-slate-400">Filtered by:</span>
-                        <span className="ml-2 px-3 py-1 rounded-lg text-xs font-bold text-white" style={{ backgroundColor: expenseCategories.find(c => c.id === filterCategory)?.color || '#64748b' }}>
-                          {expenseCategories.find(c => c.id === filterCategory)?.name || 'Category'}
+                        <span className="ml-2 px-3 py-1 rounded-lg text-xs font-bold text-white" style={{ backgroundColor: categories.find(c => c.id === filterCategory)?.color || '#64748b' }}>
+                          {categories.find(c => c.id === filterCategory)?.name || 'Category'}
                         </span>
                       </div>
                     )}
@@ -1525,42 +1530,42 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Daily Average Spending Card - Mobile */}
-              <div className="md:hidden bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-4 text-white">
+              {/* Daily Average Card - Mobile */}
+              <div className={`md:hidden rounded-xl p-4 text-white ${dailyAverageData.isIncome ? 'bg-gradient-to-br from-emerald-600 to-emerald-800' : 'bg-gradient-to-br from-slate-800 to-slate-900'}`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Daily Average</p>
+                    <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider">Daily Avg {dailyAverageData.isIncome ? 'Income' : 'Spend'}</p>
                     <div className="flex items-baseline gap-1 mt-1">
                       <span className="text-2xl font-bold font-mono">
                         £{dailyAverageData.dailyAverage.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
-                      <span className="text-xs text-slate-400">/day</span>
+                      <span className="text-xs text-white/60">/day</span>
                     </div>
                   </div>
                   <div className="flex gap-2 text-[10px]">
                     <div className="bg-white/10 rounded-lg px-2 py-1.5 text-center">
-                      <span className="text-slate-400 block">Total</span>
+                      <span className="text-white/60 block">Total</span>
                       <span className="font-bold">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</span>
                     </div>
                     <div className="bg-white/10 rounded-lg px-2 py-1.5 text-center">
-                      <span className="text-slate-400 block">Avg Trans</span>
+                      <span className="text-white/60 block">Avg Trans</span>
                       <span className="font-bold">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalSpend / dailyAverageData.transactionCount).toLocaleString('en-GB', { maximumFractionDigits: 0 }) : '0'}</span>
                     </div>
                     <div className="bg-white/10 rounded-lg px-2 py-1.5 text-center">
-                      <span className="text-slate-400 block">Days</span>
+                      <span className="text-white/60 block">Days</span>
                       <span className="font-bold">{dailyAverageData.daysInRange}</span>
                     </div>
                     <div className="bg-white/10 rounded-lg px-2 py-1.5 text-center">
-                      <span className="text-slate-400 block">Trans</span>
+                      <span className="text-white/60 block">Trans</span>
                       <span className="font-bold">{dailyAverageData.transactionCount}</span>
                     </div>
                   </div>
                 </div>
                 {filterCategory !== 'all' && (
                   <div className="mt-3 pt-3 border-t border-white/10">
-                    <span className="text-[10px] text-slate-400">Filtered by:</span>
-                    <span className="ml-2 px-2 py-1 rounded text-[10px] font-bold text-white" style={{ backgroundColor: expenseCategories.find(c => c.id === filterCategory)?.color || '#64748b' }}>
-                      {expenseCategories.find(c => c.id === filterCategory)?.name || 'Category'}
+                    <span className="text-[10px] text-white/60">Filtered by:</span>
+                    <span className="ml-2 px-2 py-1 rounded text-[10px] font-bold text-white" style={{ backgroundColor: categories.find(c => c.id === filterCategory)?.color || '#64748b' }}>
+                      {categories.find(c => c.id === filterCategory)?.name || 'Category'}
                     </span>
                   </div>
                 )}
