@@ -1546,10 +1546,13 @@ const App: React.FC = () => {
               {/* Daily Average Card - Mobile */}
               <div className={`md:hidden rounded-xl overflow-hidden text-white ${dailyAverageData.isIncome ? 'bg-gradient-to-br from-emerald-600 to-emerald-800' : 'bg-gradient-to-br from-slate-800 to-slate-900'}`}>
                 {/* White Header */}
-                <div className="bg-white px-4 py-2">
+                <div className="bg-white px-4 py-2 flex items-center justify-between">
                   <h3 className={`text-xs font-bold uppercase tracking-wide ${dailyAverageData.isIncome ? 'text-emerald-700' : 'text-slate-700'}`}>
                     {dailyAverageData.isIncome ? 'Income Averages' : 'Expense Averages'}
                   </h3>
+                  <span className={`text-[10px] font-semibold ${dailyAverageData.isIncome ? 'text-emerald-600' : 'text-slate-500'}`}>
+                    Total: £{dailyAverageData.totalSpend.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                  </span>
                 </div>
                 {/* Stats */}
                 <div className="p-4">
