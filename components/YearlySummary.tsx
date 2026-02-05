@@ -154,7 +154,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
                          Category
                      </th>
                      {MONTHS.map(m => (
-                        <th key={m} className="px-1 sm:px-3.5 py-2 sm:py-3 text-right border-b border-r border-slate-300 last:border-r-0 min-w-[36px] sm:min-w-[85px]">
+                        <th key={m} className="px-2 sm:px-3.5 py-2 sm:py-3 text-right border-b border-r border-slate-300 last:border-r-0 min-w-[44px] sm:min-w-[85px]">
                             <span className="sm:hidden">{m.slice(0, 3)}</span>
                             <span className="hidden sm:inline">{m}</span>
                         </th>
@@ -167,7 +167,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
                <tbody className="text-[9px] sm:text-xs">
                   {flatData.map((rowObj, index) => {
                      const isEven = index % 2 === 0;
-                     const rowBg = isEven ? 'bg-white' : 'bg-slate-50';
+                     const rowBg = isEven ? 'bg-white' : 'bg-slate-100';
                      const { type, data } = rowObj;
                      const isExpanded = type === 'parent' && expandedCategories.has(data.id);
                      const hasChildren = type === 'parent' && data.children && data.children.length > 0;
@@ -210,7 +210,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
 
                             {/* Monthly Totals with Accounting Format */}
                             {data.monthlyTotals.map((amount: number, idx: number) => (
-                                <td key={idx} className={`px-1 sm:px-3.5 py-1 sm:py-2.5 font-mono border-r border-slate-200 last:border-r-0 text-right ${
+                                <td key={idx} className={`px-2 sm:px-3.5 py-1 sm:py-2.5 font-mono border-r border-slate-200 last:border-r-0 text-right ${
                                     amount === 0 ? 'text-slate-300'
                                     : type === 'child' ? 'text-slate-500 font-semibold'
                                     : 'text-slate-800'
@@ -239,7 +239,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
                      {MONTHS.map((_, idx) => {
                         const monthTotal = monthlyTotals[idx][totalLineDataKey];
                         return (
-                           <td key={idx} className="px-1 sm:px-3.5 py-2 sm:py-4 font-mono text-[9px] sm:text-sm text-slate-200 text-right border-r border-slate-700 last:border-r-0">
+                           <td key={idx} className="px-2 sm:px-3.5 py-2 sm:py-4 font-mono text-[9px] sm:text-sm text-slate-200 text-right border-r border-slate-700 last:border-r-0">
                               <span className={totalLineDataKey === 'Income' && monthTotal > 0 ? 'font-extrabold text-emerald-400' : ''}>
                                 {monthTotal > 0 ? `£${monthTotal.toLocaleString()}` : '-'}
                               </span>
