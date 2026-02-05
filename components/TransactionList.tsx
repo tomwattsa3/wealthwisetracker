@@ -258,7 +258,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 </div>
 
                 {/* 3. Category */}
-                <div className="px-6">
+                <div className="pl-6 pr-4">
                      {isCategoryMissing ? (
                         <div className="flex items-center gap-1">
                             <AlertTriangle size={12} className="text-amber-500" />
@@ -279,7 +279,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 </div>
 
                 {/* 4. Subcategory - Dropdown */}
-                <div className="px-6">
+                <div className="pl-4 pr-6">
                      <select
                         value={subcategoryName}
                         onChange={(e) => handleSubcategoryChange(e.target.value)}
@@ -294,7 +294,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 </div>
 
                 {/* 5. Description (Merchant) + Bank */}
-                <div className="px-6 min-w-0">
+                <div className="px-8 min-w-0 border-l border-slate-100">
                      <input
                         type="text"
                         value={description}
@@ -353,7 +353,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
 
 const TransactionList: React.FC<TransactionListProps> = ({ transactions, categories, onUpdate, onDelete }) => {
   // Desktop Grid Template: Date | Type | Category | Subcategory | Merchant | Amount | Action
-  const gridTemplate = "grid-cols-[100px_90px_150px_150px_1fr_120px_100px]";
+  const gridTemplate = "grid-cols-[95px_85px_180px_180px_1fr_130px_90px]";
   // Mobile Grid Template: simplified
   const mobileGridTemplate = "grid-cols-[1fr_auto_auto]";
 
@@ -423,9 +423,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
         <div className={`hidden md:grid ${gridTemplate} py-3 border-b border-slate-200 text-[11px] font-medium text-slate-400 uppercase tracking-wider`}>
             <div className="px-6">Date</div>
             <div className="px-6">Type</div>
-            <div className="px-6">Category</div>
-            <div className="px-6">Subcategory</div>
-            <div className="px-6">Merchant</div>
+            <div className="pl-6 pr-4">Category</div>
+            <div className="pl-4 pr-6">Subcategory</div>
+            <div className="px-8 border-l border-slate-100">Merchant</div>
             <div className="px-6 text-right">Amount</div>
             <div className="px-6 text-right">Action</div>
         </div>
