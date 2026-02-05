@@ -85,14 +85,14 @@ const App: React.FC = () => {
 
   // Date Filter State
   const [dateRange, setDateRange] = useState<DateRange>(() => {
-      // Default to "This Month"
+      // Default to "This Year"
       const now = new Date();
-      const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const start = new Date(now.getFullYear(), 0, 1);
+      const end = new Date(now.getFullYear(), 11, 31);
       return {
           start: start.toISOString().split('T')[0],
           end: end.toISOString().split('T')[0],
-          label: 'This Month'
+          label: 'This Year'
       };
   });
 
