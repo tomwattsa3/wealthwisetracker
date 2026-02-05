@@ -222,20 +222,25 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
 
     return (
         <>
-            {/* Mobile Row - Mercury Style */}
-            <div className={`md:hidden flex items-center justify-between px-4 py-4 border-b border-slate-100 ${isCategoryMissing ? 'bg-amber-50' : 'bg-white'} ${isExcluded ? 'opacity-40' : ''}`}>
+            {/* Mobile Row */}
+            <div className={`md:hidden flex items-center justify-between px-4 py-3 border-b border-slate-100 ${isCategoryMissing ? 'bg-amber-50' : 'bg-white'} ${isExcluded ? 'opacity-40' : ''}`}>
                 <div className="flex-1 min-w-0 mr-3">
-                    <span className="text-sm font-semibold text-slate-900 truncate block">{t.description || 'No merchant'}</span>
-                    <div className="flex items-center gap-2 mt-1">
-                        <span className={`px-2 py-0.5 text-[10px] font-medium rounded border ${displayType === 'INCOME' ? 'text-emerald-600 border-emerald-200' : 'text-slate-500 border-slate-200'}`}>
-                            {displayType === 'INCOME' ? 'INCOME' : 'EXPENSE'}
-                        </span>
-                        <span className="text-[11px] text-slate-400 truncate">{t.categoryName || 'Uncategorized'}</span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-700 truncate">{t.description || 'No merchant'}</span>
+                        {t.subcategoryName && (
+                            <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] text-slate-500 shrink-0">{t.subcategoryName}</span>
+                        )}
                     </div>
+                    <span className="text-[11px] text-slate-400 mt-0.5 block">{t.categoryName || 'Uncategorized'}</span>
                 </div>
-                <span className={`text-sm font-semibold ${isExcluded ? 'text-slate-400' : 'text-slate-900'}`}>
-                    £{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                    <span className={`px-1.5 py-0.5 text-[9px] font-medium rounded border ${displayType === 'INCOME' ? 'text-emerald-600 border-emerald-200' : 'text-slate-400 border-slate-200'}`}>
+                        {displayType === 'INCOME' ? 'IN' : 'OUT'}
+                    </span>
+                    <span className={`text-sm font-medium ${isExcluded ? 'text-slate-400' : 'text-slate-700'}`}>
+                        £{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                </div>
             </div>
 
             {/* Desktop Grid View - Mercury Table Style */}
@@ -246,14 +251,14 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 </div>
 
                 {/* 2. Type - Pill Style */}
-                <div className="px-4">
-                    <span className={`inline-block px-3 py-1 text-xs font-medium rounded border ${displayType === 'INCOME' ? 'text-emerald-600 border-emerald-200' : 'text-slate-500 border-slate-200'}`}>
+                <div className="px-6">
+                    <span className={`inline-block px-2 py-0.5 text-[10px] font-medium rounded border ${displayType === 'INCOME' ? 'text-emerald-600 border-emerald-200' : 'text-slate-400 border-slate-200'}`}>
                         {displayType === 'INCOME' ? 'INCOME' : 'EXPENSE'}
                     </span>
                 </div>
 
                 {/* 3. Category */}
-                <div className="px-4">
+                <div className="px-6">
                      {isCategoryMissing ? (
                         <div className="flex items-center gap-1">
                             <AlertTriangle size={12} className="text-amber-500" />
@@ -263,7 +268,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                          <select
                             value={categoryId}
                             onChange={(e) => handleCategoryChange(e.target.value)}
-                            className={`bg-transparent text-sm outline-none cursor-pointer transition-colors ${isDirty ? 'text-indigo-600' : categoryId === '' ? 'text-slate-400' : 'text-slate-600 hover:text-slate-900'}`}
+                            className={`w-full bg-transparent text-sm outline-none cursor-pointer transition-colors ${isDirty ? 'text-indigo-600' : categoryId === '' ? 'text-slate-400' : 'text-slate-600 hover:text-slate-900'}`}
                          >
                             <option value="">Select...</option>
                             {categories.map(c => (
@@ -273,14 +278,29 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                      )}
                 </div>
 
-                {/* 4. Description (Merchant) + Bank */}
-                <div className="px-4 min-w-0">
+                {/* 4. Subcategory - Dropdown */}
+                <div className="px-6">
+                     <select
+                        value={subcategoryName}
+                        onChange={(e) => handleSubcategoryChange(e.target.value)}
+                        disabled={!categoryId}
+                        className={`w-full bg-transparent text-sm outline-none cursor-pointer transition-colors ${!categoryId ? 'text-slate-300' : isDirty ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+                     >
+                        {!categoryId && <option value="">--</option>}
+                        {subcategories.map(sub => (
+                            <option key={sub} value={sub}>{sub}</option>
+                        ))}
+                     </select>
+                </div>
+
+                {/* 5. Description (Merchant) + Bank */}
+                <div className="px-6 min-w-0">
                      <input
                         type="text"
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                        className={`font-semibold bg-transparent w-full outline-none transition-colors truncate placeholder:text-slate-300 text-sm ${isDirty ? 'text-indigo-700' : 'text-slate-900 focus:text-indigo-600'}`}
+                        className={`font-medium bg-transparent w-full outline-none transition-colors truncate placeholder:text-slate-300 text-sm ${isDirty ? 'text-indigo-700' : 'text-slate-700 focus:text-indigo-600'}`}
                         placeholder="Merchant"
                     />
                      {t.bankName && (
@@ -290,49 +310,40 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                     )}
                 </div>
 
-                {/* 5. Amount */}
+                {/* 6. Amount */}
                 <div className="px-6 text-right">
-                    <span className={`text-sm font-semibold ${isExcluded ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                    <span className={`text-sm font-medium ${isExcluded ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
                         £{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                 </div>
 
-                 {/* 6. Subcategory - Pill */}
-                 <div className="px-4">
-                     {categoryId && subcategoryName && (
-                         <span className="px-2 py-0.5 bg-slate-100 rounded text-[11px] text-slate-500 font-medium">
-                             {subcategoryName}
-                         </span>
-                     )}
-                </div>
-
                 {/* 7. Action */}
-                <div className="px-4 flex items-center justify-end gap-2">
+                <div className="px-6 flex items-center justify-end gap-1">
                     {isDirty && (
                         <button
                             onClick={handleManualSave}
-                            className="p-1.5 text-slate-400 hover:text-slate-600 transition-colors"
+                            className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
                             title="Save"
                         >
-                            <Save size={16} />
+                            <Save size={14} />
                         </button>
                     )}
                     {saveStatus === 'success' && (
-                        <span className="text-emerald-500"><Check size={16} /></span>
+                        <span className="text-emerald-500"><Check size={14} /></span>
                     )}
                     <button
                         onClick={(e) => { e.stopPropagation(); onExclude(t.id); }}
-                        className={`p-1.5 transition-colors ${isExcluded ? 'text-emerald-500' : 'text-slate-300 hover:text-slate-500'}`}
+                        className={`p-1 transition-colors ${isExcluded ? 'text-emerald-500' : 'text-slate-300 hover:text-slate-500'}`}
                         title={isExcluded ? "Include" : "Exclude"}
                     >
-                        {isExcluded ? <Eye size={16} /> : <EyeOff size={16} />}
+                        {isExcluded ? <Eye size={14} /> : <EyeOff size={14} />}
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
-                        className="p-1.5 text-slate-300 hover:text-slate-500 transition-colors"
+                        className="p-1 text-slate-300 hover:text-slate-500 transition-colors"
                         title="Delete"
                     >
-                        <Trash2 size={16} />
+                        <Trash2 size={14} />
                     </button>
                 </div>
             </div>
@@ -341,8 +352,8 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
 };
 
 const TransactionList: React.FC<TransactionListProps> = ({ transactions, categories, onUpdate, onDelete }) => {
-  // Desktop Grid Template: Date | Type | Category | Merchant | Amount | Subcategory | Action
-  const gridTemplate = "grid-cols-[100px_100px_150px_1fr_140px_140px_100px]";
+  // Desktop Grid Template: Date | Type | Category | Subcategory | Merchant | Amount | Action
+  const gridTemplate = "grid-cols-[100px_90px_150px_150px_1fr_120px_100px]";
   // Mobile Grid Template: simplified
   const mobileGridTemplate = "grid-cols-[1fr_auto_auto]";
 
@@ -409,14 +420,14 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
     <>
         <div className="flex flex-col h-full bg-transparent overflow-hidden">
         {/* Desktop Header - Mercury Table Style */}
-        <div className={`hidden md:grid ${gridTemplate} py-4 border-b border-slate-200 text-[11px] font-medium text-slate-400 uppercase tracking-wider`}>
+        <div className={`hidden md:grid ${gridTemplate} py-3 border-b border-slate-200 text-[11px] font-medium text-slate-400 uppercase tracking-wider`}>
             <div className="px-6">Date</div>
-            <div className="px-4">Type</div>
-            <div className="px-4">Category</div>
-            <div className="px-4">Merchant</div>
+            <div className="px-6">Type</div>
+            <div className="px-6">Category</div>
+            <div className="px-6">Subcategory</div>
+            <div className="px-6">Merchant</div>
             <div className="px-6 text-right">Amount</div>
-            <div className="px-4">Tag</div>
-            <div className="px-4 text-right">Action</div>
+            <div className="px-6 text-right">Action</div>
         </div>
 
         {/* Mobile Header - Mercury Style */}
