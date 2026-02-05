@@ -1003,12 +1003,12 @@ const App: React.FC = () => {
                         <span className="text-[11px] font-bold text-white/90 font-mono">£{incomeTotal.toLocaleString()}</span>
                       </div>
                       <div className="max-h-[192px] overflow-y-auto">
-                        {topIncomeGrouped.map(g => (
-                          <div key={g.description} className="grid grid-cols-[1fr_1fr_75px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0">
+                        {topIncomeGrouped.map((g, idx) => (
+                          <div key={g.description} className={`grid grid-cols-[1fr_1fr_75px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
                             <div className="flex items-center justify-between px-2.5 border-r border-slate-100 min-w-0">
                               <span className="truncate text-slate-600">{g.description}</span>
                               {g.count > 1 && (
-                                <span className="shrink-0 bg-slate-100 text-slate-500 text-[8px] font-bold px-1 py-0.5 rounded ml-1">x{g.count}</span>
+                                <span className="shrink-0 bg-slate-200 text-slate-500 text-[8px] font-bold px-1 py-0.5 rounded ml-1">x{g.count}</span>
                               )}
                             </div>
                             <span className="text-[9px] text-slate-400 px-2 border-r border-slate-100 truncate">{g.subcategoryName}</span>
@@ -1081,12 +1081,12 @@ const App: React.FC = () => {
 
                       {/* Top Transactions - Grouped */}
                       <div className="max-h-[192px] overflow-y-auto">
-                        {topGrouped.map(g => (
-                          <div key={g.description} className="grid grid-cols-[1fr_1fr_75px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0">
+                        {topGrouped.map((g, idx) => (
+                          <div key={g.description} className={`grid grid-cols-[1fr_1fr_75px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
                             <div className="flex items-center justify-between px-2.5 border-r border-slate-100 min-w-0">
                               <span className="truncate text-slate-600">{g.description}</span>
                               {g.count > 1 && (
-                                <span className="shrink-0 bg-slate-100 text-slate-500 text-[8px] font-bold px-1 py-0.5 rounded ml-1">x{g.count}</span>
+                                <span className="shrink-0 bg-slate-200 text-slate-500 text-[8px] font-bold px-1 py-0.5 rounded ml-1">x{g.count}</span>
                               )}
                             </div>
                             <span className="text-[9px] text-slate-400 px-2 border-r border-slate-100 truncate">{g.subcategoryName}</span>
