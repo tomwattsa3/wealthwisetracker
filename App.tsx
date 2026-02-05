@@ -1091,17 +1091,19 @@ const App: React.FC = () => {
                       </div>
                       <div className="max-h-[180px] overflow-y-auto">
                         {topIncomeGrouped.map((g, idx) => (
-                          <div key={g.description} className="flex items-center justify-between px-3 py-2 border-b border-slate-50 last:border-b-0">
+                          <div key={g.description} className="flex items-center justify-between px-4 py-3 border-b border-slate-100 last:border-b-0">
                             <div className="flex-1 min-w-0 mr-3">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-medium text-slate-700 truncate">{g.description}</span>
+                              <span className="text-sm font-semibold text-slate-900 truncate block">{g.description}</span>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="text-[11px] font-medium text-slate-400 uppercase">Income</span>
+                                <span className="text-slate-300">•</span>
+                                <span className="text-[11px] text-slate-400">{g.subcategoryName}</span>
                                 {g.count > 1 && (
-                                  <span className="shrink-0 text-[9px] font-medium text-slate-400">x{g.count}</span>
+                                  <span className="text-[11px] text-slate-400">x{g.count}</span>
                                 )}
                               </div>
-                              <span className="text-[10px] text-slate-400">{g.subcategoryName}</span>
                             </div>
-                            <span className="text-xs font-semibold text-emerald-600 font-mono">£{g.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            <span className="text-sm font-semibold text-slate-900">£{g.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           </div>
                         ))}
                         {topIncomeGrouped.length === 0 && (
@@ -1171,17 +1173,19 @@ const App: React.FC = () => {
                       {/* Top Transactions - Mercury Style */}
                       <div className="max-h-[180px] overflow-y-auto">
                         {topGrouped.map((g, idx) => (
-                          <div key={g.description} className="flex items-center justify-between px-3 py-2 border-b border-slate-50 last:border-b-0">
+                          <div key={g.description} className="flex items-center justify-between px-4 py-3 border-b border-slate-100 last:border-b-0">
                             <div className="flex-1 min-w-0 mr-3">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-medium text-slate-700 truncate">{g.description}</span>
+                              <span className="text-sm font-semibold text-slate-900 truncate block">{g.description}</span>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="text-[11px] font-medium text-slate-400 uppercase">{cat?.name}</span>
+                                <span className="text-slate-300">•</span>
+                                <span className="text-[11px] text-slate-400">{g.subcategoryName}</span>
                                 {g.count > 1 && (
-                                  <span className="shrink-0 text-[9px] font-medium text-slate-400">x{g.count}</span>
+                                  <span className="text-[11px] text-slate-400">x{g.count}</span>
                                 )}
                               </div>
-                              <span className="text-[10px] text-slate-400">{g.subcategoryName}</span>
                             </div>
-                            <span className="text-xs font-semibold text-slate-700 font-mono">£{g.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            <span className="text-sm font-semibold text-slate-900">£{g.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           </div>
                         ))}
                         {topGrouped.length === 0 && (
