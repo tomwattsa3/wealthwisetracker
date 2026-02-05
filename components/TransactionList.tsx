@@ -255,12 +255,12 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
             {/* Desktop Grid View - Card style with outline */}
             <div className={`hidden md:grid ${gridTemplate} gap-0 items-center text-sm group transition-colors border border-slate-400 rounded-lg hover:border-slate-500 hover:shadow-sm ${rowBackground} ${isExcluded ? 'opacity-50' : ''}`}>
                 {/* 1. Date */}
-                <div className="h-full flex items-center px-4 pr-6 py-4 border-r border-slate-200">
+                <div className="h-full flex items-center px-4 pr-10 py-3 border-r border-slate-200">
                     <span className="text-sm text-slate-500 font-medium whitespace-nowrap">{t.date}</span>
                 </div>
 
                 {/* 2. Description (Merchant) */}
-                <div className="h-full flex flex-col justify-center px-6 py-4 border-r border-slate-200 min-w-0">
+                <div className="h-full flex flex-col justify-center px-6 py-2 border-r border-slate-200 min-w-0">
                      <input
                         type="text"
                         value={description}
@@ -369,7 +369,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
 
 const TransactionList: React.FC<TransactionListProps> = ({ transactions, categories, onUpdate, onDelete }) => {
   // Desktop Grid Template: Date | Merchant | Category | Subcategory | Amount | Note | Action
-  const gridTemplate = "grid-cols-[95px_1fr_180px_200px_220px_1fr_90px]";
+  const gridTemplate = "grid-cols-[115px_1fr_180px_200px_220px_1fr_90px]";
   // Mobile Grid Template: simplified
   const mobileGridTemplate = "grid-cols-[1fr_auto_auto]";
 
