@@ -88,26 +88,24 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
 
   const totalAmount = filteredTransactions.reduce((sum, t) => sum + t.amount, 0);
 
-  // Spreadsheet Grid Template: Retailer | Subcategory | Amount
-  const gridTemplate = "grid-cols-[1.5fr_1fr_90px]";
-
   return (
-    <div className="bg-white rounded-[10px] border border-slate-200 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] flex flex-col h-[420px] overflow-hidden hover:shadow-md transition-all duration-300">
-      
-      {/* Header - Colored Background */}
-      <div 
-        className="px-4 py-3 border-b border-white/10 flex justify-between items-center sticky top-0 z-20 transition-colors duration-300"
-        style={{ backgroundColor: category.color }}
-      >
-          <div className="flex items-center gap-3">
-             {/* Category Selector - Minimal */}
-              <div className="relative group z-10">
-                  <div className="flex items-center gap-2 cursor-pointer">
-                    <div className="w-2.5 h-2.5 rounded-full bg-white shadow-sm"></div>
-                    <h3 className="text-sm font-bold text-white hover:text-white/90 transition-colors">{category.name}</h3>
-                    <ChevronDown size={12} className="text-white/70" />
+    <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-[380px] overflow-hidden">
+
+      {/* Mercury Style Header */}
+      <div className="px-4 py-3 border-b border-slate-100 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+             {/* Category color indicator */}
+             <div
+               className="w-2 h-2 rounded-full shrink-0"
+               style={{ backgroundColor: category.color }}
+             />
+             {/* Category Selector */}
+             <div className="relative">
+                  <div className="flex items-center gap-1.5 cursor-pointer">
+                    <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">{category.name}</span>
+                    <ChevronDown size={12} className="text-slate-400" />
                   </div>
-                  <select 
+                  <select
                       value={categoryId}
                       onChange={(e) => onCategoryChange(e.target.value)}
                       className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
@@ -119,77 +117,58 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
               </div>
           </div>
 
-          {/* Total Amount Pill - Cleaner Style */}
-          <div className="bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-2">
-               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total</span>
-               <div className="flex items-center">
-                   <span className="text-xs font-bold text-slate-900 select-none">£</span>
-                   <span className="text-sm font-bold font-mono text-slate-900">
-                     {totalAmount.toLocaleString()}
-                   </span>
-               </div>
-          </div>
+          {/* Total Amount */}
+          <span className="text-sm font-semibold text-slate-900 font-mono">
+            £{totalAmount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
       </div>
 
-      {/* Subfilter - Simple toolbar */}
-      <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between z-10">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Transactions</span>
-             <div className="relative">
-                  <select 
-                      value={subFilter}
-                      onChange={(e) => setSubFilter(e.target.value)}
-                      className="bg-transparent text-xs font-semibold text-slate-500 outline-none pr-4 cursor-pointer hover:text-slate-800 transition-colors"
-                  >
-                      <option value="all">All Subcategories</option>
-                      {category.subcategories.map(s => (
-                      <option key={s} value={s}>{s}</option>
-                      ))}
-                  </select>
-              </div>
+      {/* Subfilter */}
+      <div className="px-4 py-2 border-b border-slate-50 flex items-center justify-between">
+            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Transactions</span>
+             <select
+                 value={subFilter}
+                 onChange={(e) => setSubFilter(e.target.value)}
+                 className="bg-transparent text-[10px] font-medium text-slate-500 outline-none cursor-pointer hover:text-slate-700 transition-colors"
+             >
+                 <option value="all">All</option>
+                 {category.subcategories.map(s => (
+                 <option key={s} value={s}>{s}</option>
+                 ))}
+             </select>
       </div>
 
-      {/* Spreadsheet Header */}
-      <div className={`grid ${gridTemplate} bg-slate-100 border-b border-slate-200 text-[9px] font-bold text-slate-500 uppercase tracking-wider z-10`}>
-          <div className="px-3 py-2 border-r border-slate-200/60">Retailer</div>
-          <div className="px-3 py-2 border-r border-slate-200/60">Subcategory</div>
-          <div className="px-3 py-2 text-right">Amount</div>
-      </div>
-
-      {/* List */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50">
+      {/* List - Mercury Style */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
         {groupedTransactions.length > 0 ? (
-          <div> 
-            {groupedTransactions.map((t, index) => (
-              <div 
-                key={t.id} 
-                className={`grid ${gridTemplate} border-b border-slate-100 items-stretch text-xs group transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}
+          <div>
+            {groupedTransactions.map((t) => (
+              <div
+                key={t.id}
+                className="flex items-center justify-between px-4 py-2.5 border-b border-slate-50 last:border-b-0"
               >
-                 <div className="px-3 py-2.5 border-r border-slate-200/60 flex items-center justify-between min-w-0">
-                    <span className="font-semibold text-slate-700 truncate mr-2" title={t.description}>{t.description || "Unknown"}</span>
-                    {t.count > 1 && (
-                        <span className="shrink-0 bg-slate-50 px-1.5 py-0.5 rounded text-[9px] text-slate-400 font-medium border border-slate-200">
-                            x{t.count}
-                        </span>
-                    )}
+                 <div className="flex-1 min-w-0 mr-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-medium text-slate-700 truncate" title={t.description}>{t.description || "Unknown"}</span>
+                      {t.count > 1 && (
+                          <span className="shrink-0 text-[9px] font-medium text-slate-400">
+                              x{t.count}
+                          </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-slate-400">{t.subcategoryName}</span>
                  </div>
 
-                 <div className="px-3 py-2.5 border-r border-slate-200/60 flex items-center min-w-0">
-                    <span className="truncate text-slate-500 font-medium text-[10px]">{t.subcategoryName}</span>
-                 </div>
-                 
-                 <div className="px-3 py-2.5 flex items-center justify-end gap-0.5">
-                    <span className="text-slate-900 font-medium text-[10px] select-none">£</span>
-                    <span className="font-semibold text-slate-600 font-mono text-xs">
-                       {t.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                 </div>
+                 <span className="text-xs font-semibold text-slate-700 font-mono">
+                    £{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                 </span>
               </div>
             ))}
           </div>
         ) : (
-          <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-2">
-            <ShoppingBag size={24} className="opacity-20" />
-            <p className="text-xs font-medium opacity-60">No activity recorded</p>
+          <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-2 py-8">
+            <ShoppingBag size={20} className="opacity-30" />
+            <p className="text-xs text-slate-400">No transactions</p>
           </div>
         )}
       </div>

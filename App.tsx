@@ -16,7 +16,7 @@ import YearlySummary from './components/YearlySummary';
 import SettingsManager from './components/SettingsManager';
 import {
   LayoutDashboard, Plus, Home, ListFilter, Search,
-  ChevronLeft, ChevronRight, Filter, EyeOff,
+  ChevronLeft, ChevronRight, Filter, EyeOff, TrendingUp,
   Car, Plane, Smartphone, Coffee, ShoppingBag, PoundSterling, Activity, X,
   ArrowUpDown, FolderCog, CalendarRange, Building, ArrowRightLeft, Settings,
   RotateCcw, Loader2, LogOut
@@ -1030,28 +1030,32 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* DASHBOARD VIEW */}
+          {/* DASHBOARD VIEW - Mercury Bank Style */}
           {activeTab === 'home' && (
-            <div className="space-y-3 sm:space-y-6 animate-in fade-in duration-500">
+            <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-500 px-2 sm:px-0">
 
-              {/* Row 1: KPI Cards - Minimal Style - Always 3 columns, compact on mobile */}
-              <div className="pl-2 sm:pl-0">
-                <div className="grid grid-cols-3 gap-1.5 sm:gap-4">
-                   <div className="h-16 sm:h-28">
-                     <StatsCard label="Income" amount={summary.totalIncome} type="INCOME" filled />
-                   </div>
-                   <div className="h-16 sm:h-28">
-                     <StatsCard label="Expenses" amount={summary.totalExpense} type="EXPENSE" filled />
-                   </div>
-                   <div className="h-16 sm:h-28">
-                     <StatsCard label="Balance" amount={summary.balance} type="BALANCE" filled />
-                   </div>
+              {/* Mercury Style Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-xl md:text-2xl font-semibold text-slate-900">Overview</h1>
+                  <p className="text-xs md:text-sm text-slate-400 mt-0.5">{dateRange.label}</p>
+                </div>
+                {/* Mobile Date Filter */}
+                <div className="md:hidden w-32">
+                  <DashboardDateFilter range={dateRange} onRangeChange={setDateRange} />
                 </div>
               </div>
 
-              {/* Mobile: Configurable Category Cards */}
-              <div className="md:hidden px-2 space-y-2">
-                {/* Fixed Income Card */}
+              {/* Mercury Style KPI Cards - 3 columns */}
+              <div className="grid grid-cols-3 gap-2 md:gap-4">
+                <StatsCard label="Income" amount={summary.totalIncome} type="INCOME" subtitle="Total Earnings" />
+                <StatsCard label="Expenses" amount={summary.totalExpense} type="EXPENSE" subtitle="Total Spent" />
+                <StatsCard label="Balance" amount={summary.balance} type="BALANCE" subtitle="Net Position" />
+              </div>
+
+              {/* Mobile: Mercury Style Category Cards */}
+              <div className="md:hidden space-y-3">
+                {/* Fixed Income Card - Mercury Style */}
                 {(() => {
                   const incomeCat = incomeCategories[0];
                   if (!incomeCat) return null;
@@ -1076,39 +1080,39 @@ const App: React.FC = () => {
                     .slice(0, 6);
 
                   return (
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                      <div
-                        className="flex items-center justify-between px-2 py-1.5"
-                        style={{ backgroundColor: '#10b981' }}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <PoundSterling size={12} className="text-white/80" />
-                          <span className="text-[10px] font-bold text-white">Income</span>
+                    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                      {/* Mercury Style Header */}
+                      <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp size={14} className="text-slate-400" />
+                          <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Income</span>
                         </div>
-                        <span className="text-[11px] font-bold text-white/90 font-mono">£{incomeTotal.toLocaleString()}</span>
+                        <span className="text-sm font-semibold text-slate-900 font-mono">£{incomeTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
-                      <div className="max-h-[192px] overflow-y-auto">
+                      <div className="max-h-[180px] overflow-y-auto">
                         {topIncomeGrouped.map((g, idx) => (
-                          <div key={g.description} className={`grid grid-cols-[1fr_1fr_75px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-100'}`}>
-                            <div className="flex items-center justify-between px-2.5 border-r border-slate-100 min-w-0">
-                              <span className="truncate text-slate-600">{g.description}</span>
-                              {g.count > 1 && (
-                                <span className="shrink-0 bg-slate-200 text-slate-500 text-[8px] font-bold px-1 py-0.5 rounded ml-1">x{g.count}</span>
-                              )}
+                          <div key={g.description} className="flex items-center justify-between px-3 py-2 border-b border-slate-50 last:border-b-0">
+                            <div className="flex-1 min-w-0 mr-3">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-medium text-slate-700 truncate">{g.description}</span>
+                                {g.count > 1 && (
+                                  <span className="shrink-0 text-[9px] font-medium text-slate-400">x{g.count}</span>
+                                )}
+                              </div>
+                              <span className="text-[10px] text-slate-400">{g.subcategoryName}</span>
                             </div>
-                            <span className="text-[9px] text-slate-400 px-2 border-r border-slate-100 truncate">{g.subcategoryName}</span>
-                            <span className="font-mono font-semibold text-emerald-600 px-2 text-right">£{g.amount.toLocaleString()}</span>
+                            <span className="text-xs font-semibold text-emerald-600 font-mono">£{g.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           </div>
                         ))}
                         {topIncomeGrouped.length === 0 && (
-                          <div className="py-3 text-center text-slate-400 text-xs">No income</div>
+                          <div className="py-4 text-center text-slate-400 text-xs">No income</div>
                         )}
                       </div>
                     </div>
                   );
                 })()}
 
-                {/* Configurable Expense Cards */}
+                {/* Configurable Expense Cards - Mercury Style */}
                 {mobileCategoryIds.map((catId, index) => {
                   const cat = expenseCategories.find(c => c.id === catId);
                   if (!cat) return null;
@@ -1133,30 +1137,30 @@ const App: React.FC = () => {
                     .slice(0, 6);
 
                   return (
-                    <div key={`mobile-${index}-${catId}`} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                      {/* Category Header with Selector */}
-                      <div
-                        className="flex items-center justify-between px-3 py-2"
-                        style={{ backgroundColor: cat.color }}
-                      >
+                    <div key={`mobile-${index}-${catId}`} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                      {/* Mercury Style Header with Category Selector */}
+                      <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100">
                         <div className="flex items-center gap-2 flex-1 min-w-0 mr-3">
+                          <div
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: cat.color }}
+                          />
                           <select
                             value={catId}
                             onChange={(e) => handleMobileCategoryChange(index, e.target.value)}
-                            className="bg-white/20 text-white text-xs font-bold rounded-lg px-2.5 py-1 outline-none border-0 cursor-pointer appearance-none flex-1 min-w-0"
-                            style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
+                            className="text-xs font-medium text-slate-400 uppercase tracking-wide bg-transparent outline-none border-0 cursor-pointer appearance-none flex-1 min-w-0"
                           >
                             {expenseCategories.map(c => (
-                              <option key={c.id} value={c.id} className="text-slate-900 bg-white">{c.name}</option>
+                              <option key={c.id} value={c.id} className="text-slate-900 bg-white normal-case">{c.name}</option>
                             ))}
                           </select>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-xs font-bold text-white/90 font-mono">£{catTotal.toLocaleString()}</span>
+                          <span className="text-sm font-semibold text-slate-900 font-mono">£{catTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           {mobileCategoryIds.length > 1 && (
                             <button
                               onClick={() => handleRemoveMobileCardWithConfirm(index)}
-                              className="w-5 h-5 flex items-center justify-center bg-white/20 rounded text-white hover:bg-white/30 text-xs font-bold"
+                              className="w-5 h-5 flex items-center justify-center text-slate-300 hover:text-slate-500 text-sm"
                             >
                               ×
                             </button>
@@ -1164,40 +1168,42 @@ const App: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Top Transactions - Grouped */}
-                      <div className="max-h-[192px] overflow-y-auto">
+                      {/* Top Transactions - Mercury Style */}
+                      <div className="max-h-[180px] overflow-y-auto">
                         {topGrouped.map((g, idx) => (
-                          <div key={g.description} className={`grid grid-cols-[1fr_1fr_75px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-100'}`}>
-                            <div className="flex items-center justify-between px-2.5 border-r border-slate-100 min-w-0">
-                              <span className="truncate text-slate-600">{g.description}</span>
-                              {g.count > 1 && (
-                                <span className="shrink-0 bg-slate-200 text-slate-500 text-[8px] font-bold px-1 py-0.5 rounded ml-1">x{g.count}</span>
-                              )}
+                          <div key={g.description} className="flex items-center justify-between px-3 py-2 border-b border-slate-50 last:border-b-0">
+                            <div className="flex-1 min-w-0 mr-3">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-medium text-slate-700 truncate">{g.description}</span>
+                                {g.count > 1 && (
+                                  <span className="shrink-0 text-[9px] font-medium text-slate-400">x{g.count}</span>
+                                )}
+                              </div>
+                              <span className="text-[10px] text-slate-400">{g.subcategoryName}</span>
                             </div>
-                            <span className="text-[9px] text-slate-400 px-2 border-r border-slate-100 truncate">{g.subcategoryName}</span>
-                            <span className="font-mono font-semibold text-slate-700 px-2 text-right">£{g.amount.toLocaleString()}</span>
+                            <span className="text-xs font-semibold text-slate-700 font-mono">£{g.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           </div>
                         ))}
                         {topGrouped.length === 0 && (
-                          <div className="py-3 text-center text-slate-400 text-xs">No transactions</div>
+                          <div className="py-4 text-center text-slate-400 text-xs">No transactions</div>
                         )}
                       </div>
                     </div>
                   );
                 })}
 
-                {/* Add Card Button */}
+                {/* Add Card Button - Mercury Style */}
                 <button
                   onClick={handleAddMobileCard}
-                  className="w-full py-2 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-[11px] font-bold hover:border-slate-300 hover:text-slate-500 transition-colors flex items-center justify-center gap-1"
+                  className="w-full py-3 border border-dashed border-slate-200 rounded-xl text-slate-400 text-xs font-medium hover:border-slate-300 hover:text-slate-500 transition-colors flex items-center justify-center gap-1.5"
                 >
                   <Plus size={14} />
                   Add Category Card
                 </button>
               </div>
 
-              {/* Row 2: Top 4 Transaction Widgets - Hidden on mobile */}
-              <div className="hidden md:grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+              {/* Row 2: Top 4 Transaction Widgets - Hidden on mobile - Mercury Style */}
+              <div className="hidden md:grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                  {widgetCategoryIds.slice(0, 4).map((catId, index) => {
                       const isIncomeWidget = index === 3;
                       return (
@@ -1205,7 +1211,7 @@ const App: React.FC = () => {
                           {widgetCategoryIds.length > 1 && (
                             <button
                               onClick={() => handleRemoveDesktopWidget(index)}
-                              className="absolute -top-2 -right-2 w-6 h-6 bg-white border border-slate-200 hover:bg-rose-500 hover:border-rose-500 text-slate-400 hover:text-white rounded-full flex items-center justify-center text-sm font-bold transition-all shadow-md z-50 opacity-0 group-hover:opacity-100"
+                              className="absolute -top-2 -right-2 w-5 h-5 bg-white border border-slate-200 hover:bg-rose-500 hover:border-rose-500 text-slate-400 hover:text-white rounded-full flex items-center justify-center text-xs font-medium transition-all shadow-sm z-50 opacity-0 group-hover:opacity-100"
                               title="Remove widget"
                             >
                               ×
@@ -1222,18 +1228,18 @@ const App: React.FC = () => {
                  })}
               </div>
 
-              {/* Row 3: Summary + Remaining Widgets */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-6 px-2 sm:px-0">
+              {/* Row 3: Summary + Remaining Widgets - Mercury Style */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
 
                  {/* Remaining Widgets - Left Side - Hidden on mobile */}
-                <div className="hidden lg:flex lg:col-span-8 xl:col-span-9 flex-col gap-6">
-                  <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                <div className="hidden lg:flex lg:col-span-8 xl:col-span-9 flex-col gap-4">
+                  <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
                     {widgetCategoryIds.slice(4).map((catId, index) => (
                       <div key={`bottom-${index + 4}-${catId}`} className="relative group">
                         {widgetCategoryIds.length > 1 && (
                           <button
                             onClick={() => handleRemoveDesktopWidget(index + 4)}
-                            className="absolute -top-2 -right-2 w-6 h-6 bg-white border border-slate-200 hover:bg-rose-500 hover:border-rose-500 text-slate-400 hover:text-white rounded-full flex items-center justify-center text-sm font-bold transition-all shadow-md z-50 opacity-0 group-hover:opacity-100"
+                            className="absolute -top-2 -right-2 w-5 h-5 bg-white border border-slate-200 hover:bg-rose-500 hover:border-rose-500 text-slate-400 hover:text-white rounded-full flex items-center justify-center text-xs font-medium transition-all shadow-sm z-50 opacity-0 group-hover:opacity-100"
                             title="Remove widget"
                           >
                             ×
@@ -1247,42 +1253,42 @@ const App: React.FC = () => {
                         />
                       </div>
                     ))}
-                    {/* Add Widget Button */}
+                    {/* Add Widget Button - Mercury Style */}
                     <button
                       onClick={handleAddDesktopWidget}
-                      className="h-full min-h-[200px] border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 hover:border-slate-300 hover:text-slate-500 transition-colors flex flex-col items-center justify-center gap-2"
+                      className="h-full min-h-[200px] border border-dashed border-slate-200 rounded-xl text-slate-400 hover:border-slate-300 hover:text-slate-500 transition-colors flex flex-col items-center justify-center gap-2"
                     >
-                      <Plus size={24} />
-                      <span className="text-sm font-semibold">Add Widget</span>
+                      <Plus size={20} />
+                      <span className="text-xs font-medium">Add Widget</span>
                     </button>
                   </div>
                 </div>
 
-                {/* Summary Card - Full width on mobile */}
+                {/* Summary Card - Full width on mobile - Mercury Style */}
                 <div className="col-span-1 lg:col-span-4 xl:col-span-3 flex flex-col h-full">
-                  <div className="bg-white p-0 rounded-xl sm:rounded-2xl border border-slate-200 flex flex-col shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] h-full min-h-[300px] sm:min-h-[500px] overflow-hidden">
+                  <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full min-h-[300px] sm:min-h-[500px] overflow-hidden">
 
-                    {/* Header - Compact on mobile */}
-                    <div className="flex flex-col gap-2 sm:gap-3 p-2 sm:p-3 border-b border-slate-50 flex-shrink-0 bg-white">
+                    {/* Header - Mercury Style */}
+                    <div className="flex flex-col gap-3 p-3 sm:p-4 border-b border-slate-100 flex-shrink-0">
                        <div className="flex justify-between items-center">
-                           {/* View Mode Toggle */}
+                           {/* View Mode Toggle - Mercury Style */}
                            {filterCategory === 'all' && filterSubcategory === 'all' ? (
-                               <div className="flex bg-slate-100 p-0.5 rounded-lg">
+                               <div className="flex bg-slate-50 p-0.5 rounded-lg border border-slate-100">
                                    <button
                                       onClick={() => setBreakdownViewMode('category')}
-                                      className={`px-2 sm:px-3 py-1 text-[9px] sm:text-[10px] font-bold rounded-md transition-all ${breakdownViewMode === 'category' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                      className={`px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-md transition-all ${breakdownViewMode === 'category' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                                    >
                                        Categories
                                    </button>
                                    <button
                                       onClick={() => setBreakdownViewMode('subcategory')}
-                                      className={`px-2 sm:px-3 py-1 text-[9px] sm:text-[10px] font-bold rounded-md transition-all ${breakdownViewMode === 'subcategory' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                      className={`px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-md transition-all ${breakdownViewMode === 'subcategory' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                                    >
                                        Subcategories
                                    </button>
                                </div>
                            ) : (
-                               <h3 className="text-xs sm:text-sm font-bold text-slate-800 uppercase tracking-wide">
+                               <h3 className="text-xs sm:text-sm font-medium text-slate-400 uppercase tracking-wide">
                                  {filterCategory !== 'all' ? 'Breakdown' : 'Filtered'}
                                </h3>
                            )}
@@ -1290,7 +1296,7 @@ const App: React.FC = () => {
                            {(filterCategory !== 'all' || filterSubcategory !== 'all') && (
                               <button
                                   onClick={handleResetFilters}
-                                  className="text-[9px] sm:text-[10px] font-bold text-rose-500 bg-rose-50 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full hover:bg-rose-100 transition-colors"
+                                  className="text-[10px] sm:text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
                               >
                                   Reset
                               </button>
@@ -1304,7 +1310,7 @@ const App: React.FC = () => {
                                   setFilterCategory(e.target.value);
                                   setFilterSubcategory('all');
                               }}
-                              className="flex-1 bg-slate-50 border border-slate-100 text-slate-700 text-[10px] sm:text-xs font-bold rounded-lg focus:border-slate-300 focus:ring-1 focus:ring-slate-200 block px-2 sm:px-3 py-1.5 sm:py-2 outline-none hover:bg-slate-100 transition-colors cursor-pointer appearance-none"
+                              className="flex-1 bg-slate-50 border border-slate-100 text-slate-600 text-[10px] sm:text-xs font-medium rounded-lg focus:border-slate-300 focus:ring-1 focus:ring-slate-200 block px-2.5 sm:px-3 py-2 outline-none hover:bg-slate-100 transition-colors cursor-pointer appearance-none"
                           >
                               <option value="all">Category: All</option>
                               {expenseCategories.map(cat => (
@@ -1315,7 +1321,7 @@ const App: React.FC = () => {
                           <select
                               value={filterSubcategory}
                               onChange={(e) => setFilterSubcategory(e.target.value)}
-                              className="flex-1 bg-slate-50 border border-slate-100 text-slate-700 text-[10px] sm:text-xs font-bold rounded-lg focus:border-slate-300 focus:ring-1 focus:ring-slate-200 block px-2 sm:px-3 py-1.5 sm:py-2 outline-none hover:bg-slate-100 transition-colors cursor-pointer appearance-none"
+                              className="flex-1 bg-slate-50 border border-slate-100 text-slate-600 text-[10px] sm:text-xs font-medium rounded-lg focus:border-slate-300 focus:ring-1 focus:ring-slate-200 block px-2.5 sm:px-3 py-2 outline-none hover:bg-slate-100 transition-colors cursor-pointer appearance-none"
                           >
                               <option value="all">Sub: All</option>
                               {availableSubcategories.map(sub => (
@@ -1325,9 +1331,9 @@ const App: React.FC = () => {
                        </div>
                     </div>
 
-                    {/* Expandable Category List & Total */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-2 sm:p-4">
-                        <div className="space-y-2 sm:space-y-4">
+                    {/* Category Breakdown List - Mercury Style */}
+                    <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-3 sm:p-4">
+                        <div className="space-y-3">
                             {(() => {
                                 let displayData: { name?: string; category?: Category; total: number; color?: string; parentId?: string }[] = [];
                                 let listType: 'category' | 'subcategory' = 'category';
@@ -1347,83 +1353,81 @@ const App: React.FC = () => {
                                 }
 
                                 if (displayData.length === 0) {
-                                    return <div className="flex items-center justify-center h-16 sm:h-20 text-slate-400 text-[10px] sm:text-xs">No expenses found</div>;
+                                    return <div className="flex items-center justify-center h-20 text-slate-400 text-xs">No expenses found</div>;
                                 }
 
                                 return displayData.map((item: any) => {
                                     const percentage = globalSummary.totalExpense > 0 ? ((item.total / globalSummary.totalExpense) * 100).toFixed(1) : '0';
                                     const label = listType === 'category' ? item.category.name : item.name;
                                     const color = listType === 'category' ? item.category.color : item.color;
-                                    const iconId = listType === 'category' ? item.category.id : item.parentId;
 
                                     return (
                                         <div key={label} className="group">
-                                        <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-1.5">
-                                            <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 group-hover:bg-slate-100 transition-colors">
-                                                {getCategoryIcon(iconId)}
+                                          <div className="flex items-center justify-between mb-1.5">
+                                            <div className="flex items-center gap-2">
+                                              <div
+                                                className="w-2 h-2 rounded-full shrink-0"
+                                                style={{ backgroundColor: color || '#94a3b8' }}
+                                              />
+                                              <span className="text-xs font-medium text-slate-700">{label}</span>
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex justify-between items-baseline mb-0.5 sm:mb-1">
-                                                    <span className="text-[11px] sm:text-sm font-semibold text-slate-700 group-hover:text-slate-900 transition-colors truncate">{label}</span>
-                                                    <span className="text-[9px] sm:text-xs font-medium text-slate-500">({percentage}%)</span>
-                                                </div>
-                                                <div className="w-full bg-slate-100 rounded-full h-1 overflow-hidden">
-                                                    <div
-                                                    className="h-full rounded-full transition-all duration-500 ease-out opacity-80"
-                                                    style={{
-                                                        width: `${percentage}%`,
-                                                        backgroundColor: color || '#94a3b8'
-                                                    }}
-                                                    ></div>
-                                                </div>
-                                                <div className="text-right mt-0.5">
-                                                    <span className="text-[10px] sm:text-xs font-bold text-slate-900 font-mono">£{item.total.toLocaleString()}</span>
-                                                </div>
+                                            <span className="text-xs font-semibold text-slate-900 font-mono">£{item.total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                                <div
+                                                  className="h-full rounded-full transition-all duration-500 ease-out"
+                                                  style={{
+                                                      width: `${percentage}%`,
+                                                      backgroundColor: color || '#94a3b8'
+                                                  }}
+                                                />
                                             </div>
-                                        </div>
+                                            <span className="text-[10px] text-slate-400 w-10 text-right">{percentage}%</span>
+                                          </div>
                                         </div>
                                     );
                                 });
                             })()}
                         </div>
 
-                        {/* Total Display */}
-                        <div className="pt-3 sm:pt-6 mt-2 sm:mt-4 border-t border-slate-100 flex-shrink-0">
-                            <div className="flex flex-col gap-0.5 sm:gap-1">
-                                <span className="text-[10px] sm:text-xs text-slate-400 uppercase font-bold tracking-wider">Total Expenses</span>
-                                <span className="text-xl sm:text-3xl font-bold text-slate-900 font-mono">£{globalSummary.totalExpense.toLocaleString()}</span>
+                        {/* Total Display - Mercury Style */}
+                        <div className="pt-4 mt-4 border-t border-slate-100 flex-shrink-0">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Total Expenses</span>
+                                <span className="text-xl sm:text-2xl font-semibold text-slate-900 font-mono">£{globalSummary.totalExpense.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                         </div>
 
-                         {/* Excluded Transactions */}
+                         {/* Excluded Transactions - Mercury Style */}
                         {excludedTransactions.length > 0 && (
-                            <div className="mt-6 pt-4 border-t border-dashed border-slate-100">
-                                <div className="flex items-center justify-between mb-2 px-1">
+                            <div className="mt-4 pt-4 border-t border-slate-100">
+                                <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-2">
-                                        <EyeOff size={10} className="text-slate-300" />
-                                        <h4 className="text-[10px] font-bold text-slate-300 uppercase tracking-wide">Excluded ({excludedTransactions.length})</h4>
+                                        <EyeOff size={12} className="text-slate-400" />
+                                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Excluded ({excludedTransactions.length})</span>
                                     </div>
-                                    <span className="text-[10px] font-bold text-slate-400 font-mono">
-                                        £{excludedTransactions.reduce((sum, t) => sum + t.amount, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    <span className="text-xs font-medium text-slate-500 font-mono">
+                                        £{excludedTransactions.reduce((sum, t) => sum + t.amount, 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
                                 </div>
-                                <div className="rounded-lg overflow-hidden border border-slate-100 bg-slate-50/30 flex flex-col max-h-48 overflow-y-auto custom-scrollbar">
+                                <div className="rounded-lg overflow-hidden border border-slate-100 flex flex-col max-h-48 overflow-y-auto custom-scrollbar">
                                     {excludedTransactions.map(t => (
-                                        <div key={t.id} className="bg-white px-3 py-2 flex justify-between items-start border-b border-slate-50 last:border-b-0 hover:bg-slate-50/50 transition-colors">
-                                            <div className="flex flex-col min-w-0 flex-1 mr-2">
-                                                <span className="text-xs font-semibold text-slate-600 truncate">{t.description}</span>
+                                        <div key={t.id} className="px-3 py-2 flex justify-between items-center border-b border-slate-50 last:border-b-0">
+                                            <div className="flex-1 min-w-0 mr-3">
+                                                <span className="text-xs font-medium text-slate-600 truncate block">{t.description}</span>
                                                 <div className="flex items-center gap-1.5 mt-0.5">
-                                                    <span className="text-[9px] text-slate-400">{t.date}</span>
+                                                    <span className="text-[10px] text-slate-400">{t.date}</span>
                                                     {t.subcategoryName && (
                                                         <>
                                                             <span className="text-slate-300">•</span>
-                                                            <span className="text-[9px] font-medium text-slate-400 uppercase tracking-tight">{t.subcategoryName}</span>
+                                                            <span className="text-[10px] text-slate-400">{t.subcategoryName}</span>
                                                         </>
                                                     )}
                                                 </div>
                                             </div>
-                                            <span className="text-[11px] font-bold text-slate-500 font-mono whitespace-nowrap">
-                                                £{t.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            <span className="text-xs font-medium text-slate-500 font-mono">
+                                                £{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </span>
                                         </div>
                                     ))}
