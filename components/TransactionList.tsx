@@ -140,24 +140,20 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     const displayType = currentCategory ? currentCategory.type : t.type;
 
     // Check if local state differs from props (unsaved changes)
-    const isDirty = 
-        description !== t.description || 
+    const isDirty =
+        description !== t.description ||
         notes !== (t.notes || '') ||
         categoryId !== t.categoryId ||
         subcategoryName !== t.subcategoryName;
 
-    // Sync state if props change externally (and we are not dirty)
+    // Only sync from props when the transaction ID changes (different transaction)
+    // This prevents resetting user edits while they're working
     useEffect(() => {
-        if (!isDirty) {
-            setDescription(t.description);
-            setNotes(t.notes || '');
-            setCategoryId(t.categoryId);
-            setSubcategoryName(t.subcategoryName);
-        } else {
-             // If props updated to match our local state (e.g. successful save propagated back), 
-             // we are technically no longer dirty.
-        }
-    }, [t.description, t.notes, t.categoryId, t.subcategoryName, isDirty]);
+        setDescription(t.description);
+        setNotes(t.notes || '');
+        setCategoryId(t.categoryId);
+        setSubcategoryName(t.subcategoryName);
+    }, [t.id]); // Only re-sync when transaction ID changes
 
     const handleManualSave = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -185,47 +181,73 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     };
 
     const handleCategoryChange = (newCatId: string) => {
-        if (newCatId === '') {
-            setCategoryId('');
-            setSubcategoryName('');
-            return;
-        }
-
         const cat = categories.find(c => c.id === newCatId);
-        if (cat) {
-            setCategoryId(newCatId);
-            // Reset to first subcategory when category changes to avoid invalid state
-            if (cat.subcategories.length > 0) {
-                setSubcategoryName(cat.subcategories[0]);
-            } else {
-                setSubcategoryName('');
-            }
+
+        // Update local state
+        setCategoryId(newCatId);
+
+        // Determine new subcategory
+        let newSubcategory = '';
+        if (cat && cat.subcategories.length > 0) {
+            newSubcategory = cat.subcategories[0];
         }
+        setSubcategoryName(newSubcategory);
+
+        // Auto-save category change immediately to prevent loss
+        const updates: Partial<Transaction> = {
+            categoryId: newCatId,
+            categoryName: cat ? cat.name : '',
+            subcategoryName: newSubcategory,
+            type: cat ? cat.type : t.type
+        };
+        onUpdate(t.id, updates);
+        setSaveStatus('success');
+        setTimeout(() => setSaveStatus('idle'), 2000);
+    };
+
+    const handleSubcategoryChange = (newSubcategory: string) => {
+        setSubcategoryName(newSubcategory);
+
+        // Auto-save subcategory change immediately
+        onUpdate(t.id, { subcategoryName: newSubcategory });
+        setSaveStatus('success');
+        setTimeout(() => setSaveStatus('idle'), 2000);
     };
 
     // Check if transaction is excluded
     const isExcluded = t.excluded || t.categoryId === 'excluded';
 
-    // Determine row styling - Use white vs slate-100 to clearly alternate against slate-50 app bg
+    // Check if the category was deleted (categoryId exists but not found in categories)
+    const isCategoryMissing = t.categoryId !== '' && t.categoryId !== 'excluded' && !categories.find(c => c.id === t.categoryId);
+
+    // Determine row styling - Alternating white and grey with more contrast
     const isEven = index % 2 === 0;
     const rowBackground = isExcluded
-        ? 'bg-slate-100/80 opacity-60'
-        : isDirty
-            ? 'bg-indigo-50/60'
-            : (isEven ? 'bg-white' : 'bg-slate-50/50');
+        ? 'bg-slate-300/80 opacity-60'
+        : isCategoryMissing
+            ? 'bg-amber-50 border-amber-300'
+            : isDirty
+                ? 'bg-indigo-50/60'
+                : (isEven ? 'bg-white' : 'bg-slate-200');
 
-    // Common cell styles for the "sheet" look - Compact padding py-2
-    const cellClass = "h-full flex flex-col justify-center px-2 py-2 border-r border-slate-200/60 last:border-r-0";
+    // Common cell styles for the "sheet" look - More spacious padding
+    const cellClass = "h-full flex flex-col justify-center px-4 py-3 border-r border-slate-200/60 last:border-r-0";
 
     return (
         <>
             {/* Mobile Row */}
-            <div className={`md:hidden grid grid-cols-[1fr_1fr_75px] items-center h-9 text-xs border-b border-slate-100 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-100'} ${isExcluded ? 'opacity-40' : ''}`}>
+            <div className={`md:hidden grid grid-cols-[1fr_1fr_75px] items-center h-9 text-xs border-b border-slate-100 ${isCategoryMissing ? 'bg-amber-50 border-l-4 border-l-amber-400' : index % 2 === 0 ? 'bg-white' : 'bg-slate-100'} ${isExcluded ? 'opacity-40' : ''}`}>
                 <div className="flex items-center gap-1.5 px-2 border-r border-slate-100 min-w-0">
-                    <span className={`w-1.5 h-4 rounded-sm shrink-0 ${isExcluded ? 'bg-slate-300' : displayType === 'INCOME' ? 'bg-emerald-500' : 'bg-rose-400'}`}></span>
+                    {isCategoryMissing ? (
+                        <AlertTriangle size={14} className="text-amber-500 shrink-0" />
+                    ) : (
+                        <span className={`w-1.5 h-4 rounded-sm shrink-0 ${isExcluded ? 'bg-slate-300' : displayType === 'INCOME' ? 'bg-emerald-500' : 'bg-rose-400'}`}></span>
+                    )}
                     <span className="truncate text-slate-700 font-medium">{t.description || 'No merchant'}</span>
                 </div>
-                <span className="pl-3 pr-2 text-[9px] text-slate-400 border-r border-slate-100 truncate">{t.subcategoryName || '-'}</span>
+                <span className={`pl-3 pr-2 text-[9px] border-r border-slate-100 truncate ${isCategoryMissing ? 'text-amber-600 font-bold' : 'text-slate-400'}`}>
+                    {isCategoryMissing ? 'Category Deleted!' : (t.subcategoryName || '-')}
+                </span>
                 <span className={`px-2 text-right font-mono font-semibold ${isExcluded ? 'text-slate-400' : displayType === 'INCOME' ? 'text-emerald-600' : 'text-slate-800'}`}>
                     {displayType === 'EXPENSE' ? '-' : ''}£{t.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
                 </span>
@@ -239,7 +261,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 </div>
 
                 {/* 2. Description (Merchant) - Smaller Font + Bank Name */}
-                <div className={`${cellClass} min-w-0`}>
+                <div className="h-full flex flex-col justify-center px-2 py-3 border-r border-slate-200/60 min-w-0">
                      <input
                         type="text"
                         value={description}
@@ -257,13 +279,19 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 </div>
 
                 {/* 3. Category - Editable */}
-                <div className={cellClass}>
+                <div className="h-full flex flex-col justify-center px-9 py-3 border-r border-slate-200/60">
+                     {isCategoryMissing && (
+                        <div className="flex items-center gap-1 mb-1">
+                            <AlertTriangle size={12} className="text-amber-500" />
+                            <span className="text-[9px] font-bold text-amber-600">Category Deleted!</span>
+                        </div>
+                     )}
                      <select
-                        value={categoryId}
+                        value={isCategoryMissing ? '' : categoryId}
                         onChange={(e) => handleCategoryChange(e.target.value)}
-                        className={`w-full bg-transparent border border-transparent hover:border-slate-300 rounded px-1.5 py-1 text-xs font-bold outline-none focus:border-[#635bff] focus:ring-1 focus:ring-[#635bff]/20 cursor-pointer ${isDirty ? 'text-indigo-700 bg-indigo-50/50' : categoryId === '' ? 'text-rose-500 bg-rose-50 border-rose-200 animate-pulse' : 'text-slate-600 bg-transparent border-slate-100'}`}
+                        className={`w-full bg-transparent border border-transparent hover:border-slate-300 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[#635bff] focus:ring-1 focus:ring-[#635bff]/20 cursor-pointer ${isCategoryMissing ? 'text-amber-700 bg-amber-100 border-amber-300' : isDirty ? 'text-indigo-700 bg-indigo-50/50' : categoryId === '' ? 'text-rose-500 bg-rose-50 border-rose-200 animate-pulse' : 'text-slate-600 bg-transparent border-slate-100'}`}
                      >
-                        <option value="">Category</option>
+                        <option value="">{isCategoryMissing ? `Select New Category` : 'Category'}</option>
                         {categories.map(c => (
                             <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
@@ -271,12 +299,12 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 </div>
 
                 {/* 4. Subcategory - Editable */}
-                <div className={cellClass}>
+                <div className="h-full flex flex-col justify-center px-9 py-3 border-r border-slate-200/60">
                      <select
                         value={subcategoryName}
-                        onChange={(e) => setSubcategoryName(e.target.value)}
+                        onChange={(e) => handleSubcategoryChange(e.target.value)}
                         disabled={!categoryId}
-                        className={`w-full bg-transparent border border-transparent hover:border-slate-300 rounded px-1.5 py-1 text-xs font-bold uppercase tracking-tight outline-none focus:border-[#635bff] focus:ring-1 focus:ring-[#635bff]/20 cursor-pointer ${!categoryId ? 'opacity-50 cursor-not-allowed' : isDirty ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-500 bg-transparent border-slate-100'}`}
+                        className={`w-full bg-transparent border border-transparent hover:border-slate-300 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-tight outline-none focus:border-[#635bff] focus:ring-1 focus:ring-[#635bff]/20 cursor-pointer ${!categoryId ? 'opacity-50 cursor-not-allowed' : isDirty ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-500 bg-transparent border-slate-100'}`}
                      >
                         {!categoryId && <option value="">--</option>}
                         {subcategories.map(sub => (
@@ -286,9 +314,9 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 </div>
 
                 {/* 5. Amount */}
-                <div className={cellClass}>
+                <div className="h-full flex flex-col justify-center px-9 py-3 border-r border-slate-200/60">
                     <div className="flex flex-col justify-center w-full h-full">
-                        <div className="flex items-center justify-end gap-2 w-full">
+                        <div className="flex items-center justify-end gap-3 w-full">
                             <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-[4px] uppercase tracking-wide border border-opacity-60 shrink-0 ${
                                 isExcluded ? 'bg-slate-100 text-slate-400 border-slate-200' : displayType === 'INCOME' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-rose-50 text-rose-600 border-rose-200'
                             }`}>
@@ -355,7 +383,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
 
 const TransactionList: React.FC<TransactionListProps> = ({ transactions, categories, onUpdate, onDelete }) => {
   // Desktop Grid Template: Date | Merchant | Category | Subcategory | Amount | Note | Action
-  const gridTemplate = "grid-cols-[95px_1.2fr_110px_150px_160px_1fr_90px]";
+  const gridTemplate = "grid-cols-[95px_1fr_180px_200px_220px_1fr_90px]";
   // Mobile Grid Template: simplified
   const mobileGridTemplate = "grid-cols-[1fr_auto_auto]";
 

@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Category, TransactionType } from '../types';
-import { Plus, Tag, FolderPlus, X, Check, Trash2, Search, ChevronRight, Layers, AlertTriangle } from 'lucide-react';
+import { Plus, Tag, FolderPlus, X, Check, Trash2, Search, ChevronRight, Layers, AlertTriangle, Pencil } from 'lucide-react';
 
 interface CategoryManagerProps {
   categories: Category[];
   onAddCategory: (category: Category) => void;
+  onUpdateCategory: (categoryId: string, updates: { name?: string; color?: string }) => void;
   onAddSubcategory: (categoryId: string, subcategory: string) => void;
   onDeleteSubcategory: (categoryId: string, subcategory: string) => void;
   onDeleteCategory: (categoryId: string) => void;
@@ -122,10 +123,11 @@ const DeleteSubcategoryModal = ({
     );
 };
 
-const CategoryManager: React.FC<CategoryManagerProps> = ({ 
-  categories, 
-  onAddCategory, 
-  onAddSubcategory, 
+const CategoryManager: React.FC<CategoryManagerProps> = ({
+  categories,
+  onAddCategory,
+  onUpdateCategory,
+  onAddSubcategory,
   onDeleteSubcategory,
   onDeleteCategory
 }) => {
@@ -138,6 +140,11 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
   const [newCatName, setNewCatName] = useState('');
   const [newCatType, setNewCatType] = useState<TransactionType>('EXPENSE');
   const [newCatColor, setNewCatColor] = useState(PRESET_COLORS[0]);
+
+  // Edit Category State
+  const [isEditing, setIsEditing] = useState(false);
+  const [editCatName, setEditCatName] = useState('');
+  const [editCatColor, setEditCatColor] = useState('');
 
   // New Subcategory State
   const [newSubcatName, setNewSubcatName] = useState('');
@@ -218,6 +225,27 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
   // Handler for opening subcategory delete confirmation
   const handleSubcategoryDeleteClick = (subcategoryName: string) => {
     setSubcategoryToDelete(subcategoryName);
+  };
+
+  // Handler for opening edit mode
+  const handleEditClick = () => {
+    if (selectedCategory && selectedCategory.id !== 'excluded') {
+      setEditCatName(selectedCategory.name);
+      setEditCatColor(selectedCategory.color);
+      setIsEditing(true);
+    }
+  };
+
+  // Handler for saving edits
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCategoryId || !editCatName.trim()) return;
+
+    onUpdateCategory(selectedCategoryId, {
+      name: editCatName.trim(),
+      color: editCatColor
+    });
+    setIsEditing(false);
   };
 
   // Handler for confirming subcategory delete
@@ -352,13 +380,22 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
                         {selectedCategory.type === 'INCOME' ? 'In' : 'Out'}
                      </span>
                      {selectedCategory.id !== 'excluded' && (
-                        <button
-                            onClick={handleDeleteClick}
-                            className="p-1 sm:p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
-                            title="Delete Category"
-                        >
-                            <Trash2 size={14} className="sm:w-4 sm:h-4" />
-                        </button>
+                        <>
+                          <button
+                              onClick={handleEditClick}
+                              className="p-1.5 sm:p-2 bg-violet-100 text-violet-600 hover:bg-violet-200 rounded-lg transition-colors"
+                              title="Edit Category"
+                          >
+                              <Pencil size={14} className="sm:w-4 sm:h-4" />
+                          </button>
+                          <button
+                              onClick={handleDeleteClick}
+                              className="p-1.5 sm:p-2 bg-rose-100 text-rose-600 hover:bg-rose-200 rounded-lg transition-colors"
+                              title="Delete Category"
+                          >
+                              <Trash2 size={14} className="sm:w-4 sm:h-4" />
+                          </button>
+                        </>
                      )}
                  </div>
               </div>
@@ -503,6 +540,72 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
                       className="w-full py-2.5 sm:py-3.5 bg-violet-600 text-white font-bold rounded-lg sm:rounded-xl text-sm sm:text-base hover:bg-violet-700 shadow-lg shadow-violet-200 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
                     >
                        Create
+                    </button>
+                 </div>
+              </form>
+           </div>
+        </div>
+      )}
+
+      {/* Edit Category Modal */}
+      {isEditing && selectedCategory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsEditing(false)}></div>
+           <div className="relative w-full max-w-sm sm:max-w-lg bg-white rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-3 sm:p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                 <h3 className="text-sm sm:text-lg font-bold text-slate-800">Edit Category</h3>
+                 <button onClick={() => setIsEditing(false)} className="text-slate-400 hover:text-slate-600">
+                    <X size={18} className="sm:w-5 sm:h-5" />
+                 </button>
+              </div>
+
+              <form onSubmit={handleSaveEdit} className="p-3 sm:p-6 space-y-4 sm:space-y-6">
+                 <div className="space-y-3 sm:space-y-4">
+                    <div>
+                       <label className="block text-[10px] sm:text-xs font-bold text-slate-500 uppercase mb-1 sm:mb-1.5">Name</label>
+                       <input
+                         autoFocus
+                         type="text"
+                         value={editCatName}
+                         onChange={(e) => setEditCatName(e.target.value)}
+                         placeholder="e.g. Entertainment"
+                         className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-white border border-slate-200 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base text-slate-800 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 outline-none transition-all"
+                       />
+                    </div>
+
+                    <div>
+                       <label className="block text-[10px] sm:text-xs font-bold text-slate-500 uppercase mb-1 sm:mb-1.5">Type</label>
+                       <div className="py-2 sm:py-3 px-3 sm:px-4 bg-slate-50 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold text-slate-500 border border-slate-200">
+                          {selectedCategory.type === 'INCOME' ? 'Income' : 'Expense'}
+                          <span className="text-slate-400 font-medium ml-2">(cannot be changed)</span>
+                       </div>
+                    </div>
+
+                    <div>
+                       <label className="block text-[10px] sm:text-xs font-bold text-slate-500 uppercase mb-1.5 sm:mb-2">Color</label>
+                       <div className="flex flex-wrap gap-2 sm:gap-3">
+                          {PRESET_COLORS.map(c => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => setEditCatColor(c)}
+                              className={`w-7 h-7 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all ${editCatColor === c ? 'ring-2 ring-offset-1 sm:ring-offset-2 ring-slate-900 scale-110' : 'hover:scale-110'}`}
+                              style={{ backgroundColor: c }}
+                            >
+                               {editCatColor === c && <Check size={12} className="sm:w-4 sm:h-4 text-white drop-shadow-md" />}
+                            </button>
+                          ))}
+                       </div>
+                    </div>
+                 </div>
+
+                 <div className="pt-1 sm:pt-2">
+                    <button
+                      type="submit"
+                      disabled={!editCatName.trim()}
+                      className="w-full py-2.5 sm:py-3.5 bg-violet-600 text-white font-bold rounded-lg sm:rounded-xl text-sm sm:text-base hover:bg-violet-700 shadow-lg shadow-violet-200 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
+                    >
+                       Save Changes
                     </button>
                  </div>
               </form>

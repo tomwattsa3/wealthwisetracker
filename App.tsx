@@ -96,7 +96,19 @@ const App: React.FC = () => {
       };
   });
 
-  const [activeTab, setActiveTab] = useState<'home' | 'history' | 'categories' | 'yearly' | 'settings'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'history' | 'categories' | 'yearly' | 'settings'>(() => {
+    const saved = localStorage.getItem('activeTab');
+    if (saved && ['home', 'history', 'categories', 'yearly', 'settings'].includes(saved)) {
+      return saved as 'home' | 'history' | 'categories' | 'yearly' | 'settings';
+    }
+    return 'home';
+  });
+
+  // Persist active tab to localStorage
+  useEffect(() => {
+    localStorage.setItem('activeTab', activeTab);
+  }, [activeTab]);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -169,6 +181,28 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('mobileCategoryIds', JSON.stringify(mobileCategoryIds));
   }, [mobileCategoryIds]);
+
+  // Daily Average Card State - selected categories for calculation
+  const [dailyAvgCategories, setDailyAvgCategories] = useState<string[]>(() => {
+    const saved = localStorage.getItem('dailyAvgCategories');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Persist daily average category selection
+  useEffect(() => {
+    localStorage.setItem('dailyAvgCategories', JSON.stringify(dailyAvgCategories));
+  }, [dailyAvgCategories]);
+
+  const toggleDailyAvgCategory = (catId: string) => {
+    setDailyAvgCategories(prev => {
+      if (prev.includes(catId)) {
+        return prev.filter(id => id !== catId);
+      } else if (prev.length < 10) {
+        return [...prev, catId];
+      }
+      return prev; // Max 10 categories
+    });
+  };
 
   const handleMobileCategoryChange = (index: number, newId: string) => {
     const newIds = [...mobileCategoryIds];
@@ -339,6 +373,21 @@ const App: React.FC = () => {
     if (catId === 'excluded') return;
     setCategories(prev => prev.filter(c => c.id !== catId));
     await supabase.from('Categories').delete().eq('id', catId);
+  };
+
+  const handleUpdateCategory = async (catId: string, updates: { name?: string; color?: string }) => {
+    if (catId === 'excluded') return;
+
+    // Optimistic update
+    setCategories(prev => prev.map(c =>
+      c.id === catId ? { ...c, ...updates } : c
+    ));
+
+    // Update in Supabase
+    const { error } = await supabase.from('Categories').update(updates).eq('id', catId);
+    if (error) {
+      console.error('Failed to update category:', error);
+    }
   };
 
   const handleAddBank = (newBank: Bank) => {
@@ -570,7 +619,13 @@ const App: React.FC = () => {
       if (filterSubcategory !== 'all' && t.subcategoryName !== filterSubcategory) return false;
 
       return true;
-    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }).sort((a, b) => {
+      // Primary sort by date (newest first)
+      const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (dateDiff !== 0) return dateDiff;
+      // Secondary sort by ID to maintain stable order for same-date transactions
+      return a.id.localeCompare(b.id);
+    });
   }, [dateFilteredTransactions, searchQuery, filterCategory, filterSubcategory, filterType, filterBank]);
 
   // Check if any specific filters are active (not including date filter)
@@ -629,6 +684,31 @@ const App: React.FC = () => {
       { totalIncome: 0, totalExpense: 0, balance: 0 }
     );
   }, [activeTransactions]);
+
+  // Daily Average Spending Calculation
+  const dailyAverageData = useMemo(() => {
+    // Get expenses from selected categories within date range
+    const selectedExpenses = activeTransactions.filter(t =>
+      t.type === 'EXPENSE' &&
+      dailyAvgCategories.includes(t.categoryId)
+    );
+
+    const totalSpend = selectedExpenses.reduce((sum, t) => sum + t.amount, 0);
+
+    // Calculate number of days in date range
+    const startDate = new Date(dateRange.start);
+    const endDate = new Date(dateRange.end);
+    const daysDiff = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+
+    const dailyAverage = totalSpend / daysDiff;
+
+    return {
+      totalSpend,
+      dailyAverage,
+      daysInRange: daysDiff,
+      transactionCount: selectedExpenses.length
+    };
+  }, [activeTransactions, dailyAvgCategories, dateRange]);
 
   // Main Category Breakdown (respects date filter)
   const categoryBreakdown = useMemo(() => {
@@ -964,6 +1044,59 @@ const App: React.FC = () => {
                 </div>
               </div>
 
+              {/* Daily Average Spending Card */}
+              <div className="px-2 sm:px-0">
+                <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-6">
+                    {/* Left: Title and Stats */}
+                    <div className="flex-1">
+                      <h3 className="text-sm sm:text-base font-bold text-slate-800 mb-2">Daily Average Spending</h3>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl sm:text-3xl font-bold text-slate-900 font-mono">
+                          £{dailyAverageData.dailyAverage.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                        <span className="text-xs sm:text-sm text-slate-500">/ day</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-[10px] sm:text-xs text-slate-400">
+                        <span>Total: <span className="font-bold text-slate-600">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { minimumFractionDigits: 2 })}</span></span>
+                        <span>Days: <span className="font-bold text-slate-600">{dailyAverageData.daysInRange}</span></span>
+                        <span>Transactions: <span className="font-bold text-slate-600">{dailyAverageData.transactionCount}</span></span>
+                      </div>
+                    </div>
+
+                    {/* Right: Category Selection */}
+                    <div className="flex-1 sm:max-w-[400px]">
+                      <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase mb-2">
+                        Select Categories (max 10) <span className="text-slate-400">({dailyAvgCategories.length}/10)</span>
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                        {expenseCategories.filter(c => c.id !== 'excluded').map(cat => {
+                          const isSelected = dailyAvgCategories.includes(cat.id);
+                          return (
+                            <button
+                              key={cat.id}
+                              onClick={() => toggleDailyAvgCategory(cat.id)}
+                              disabled={!isSelected && dailyAvgCategories.length >= 10}
+                              className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all ${
+                                isSelected
+                                  ? 'text-white shadow-sm'
+                                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed'
+                              }`}
+                              style={isSelected ? { backgroundColor: cat.color } : {}}
+                            >
+                              {cat.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {dailyAvgCategories.length === 0 && (
+                        <p className="text-[10px] sm:text-xs text-amber-500 mt-2">Select at least one category to see your daily average</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Mobile: Configurable Category Cards */}
               <div className="md:hidden px-2 space-y-2">
                 {/* Fixed Income Card */}
@@ -1051,14 +1184,14 @@ const App: React.FC = () => {
                     <div key={`mobile-${index}-${catId}`} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                       {/* Category Header with Selector */}
                       <div
-                        className="flex items-center justify-between px-2 py-1.5"
+                        className="flex items-center justify-between px-3 py-2"
                         style={{ backgroundColor: cat.color }}
                       >
-                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-1 min-w-0 mr-3">
                           <select
                             value={catId}
                             onChange={(e) => handleMobileCategoryChange(index, e.target.value)}
-                            className="bg-white/20 text-white text-[10px] font-bold rounded px-1.5 py-0.5 outline-none border-0 cursor-pointer appearance-none max-w-[100px] truncate"
+                            className="bg-white/20 text-white text-xs font-bold rounded-lg px-2.5 py-1 outline-none border-0 cursor-pointer appearance-none flex-1 min-w-0"
                             style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
                           >
                             {expenseCategories.map(c => (
@@ -1066,8 +1199,8 @@ const App: React.FC = () => {
                             ))}
                           </select>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-bold text-white/90 font-mono">£{catTotal.toLocaleString()}</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs font-bold text-white/90 font-mono">£{catTotal.toLocaleString()}</span>
                           {mobileCategoryIds.length > 1 && (
                             <button
                               onClick={() => handleRemoveMobileCardWithConfirm(index)}
@@ -1363,9 +1496,10 @@ const App: React.FC = () => {
            {/* CATEGORIES VIEW */}
            {activeTab === 'categories' && (
              <div className="h-full">
-                 <CategoryManager 
+                 <CategoryManager
                     categories={categories}
                     onAddCategory={handleAddCategory}
+                    onUpdateCategory={handleUpdateCategory}
                     onAddSubcategory={handleAddSubcategory}
                     onDeleteSubcategory={handleDeleteSubcategory}
                     onDeleteCategory={handleDeleteCategory}
@@ -1390,11 +1524,14 @@ const App: React.FC = () => {
           {/* HISTORY VIEW */}
           {activeTab === 'history' && (
             <div className="flex flex-col space-y-4 sm:space-y-6 px-2 sm:px-0">
-               <BankFeedUpload
-                  onImport={handleImportTransactions}
-                  webhookUrl={webhookUrl}
-                  banks={banks}
-               />
+               {/* Hidden on mobile/tablet, visible on desktop only */}
+               <div className="hidden lg:block">
+                 <BankFeedUpload
+                    onImport={handleImportTransactions}
+                    webhookUrl={webhookUrl}
+                    banks={banks}
+                 />
+               </div>
 
               <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-2 sm:p-3 animate-in fade-in shadow-sm min-h-[400px] sm:min-h-[600px] flex flex-col">
                 <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-3 sm:mb-6 gap-2 sm:gap-4 border-b border-slate-100 pb-3 sm:pb-6">
