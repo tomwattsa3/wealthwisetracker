@@ -1044,59 +1044,6 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Daily Average Spending Card */}
-              <div className="px-2 sm:px-0">
-                <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-5">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-6">
-                    {/* Left: Title and Stats */}
-                    <div className="flex-1">
-                      <h3 className="text-sm sm:text-base font-bold text-slate-800 mb-2">Daily Average Spending</h3>
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-2xl sm:text-3xl font-bold text-slate-900 font-mono">
-                          £{dailyAverageData.dailyAverage.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                        <span className="text-xs sm:text-sm text-slate-500">/ day</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-[10px] sm:text-xs text-slate-400">
-                        <span>Total: <span className="font-bold text-slate-600">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { minimumFractionDigits: 2 })}</span></span>
-                        <span>Days: <span className="font-bold text-slate-600">{dailyAverageData.daysInRange}</span></span>
-                        <span>Transactions: <span className="font-bold text-slate-600">{dailyAverageData.transactionCount}</span></span>
-                      </div>
-                    </div>
-
-                    {/* Right: Category Selection */}
-                    <div className="flex-1 sm:max-w-[400px]">
-                      <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase mb-2">
-                        Select Categories (max 10) <span className="text-slate-400">({dailyAvgCategories.length}/10)</span>
-                      </p>
-                      <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                        {expenseCategories.filter(c => c.id !== 'excluded').map(cat => {
-                          const isSelected = dailyAvgCategories.includes(cat.id);
-                          return (
-                            <button
-                              key={cat.id}
-                              onClick={() => toggleDailyAvgCategory(cat.id)}
-                              disabled={!isSelected && dailyAvgCategories.length >= 10}
-                              className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all ${
-                                isSelected
-                                  ? 'text-white shadow-sm'
-                                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed'
-                              }`}
-                              style={isSelected ? { backgroundColor: cat.color } : {}}
-                            >
-                              {cat.name}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {dailyAvgCategories.length === 0 && (
-                        <p className="text-[10px] sm:text-xs text-amber-500 mt-2">Select at least one category to see your daily average</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               {/* Mobile: Configurable Category Cards */}
               <div className="md:hidden px-2 space-y-2">
                 {/* Fixed Income Card */}
@@ -1532,6 +1479,119 @@ const App: React.FC = () => {
                     banks={banks}
                  />
                </div>
+
+              {/* Daily Average Spending Card - Desktop */}
+              <div className="hidden md:block">
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                  <div className="flex items-center justify-between gap-6">
+                    {/* Left: Title and Stats */}
+                    <div className="flex-1">
+                      <h3 className="text-base font-bold text-slate-800 mb-2">Daily Average Spending</h3>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-bold text-slate-900 font-mono">
+                          £{dailyAverageData.dailyAverage.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                        <span className="text-sm text-slate-500">/ day</span>
+                      </div>
+                      <div className="flex gap-4 mt-2 text-xs text-slate-400">
+                        <span>Total: <span className="font-bold text-slate-600">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { minimumFractionDigits: 2 })}</span></span>
+                        <span>Days: <span className="font-bold text-slate-600">{dailyAverageData.daysInRange}</span></span>
+                        <span>Transactions: <span className="font-bold text-slate-600">{dailyAverageData.transactionCount}</span></span>
+                      </div>
+                    </div>
+
+                    {/* Right: Category Selection */}
+                    <div className="flex-1 max-w-[400px]">
+                      <p className="text-xs font-bold text-slate-500 uppercase mb-2">
+                        Select Categories (max 10) <span className="text-slate-400">({dailyAvgCategories.length}/10)</span>
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {expenseCategories.filter(c => c.id !== 'excluded').map(cat => {
+                          const isSelected = dailyAvgCategories.includes(cat.id);
+                          return (
+                            <button
+                              key={cat.id}
+                              onClick={() => toggleDailyAvgCategory(cat.id)}
+                              disabled={!isSelected && dailyAvgCategories.length >= 10}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                isSelected
+                                  ? 'text-white shadow-sm'
+                                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed'
+                              }`}
+                              style={isSelected ? { backgroundColor: cat.color } : {}}
+                            >
+                              {cat.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {dailyAvgCategories.length === 0 && (
+                        <p className="text-xs text-amber-500 mt-2">Select at least one category to see your daily average</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Daily Average Spending Card - Mobile */}
+              <div className="md:hidden bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-4 text-white">
+                {/* Header with amount */}
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Daily Average</p>
+                    <div className="flex items-baseline gap-1 mt-1">
+                      <span className="text-2xl font-bold font-mono">
+                        £{dailyAverageData.dailyAverage.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                      <span className="text-xs text-slate-400">/day</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-slate-400 text-[10px]">Total Spend</p>
+                    <p className="text-sm font-bold font-mono">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</p>
+                  </div>
+                </div>
+
+                {/* Stats row */}
+                <div className="flex gap-4 mb-4 text-[10px]">
+                  <div className="bg-white/10 rounded-lg px-3 py-1.5">
+                    <span className="text-slate-400">Days:</span> <span className="font-bold">{dailyAverageData.daysInRange}</span>
+                  </div>
+                  <div className="bg-white/10 rounded-lg px-3 py-1.5">
+                    <span className="text-slate-400">Transactions:</span> <span className="font-bold">{dailyAverageData.transactionCount}</span>
+                  </div>
+                </div>
+
+                {/* Category Selection */}
+                <div>
+                  <p className="text-[10px] text-slate-400 mb-2">
+                    Tap to select categories ({dailyAvgCategories.length}/10)
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {expenseCategories.filter(c => c.id !== 'excluded').map(cat => {
+                      const isSelected = dailyAvgCategories.includes(cat.id);
+                      return (
+                        <button
+                          key={cat.id}
+                          onClick={() => toggleDailyAvgCategory(cat.id)}
+                          disabled={!isSelected && dailyAvgCategories.length >= 10}
+                          className={`px-3 py-2 rounded-lg text-[11px] font-bold transition-all ${
+                            isSelected
+                              ? 'text-white ring-2 ring-white/30'
+                              : 'bg-white/10 text-slate-300 active:bg-white/20 disabled:opacity-30'
+                          }`}
+                          style={isSelected ? { backgroundColor: cat.color } : {}}
+                        >
+                          {cat.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {dailyAvgCategories.length === 0 && (
+                    <p className="text-[10px] text-amber-400 mt-2">Select categories to calculate average</p>
+                  )}
+                </div>
+              </div>
 
               <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-2 sm:p-3 animate-in fade-in shadow-sm min-h-[400px] sm:min-h-[600px] flex flex-col">
                 <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-3 sm:mb-6 gap-2 sm:gap-4 border-b border-slate-100 pb-3 sm:pb-6">
