@@ -267,18 +267,18 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
          </div>
       </div>
 
-      {/* Control Row: Year Selector & KPI */}
-      <div className="flex flex-col gap-2 sm:gap-4">
+      {/* Control Row: Year Selector & KPIs - All side by side on desktop */}
+      <div className="grid grid-cols-3 gap-2 md:flex md:gap-6">
 
-         {/* Year Selector - Compact on mobile */}
-         <div className="bg-slate-100 p-2 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm flex items-center sm:flex-col sm:items-stretch justify-between sm:justify-center sm:min-w-[180px] relative group hover:border-[#635bff] transition-colors cursor-pointer">
-            <div className="flex items-center sm:justify-between gap-2 sm:mb-1">
-                 <p className="text-slate-500 text-[10px] sm:text-xs font-bold uppercase tracking-wider">Year</p>
-                 <div className="hidden sm:block p-1.5 bg-white rounded-lg text-slate-500 group-hover:text-[#635bff] group-hover:bg-[#635bff]/10 transition-colors shadow-sm"><Calendar size={16} /></div>
+         {/* Year Selector */}
+         <div className="bg-slate-100 p-3 md:p-6 rounded-xl md:rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center md:min-w-[200px] relative group hover:border-[#635bff] transition-colors cursor-pointer">
+            <div className="flex items-center justify-between gap-2 mb-1">
+                 <p className="text-slate-500 text-[9px] md:text-xs font-bold uppercase tracking-wider">Year</p>
+                 <div className="p-1.5 bg-white rounded-lg text-slate-500 group-hover:text-[#635bff] group-hover:bg-[#635bff]/10 transition-colors shadow-sm"><Calendar size={14} className="md:w-4 md:h-4" /></div>
              </div>
-            <div className="flex items-center gap-1 sm:justify-between sm:mt-1">
-                <span className="text-lg sm:text-2xl font-bold font-mono text-slate-900">{selectedYear}</span>
-                <ChevronDown size={16} className="sm:w-5 sm:h-5 text-slate-500 group-hover:text-[#635bff] transition-colors" />
+            <div className="flex items-center justify-between">
+                <span className="text-xl md:text-3xl font-bold font-mono text-slate-900">{selectedYear}</span>
+                <ChevronDown size={16} className="md:w-5 md:h-5 text-slate-500 group-hover:text-[#635bff] transition-colors" />
             </div>
             <select
               value={selectedYear}
@@ -289,25 +289,22 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
             </select>
          </div>
 
-         {/* Income & Expense Cards - Side by side on mobile */}
-         <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-4">
-           {/* Total Income Card */}
-           <div className="bg-white p-2 sm:p-5 rounded-xl sm:rounded-2xl border border-emerald-200/60 shadow-sm sm:shadow-[0_0_20px_rgba(16,185,129,0.15)] flex flex-col justify-between sm:min-w-[220px]">
-               <div className="flex justify-between items-start mb-1 sm:mb-2 gap-2 sm:gap-4">
-                   <p className="text-slate-400 text-[8px] sm:text-xs font-bold uppercase tracking-wider">Income</p>
-                   <div className="p-1 sm:p-1.5 bg-emerald-50 rounded-lg text-emerald-600 shrink-0"><TrendingUp size={12} className="sm:w-4 sm:h-4" /></div>
-               </div>
-               <h3 className="text-sm sm:text-2xl font-bold font-mono text-slate-900">£{totalIncomeYear.toLocaleString(undefined, { maximumFractionDigits: 0 })}</h3>
-           </div>
+         {/* Total Income Card */}
+         <div className="bg-white p-3 md:p-6 rounded-xl md:rounded-2xl border border-emerald-200/60 shadow-sm md:shadow-[0_0_20px_rgba(16,185,129,0.15)] flex flex-col justify-center md:min-w-[220px] md:flex-1">
+             <div className="flex items-center justify-between gap-2 mb-1">
+                 <p className="text-slate-400 text-[9px] md:text-xs font-bold uppercase tracking-wider">Income</p>
+                 <div className="p-1.5 bg-emerald-50 rounded-lg text-emerald-600 shrink-0"><TrendingUp size={14} className="md:w-4 md:h-4" /></div>
+             </div>
+             <h3 className="text-xl md:text-3xl font-bold font-mono text-emerald-600">£{totalIncomeYear.toLocaleString(undefined, { maximumFractionDigits: 0 })}</h3>
+         </div>
 
-           {/* Total Expenses Card */}
-           <div className="bg-white p-2 sm:p-5 rounded-xl sm:rounded-2xl border border-rose-200/60 shadow-sm sm:shadow-[0_0_20px_rgba(244,63,94,0.15)] flex flex-col justify-between sm:min-w-[220px]">
-               <div className="flex justify-between items-start mb-1 sm:mb-2 gap-2 sm:gap-4">
-                   <p className="text-slate-400 text-[8px] sm:text-xs font-bold uppercase tracking-wider">Expenses</p>
-                   <div className="p-1 sm:p-1.5 bg-rose-50 rounded-lg text-rose-600 shrink-0"><TrendingDown size={12} className="sm:w-4 sm:h-4" /></div>
-               </div>
-               <h3 className="text-sm sm:text-2xl font-bold font-mono text-slate-900">£{totalExpenseYear.toLocaleString(undefined, { maximumFractionDigits: 0 })}</h3>
-           </div>
+         {/* Total Expenses Card */}
+         <div className="bg-white p-3 md:p-6 rounded-xl md:rounded-2xl border border-rose-200/60 shadow-sm md:shadow-[0_0_20px_rgba(244,63,94,0.15)] flex flex-col justify-center md:min-w-[220px] md:flex-1">
+             <div className="flex items-center justify-between gap-2 mb-1">
+                 <p className="text-slate-400 text-[9px] md:text-xs font-bold uppercase tracking-wider">Expenses</p>
+                 <div className="p-1.5 bg-rose-50 rounded-lg text-rose-600 shrink-0"><TrendingDown size={14} className="md:w-4 md:h-4" /></div>
+             </div>
+             <h3 className="text-xl md:text-3xl font-bold font-mono text-rose-600">£{totalExpenseYear.toLocaleString(undefined, { maximumFractionDigits: 0 })}</h3>
          </div>
 
       </div>
