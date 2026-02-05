@@ -600,7 +600,7 @@ const App: React.FC = () => {
 
     return sourceData.filter(t => {
       if (filterType !== 'all' && t.type !== filterType) return false;
-      if (filterBank !== 'all' && t.bankName !== filterBank) return false;
+      if (filterBank !== 'all' && (!t.bankName || t.bankName.trim().toLowerCase() !== filterBank.trim().toLowerCase())) return false;
 
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
@@ -926,7 +926,7 @@ const App: React.FC = () => {
         </nav>
 
         {/* Main Content Area - Updated padding */}
-        <main className="flex-1 h-full overflow-y-auto bg-slate-50 p-2 pb-24 md:px-8 md:py-6 max-w-[100vw]">
+        <main className={`flex-1 h-full bg-slate-50 p-2 pb-24 md:px-8 md:py-6 max-w-[100vw] ${activeTab === 'history' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
           
           {/* Top Bar with Filter & Search (Hidden in Cat/Yearly View) */}
           {activeTab !== 'categories' && activeTab !== 'yearly' && activeTab !== 'settings' && (
@@ -1475,7 +1475,7 @@ const App: React.FC = () => {
 
           {/* HISTORY VIEW */}
           {activeTab === 'history' && (
-            <div className="flex flex-col space-y-2 sm:space-y-6 px-2 sm:px-0">
+            <div className="h-full overflow-hidden flex flex-col space-y-2 sm:space-y-6 px-2 sm:px-0">
                {/* Hidden on mobile/tablet, visible on desktop only */}
                <div className="hidden lg:block">
                  <BankFeedUpload
@@ -1551,7 +1551,7 @@ const App: React.FC = () => {
                     {dailyAverageData.isIncome ? 'Income Averages' : 'Expense Averages'}
                   </h3>
                   <span className={`text-[10px] font-semibold ${dailyAverageData.isIncome ? 'text-emerald-600' : 'text-slate-500'}`}>
-                    Total: £{dailyAverageData.totalSpend.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                    Total: £{dailyAverageData.totalSpend.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
                 {/* Stats */}
@@ -1559,11 +1559,11 @@ const App: React.FC = () => {
                   <div className="grid grid-cols-4 gap-4 text-center">
                     <div>
                       <p className="text-white/60 text-[9px] font-semibold uppercase">Daily Avg</p>
-                      <p className="text-base font-bold font-mono mt-1">£{dailyAverageData.dailyAverage.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+                      <p className="text-base font-bold font-mono mt-1">£{dailyAverageData.dailyAverage.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                     </div>
                     <div>
                       <p className="text-white/60 text-[9px] font-semibold uppercase">Avg Trans</p>
-                      <p className="text-base font-bold font-mono mt-1">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalSpend / dailyAverageData.transactionCount).toLocaleString('en-GB', { maximumFractionDigits: 0 }) : '0'}</p>
+                      <p className="text-base font-bold font-mono mt-1">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalSpend / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</p>
                     </div>
                     <div>
                       <p className="text-white/60 text-[9px] font-semibold uppercase">Days</p>
@@ -1585,7 +1585,7 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-2 sm:p-3 animate-in fade-in shadow-sm min-h-[500px] sm:min-h-[600px] flex flex-col flex-1">
+              <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-2 sm:p-3 animate-in fade-in shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
                 <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-3 sm:mb-6 gap-2 sm:gap-4 border-b border-slate-100 pb-3 sm:pb-6">
                   <div className="flex items-center gap-2">
                       <div className="p-1.5 sm:p-2 bg-slate-100 rounded-lg text-slate-700">
@@ -1673,7 +1673,7 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex-1 flex flex-col">
+                <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                   {/* Total Amount Header Row */}
                   {filteredTransactions.length > 0 && (
                     <div className="flex items-center justify-end px-2 py-2 mb-1 bg-slate-50 border border-slate-200 rounded-lg">

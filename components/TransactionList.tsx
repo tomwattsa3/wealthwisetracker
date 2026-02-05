@@ -183,7 +183,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     const handleCategoryChange = (newCatId: string) => {
         const cat = categories.find(c => c.id === newCatId);
 
-        // Update local state
+        // Update local state only - requires manual save
         setCategoryId(newCatId);
 
         // Determine new subcategory
@@ -192,26 +192,11 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
             newSubcategory = cat.subcategories[0];
         }
         setSubcategoryName(newSubcategory);
-
-        // Auto-save category change immediately to prevent loss
-        const updates: Partial<Transaction> = {
-            categoryId: newCatId,
-            categoryName: cat ? cat.name : '',
-            subcategoryName: newSubcategory,
-            type: cat ? cat.type : t.type
-        };
-        onUpdate(t.id, updates);
-        setSaveStatus('success');
-        setTimeout(() => setSaveStatus('idle'), 2000);
     };
 
     const handleSubcategoryChange = (newSubcategory: string) => {
+        // Update local state only - requires manual save
         setSubcategoryName(newSubcategory);
-
-        // Auto-save subcategory change immediately
-        onUpdate(t.id, { subcategoryName: newSubcategory });
-        setSaveStatus('success');
-        setTimeout(() => setSaveStatus('idle'), 2000);
     };
 
     // Check if transaction is excluded
@@ -251,7 +236,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                     {isCategoryMissing ? 'Category Deleted!' : (t.categoryName || '-')}
                 </span>
                 <span className={`px-2 text-right font-mono font-semibold ${isExcluded ? 'text-slate-400' : displayType === 'INCOME' ? 'text-emerald-600' : 'text-slate-800'}`}>
-                    {displayType === 'EXPENSE' ? '-' : ''}£{t.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                    {displayType === 'EXPENSE' ? '-' : ''}£{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
             </div>
 
