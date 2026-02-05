@@ -220,7 +220,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     return (
         <>
             {/* Mobile Row */}
-            <div className={`md:hidden grid grid-cols-[1fr_1fr_75px] items-center h-9 text-xs border-b border-slate-100 ${isExcluded ? 'opacity-40' : ''}`}>
+            <div className={`md:hidden grid grid-cols-[1fr_1fr_75px] items-center h-9 text-xs border-b border-slate-100 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-100'} ${isExcluded ? 'opacity-40' : ''}`}>
                 <div className="flex items-center gap-1.5 px-2 border-r border-slate-100 min-w-0">
                     <span className={`w-1.5 h-4 rounded-sm shrink-0 ${isExcluded ? 'bg-slate-300' : displayType === 'INCOME' ? 'bg-emerald-500' : 'bg-rose-400'}`}></span>
                     <span className="truncate text-slate-700 font-medium">{t.description || 'No merchant'}</span>
