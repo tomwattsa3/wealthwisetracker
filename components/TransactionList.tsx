@@ -223,37 +223,58 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     return (
         <>
             {/* Mobile Row - Mercury Style */}
-            <div className={`md:hidden flex items-center justify-between px-4 py-3 rounded-xl border ${isCategoryMissing ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'} ${isExcluded ? 'opacity-40' : ''}`}>
+            <div className={`md:hidden flex items-center justify-between px-4 py-4 border-b border-slate-100 ${isCategoryMissing ? 'bg-amber-50' : 'bg-white'} ${isExcluded ? 'opacity-40' : ''}`}>
                 <div className="flex-1 min-w-0 mr-3">
                     <span className="text-sm font-semibold text-slate-900 truncate block">{t.description || 'No merchant'}</span>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                        {isCategoryMissing ? (
-                            <span className="text-[11px] font-medium text-amber-600">Category Deleted!</span>
-                        ) : (
-                            <>
-                                <span className={`text-[11px] font-medium uppercase ${displayType === 'INCOME' ? 'text-emerald-500' : 'text-slate-400'}`}>
-                                    {displayType === 'INCOME' ? 'Income' : 'Expense'}
-                                </span>
-                                <span className="text-slate-300">•</span>
-                                <span className="text-[11px] text-slate-400 truncate">{t.categoryName || 'Uncategorized'}</span>
-                            </>
-                        )}
+                    <div className="flex items-center gap-2 mt-1">
+                        <span className={`px-2 py-0.5 text-[10px] font-medium rounded border ${displayType === 'INCOME' ? 'text-emerald-600 border-emerald-200' : 'text-slate-500 border-slate-200'}`}>
+                            {displayType === 'INCOME' ? 'INCOME' : 'EXPENSE'}
+                        </span>
+                        <span className="text-[11px] text-slate-400 truncate">{t.categoryName || 'Uncategorized'}</span>
                     </div>
                 </div>
                 <span className={`text-sm font-semibold ${isExcluded ? 'text-slate-400' : 'text-slate-900'}`}>
-                    {displayType === 'INCOME' ? '+' : '-'}£{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    £{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
             </div>
 
-            {/* Desktop Grid View - Mercury Style */}
-            <div className={`hidden md:grid ${gridTemplate} gap-0 items-center text-sm group transition-colors rounded-xl border ${isCategoryMissing ? 'border-amber-200 bg-amber-50' : isDirty ? 'border-indigo-200 bg-indigo-50/30' : 'border-slate-200 bg-white hover:border-slate-300'} ${isExcluded ? 'opacity-50' : ''}`}>
+            {/* Desktop Grid View - Mercury Table Style */}
+            <div className={`hidden md:grid ${gridTemplate} items-center py-4 border-b border-slate-100 ${isCategoryMissing ? 'bg-amber-50' : isDirty ? 'bg-indigo-50/30' : 'bg-white'} ${isExcluded ? 'opacity-50' : ''}`}>
                 {/* 1. Date */}
-                <div className="h-full flex items-center px-4 py-3">
-                    <span className="text-sm text-slate-400 whitespace-nowrap">{t.date}</span>
+                <div className="px-6">
+                    <span className="text-sm text-slate-400">{t.date}</span>
                 </div>
 
-                {/* 2. Description (Merchant) */}
-                <div className="h-full flex flex-col justify-center px-4 py-3 min-w-0">
+                {/* 2. Type - Pill Style */}
+                <div className="px-4">
+                    <span className={`inline-block px-3 py-1 text-xs font-medium rounded border ${displayType === 'INCOME' ? 'text-emerald-600 border-emerald-200' : 'text-slate-500 border-slate-200'}`}>
+                        {displayType === 'INCOME' ? 'INCOME' : 'EXPENSE'}
+                    </span>
+                </div>
+
+                {/* 3. Category */}
+                <div className="px-4">
+                     {isCategoryMissing ? (
+                        <div className="flex items-center gap-1">
+                            <AlertTriangle size={12} className="text-amber-500" />
+                            <span className="text-sm text-amber-600">Deleted</span>
+                        </div>
+                     ) : (
+                         <select
+                            value={categoryId}
+                            onChange={(e) => handleCategoryChange(e.target.value)}
+                            className={`bg-transparent text-sm outline-none cursor-pointer transition-colors ${isDirty ? 'text-indigo-600' : categoryId === '' ? 'text-slate-400' : 'text-slate-600 hover:text-slate-900'}`}
+                         >
+                            <option value="">Select...</option>
+                            {categories.map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                         </select>
+                     )}
+                </div>
+
+                {/* 4. Description (Merchant) + Bank */}
+                <div className="px-4 min-w-0">
                      <input
                         type="text"
                         value={description}
@@ -263,89 +284,55 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                         placeholder="Merchant"
                     />
                      {t.bankName && (
-                        <span className="text-[11px] text-slate-400 truncate mt-0.5">
+                        <span className="text-[11px] text-slate-400 truncate block mt-0.5">
                             {t.bankName}
                         </span>
                     )}
                 </div>
 
-                {/* 3. Category */}
-                <div className="h-full flex flex-col justify-center px-4 py-3">
-                     {isCategoryMissing && (
-                        <div className="flex items-center gap-1 mb-1">
-                            <AlertTriangle size={12} className="text-amber-500" />
-                            <span className="text-[10px] font-medium text-amber-600">Deleted</span>
-                        </div>
-                     )}
-                     <select
-                        value={isCategoryMissing ? '' : categoryId}
-                        onChange={(e) => handleCategoryChange(e.target.value)}
-                        className={`w-full bg-transparent text-sm outline-none cursor-pointer transition-colors ${isCategoryMissing ? 'text-amber-600 font-medium' : isDirty ? 'text-indigo-600' : categoryId === '' ? 'text-slate-400' : 'text-slate-400 hover:text-slate-600'}`}
-                     >
-                        <option value="">Select...</option>
-                        {categories.map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                     </select>
-                </div>
-
-                {/* 4. Subcategory */}
-                <div className="h-full flex items-center px-4 py-3">
-                     <select
-                        value={subcategoryName}
-                        onChange={(e) => handleSubcategoryChange(e.target.value)}
-                        disabled={!categoryId}
-                        className={`w-full bg-transparent text-sm outline-none cursor-pointer transition-colors ${!categoryId ? 'text-slate-300' : isDirty ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
-                     >
-                        {!categoryId && <option value="">--</option>}
-                        {subcategories.map(sub => (
-                            <option key={sub} value={sub}>{sub}</option>
-                        ))}
-                     </select>
-                </div>
-
                 {/* 5. Amount */}
-                <div className="h-full flex items-center justify-end px-4 py-3">
+                <div className="px-6 text-right">
                     <span className={`text-sm font-semibold ${isExcluded ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
-                        {displayType === 'INCOME' ? '+' : '-'}£{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        £{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                 </div>
 
-                 {/* 6. Note */}
-                 <div className="h-full flex items-center px-4 py-3 min-w-0">
-                     <input
-                        type="text"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                        className={`bg-transparent w-full outline-none transition-colors truncate placeholder:text-slate-300 text-sm ${isDirty ? 'text-indigo-600' : 'text-slate-400 focus:text-slate-600'}`}
-                        placeholder="Add note..."
-                    />
+                 {/* 6. Subcategory - Pill */}
+                 <div className="px-4">
+                     {categoryId && subcategoryName && (
+                         <span className="px-2 py-0.5 bg-slate-100 rounded text-[11px] text-slate-500 font-medium">
+                             {subcategoryName}
+                         </span>
+                     )}
                 </div>
 
                 {/* 7. Action */}
-                <div className="h-full flex items-center justify-center px-3 py-3 gap-1">
-                    <button
-                        onClick={handleManualSave}
-                        disabled={!isDirty && saveStatus !== 'success'}
-                        className={`p-1.5 rounded-lg transition-all ${saveStatus === 'success' ? 'bg-emerald-100 text-emerald-600' : isDirty ? 'bg-slate-900 text-white hover:bg-slate-800' : 'text-slate-300'}`}
-                        title={saveStatus === 'success' ? "Saved" : isDirty ? "Save" : "No changes"}
-                    >
-                        {saveStatus === 'success' ? <Check size={14} strokeWidth={3} /> : <Save size={14} />}
-                    </button>
+                <div className="px-4 flex items-center justify-end gap-2">
+                    {isDirty && (
+                        <button
+                            onClick={handleManualSave}
+                            className="p-1.5 text-slate-400 hover:text-slate-600 transition-colors"
+                            title="Save"
+                        >
+                            <Save size={16} />
+                        </button>
+                    )}
+                    {saveStatus === 'success' && (
+                        <span className="text-emerald-500"><Check size={16} /></span>
+                    )}
                     <button
                         onClick={(e) => { e.stopPropagation(); onExclude(t.id); }}
-                        className={`p-1.5 rounded-lg transition-colors ${isExcluded ? 'text-emerald-500 hover:bg-emerald-50' : 'text-slate-400 hover:text-slate-600'}`}
+                        className={`p-1.5 transition-colors ${isExcluded ? 'text-emerald-500' : 'text-slate-300 hover:text-slate-500'}`}
                         title={isExcluded ? "Include" : "Exclude"}
                     >
-                        {isExcluded ? <Eye size={14} /> : <EyeOff size={14} />}
+                        {isExcluded ? <Eye size={16} /> : <EyeOff size={16} />}
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition-colors"
+                        className="p-1.5 text-slate-300 hover:text-slate-500 transition-colors"
                         title="Delete"
                     >
-                        <Trash2 size={14} />
+                        <Trash2 size={16} />
                     </button>
                 </div>
             </div>
@@ -354,8 +341,8 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
 };
 
 const TransactionList: React.FC<TransactionListProps> = ({ transactions, categories, onUpdate, onDelete }) => {
-  // Desktop Grid Template: Date | Merchant | Category | Subcategory | Amount | Note | Action
-  const gridTemplate = "grid-cols-[115px_1fr_180px_200px_220px_1fr_90px]";
+  // Desktop Grid Template: Date | Type | Category | Merchant | Amount | Subcategory | Action
+  const gridTemplate = "grid-cols-[100px_100px_150px_1fr_140px_140px_100px]";
   // Mobile Grid Template: simplified
   const mobileGridTemplate = "grid-cols-[1fr_auto_auto]";
 
@@ -421,21 +408,21 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
   return (
     <>
         <div className="flex flex-col h-full bg-transparent overflow-hidden">
-        {/* Desktop Header - Mercury Style */}
-        <div className={`hidden md:grid ${gridTemplate} gap-0 py-3 border-b border-slate-100 text-[11px] font-medium text-slate-400 uppercase tracking-wide`}>
-            <div className="px-4">Date</div>
+        {/* Desktop Header - Mercury Table Style */}
+        <div className={`hidden md:grid ${gridTemplate} py-4 border-b border-slate-200 text-[11px] font-medium text-slate-400 uppercase tracking-wider`}>
+            <div className="px-6">Date</div>
+            <div className="px-4">Type</div>
+            <div className="px-4">Category</div>
             <div className="px-4">Merchant</div>
-            <div className="px-6">Category</div>
-            <div className="px-6">Subcategory</div>
             <div className="px-6 text-right">Amount</div>
-            <div className="px-4">Note</div>
-            <div className="px-3 text-center">Actions</div>
+            <div className="px-4">Tag</div>
+            <div className="px-4 text-right">Action</div>
         </div>
 
         {/* Mobile Header - Mercury Style */}
-        <div className="md:hidden flex items-center justify-between px-4 py-2 border-b border-slate-100">
-            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Transactions</span>
-            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Amount</span>
+        <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-slate-200">
+            <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Transactions</span>
+            <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Amount</span>
         </div>
 
         {/* Rows */}
