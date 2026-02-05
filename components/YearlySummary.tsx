@@ -246,40 +246,58 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
 
                 return (
                   <div key={idx}>
-                    {/* Month Row - Clickable */}
+                    {/* Month Row - Mobile */}
                     <button
                       onClick={() => hasData && toggleMonth(idx)}
-                      className={`w-full grid grid-cols-3 md:grid-cols-5 gap-2 md:gap-4 px-4 md:px-5 py-3 md:py-4 transition-colors text-left ${hasData ? 'hover:bg-slate-50 cursor-pointer' : 'cursor-default'} ${isExpanded ? 'bg-slate-50' : ''}`}
+                      className={`md:hidden w-full flex items-center justify-between px-4 py-3 transition-colors text-left ${hasData ? 'hover:bg-slate-50 cursor-pointer' : 'cursor-default'} ${isExpanded ? 'bg-slate-50' : ''}`}
                       disabled={!hasData}
                     >
-                      <div className="col-span-3 md:col-span-1 flex items-center gap-2">
-                        <ChevronRight size={14} className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-90' : ''} ${!hasData ? 'opacity-0' : ''}`} />
-                        <div>
-                          <p className="font-medium text-slate-900 text-sm">{row.fullMonth}</p>
-                          <p className="text-[10px] text-slate-400 md:hidden">
-                            {row.txCount} transactions
+                      <div className="flex items-center gap-2">
+                        <ChevronRight size={14} className={`text-slate-400 transition-transform shrink-0 ${isExpanded ? 'rotate-90' : ''} ${!hasData ? 'opacity-0' : ''}`} />
+                        <span className="font-medium text-slate-900 text-sm">{row.fullMonth}</span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className={`text-sm font-semibold ${row.income > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
+                            {row.income > 0 ? `+£${row.income.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
                           </p>
+                          <p className="text-[9px] text-slate-400">Income</p>
+                        </div>
+                        <div className="text-right">
+                          <p className={`text-sm font-semibold ${row.expense > 0 ? 'text-slate-800' : 'text-slate-300'}`}>
+                            {row.expense > 0 ? `£${row.expense.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
+                          </p>
+                          <p className="text-[9px] text-slate-400">Expenses</p>
                         </div>
                       </div>
-                      <div className="text-left md:text-right">
-                        <p className="text-[10px] text-slate-400 md:hidden mb-0.5">Income</p>
+                    </button>
+
+                    {/* Month Row - Desktop */}
+                    <button
+                      onClick={() => hasData && toggleMonth(idx)}
+                      className={`hidden md:grid w-full grid-cols-5 gap-4 px-5 py-4 transition-colors text-left ${hasData ? 'hover:bg-slate-50 cursor-pointer' : 'cursor-default'} ${isExpanded ? 'bg-slate-50' : ''}`}
+                      disabled={!hasData}
+                    >
+                      <div className="flex items-center gap-2">
+                        <ChevronRight size={14} className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-90' : ''} ${!hasData ? 'opacity-0' : ''}`} />
+                        <p className="font-medium text-slate-900 text-sm">{row.fullMonth}</p>
+                      </div>
+                      <div className="text-right">
                         <p className={`text-sm font-medium ${row.income > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
                           {row.income > 0 ? `+£${row.income.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
                         </p>
                       </div>
-                      <div className="text-left md:text-right">
-                        <p className="text-[10px] text-slate-400 md:hidden mb-0.5">Expenses</p>
+                      <div className="text-right">
                         <p className={`text-sm font-medium ${row.expense > 0 ? 'text-slate-700' : 'text-slate-300'}`}>
                           {row.expense > 0 ? `£${row.expense.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
                         </p>
                       </div>
-                      <div className="text-left md:text-right">
-                        <p className="text-[10px] text-slate-400 md:hidden mb-0.5">Net</p>
+                      <div className="text-right">
                         <p className={`text-sm font-semibold ${row.net > 0 ? 'text-emerald-600' : row.net < 0 ? 'text-rose-600' : 'text-slate-300'}`}>
                           {row.income > 0 || row.expense > 0 ? (row.net >= 0 ? '+' : '') + `£${row.net.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
                         </p>
                       </div>
-                      <div className="hidden md:block text-right">
+                      <div className="text-right">
                         <p className="text-sm text-slate-500">{row.txCount > 0 ? row.txCount : '-'}</p>
                       </div>
                     </button>
