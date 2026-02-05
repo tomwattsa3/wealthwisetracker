@@ -685,17 +685,19 @@ const App: React.FC = () => {
     );
   }, [activeTransactions]);
 
-  // Daily Average Spending Calculation - uses filterCategory for single category selection
+  // Daily Average Spending Calculation - uses the same filters as transaction log
   const dailyAverageData = useMemo(() => {
-    // Get expenses from selected category within date range
-    const selectedExpenses = activeTransactions.filter(t =>
+    // Get expenses from the filtered transactions (respects all filters: category, date, bank, type, search)
+    // Only count EXPENSE transactions that are not excluded
+    const selectedExpenses = filteredTransactions.filter(t =>
       t.type === 'EXPENSE' &&
-      (filterCategory === 'all' ? true : t.categoryId === filterCategory)
+      !t.excluded &&
+      t.categoryId !== 'excluded'
     );
 
     const totalSpend = selectedExpenses.reduce((sum, t) => sum + t.amount, 0);
 
-    // Calculate number of days in date range
+    // Calculate number of days in the selected date range
     const startDate = new Date(dateRange.start);
     const endDate = new Date(dateRange.end);
     const daysDiff = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
@@ -708,7 +710,7 @@ const App: React.FC = () => {
       daysInRange: daysDiff,
       transactionCount: selectedExpenses.length
     };
-  }, [activeTransactions, filterCategory, dateRange]);
+  }, [filteredTransactions, dateRange]);
 
   // Main Category Breakdown (respects date filter)
   const categoryBreakdown = useMemo(() => {
