@@ -9,6 +9,7 @@ interface YearlySummaryProps {
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const FULL_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories }) => {
   // Get available years from data
@@ -20,8 +21,11 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
 
   const [selectedYear, setSelectedYear] = useState<number>(availableYears[0]);
 
-  // Track expanded rows for the breakdown table
+  // Track expanded rows for desktop table
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+
+  // Track expanded months for mobile view
+  const [expandedMonths, setExpandedMonths] = useState<Set<number>>(new Set());
 
   const toggleCategory = (id: string) => {
     const newSet = new Set(expandedCategories);
@@ -33,6 +37,16 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
     setExpandedCategories(newSet);
   };
 
+  const toggleMonth = (monthIndex: number) => {
+    const newSet = new Set(expandedMonths);
+    if (newSet.has(monthIndex)) {
+      newSet.delete(monthIndex);
+    } else {
+      newSet.add(monthIndex);
+    }
+    setExpandedMonths(newSet);
+  };
+
   // Filter Data for Selected Year (All Types)
   const yearlyTransactions = useMemo(() => {
     return transactions.filter(t => {
@@ -41,7 +55,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
     });
   }, [transactions, selectedYear]);
 
-  // Data for Monthly Totals (Used in Table Footer)
+  // Data for Monthly Totals
   const monthlyTotals = useMemo(() => {
     const data = MONTHS.map(m => ({ name: m, Income: 0, Expense: 0 }));
 
@@ -57,13 +71,48 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
     return data;
   }, [yearlyTransactions]);
 
-  // Helper to build hierarchical data
+  // Monthly category breakdown for mobile view
+  const monthlyCategoryBreakdown = useMemo(() => {
+    return MONTHS.map((_, monthIndex) => {
+      const monthTransactions = yearlyTransactions.filter(t => new Date(t.date).getMonth() === monthIndex);
+
+      // Group by category for expenses
+      const expenseByCategory: { [key: string]: { name: string; color: string; amount: number } } = {};
+      const incomeByCategory: { [key: string]: { name: string; color: string; amount: number } } = {};
+
+      monthTransactions.forEach(t => {
+        const cat = categories.find(c => c.id === t.categoryId || c.name === t.categoryName);
+        const catName = cat?.name || t.categoryName || 'Uncategorized';
+        const catColor = cat?.color || '#94a3b8';
+        const catId = cat?.id || catName;
+
+        if (t.type === 'EXPENSE') {
+          if (!expenseByCategory[catId]) {
+            expenseByCategory[catId] = { name: catName, color: catColor, amount: 0 };
+          }
+          expenseByCategory[catId].amount += t.amount;
+        } else {
+          if (!incomeByCategory[catId]) {
+            incomeByCategory[catId] = { name: catName, color: catColor, amount: 0 };
+          }
+          incomeByCategory[catId].amount += t.amount;
+        }
+      });
+
+      // Sort by amount descending
+      const expenses = Object.values(expenseByCategory).sort((a, b) => b.amount - a.amount);
+      const income = Object.values(incomeByCategory).sort((a, b) => b.amount - a.amount);
+
+      return { expenses, income };
+    });
+  }, [yearlyTransactions, categories]);
+
+  // Helper to build hierarchical data for desktop
   const buildHierarchicalData = (type: 'INCOME' | 'EXPENSE') => {
     const relevantCats = categories.filter(c => c.type === type);
     const relevantTx = yearlyTransactions.filter(t => t.type === type);
 
     return relevantCats.map(cat => {
-        // Parent Data - match by categoryId OR categoryName for compatibility
         const catTransactions = relevantTx.filter(t =>
           t.categoryId === cat.id || t.categoryName === cat.name
         );
@@ -76,9 +125,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
              yearTotal += t.amount;
         });
 
-        // DYNAMIC SUBCATEGORIES:
-        // Detect all subcategories present in transactions for this category to ensure we capture
-        // everything, even if the subcategory list in the category definition is out of sync.
         const txSubcats = new Set(catTransactions.map(t => t.subcategoryName).filter(Boolean));
 
         const children = Array.from(txSubcats).map(subName => {
@@ -112,14 +158,10 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
   const hierarchicalIncomeData = useMemo(() => buildHierarchicalData('INCOME'), [yearlyTransactions, categories]);
   const hierarchicalExpenseData = useMemo(() => buildHierarchicalData('EXPENSE'), [yearlyTransactions, categories]);
 
-  // Helper to flatten rows
   const flattenRows = (data: any[]) => {
     const rows: any[] = [];
     data.forEach(cat => {
-        // Add Parent
         rows.push({ type: 'parent', data: cat });
-
-        // Add Children if expanded
         if (expandedCategories.has(cat.id)) {
             cat.children.forEach((sub: any) => {
                 rows.push({ type: 'child', parentId: cat.id, parentColor: cat.color, data: sub });
@@ -137,95 +179,147 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
   const totalExpenseYear = yearlyTransactions.filter(t => t.type === 'EXPENSE').reduce((sum, t) => sum + t.amount, 0);
   const netTotal = totalIncomeYear - totalExpenseYear;
 
-  // Mobile Card View for Categories
-  const renderMobileCards = (title: string, data: any[], isIncome: boolean, grandTotal: number) => (
+  // Mobile Monthly View
+  const renderMobileMonthlyView = () => (
     <div className="md:hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-3">
       {/* Header */}
-      <div className={`px-4 py-3 border-b ${isIncome ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
-        <div className="flex items-center justify-between">
-          <h3 className={`font-bold text-sm ${isIncome ? 'text-emerald-800' : 'text-rose-800'}`}>{title}</h3>
-          <span className={`font-bold font-mono text-sm ${isIncome ? 'text-emerald-600' : 'text-rose-600'}`}>
-            £{grandTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </span>
-        </div>
+      <div className="px-4 py-3 border-b bg-slate-50 border-slate-100">
+        <h3 className="font-bold text-sm text-slate-800">Monthly Breakdown</h3>
+        <p className="text-[10px] text-slate-400 mt-0.5">Tap a month to see spending by category</p>
       </div>
 
-      {/* Category Cards */}
+      {/* Month Cards */}
       <div className="divide-y divide-slate-100">
-        {data.map((cat) => {
-          const isExpanded = expandedCategories.has(cat.id);
-          const hasChildren = cat.children && cat.children.length > 0;
-          const percentage = grandTotal > 0 ? ((cat.yearTotal / grandTotal) * 100).toFixed(1) : '0';
+        {MONTHS.map((month, idx) => {
+          const isExpanded = expandedMonths.has(idx);
+          const monthData = monthlyTotals[idx];
+          const hasData = monthData.Income > 0 || monthData.Expense > 0;
+          const netMonth = monthData.Income - monthData.Expense;
+          const breakdown = monthlyCategoryBreakdown[idx];
 
           return (
-            <div key={cat.id} className="bg-white">
-              {/* Category Row */}
+            <div key={month} className="bg-white">
+              {/* Month Row */}
               <button
-                onClick={() => toggleCategory(cat.id)}
-                className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                onClick={() => hasData && toggleMonth(idx)}
+                className={`w-full px-4 py-3 flex items-center justify-between transition-colors ${hasData ? 'hover:bg-slate-50' : 'opacity-50'}`}
+                disabled={!hasData}
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cat.color }}></div>
-                  <div className="text-left min-w-0">
-                    <p className="font-semibold text-slate-800 text-sm truncate">{cat.name}</p>
-                    <p className="text-[10px] text-slate-400">{percentage}% of total</p>
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm ${
+                    hasData
+                      ? netMonth >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                      : 'bg-slate-100 text-slate-400'
+                  }`}>
+                    {month}
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-slate-800 text-sm">{FULL_MONTHS[idx]}</p>
+                    {hasData && (
+                      <p className={`text-[10px] font-medium ${netMonth >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        Net: {netMonth >= 0 ? '+' : ''}£{netMonth.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                      </p>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`font-bold font-mono text-sm ${isIncome ? 'text-emerald-600' : 'text-slate-800'}`}>
-                    £{cat.yearTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                  {hasChildren && (
-                    isExpanded ? <ChevronDown size={16} className="text-slate-400" /> : <ChevronRight size={16} className="text-slate-400" />
+                <div className="flex items-center gap-3">
+                  {hasData ? (
+                    <>
+                      <div className="text-right">
+                        <p className="text-xs font-mono font-bold text-slate-800">
+                          £{monthData.Expense.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                        </p>
+                        <p className="text-[10px] text-slate-400">spent</p>
+                      </div>
+                      <ChevronRight size={16} className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                    </>
+                  ) : (
+                    <span className="text-xs text-slate-400">No data</span>
                   )}
                 </div>
               </button>
 
-              {/* Expanded Monthly Breakdown */}
-              {isExpanded && (
-                <div className="px-4 pb-3 bg-slate-50">
-                  {/* Subcategories */}
-                  {hasChildren && (
-                    <div className="mb-3 space-y-1">
-                      {cat.children.map((sub: any) => (
-                        <div key={sub.id} className="flex items-center justify-between py-1.5 pl-6 border-l-2 border-slate-200">
-                          <span className="text-xs text-slate-500">{sub.name}</span>
-                          <span className="text-xs font-mono font-medium text-slate-600">
-                            £{sub.yearTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                      ))}
+              {/* Expanded Category Breakdown */}
+              {isExpanded && hasData && (
+                <div className="px-4 pb-4 bg-slate-50">
+                  {/* Summary Row */}
+                  <div className="flex gap-2 mb-3">
+                    <div className="flex-1 bg-emerald-50 rounded-lg p-2 border border-emerald-100">
+                      <p className="text-[9px] font-bold text-emerald-600 uppercase">Income</p>
+                      <p className="text-sm font-bold font-mono text-emerald-700">
+                        £{monthData.Income.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                      </p>
+                    </div>
+                    <div className="flex-1 bg-rose-50 rounded-lg p-2 border border-rose-100">
+                      <p className="text-[9px] font-bold text-rose-600 uppercase">Expenses</p>
+                      <p className="text-sm font-bold font-mono text-rose-700">
+                        £{monthData.Expense.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Top Expense Categories */}
+                  {breakdown.expenses.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Top Spending Categories</p>
+                      <div className="space-y-1.5">
+                        {breakdown.expenses.slice(0, 5).map((cat, catIdx) => {
+                          const percentage = monthData.Expense > 0 ? ((cat.amount / monthData.Expense) * 100).toFixed(0) : '0';
+                          return (
+                            <div key={catIdx} className="bg-white rounded-lg p-2.5 border border-slate-100">
+                              <div className="flex items-center justify-between mb-1.5">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cat.color }}></div>
+                                  <span className="text-xs font-semibold text-slate-700">{cat.name}</span>
+                                </div>
+                                <span className="text-xs font-bold font-mono text-slate-800">
+                                  £{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                                </span>
+                              </div>
+                              {/* Progress bar */}
+                              <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full rounded-full"
+                                  style={{ width: `${percentage}%`, backgroundColor: cat.color }}
+                                ></div>
+                              </div>
+                              <p className="text-[9px] text-slate-400 mt-1">{percentage}% of monthly spend</p>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
 
-                  {/* Monthly Grid */}
-                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Monthly Breakdown</p>
-                  <div className="grid grid-cols-4 gap-2">
-                    {MONTHS.map((month, idx) => (
-                      <div key={month} className="bg-white rounded-lg p-2 text-center border border-slate-100">
-                        <p className="text-[9px] font-medium text-slate-400 mb-0.5">{month}</p>
-                        <p className={`text-[11px] font-bold font-mono ${cat.monthlyTotals[idx] > 0 ? (isIncome ? 'text-emerald-600' : 'text-slate-700') : 'text-slate-300'}`}>
-                          {cat.monthlyTotals[idx] > 0 ? `£${cat.monthlyTotals[idx].toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
-                        </p>
+                  {/* Income Categories */}
+                  {breakdown.income.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Income Sources</p>
+                      <div className="space-y-1">
+                        {breakdown.income.slice(0, 3).map((cat, catIdx) => (
+                          <div key={catIdx} className="flex items-center justify-between py-1.5 px-2 bg-white rounded-lg border border-slate-100">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }}></div>
+                              <span className="text-xs text-slate-600">{cat.name}</span>
+                            </div>
+                            <span className="text-xs font-bold font-mono text-emerald-600">
+                              +£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           );
         })}
-
-        {data.length === 0 && (
-          <div className="px-4 py-8 text-center text-slate-400 text-sm">
-            No {isIncome ? 'income' : 'expenses'} recorded for {selectedYear}
-          </div>
-        )}
       </div>
     </div>
   );
 
-  // Desktop Table View (existing layout)
+  // Desktop Table View
   const renderDesktopTable = (title: string, flatData: any[], totalLineDataKey: 'Income' | 'Expense', grandTotal: number) => (
     <div className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col mb-6">
          <div className="p-3 border-b border-slate-200 bg-slate-50 flex justify-between items-center gap-2">
@@ -264,8 +358,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
 
                      return (
                         <tr key={type === 'parent' ? data.id : data.id} className={`${rowBg} hover:bg-blue-50/50 transition-colors group`}>
-
-                            {/* Category Name Column */}
                             <td className={`px-3.5 py-2.5 font-semibold text-slate-800 sticky left-0 border-r border-slate-300 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] z-10 ${rowBg} group-hover:bg-blue-50/50`}>
                                 <div className={`flex items-center ${type === 'child' ? 'pl-7' : ''}`}>
                                     {type === 'parent' && (
@@ -277,7 +369,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
                                             {isExpanded ? <ChevronDown size={16} className="text-slate-600"/> : <ChevronRight size={16} className="text-slate-500"/>}
                                         </button>
                                     )}
-
                                     <div className="flex items-center gap-2">
                                         {type === 'parent' ? (
                                             <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: data.color }}></div>
@@ -297,8 +388,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
                                     </div>
                                 </div>
                             </td>
-
-                            {/* Monthly Totals with Accounting Format */}
                             {data.monthlyTotals.map((amount: number, idx: number) => (
                                 <td key={idx} className={`px-3.5 py-2.5 font-mono border-r border-slate-200 last:border-r-0 text-right ${
                                     amount === 0 ? 'text-slate-300'
@@ -310,8 +399,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
                                     </span>
                                 </td>
                             ))}
-
-                            {/* Yearly Total with Accounting Format */}
                             <td className={`px-3.5 py-2.5 font-bold font-mono text-right border-l border-slate-300 ${isEven ? 'bg-slate-50/50' : 'bg-slate-100/50'} group-hover:bg-blue-100/50 ${type === 'child' ? 'text-slate-600' : 'text-slate-900'}`}>
                                 <span className={totalLineDataKey === 'Income' ? 'text-emerald-700' : ''}>
                                   £{data.yearTotal.toLocaleString()}
@@ -320,8 +407,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
                         </tr>
                      );
                   })}
-
-                  {/* Totals Row - Distinct Dark Footer */}
                   <tr className="bg-slate-800 text-white font-bold border-t-2 border-slate-900">
                      <td className="px-3.5 py-4 sticky left-0 bg-slate-800 border-r border-slate-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] z-10 text-xs">
                         Total
@@ -417,7 +502,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
 
       {/* Desktop: Side by Side KPI Cards */}
       <div className="hidden md:grid md:grid-cols-3 md:gap-6">
-         {/* Year Selector */}
          <div className="bg-slate-100 p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center min-w-[200px] relative group hover:border-[#635bff] transition-colors cursor-pointer">
             <div className="flex items-center justify-between gap-2 mb-1">
                  <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Year</p>
@@ -436,7 +520,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
             </select>
          </div>
 
-         {/* Total Income Card */}
          <div className="bg-white p-6 rounded-2xl border border-emerald-200/60 shadow-[0_0_20px_rgba(16,185,129,0.15)] flex flex-col justify-center flex-1">
              <div className="flex items-center justify-between gap-2 mb-1">
                  <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Income</p>
@@ -445,7 +528,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
              <h3 className="text-3xl font-bold font-mono text-emerald-600">£{totalIncomeYear.toLocaleString(undefined, { maximumFractionDigits: 0 })}</h3>
          </div>
 
-         {/* Total Expenses Card */}
          <div className="bg-white p-6 rounded-2xl border border-rose-200/60 shadow-[0_0_20px_rgba(244,63,94,0.15)] flex flex-col justify-center flex-1">
              <div className="flex items-center justify-between gap-2 mb-1">
                  <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Expenses</p>
@@ -455,9 +537,8 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
          </div>
       </div>
 
-      {/* Mobile Card View */}
-      {renderMobileCards('Income', hierarchicalIncomeData, true, totalIncomeYear)}
-      {renderMobileCards('Expenses', hierarchicalExpenseData, false, totalExpenseYear)}
+      {/* Mobile Monthly View */}
+      {renderMobileMonthlyView()}
 
       {/* Desktop Table View */}
       {renderDesktopTable('Income Breakdown Matrix', flatIncomeRows, 'Income', totalIncomeYear)}
