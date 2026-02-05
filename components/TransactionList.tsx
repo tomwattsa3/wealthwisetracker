@@ -220,14 +220,17 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     // Check if the category was deleted (categoryId exists but not found in categories)
     const isCategoryMissing = t.categoryId !== '' && t.categoryId !== 'excluded' && !categories.find(c => c.id === t.categoryId);
 
-    // Determine row styling - Clean card style
+    // Determine row styling - Alternating colors
+    const isEven = index % 2 === 0;
     const rowBackground = isExcluded
         ? 'bg-slate-100'
         : isCategoryMissing
             ? 'bg-amber-50 !border-amber-400'
             : isDirty
                 ? 'bg-indigo-50/60'
-                : 'bg-white';
+                : isEven
+                    ? 'bg-white'
+                    : 'bg-slate-50';
 
     // Common cell styles for the "sheet" look - More spacious padding
     const cellClass = "h-full flex flex-col justify-center px-4 py-3 border-r border-slate-200/60 last:border-r-0";
@@ -235,7 +238,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     return (
         <>
             {/* Mobile Row */}
-            <div className={`md:hidden grid grid-cols-[1fr_1fr_75px] items-center h-9 text-xs rounded-lg border border-slate-400 ${isCategoryMissing ? 'bg-amber-50 border-l-4 border-l-amber-400' : 'bg-white'} ${isExcluded ? 'opacity-40' : ''}`}>
+            <div className={`md:hidden grid grid-cols-[1fr_1fr_75px] items-center h-9 text-xs rounded-lg border border-slate-400 ${isCategoryMissing ? 'bg-amber-50 border-l-4 border-l-amber-400' : isEven ? 'bg-white' : 'bg-slate-50'} ${isExcluded ? 'opacity-40' : ''}`}>
                 <div className="flex items-center gap-1.5 px-2 border-r border-slate-100 min-w-0">
                     {isCategoryMissing ? (
                         <AlertTriangle size={14} className="text-amber-500 shrink-0" />
@@ -315,7 +318,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 <div className="h-full flex items-center justify-end px-6 py-4 border-r border-slate-100">
                     <div className="flex items-center gap-3">
                         <span className={`text-[10px] font-semibold px-2 py-1 rounded ${
-                            isExcluded ? 'bg-slate-100 text-slate-400' : displayType === 'INCOME' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
+                            isExcluded ? 'bg-slate-100 text-slate-400' : displayType === 'INCOME' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
                         }`}>
                             {isExcluded ? 'EXCL' : displayType === 'INCOME' ? 'IN' : 'OUT'}
                         </span>
