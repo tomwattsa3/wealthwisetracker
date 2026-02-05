@@ -154,9 +154,9 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
                          Category
                      </th>
                      {MONTHS.map(m => (
-                        <th key={m} className="px-1 sm:px-3.5 py-1.5 sm:py-3 text-right border-b border-r border-slate-300 last:border-r-0 min-w-[40px] sm:min-w-[85px]">
-                            {m.slice(0, 1)}
-                            <span className="hidden sm:inline">{m.slice(1)}</span>
+                        <th key={m} className="px-1 sm:px-3.5 py-2 sm:py-3 text-right border-b border-r border-slate-300 last:border-r-0 min-w-[36px] sm:min-w-[85px]">
+                            <span className="sm:hidden">{m.slice(0, 3)}</span>
+                            <span className="hidden sm:inline">{m}</span>
                         </th>
                      ))}
                      <th className="px-1.5 sm:px-3.5 py-1.5 sm:py-3 text-right bg-slate-200 text-slate-800 font-extrabold border-b border-l border-slate-300 min-w-[50px] sm:min-w-[110px]">
@@ -176,29 +176,29 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
                         <tr key={type === 'parent' ? data.id : data.id} className={`${rowBg} hover:bg-blue-50/50 transition-colors group`}>
 
                             {/* Category Name Column */}
-                            <td className={`px-1.5 sm:px-3.5 py-1 sm:py-2.5 font-semibold text-slate-800 sticky left-0 border-r border-slate-300 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] z-10 ${rowBg} group-hover:bg-blue-50/50`}>
+                            <td className={`px-2 sm:px-3.5 py-2.5 sm:py-2.5 font-semibold text-slate-800 sticky left-0 border-r border-slate-300 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] z-10 ${rowBg} group-hover:bg-blue-50/50`}>
                                 <div className={`flex items-center ${type === 'child' ? 'pl-3 sm:pl-7' : ''}`}>
                                     {type === 'parent' && (
                                         <button
                                             onClick={() => toggleCategory(data.id)}
                                             disabled={!hasChildren}
-                                            className={`mr-0.5 sm:mr-1.5 p-0.5 rounded hover:bg-slate-200 transition-colors ${!hasChildren ? 'opacity-0 pointer-events-none' : ''}`}
+                                            className={`mr-1 sm:mr-1.5 p-0.5 rounded hover:bg-slate-200 transition-colors ${!hasChildren ? 'opacity-0 pointer-events-none' : ''}`}
                                         >
-                                            {isExpanded ? <ChevronDown size={10} className="sm:w-3 sm:h-3 text-slate-500"/> : <ChevronRight size={10} className="sm:w-3 sm:h-3 text-slate-400"/>}
+                                            {isExpanded ? <ChevronDown size={12} className="sm:w-3 sm:h-3 text-slate-500"/> : <ChevronRight size={12} className="sm:w-3 sm:h-3 text-slate-400"/>}
                                         </button>
                                     )}
 
-                                    <div className="flex items-center gap-1 sm:gap-2">
+                                    <div className="flex items-center gap-1.5 sm:gap-2">
                                         {type === 'parent' ? (
-                                            <div className="w-1.5 sm:w-2.5 h-1.5 sm:h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: data.color }}></div>
+                                            <div className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: data.color }}></div>
                                         ) : (
-                                             <div className="w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full flex-shrink-0 bg-slate-400"></div>
+                                             <div className="w-1.5 sm:w-1.5 h-1.5 sm:h-1.5 rounded-full flex-shrink-0 bg-slate-400"></div>
                                         )}
                                         <span
-                                            className={`truncate max-w-[60px] sm:max-w-[150px] ${
+                                            className={`truncate max-w-[70px] sm:max-w-[150px] ${
                                                 type === 'child'
-                                                    ? 'text-slate-500 font-bold'
-                                                    : 'text-[10px] sm:text-sm font-bold text-slate-900'
+                                                    ? 'text-[10px] text-slate-500 font-bold'
+                                                    : 'text-xs sm:text-sm font-bold text-slate-900'
                                             }`}
                                             title={data.name}
                                         >
