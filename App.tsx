@@ -1559,7 +1559,7 @@ const App: React.FC = () => {
                     <p className="text-base font-bold mt-1">{dailyAverageData.daysInRange}</p>
                   </div>
                   <div>
-                    <p className="text-white/60 text-[9px] font-semibold uppercase">Trans</p>
+                    <p className="text-white/60 text-[9px] font-semibold uppercase">Transactions</p>
                     <p className="text-base font-bold mt-1">{dailyAverageData.transactionCount}</p>
                   </div>
                 </div>
