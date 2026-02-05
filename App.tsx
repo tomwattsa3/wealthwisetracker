@@ -1545,26 +1545,22 @@ const App: React.FC = () => {
 
               {/* Daily Average Card - Mobile */}
               <div className={`md:hidden rounded-xl p-4 text-white ${dailyAverageData.isIncome ? 'bg-gradient-to-br from-emerald-600 to-emerald-800' : 'bg-gradient-to-br from-slate-800 to-slate-900'}`}>
-                <div className="grid grid-cols-5 gap-3 text-center">
+                <div className="grid grid-cols-4 gap-4 text-center">
                   <div>
                     <p className="text-white/60 text-[9px] font-semibold uppercase">Daily Avg</p>
-                    <p className="text-sm font-bold font-mono mt-1">£{dailyAverageData.dailyAverage.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
-                  </div>
-                  <div>
-                    <p className="text-white/60 text-[9px] font-semibold uppercase">Total</p>
-                    <p className="text-sm font-bold font-mono mt-1">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</p>
+                    <p className="text-base font-bold font-mono mt-1">£{dailyAverageData.dailyAverage.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
                   </div>
                   <div>
                     <p className="text-white/60 text-[9px] font-semibold uppercase">Avg Trans</p>
-                    <p className="text-sm font-bold font-mono mt-1">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalSpend / dailyAverageData.transactionCount).toLocaleString('en-GB', { maximumFractionDigits: 0 }) : '0'}</p>
+                    <p className="text-base font-bold font-mono mt-1">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalSpend / dailyAverageData.transactionCount).toLocaleString('en-GB', { maximumFractionDigits: 0 }) : '0'}</p>
                   </div>
                   <div>
                     <p className="text-white/60 text-[9px] font-semibold uppercase">Days</p>
-                    <p className="text-sm font-bold mt-1">{dailyAverageData.daysInRange}</p>
+                    <p className="text-base font-bold mt-1">{dailyAverageData.daysInRange}</p>
                   </div>
                   <div>
                     <p className="text-white/60 text-[9px] font-semibold uppercase">Trans</p>
-                    <p className="text-sm font-bold mt-1">{dailyAverageData.transactionCount}</p>
+                    <p className="text-base font-bold mt-1">{dailyAverageData.transactionCount}</p>
                   </div>
                 </div>
                 {filterCategory !== 'all' && (
