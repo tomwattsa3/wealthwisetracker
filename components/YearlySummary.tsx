@@ -216,7 +216,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
                                     : 'text-slate-800'
                                 }`}>
                                     <span className={totalLineDataKey === 'Income' && amount > 0 ? 'font-bold text-emerald-600' : ''}>
-                                      {amount > 0 ? (amount >= 1000 ? `${Math.round(amount/1000)}k` : amount.toLocaleString()) : '-'}
+                                      {amount > 0 ? `£${amount.toLocaleString()}` : '-'}
                                     </span>
                                 </td>
                             ))}
@@ -224,7 +224,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
                             {/* Yearly Total with Accounting Format */}
                             <td className={`px-1.5 sm:px-3.5 py-1 sm:py-2.5 font-bold font-mono text-right border-l border-slate-300 ${isEven ? 'bg-slate-50/50' : 'bg-slate-100/50'} group-hover:bg-blue-100/50 ${type === 'child' ? 'text-slate-600' : 'text-slate-900'}`}>
                                 <span className={totalLineDataKey === 'Income' ? 'text-emerald-700' : ''}>
-                                  £{data.yearTotal >= 1000 ? `${Math.round(data.yearTotal/1000)}k` : data.yearTotal.toLocaleString()}
+                                  £{data.yearTotal.toLocaleString()}
                                 </span>
                             </td>
                         </tr>
@@ -241,13 +241,13 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
                         return (
                            <td key={idx} className="px-1 sm:px-3.5 py-2 sm:py-4 font-mono text-[9px] sm:text-sm text-slate-200 text-right border-r border-slate-700 last:border-r-0">
                               <span className={totalLineDataKey === 'Income' && monthTotal > 0 ? 'font-extrabold text-emerald-400' : ''}>
-                                {monthTotal > 0 ? (monthTotal >= 1000 ? `${Math.round(monthTotal/1000)}k` : monthTotal.toLocaleString()) : '-'}
+                                {monthTotal > 0 ? `£${monthTotal.toLocaleString()}` : '-'}
                               </span>
                            </td>
                         );
                      })}
                      <td className="px-1.5 sm:px-3.5 py-2 sm:py-4 font-extrabold font-mono text-xs sm:text-base text-emerald-400 text-right bg-slate-900 border-l border-slate-700">
-                        £{grandTotal >= 1000 ? `${Math.round(grandTotal/1000)}k` : grandTotal.toLocaleString()}
+                        £{grandTotal.toLocaleString()}
                      </td>
                   </tr>
                </tbody>
