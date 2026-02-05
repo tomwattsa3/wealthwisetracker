@@ -418,7 +418,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
 
   return (
     <>
-        <div className="flex flex-col h-full bg-transparent overflow-hidden">
+        <div className="flex flex-col h-full bg-transparent overflow-visible md:overflow-hidden">
         {/* Desktop Header - Mercury Table Style */}
         <div className={`hidden md:grid ${gridTemplate} py-3 border-b border-slate-200 text-[11px] font-medium text-slate-400 uppercase tracking-wider`}>
             <div className="px-6">Date</div>
@@ -437,7 +437,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
         </div>
 
         {/* Rows */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-2 md:gap-2 py-3">
+        <div className="flex-1 md:overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-0 md:gap-2 py-2 md:py-3">
             {transactions.map((t, index) => (
                 <TransactionRow
                     key={t.id}
