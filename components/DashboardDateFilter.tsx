@@ -86,7 +86,7 @@ const DashboardDateFilter: React.FC<DashboardDateFilterProps> = ({ range, onRang
       {/* Trigger Button - Bubble Style */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-center gap-2 bg-white border border-slate-200 hover:border-[#635bff] hover:ring-1 hover:ring-[#635bff]/10 rounded-full px-3 py-2 shadow-sm transition-all group"
+        className="w-full flex items-center justify-center gap-2 bg-white border border-slate-200 hover:border-[#635bff] hover:ring-1 hover:ring-[#635bff]/10 rounded-lg px-3 py-2.5 shadow-sm transition-all group"
       >
         <Calendar size={14} className="text-slate-400 group-hover:text-[#635bff] transition-colors shrink-0" />
         <span className="text-xs font-bold text-slate-700 whitespace-nowrap truncate max-w-[100px] md:max-w-none">
