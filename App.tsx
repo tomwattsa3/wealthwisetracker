@@ -1005,10 +1005,10 @@ const App: React.FC = () => {
                       <div className="max-h-[192px] overflow-y-auto">
                         {topIncomeGrouped.map(g => (
                           <div key={g.description} className="grid grid-cols-[1fr_1fr_75px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0">
-                            <div className="flex items-center gap-1 px-2.5 border-r border-slate-100 min-w-0">
+                            <div className="flex items-center justify-between px-2.5 border-r border-slate-100 min-w-0">
                               <span className="truncate text-slate-600">{g.description}</span>
                               {g.count > 1 && (
-                                <span className="shrink-0 bg-slate-100 text-slate-500 text-[8px] font-bold px-1 py-0.5 rounded">x{g.count}</span>
+                                <span className="shrink-0 bg-slate-100 text-slate-500 text-[8px] font-bold px-1 py-0.5 rounded ml-1">x{g.count}</span>
                               )}
                             </div>
                             <span className="text-[9px] text-slate-400 px-2 border-r border-slate-100 truncate">{g.subcategoryName}</span>
@@ -1083,10 +1083,10 @@ const App: React.FC = () => {
                       <div className="max-h-[192px] overflow-y-auto">
                         {topGrouped.map(g => (
                           <div key={g.description} className="grid grid-cols-[1fr_1fr_75px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0">
-                            <div className="flex items-center gap-1 px-2.5 border-r border-slate-100 min-w-0">
+                            <div className="flex items-center justify-between px-2.5 border-r border-slate-100 min-w-0">
                               <span className="truncate text-slate-600">{g.description}</span>
                               {g.count > 1 && (
-                                <span className="shrink-0 bg-slate-100 text-slate-500 text-[8px] font-bold px-1 py-0.5 rounded">x{g.count}</span>
+                                <span className="shrink-0 bg-slate-100 text-slate-500 text-[8px] font-bold px-1 py-0.5 rounded ml-1">x{g.count}</span>
                               )}
                             </div>
                             <span className="text-[9px] text-slate-400 px-2 border-r border-slate-100 truncate">{g.subcategoryName}</span>
