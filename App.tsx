@@ -1544,33 +1544,42 @@ const App: React.FC = () => {
               </div>
 
               {/* Daily Average Card - Mobile */}
-              <div className={`md:hidden rounded-xl p-4 text-white ${dailyAverageData.isIncome ? 'bg-gradient-to-br from-emerald-600 to-emerald-800' : 'bg-gradient-to-br from-slate-800 to-slate-900'}`}>
-                <div className="grid grid-cols-4 gap-4 text-center">
-                  <div>
-                    <p className="text-white/60 text-[9px] font-semibold uppercase">Daily Avg</p>
-                    <p className="text-base font-bold font-mono mt-1">£{dailyAverageData.dailyAverage.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
-                  </div>
-                  <div>
-                    <p className="text-white/60 text-[9px] font-semibold uppercase">Avg Trans</p>
-                    <p className="text-base font-bold font-mono mt-1">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalSpend / dailyAverageData.transactionCount).toLocaleString('en-GB', { maximumFractionDigits: 0 }) : '0'}</p>
-                  </div>
-                  <div>
-                    <p className="text-white/60 text-[9px] font-semibold uppercase">Days</p>
-                    <p className="text-base font-bold mt-1">{dailyAverageData.daysInRange}</p>
-                  </div>
-                  <div>
-                    <p className="text-white/60 text-[9px] font-semibold uppercase">Transactions</p>
-                    <p className="text-base font-bold mt-1">{dailyAverageData.transactionCount}</p>
-                  </div>
+              <div className={`md:hidden rounded-xl overflow-hidden text-white ${dailyAverageData.isIncome ? 'bg-gradient-to-br from-emerald-600 to-emerald-800' : 'bg-gradient-to-br from-slate-800 to-slate-900'}`}>
+                {/* White Header */}
+                <div className="bg-white px-4 py-2">
+                  <h3 className={`text-xs font-bold uppercase tracking-wide ${dailyAverageData.isIncome ? 'text-emerald-700' : 'text-slate-700'}`}>
+                    {dailyAverageData.isIncome ? 'Income Averages' : 'Expense Averages'}
+                  </h3>
                 </div>
-                {filterCategory !== 'all' && (
-                  <div className="mt-3 pt-3 border-t border-white/10">
-                    <span className="text-[10px] text-white/60">Filtered by:</span>
-                    <span className="ml-2 px-2 py-1 rounded text-[10px] font-bold text-white" style={{ backgroundColor: categories.find(c => c.id === filterCategory)?.color || '#64748b' }}>
-                      {categories.find(c => c.id === filterCategory)?.name || 'Category'}
-                    </span>
+                {/* Stats */}
+                <div className="p-4">
+                  <div className="grid grid-cols-4 gap-4 text-center">
+                    <div>
+                      <p className="text-white/60 text-[9px] font-semibold uppercase">Daily Avg</p>
+                      <p className="text-base font-bold font-mono mt-1">£{dailyAverageData.dailyAverage.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+                    </div>
+                    <div>
+                      <p className="text-white/60 text-[9px] font-semibold uppercase">Avg Trans</p>
+                      <p className="text-base font-bold font-mono mt-1">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalSpend / dailyAverageData.transactionCount).toLocaleString('en-GB', { maximumFractionDigits: 0 }) : '0'}</p>
+                    </div>
+                    <div>
+                      <p className="text-white/60 text-[9px] font-semibold uppercase">Days</p>
+                      <p className="text-base font-bold mt-1">{dailyAverageData.daysInRange}</p>
+                    </div>
+                    <div>
+                      <p className="text-white/60 text-[9px] font-semibold uppercase">Transactions</p>
+                      <p className="text-base font-bold mt-1">{dailyAverageData.transactionCount}</p>
+                    </div>
                   </div>
-                )}
+                  {filterCategory !== 'all' && (
+                    <div className="mt-3 pt-3 border-t border-white/10">
+                      <span className="text-[10px] text-white/60">Filtered by:</span>
+                      <span className="ml-2 px-2 py-1 rounded text-[10px] font-bold text-white" style={{ backgroundColor: categories.find(c => c.id === filterCategory)?.color || '#64748b' }}>
+                        {categories.find(c => c.id === filterCategory)?.name || 'Category'}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-2 sm:p-3 animate-in fade-in shadow-sm min-h-[500px] sm:min-h-[600px] flex flex-col flex-1">
