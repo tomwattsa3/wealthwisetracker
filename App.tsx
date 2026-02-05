@@ -1473,7 +1473,7 @@ const App: React.FC = () => {
 
           {/* HISTORY VIEW */}
           {activeTab === 'history' && (
-            <div className="h-full overflow-y-auto flex flex-col space-y-3 sm:space-y-4 px-2 sm:px-0 pb-4">
+            <div className="h-full overflow-y-auto flex flex-col space-y-3 sm:space-y-4 px-2 sm:px-0 pb-32">
                {/* Hidden on mobile/tablet, visible on desktop only */}
                <div className="hidden lg:block">
                  <BankFeedUpload
