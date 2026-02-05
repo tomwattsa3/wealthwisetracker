@@ -222,50 +222,55 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
 
     return (
         <>
-            {/* Mobile Row */}
-            <div className={`md:hidden grid grid-cols-[1.4fr_0.8fr_70px] items-center h-11 text-xs rounded-lg border border-slate-400 ${isCategoryMissing ? 'bg-amber-50 border-l-4 border-l-amber-400' : isEven ? 'bg-white' : 'bg-slate-50'} ${isExcluded ? 'opacity-40' : ''}`}>
-                <div className="flex items-center gap-1.5 px-2 border-r border-slate-100 min-w-0">
-                    {isCategoryMissing ? (
-                        <AlertTriangle size={14} className="text-amber-500 shrink-0" />
-                    ) : (
-                        <span className={`w-1.5 h-4 rounded-sm shrink-0 ${isExcluded ? 'bg-slate-300' : displayType === 'INCOME' ? 'bg-emerald-500' : 'bg-rose-400'}`}></span>
-                    )}
-                    <span className="truncate text-slate-700 font-medium">{t.description || 'No merchant'}</span>
+            {/* Mobile Row - Mercury Style */}
+            <div className={`md:hidden flex items-center justify-between px-4 py-3 rounded-xl border ${isCategoryMissing ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'} ${isExcluded ? 'opacity-40' : ''}`}>
+                <div className="flex-1 min-w-0 mr-3">
+                    <span className="text-sm font-semibold text-slate-900 truncate block">{t.description || 'No merchant'}</span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                        {isCategoryMissing ? (
+                            <span className="text-[11px] font-medium text-amber-600">Category Deleted!</span>
+                        ) : (
+                            <>
+                                <span className={`text-[11px] font-medium uppercase ${displayType === 'INCOME' ? 'text-emerald-500' : 'text-slate-400'}`}>
+                                    {displayType === 'INCOME' ? 'Income' : 'Expense'}
+                                </span>
+                                <span className="text-slate-300">•</span>
+                                <span className="text-[11px] text-slate-400 truncate">{t.categoryName || 'Uncategorized'}</span>
+                            </>
+                        )}
+                    </div>
                 </div>
-                <span className={`pl-3 pr-2 text-[9px] border-r border-slate-100 truncate ${isCategoryMissing ? 'text-amber-600 font-bold' : 'text-slate-500 font-medium'}`}>
-                    {isCategoryMissing ? 'Category Deleted!' : (t.categoryName || '-')}
-                </span>
-                <span className={`px-2 text-right font-mono font-semibold ${isExcluded ? 'text-slate-400' : displayType === 'INCOME' ? 'text-emerald-600' : 'text-slate-800'}`}>
-                    {displayType === 'EXPENSE' ? '-' : ''}£{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                <span className={`text-sm font-semibold ${isExcluded ? 'text-slate-400' : 'text-slate-900'}`}>
+                    {displayType === 'INCOME' ? '+' : '-'}£{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
             </div>
 
-            {/* Desktop Grid View - Card style with outline */}
-            <div className={`hidden md:grid ${gridTemplate} gap-0 items-center text-sm group transition-colors border border-slate-400 rounded-lg hover:border-slate-500 hover:shadow-sm ${rowBackground} ${isExcluded ? 'opacity-50' : ''}`}>
+            {/* Desktop Grid View - Mercury Style */}
+            <div className={`hidden md:grid ${gridTemplate} gap-0 items-center text-sm group transition-colors rounded-xl border ${isCategoryMissing ? 'border-amber-200 bg-amber-50' : isDirty ? 'border-indigo-200 bg-indigo-50/30' : 'border-slate-200 bg-white hover:border-slate-300'} ${isExcluded ? 'opacity-50' : ''}`}>
                 {/* 1. Date */}
-                <div className="h-full flex items-center px-4 pr-10 py-3 border-r border-slate-200">
-                    <span className="text-sm text-slate-500 font-medium whitespace-nowrap">{t.date}</span>
+                <div className="h-full flex items-center px-4 py-3">
+                    <span className="text-sm text-slate-400 whitespace-nowrap">{t.date}</span>
                 </div>
 
                 {/* 2. Description (Merchant) */}
-                <div className="h-full flex flex-col justify-center px-6 py-2 border-r border-slate-200 min-w-0">
+                <div className="h-full flex flex-col justify-center px-4 py-3 min-w-0">
                      <input
                         type="text"
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                        className={`font-medium bg-transparent w-full outline-none transition-colors truncate placeholder:text-slate-300 text-sm ${isDirty ? 'text-indigo-700' : 'text-slate-800 focus:text-indigo-600'}`}
+                        className={`font-semibold bg-transparent w-full outline-none transition-colors truncate placeholder:text-slate-300 text-sm ${isDirty ? 'text-indigo-700' : 'text-slate-900 focus:text-indigo-600'}`}
                         placeholder="Merchant"
                     />
                      {t.bankName && (
-                        <span className="text-[10px] text-slate-400 truncate mt-0.5">
+                        <span className="text-[11px] text-slate-400 truncate mt-0.5">
                             {t.bankName}
                         </span>
                     )}
                 </div>
 
                 {/* 3. Category */}
-                <div className="h-full flex flex-col justify-center px-6 py-4 border-r border-slate-100">
+                <div className="h-full flex flex-col justify-center px-4 py-3">
                      {isCategoryMissing && (
                         <div className="flex items-center gap-1 mb-1">
                             <AlertTriangle size={12} className="text-amber-500" />
@@ -275,7 +280,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                      <select
                         value={isCategoryMissing ? '' : categoryId}
                         onChange={(e) => handleCategoryChange(e.target.value)}
-                        className={`w-full bg-transparent text-sm font-medium outline-none cursor-pointer hover:text-indigo-600 transition-colors ${isCategoryMissing ? 'text-amber-600' : isDirty ? 'text-indigo-700' : categoryId === '' ? 'text-rose-500' : 'text-slate-700'}`}
+                        className={`w-full bg-transparent text-sm outline-none cursor-pointer transition-colors ${isCategoryMissing ? 'text-amber-600 font-medium' : isDirty ? 'text-indigo-600' : categoryId === '' ? 'text-slate-400' : 'text-slate-400 hover:text-slate-600'}`}
                      >
                         <option value="">Select...</option>
                         {categories.map(c => (
@@ -285,12 +290,12 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 </div>
 
                 {/* 4. Subcategory */}
-                <div className="h-full flex items-center px-6 py-4 border-r border-slate-100">
+                <div className="h-full flex items-center px-4 py-3">
                      <select
                         value={subcategoryName}
                         onChange={(e) => handleSubcategoryChange(e.target.value)}
                         disabled={!categoryId}
-                        className={`w-full bg-transparent text-sm outline-none cursor-pointer hover:text-indigo-600 transition-colors ${!categoryId ? 'text-slate-300' : isDirty ? 'text-indigo-600' : 'text-slate-500'}`}
+                        className={`w-full bg-transparent text-sm outline-none cursor-pointer transition-colors ${!categoryId ? 'text-slate-300' : isDirty ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
                      >
                         {!categoryId && <option value="">--</option>}
                         {subcategories.map(sub => (
@@ -300,51 +305,44 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 </div>
 
                 {/* 5. Amount */}
-                <div className="h-full flex items-center justify-end px-6 py-4 border-r border-slate-100">
-                    <div className="flex items-center gap-3">
-                        <span className={`text-[10px] font-semibold px-2 py-1 rounded ${
-                            isExcluded ? 'bg-slate-100 text-slate-400' : displayType === 'INCOME' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
-                        }`}>
-                            {isExcluded ? 'EXCL' : displayType === 'INCOME' ? 'IN' : 'OUT'}
-                        </span>
-                        <span className={`font-mono text-base font-semibold ${isExcluded ? 'text-slate-400 line-through' : displayType === 'INCOME' ? 'text-emerald-600' : 'text-slate-800'}`}>
-                            {displayType === 'INCOME' ? '+' : '-'}£{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                    </div>
+                <div className="h-full flex items-center justify-end px-4 py-3">
+                    <span className={`text-sm font-semibold ${isExcluded ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                        {displayType === 'INCOME' ? '+' : '-'}£{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
                 </div>
 
                  {/* 6. Note */}
-                 <div className="h-full flex items-center px-4 py-4 border-r border-slate-100 min-w-0">
+                 <div className="h-full flex items-center px-4 py-3 min-w-0">
                      <input
                         type="text"
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                        className={`bg-transparent w-full outline-none transition-colors truncate placeholder:text-slate-300 text-sm ${isDirty ? 'text-indigo-600' : 'text-slate-400 focus:text-indigo-600'}`}
+                        className={`bg-transparent w-full outline-none transition-colors truncate placeholder:text-slate-300 text-sm ${isDirty ? 'text-indigo-600' : 'text-slate-400 focus:text-slate-600'}`}
                         placeholder="Add note..."
                     />
                 </div>
 
                 {/* 7. Action */}
-                <div className="h-full flex items-center justify-center px-3 py-4 gap-1">
+                <div className="h-full flex items-center justify-center px-3 py-3 gap-1">
                     <button
                         onClick={handleManualSave}
                         disabled={!isDirty && saveStatus !== 'success'}
-                        className={`p-2 rounded-lg transition-all ${saveStatus === 'success' ? 'bg-emerald-100 text-emerald-600' : isDirty ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-slate-300'}`}
+                        className={`p-1.5 rounded-lg transition-all ${saveStatus === 'success' ? 'bg-emerald-100 text-emerald-600' : isDirty ? 'bg-slate-900 text-white hover:bg-slate-800' : 'text-slate-300'}`}
                         title={saveStatus === 'success' ? "Saved" : isDirty ? "Save" : "No changes"}
                     >
                         {saveStatus === 'success' ? <Check size={14} strokeWidth={3} /> : <Save size={14} />}
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); onExclude(t.id); }}
-                        className={`p-2 rounded-lg transition-colors ${isExcluded ? 'text-emerald-500 hover:bg-emerald-50' : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'}`}
+                        className={`p-1.5 rounded-lg transition-colors ${isExcluded ? 'text-emerald-500 hover:bg-emerald-50' : 'text-slate-400 hover:text-slate-600'}`}
                         title={isExcluded ? "Include" : "Exclude"}
                     >
                         {isExcluded ? <Eye size={14} /> : <EyeOff size={14} />}
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
-                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition-colors"
                         title="Delete"
                     >
                         <Trash2 size={14} />
@@ -423,8 +421,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
   return (
     <>
         <div className="flex flex-col h-full bg-transparent overflow-hidden">
-        {/* Desktop Header - Clean style */}
-        <div className={`hidden md:grid ${gridTemplate} gap-0 py-3 bg-slate-50 border-b-2 border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wide`}>
+        {/* Desktop Header - Mercury Style */}
+        <div className={`hidden md:grid ${gridTemplate} gap-0 py-3 border-b border-slate-100 text-[11px] font-medium text-slate-400 uppercase tracking-wide`}>
             <div className="px-4">Date</div>
             <div className="px-4">Merchant</div>
             <div className="px-6">Category</div>
@@ -434,11 +432,10 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
             <div className="px-3 text-center">Actions</div>
         </div>
 
-        {/* Mobile Header */}
-        <div className="md:hidden grid grid-cols-[1.4fr_0.8fr_70px] items-center h-8 text-[9px] font-bold text-slate-400 uppercase border-b border-slate-200 bg-slate-50">
-            <span className="px-2 border-r border-slate-200">Merchant</span>
-            <span className="pl-3 pr-2 border-r border-slate-200">Category</span>
-            <span className="px-2 text-right">Amount</span>
+        {/* Mobile Header - Mercury Style */}
+        <div className="md:hidden flex items-center justify-between px-4 py-2 border-b border-slate-100">
+            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Transactions</span>
+            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Amount</span>
         </div>
 
         {/* Rows */}
