@@ -12,9 +12,18 @@ interface CategoryManagerProps {
 }
 
 const PRESET_COLORS = [
-  '#ef4444', '#f97316', '#eab308', '#8b5cf6', 
-  '#06b6d4', '#ec4899', '#10b981', '#3b82f6', 
-  '#6366f1', '#64748b', '#84cc16', '#14b8a6'
+  // Reds & Pinks
+  '#ef4444', '#dc2626', '#f43f5e', '#ec4899', '#db2777', '#be185d',
+  // Oranges & Yellows
+  '#f97316', '#ea580c', '#d97706', '#eab308', '#ca8a04', '#facc15',
+  // Greens
+  '#10b981', '#059669', '#22c55e', '#16a34a', '#84cc16', '#65a30d',
+  // Blues & Cyans
+  '#3b82f6', '#2563eb', '#0ea5e9', '#06b6d4', '#0891b2', '#0d9488',
+  // Purples & Indigos
+  '#8b5cf6', '#7c3aed', '#6366f1', '#4f46e5', '#a855f7', '#9333ea',
+  // Neutrals & Browns
+  '#64748b', '#475569', '#78716c', '#a8a29e', '#92400e', '#b45309'
 ];
 
 const DeleteCategoryModal = ({
