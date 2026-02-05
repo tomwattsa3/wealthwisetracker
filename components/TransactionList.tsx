@@ -253,58 +253,57 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 </span>
             </div>
 
-            {/* Desktop Grid View */}
-            <div className={`hidden md:grid ${gridTemplate} gap-0 items-center text-sm group transition-all border rounded-lg mb-1.5 shadow-sm hover:shadow-md overflow-hidden ${isExcluded ? 'border-slate-200 ring-1 ring-slate-100' : 'border-slate-300 ring-1 ring-slate-200 hover:border-slate-400'} ${rowBackground}`}>
-                {/* 1. Date - Read Only - Smaller Font */}
-                <div className={`${cellClass} pl-3`}>
-                    <span className="font-semibold text-xs text-slate-500 whitespace-nowrap">{t.date}</span>
+            {/* Desktop Grid View - Clean table style */}
+            <div className={`hidden md:grid ${gridTemplate} gap-0 items-center text-sm group transition-colors border-b border-slate-200 hover:bg-slate-50 ${rowBackground} ${isExcluded ? 'opacity-50' : ''}`}>
+                {/* 1. Date */}
+                <div className="h-full flex items-center px-4 py-4 border-r border-slate-100">
+                    <span className="text-sm text-slate-500 font-medium whitespace-nowrap">{t.date}</span>
                 </div>
 
-                {/* 2. Description (Merchant) - Smaller Font + Bank Name */}
-                <div className="h-full flex flex-col justify-center px-2 py-3 border-r border-slate-200/60 min-w-0">
+                {/* 2. Description (Merchant) */}
+                <div className="h-full flex flex-col justify-center px-4 py-4 border-r border-slate-100 min-w-0">
                      <input
                         type="text"
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                        className={`font-semibold bg-transparent w-full outline-none transition-colors truncate placeholder:text-slate-300 text-sm ${isDirty ? 'text-indigo-900' : 'text-slate-800 focus:text-[#635bff]'}`}
+                        className={`font-medium bg-transparent w-full outline-none transition-colors truncate placeholder:text-slate-300 text-sm ${isDirty ? 'text-indigo-700' : 'text-slate-800 focus:text-indigo-600'}`}
                         placeholder="Merchant"
                     />
                      {t.bankName && (
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight truncate flex items-center gap-1 mt-0.5">
-                            <span className={`w-1 h-1 rounded-full ${displayType === 'INCOME' ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
+                        <span className="text-[10px] text-slate-400 truncate mt-0.5">
                             {t.bankName}
                         </span>
                     )}
                 </div>
 
-                {/* 3. Category - Editable */}
-                <div className="h-full flex flex-col justify-center px-9 py-3 border-r border-slate-200/60">
+                {/* 3. Category */}
+                <div className="h-full flex flex-col justify-center px-6 py-4 border-r border-slate-100">
                      {isCategoryMissing && (
                         <div className="flex items-center gap-1 mb-1">
                             <AlertTriangle size={12} className="text-amber-500" />
-                            <span className="text-[9px] font-bold text-amber-600">Category Deleted!</span>
+                            <span className="text-[10px] font-medium text-amber-600">Deleted</span>
                         </div>
                      )}
                      <select
                         value={isCategoryMissing ? '' : categoryId}
                         onChange={(e) => handleCategoryChange(e.target.value)}
-                        className={`w-full bg-transparent border border-transparent hover:border-slate-300 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[#635bff] focus:ring-1 focus:ring-[#635bff]/20 cursor-pointer ${isCategoryMissing ? 'text-amber-700 bg-amber-100 border-amber-300' : isDirty ? 'text-indigo-700 bg-indigo-50/50' : categoryId === '' ? 'text-rose-500 bg-rose-50 border-rose-200 animate-pulse' : 'text-slate-600 bg-transparent border-slate-100'}`}
+                        className={`w-full bg-transparent text-sm font-medium outline-none cursor-pointer hover:text-indigo-600 transition-colors ${isCategoryMissing ? 'text-amber-600' : isDirty ? 'text-indigo-700' : categoryId === '' ? 'text-rose-500' : 'text-slate-700'}`}
                      >
-                        <option value="">{isCategoryMissing ? `Select New Category` : 'Category'}</option>
+                        <option value="">Select...</option>
                         {categories.map(c => (
                             <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                      </select>
                 </div>
 
-                {/* 4. Subcategory - Editable */}
-                <div className="h-full flex flex-col justify-center px-9 py-3 border-r border-slate-200/60">
+                {/* 4. Subcategory */}
+                <div className="h-full flex items-center px-6 py-4 border-r border-slate-100">
                      <select
                         value={subcategoryName}
                         onChange={(e) => handleSubcategoryChange(e.target.value)}
                         disabled={!categoryId}
-                        className={`w-full bg-transparent border border-transparent hover:border-slate-300 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-tight outline-none focus:border-[#635bff] focus:ring-1 focus:ring-[#635bff]/20 cursor-pointer ${!categoryId ? 'opacity-50 cursor-not-allowed' : isDirty ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-500 bg-transparent border-slate-100'}`}
+                        className={`w-full bg-transparent text-sm outline-none cursor-pointer hover:text-indigo-600 transition-colors ${!categoryId ? 'text-slate-300' : isDirty ? 'text-indigo-600' : 'text-slate-500'}`}
                      >
                         {!categoryId && <option value="">--</option>}
                         {subcategories.map(sub => (
@@ -314,64 +313,52 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 </div>
 
                 {/* 5. Amount */}
-                <div className="h-full flex flex-col justify-center px-9 py-3 border-r border-slate-200/60">
-                    <div className="flex flex-col justify-center w-full h-full">
-                        <div className="flex items-center justify-end gap-3 w-full">
-                            <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-[4px] uppercase tracking-wide border border-opacity-60 shrink-0 ${
-                                isExcluded ? 'bg-slate-100 text-slate-400 border-slate-200' : displayType === 'INCOME' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-rose-50 text-rose-600 border-rose-200'
-                            }`}>
-                                {isExcluded ? 'EXCLUDED' : displayType === 'INCOME' ? 'INCOME' : 'EXPENSE'}
-                            </span>
-                            <div className="flex items-center">
-                                 <span className={`text-sm font-bold select-none ${isExcluded ? 'text-slate-400' : displayType === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>£</span>
-                                 <span className={`font-mono font-bold text-sm text-right ${isExcluded ? 'text-slate-400 line-through' : displayType === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
-                                    {displayType === 'EXPENSE' ? '-' : ''}{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </span>
-                            </div>
-                        </div>
-                        {t.originalCurrency && t.originalCurrency !== 'GBP' && t.originalAmount && (
-                             <div className="flex justify-end mt-0.5">
-                                <span className="text-[9px] text-slate-400 font-mono font-medium">
-                                    {t.originalCurrency} {t.originalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </span>
-                             </div>
-                        )}
+                <div className="h-full flex items-center justify-end px-6 py-4 border-r border-slate-100">
+                    <div className="flex items-center gap-3">
+                        <span className={`text-[10px] font-semibold px-2 py-1 rounded ${
+                            isExcluded ? 'bg-slate-100 text-slate-400' : displayType === 'INCOME' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
+                        }`}>
+                            {isExcluded ? 'EXCL' : displayType === 'INCOME' ? 'IN' : 'OUT'}
+                        </span>
+                        <span className={`font-mono text-base font-semibold ${isExcluded ? 'text-slate-400 line-through' : displayType === 'INCOME' ? 'text-emerald-600' : 'text-slate-800'}`}>
+                            {displayType === 'INCOME' ? '+' : '-'}£{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
                     </div>
                 </div>
 
-                 {/* 6. Note - Editable */}
-                 <div className={`${cellClass} min-w-0`}>
+                 {/* 6. Note */}
+                 <div className="h-full flex items-center px-4 py-4 border-r border-slate-100 min-w-0">
                      <input
                         type="text"
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                        className={`italic bg-transparent w-full outline-none transition-colors truncate placeholder:text-slate-300 text-xs ${isDirty ? 'text-indigo-600' : 'text-slate-500 focus:text-[#635bff]'}`}
-                        placeholder="Note..."
+                        className={`bg-transparent w-full outline-none transition-colors truncate placeholder:text-slate-300 text-sm ${isDirty ? 'text-indigo-600' : 'text-slate-400 focus:text-indigo-600'}`}
+                        placeholder="Add note..."
                     />
                 </div>
 
                 {/* 7. Action */}
-                <div className="h-full flex flex-row items-center justify-center px-2 py-2 border-r border-slate-200/60 last:border-r-0 gap-1">
+                <div className="h-full flex items-center justify-center px-3 py-4 gap-1">
                     <button
                         onClick={handleManualSave}
                         disabled={!isDirty && saveStatus !== 'success'}
-                        className={`p-1.5 rounded-lg transition-all duration-200 flex items-center justify-center ${saveStatus === 'success' ? 'bg-emerald-100 text-emerald-600 ring-1 ring-emerald-200' : isDirty ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 hover:bg-indigo-700 hover:scale-105 active:scale-95' : 'text-slate-300'}`}
-                        title={saveStatus === 'success' ? "Saved successfully" : isDirty ? "Save changes" : "No changes"}
+                        className={`p-2 rounded-lg transition-all ${saveStatus === 'success' ? 'bg-emerald-100 text-emerald-600' : isDirty ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-slate-300'}`}
+                        title={saveStatus === 'success' ? "Saved" : isDirty ? "Save" : "No changes"}
                     >
                         {saveStatus === 'success' ? <Check size={14} strokeWidth={3} /> : <Save size={14} />}
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); onExclude(t.id); }}
-                        className={`p-1.5 rounded-lg transition-colors ${isExcluded ? 'text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50' : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'}`}
-                        title={isExcluded ? "Include Transaction" : "Exclude Transaction"}
+                        className={`p-2 rounded-lg transition-colors ${isExcluded ? 'text-emerald-500 hover:bg-emerald-50' : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'}`}
+                        title={isExcluded ? "Include" : "Exclude"}
                     >
                         {isExcluded ? <Eye size={14} /> : <EyeOff size={14} />}
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                        title="Delete Transaction"
+                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                        title="Delete"
                     >
                         <Trash2 size={14} />
                     </button>
@@ -449,15 +436,15 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
   return (
     <>
         <div className="flex flex-col h-full bg-transparent overflow-hidden">
-        {/* Desktop Header - Hidden on mobile */}
-        <div className={`hidden md:grid ${gridTemplate} gap-0 px-0 py-2 bg-slate-100 border border-slate-200 rounded-lg text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2`}>
-            <div className="pl-3 border-r border-slate-200/50">Date</div>
-            <div className="pl-2 border-r border-slate-200/50">Merchant</div>
-            <div className="pl-2 border-r border-slate-200/50">Category</div>
-            <div className="pl-2 border-r border-slate-200/50">Subcategory</div>
-            <div className="text-right pr-3 border-r border-slate-200/50">Amount</div>
-            <div className="pl-2 border-r border-slate-200/50">Note</div>
-            <div className="text-center">Action</div>
+        {/* Desktop Header - Clean style */}
+        <div className={`hidden md:grid ${gridTemplate} gap-0 py-3 bg-slate-50 border-b-2 border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wide`}>
+            <div className="px-4">Date</div>
+            <div className="px-4">Merchant</div>
+            <div className="px-6">Category</div>
+            <div className="px-6">Subcategory</div>
+            <div className="px-6 text-right">Amount</div>
+            <div className="px-4">Note</div>
+            <div className="px-3 text-center">Actions</div>
         </div>
 
         {/* Mobile Header */}
