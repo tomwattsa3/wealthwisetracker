@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Transaction, Category } from '../types';
-import { TrendingUp, TrendingDown, Hash, Calendar, PieChart, ArrowUpRight, ArrowDownRight, Wallet } from 'lucide-react';
+import { TrendingUp, TrendingDown, Hash, Calendar, PieChart, Wallet, ChevronRight } from 'lucide-react';
 
 interface YearlySummaryProps {
   transactions: Transaction[];
@@ -20,6 +20,17 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
 
   const [selectedYear, setSelectedYear] = useState<number>(availableYears[0]);
   const [viewType, setViewType] = useState<'all' | 'income' | 'expense'>('all');
+  const [expandedMonths, setExpandedMonths] = useState<Set<number>>(new Set());
+
+  const toggleMonth = (monthIndex: number) => {
+    const newSet = new Set(expandedMonths);
+    if (newSet.has(monthIndex)) {
+      newSet.delete(monthIndex);
+    } else {
+      newSet.add(monthIndex);
+    }
+    setExpandedMonths(newSet);
+  };
 
   const yearlyTransactions = useMemo(() => {
     return transactions.filter(t => {
@@ -37,6 +48,29 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
       return { month, fullMonth: FULL_MONTHS[idx], income, expense, net: income - expense, txCount: monthTx.length };
     });
   }, [yearlyTransactions]);
+
+  // Monthly category breakdown for expandable rows
+  const monthlyCategoryBreakdown = useMemo(() => {
+    return MONTHS.map((_, monthIndex) => {
+      const monthTransactions = yearlyTransactions.filter(t => new Date(t.date).getMonth() === monthIndex);
+      const expenseByCategory: { [key: string]: { name: string; color: string; amount: number; count: number } } = {};
+
+      monthTransactions.filter(t => t.type === 'EXPENSE').forEach(t => {
+        const cat = categories.find(c => c.id === t.categoryId || c.name === t.categoryName);
+        const catName = cat?.name || t.categoryName || 'Uncategorized';
+        const catColor = cat?.color || '#94a3b8';
+        const catId = cat?.id || catName;
+
+        if (!expenseByCategory[catId]) {
+          expenseByCategory[catId] = { name: catName, color: catColor, amount: 0, count: 0 };
+        }
+        expenseByCategory[catId].amount += t.amount;
+        expenseByCategory[catId].count += 1;
+      });
+
+      return Object.values(expenseByCategory).sort((a, b) => b.amount - a.amount);
+    });
+  }, [yearlyTransactions, categories]);
 
   // Top categories
   const topExpenseCategories = useMemo(() => {
@@ -238,38 +272,82 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
             </div>
 
             {/* Table Rows */}
-            <div className="divide-y divide-slate-100 max-h-[400px] md:max-h-[500px] overflow-y-auto">
-              {monthlyData.map((row, idx) => (
-                <div key={idx} className="grid grid-cols-3 md:grid-cols-5 gap-2 md:gap-4 px-4 md:px-5 py-3 md:py-4 hover:bg-slate-50 transition-colors">
-                  <div className="col-span-3 md:col-span-1">
-                    <p className="font-medium text-slate-900 text-sm">{row.fullMonth}</p>
-                    <p className="text-[10px] text-slate-400 md:hidden">
-                      {row.txCount} transactions
-                    </p>
+            <div className="divide-y divide-slate-100 max-h-[400px] md:max-h-[600px] overflow-y-auto">
+              {monthlyData.map((row, idx) => {
+                const isExpanded = expandedMonths.has(idx);
+                const categoryBreakdown = monthlyCategoryBreakdown[idx];
+                const hasData = row.expense > 0;
+
+                return (
+                  <div key={idx}>
+                    {/* Month Row - Clickable */}
+                    <button
+                      onClick={() => hasData && toggleMonth(idx)}
+                      className={`w-full grid grid-cols-3 md:grid-cols-5 gap-2 md:gap-4 px-4 md:px-5 py-3 md:py-4 transition-colors text-left ${hasData ? 'hover:bg-slate-50 cursor-pointer' : 'cursor-default'} ${isExpanded ? 'bg-slate-50' : ''}`}
+                      disabled={!hasData}
+                    >
+                      <div className="col-span-3 md:col-span-1 flex items-center gap-2">
+                        <ChevronRight size={14} className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-90' : ''} ${!hasData ? 'opacity-0' : ''}`} />
+                        <div>
+                          <p className="font-medium text-slate-900 text-sm">{row.fullMonth}</p>
+                          <p className="text-[10px] text-slate-400 md:hidden">
+                            {row.txCount} transactions
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-left md:text-right">
+                        <p className="text-[10px] text-slate-400 md:hidden mb-0.5">Income</p>
+                        <p className={`text-sm font-medium ${row.income > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
+                          {row.income > 0 ? `+£${row.income.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
+                        </p>
+                      </div>
+                      <div className="text-left md:text-right">
+                        <p className="text-[10px] text-slate-400 md:hidden mb-0.5">Expenses</p>
+                        <p className={`text-sm font-medium ${row.expense > 0 ? 'text-slate-700' : 'text-slate-300'}`}>
+                          {row.expense > 0 ? `£${row.expense.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
+                        </p>
+                      </div>
+                      <div className="text-left md:text-right">
+                        <p className="text-[10px] text-slate-400 md:hidden mb-0.5">Net</p>
+                        <p className={`text-sm font-semibold ${row.net > 0 ? 'text-emerald-600' : row.net < 0 ? 'text-rose-600' : 'text-slate-300'}`}>
+                          {row.income > 0 || row.expense > 0 ? (row.net >= 0 ? '+' : '') + `£${row.net.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
+                        </p>
+                      </div>
+                      <div className="hidden md:block text-right">
+                        <p className="text-sm text-slate-500">{row.txCount > 0 ? row.txCount : '-'}</p>
+                      </div>
+                    </button>
+
+                    {/* Expanded Category Breakdown */}
+                    {isExpanded && hasData && (
+                      <div className="bg-slate-50 border-t border-slate-100 px-4 md:px-5 py-3">
+                        <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wide mb-2 ml-6">Expenses by Category</p>
+                        <div className="space-y-2 ml-6">
+                          {categoryBreakdown.map((cat, catIdx) => {
+                            const percentage = row.expense > 0 ? ((cat.amount / row.expense) * 100).toFixed(0) : '0';
+                            return (
+                              <div key={catIdx} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-slate-100">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }}></div>
+                                  <span className="text-sm text-slate-700 truncate">{cat.name}</span>
+                                  <span className="text-[10px] text-slate-400">({cat.count})</span>
+                                </div>
+                                <div className="flex items-center gap-3 shrink-0">
+                                  <span className="text-sm font-semibold text-slate-900">£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</span>
+                                  <span className="text-xs text-slate-400 w-10 text-right">{percentage}%</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {categoryBreakdown.length === 0 && (
+                            <p className="text-sm text-slate-400 py-2">No expenses this month</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="text-left md:text-right">
-                    <p className="text-[10px] text-slate-400 md:hidden mb-0.5">Income</p>
-                    <p className={`text-sm font-medium ${row.income > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
-                      {row.income > 0 ? `+£${row.income.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
-                    </p>
-                  </div>
-                  <div className="text-left md:text-right">
-                    <p className="text-[10px] text-slate-400 md:hidden mb-0.5">Expenses</p>
-                    <p className={`text-sm font-medium ${row.expense > 0 ? 'text-slate-700' : 'text-slate-300'}`}>
-                      {row.expense > 0 ? `£${row.expense.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
-                    </p>
-                  </div>
-                  <div className="text-left md:text-right">
-                    <p className="text-[10px] text-slate-400 md:hidden mb-0.5">Net</p>
-                    <p className={`text-sm font-semibold ${row.net > 0 ? 'text-emerald-600' : row.net < 0 ? 'text-rose-600' : 'text-slate-300'}`}>
-                      {row.income > 0 || row.expense > 0 ? (row.net >= 0 ? '+' : '') + `£${row.net.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
-                    </p>
-                  </div>
-                  <div className="hidden md:block text-right">
-                    <p className="text-sm text-slate-500">{row.txCount > 0 ? row.txCount : '-'}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
