@@ -63,8 +63,10 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
     const relevantTx = yearlyTransactions.filter(t => t.type === type);
 
     return relevantCats.map(cat => {
-        // Parent Data
-        const catTransactions = relevantTx.filter(t => t.categoryId === cat.id);
+        // Parent Data - match by categoryId OR categoryName for compatibility
+        const catTransactions = relevantTx.filter(t =>
+          t.categoryId === cat.id || t.categoryName === cat.name
+        );
         const monthlyTotals = new Array(12).fill(0);
         let yearTotal = 0;
         
@@ -182,9 +184,9 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
                                         <button
                                             onClick={() => toggleCategory(data.id)}
                                             disabled={!hasChildren}
-                                            className={`mr-1 sm:mr-1.5 p-0.5 rounded hover:bg-slate-200 transition-colors ${!hasChildren ? 'opacity-0 pointer-events-none' : ''}`}
+                                            className={`mr-1.5 sm:mr-2 p-1 rounded-md transition-colors ${!hasChildren ? 'opacity-30 cursor-not-allowed' : 'hover:bg-slate-200 bg-slate-100'}`}
                                         >
-                                            {isExpanded ? <ChevronDown size={12} className="sm:w-3 sm:h-3 text-slate-500"/> : <ChevronRight size={12} className="sm:w-3 sm:h-3 text-slate-400"/>}
+                                            {isExpanded ? <ChevronDown size={14} className="sm:w-4 sm:h-4 text-slate-600"/> : <ChevronRight size={14} className="sm:w-4 sm:h-4 text-slate-500"/>}
                                         </button>
                                     )}
 
