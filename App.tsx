@@ -973,7 +973,20 @@ const App: React.FC = () => {
 
                   const incomeTransactions = activeTransactions.filter(t => t.type === 'INCOME');
                   const incomeTotal = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
-                  const topIncomeTransactions = incomeTransactions
+
+                  // Group transactions by description
+                  const groupedIncome = new Map<string, { description: string; subcategoryName: string; amount: number; count: number }>();
+                  incomeTransactions.forEach(t => {
+                    const key = t.description || 'Unknown';
+                    const existing = groupedIncome.get(key);
+                    if (existing) {
+                      existing.amount += t.amount;
+                      existing.count += 1;
+                    } else {
+                      groupedIncome.set(key, { description: key, subcategoryName: t.subcategoryName, amount: t.amount, count: 1 });
+                    }
+                  });
+                  const topIncomeGrouped = Array.from(groupedIncome.values())
                     .sort((a, b) => b.amount - a.amount)
                     .slice(0, 6);
 
@@ -990,14 +1003,19 @@ const App: React.FC = () => {
                         <span className="text-[11px] font-bold text-white/90 font-mono">£{incomeTotal.toLocaleString()}</span>
                       </div>
                       <div className="max-h-[192px] overflow-y-auto">
-                        {topIncomeTransactions.map(t => (
-                          <div key={t.id} className="grid grid-cols-[1fr_1fr_75px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0">
-                            <span className="truncate text-slate-600 px-2.5 border-r border-slate-100">{t.description || 'Unknown'}</span>
-                            <span className="text-[9px] text-slate-400 px-2 border-r border-slate-100 truncate">{t.subcategoryName}</span>
-                            <span className="font-mono font-semibold text-emerald-600 px-2 text-right">£{t.amount.toLocaleString()}</span>
+                        {topIncomeGrouped.map(g => (
+                          <div key={g.description} className="grid grid-cols-[1fr_1fr_75px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0">
+                            <div className="flex items-center gap-1 px-2.5 border-r border-slate-100 min-w-0">
+                              <span className="truncate text-slate-600">{g.description}</span>
+                              {g.count > 1 && (
+                                <span className="shrink-0 bg-slate-100 text-slate-500 text-[8px] font-bold px-1 py-0.5 rounded">x{g.count}</span>
+                              )}
+                            </div>
+                            <span className="text-[9px] text-slate-400 px-2 border-r border-slate-100 truncate">{g.subcategoryName}</span>
+                            <span className="font-mono font-semibold text-emerald-600 px-2 text-right">£{g.amount.toLocaleString()}</span>
                           </div>
                         ))}
-                        {topIncomeTransactions.length === 0 && (
+                        {topIncomeGrouped.length === 0 && (
                           <div className="py-3 text-center text-slate-400 text-xs">No income</div>
                         )}
                       </div>
@@ -1012,7 +1030,20 @@ const App: React.FC = () => {
 
                   const catTransactions = activeTransactions.filter(t => t.categoryId === cat.id);
                   const catTotal = catTransactions.reduce((sum, t) => sum + t.amount, 0);
-                  const topTransactions = catTransactions
+
+                  // Group transactions by description
+                  const groupedTransactions = new Map<string, { description: string; subcategoryName: string; amount: number; count: number }>();
+                  catTransactions.forEach(t => {
+                    const key = t.description || 'Unknown';
+                    const existing = groupedTransactions.get(key);
+                    if (existing) {
+                      existing.amount += t.amount;
+                      existing.count += 1;
+                    } else {
+                      groupedTransactions.set(key, { description: key, subcategoryName: t.subcategoryName, amount: t.amount, count: 1 });
+                    }
+                  });
+                  const topGrouped = Array.from(groupedTransactions.values())
                     .sort((a, b) => b.amount - a.amount)
                     .slice(0, 6);
 
@@ -1048,16 +1079,21 @@ const App: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Top Transactions */}
+                      {/* Top Transactions - Grouped */}
                       <div className="max-h-[192px] overflow-y-auto">
-                        {topTransactions.map(t => (
-                          <div key={t.id} className="grid grid-cols-[1fr_1fr_75px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0">
-                            <span className="truncate text-slate-600 px-2.5 border-r border-slate-100">{t.description || 'Unknown'}</span>
-                            <span className="text-[9px] text-slate-400 px-2 border-r border-slate-100 truncate">{t.subcategoryName}</span>
-                            <span className="font-mono font-semibold text-slate-700 px-2 text-right">£{t.amount.toLocaleString()}</span>
+                        {topGrouped.map(g => (
+                          <div key={g.description} className="grid grid-cols-[1fr_1fr_75px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0">
+                            <div className="flex items-center gap-1 px-2.5 border-r border-slate-100 min-w-0">
+                              <span className="truncate text-slate-600">{g.description}</span>
+                              {g.count > 1 && (
+                                <span className="shrink-0 bg-slate-100 text-slate-500 text-[8px] font-bold px-1 py-0.5 rounded">x{g.count}</span>
+                              )}
+                            </div>
+                            <span className="text-[9px] text-slate-400 px-2 border-r border-slate-100 truncate">{g.subcategoryName}</span>
+                            <span className="font-mono font-semibold text-slate-700 px-2 text-right">£{g.amount.toLocaleString()}</span>
                           </div>
                         ))}
-                        {topTransactions.length === 0 && (
+                        {topGrouped.length === 0 && (
                           <div className="py-3 text-center text-slate-400 text-xs">No transactions</div>
                         )}
                       </div>
