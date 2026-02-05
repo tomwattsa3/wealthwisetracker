@@ -975,7 +975,7 @@ const App: React.FC = () => {
                   const incomeTotal = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
                   const topIncomeTransactions = incomeTransactions
                     .sort((a, b) => b.amount - a.amount)
-                    .slice(0, 3);
+                    .slice(0, 6);
 
                   return (
                     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -989,7 +989,7 @@ const App: React.FC = () => {
                         </div>
                         <span className="text-[11px] font-bold text-white/90 font-mono">£{incomeTotal.toLocaleString()}</span>
                       </div>
-                      <div>
+                      <div className="max-h-[192px] overflow-y-auto">
                         {topIncomeTransactions.map(t => (
                           <div key={t.id} className="grid grid-cols-[1fr_1fr_75px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0">
                             <span className="truncate text-slate-600 px-2.5 border-r border-slate-100">{t.description || 'Unknown'}</span>
@@ -1014,7 +1014,7 @@ const App: React.FC = () => {
                   const catTotal = catTransactions.reduce((sum, t) => sum + t.amount, 0);
                   const topTransactions = catTransactions
                     .sort((a, b) => b.amount - a.amount)
-                    .slice(0, 3);
+                    .slice(0, 6);
 
                   return (
                     <div key={`mobile-${index}-${catId}`} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -1049,7 +1049,7 @@ const App: React.FC = () => {
                       </div>
 
                       {/* Top Transactions */}
-                      <div>
+                      <div className="max-h-[192px] overflow-y-auto">
                         {topTransactions.map(t => (
                           <div key={t.id} className="grid grid-cols-[1fr_1fr_75px] items-center h-8 text-xs border-b border-slate-100 last:border-b-0">
                             <span className="truncate text-slate-600 px-2.5 border-r border-slate-100">{t.description || 'Unknown'}</span>
