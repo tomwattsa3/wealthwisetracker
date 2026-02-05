@@ -1473,7 +1473,7 @@ const App: React.FC = () => {
 
           {/* HISTORY VIEW */}
           {activeTab === 'history' && (
-            <div className="h-full overflow-hidden flex flex-col space-y-2 sm:space-y-6 px-2 sm:px-0">
+            <div className="h-full overflow-y-auto flex flex-col space-y-3 sm:space-y-4 px-2 sm:px-0 pb-4">
                {/* Hidden on mobile/tablet, visible on desktop only */}
                <div className="hidden lg:block">
                  <BankFeedUpload
@@ -1483,73 +1483,52 @@ const App: React.FC = () => {
                  />
                </div>
 
-              {/* Daily Average Card - Desktop - Mercury Style */}
+              {/* Daily Average Card - Desktop - Inline style */}
               <div className="hidden md:block">
-                <div className="bg-white rounded-xl border border-slate-200">
-                  {/* Header Row */}
-                  <div className="grid grid-cols-5 py-3 border-b border-slate-100 text-[11px] font-medium text-slate-400 uppercase tracking-wider">
-                    <div className="px-6">Daily Avg</div>
-                    <div className="px-6">Total {dailyAverageData.isIncome ? 'Income' : 'Spend'}</div>
-                    <div className="px-6">Avg Transaction</div>
-                    <div className="px-6">Days</div>
-                    <div className="px-6">Transactions</div>
-                  </div>
-                  {/* Values Row */}
-                  <div className="grid grid-cols-5 py-4">
-                    <div className="px-6">
-                      <span className="text-lg font-semibold text-slate-900">£{dailyAverageData.dailyAverage.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <div className="bg-white rounded-xl border border-slate-200 py-3">
+                  <div className="flex items-center justify-between divide-x divide-slate-100">
+                    <div className="flex-1 px-6 flex items-center justify-between">
+                      <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Daily Avg</span>
+                      <span className="text-sm font-semibold text-slate-900">£{dailyAverageData.dailyAverage.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
-                    <div className="px-6">
-                      <span className="text-lg font-semibold text-slate-900">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <div className="flex-1 px-6 flex items-center justify-between">
+                      <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Total</span>
+                      <span className="text-sm font-semibold text-slate-900">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
-                    <div className="px-6">
-                      <span className="text-lg font-semibold text-slate-900">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalSpend / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</span>
+                    <div className="flex-1 px-6 flex items-center justify-between">
+                      <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Avg Trans</span>
+                      <span className="text-sm font-semibold text-slate-900">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalSpend / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</span>
                     </div>
-                    <div className="px-6">
-                      <span className="text-lg font-semibold text-slate-900">{dailyAverageData.daysInRange}</span>
+                    <div className="flex-1 px-6 flex items-center justify-between">
+                      <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Days</span>
+                      <span className="text-sm font-semibold text-slate-900">{dailyAverageData.daysInRange}</span>
                     </div>
-                    <div className="px-6 flex items-center gap-3">
-                      <span className="text-lg font-semibold text-slate-900">{dailyAverageData.transactionCount}</span>
-                      {filterCategory !== 'all' && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-medium text-white" style={{ backgroundColor: categories.find(c => c.id === filterCategory)?.color || '#64748b' }}>
-                          {categories.find(c => c.id === filterCategory)?.name}
-                        </span>
-                      )}
+                    <div className="flex-1 px-6 flex items-center justify-between">
+                      <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Transactions</span>
+                      <span className="text-sm font-semibold text-slate-900">{dailyAverageData.transactionCount}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Daily Average Card - Mobile - Mercury Style */}
+              {/* Daily Average Card - Mobile - Inline style */}
               <div className="md:hidden bg-white rounded-xl border border-slate-200">
-                {/* Header */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-                  <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
-                    {dailyAverageData.isIncome ? 'Income Summary' : 'Expense Summary'}
-                  </span>
-                  {filterCategory !== 'all' && (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-medium text-white" style={{ backgroundColor: categories.find(c => c.id === filterCategory)?.color || '#64748b' }}>
-                      {categories.find(c => c.id === filterCategory)?.name}
-                    </span>
-                  )}
-                </div>
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 divide-x divide-slate-100">
-                  <div className="p-4 border-b border-slate-100">
-                    <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block mb-1">Daily Avg</span>
-                    <span className="text-lg font-semibold text-slate-900">£{dailyAverageData.dailyAverage.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <div className="divide-y divide-slate-100">
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Daily Avg</span>
+                    <span className="text-sm font-semibold text-slate-900">£{dailyAverageData.dailyAverage.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
-                  <div className="p-4 border-b border-slate-100">
-                    <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block mb-1">Total</span>
-                    <span className="text-lg font-semibold text-slate-900">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Total</span>
+                    <span className="text-sm font-semibold text-slate-900">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
-                  <div className="p-4">
-                    <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block mb-1">Days</span>
-                    <span className="text-lg font-semibold text-slate-900">{dailyAverageData.daysInRange}</span>
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Days</span>
+                    <span className="text-sm font-semibold text-slate-900">{dailyAverageData.daysInRange}</span>
                   </div>
-                  <div className="p-4">
-                    <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block mb-1">Transactions</span>
-                    <span className="text-lg font-semibold text-slate-900">{dailyAverageData.transactionCount}</span>
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Transactions</span>
+                    <span className="text-sm font-semibold text-slate-900">{dailyAverageData.transactionCount}</span>
                   </div>
                 </div>
               </div>
