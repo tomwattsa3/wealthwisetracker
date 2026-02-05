@@ -220,15 +220,14 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     // Check if the category was deleted (categoryId exists but not found in categories)
     const isCategoryMissing = t.categoryId !== '' && t.categoryId !== 'excluded' && !categories.find(c => c.id === t.categoryId);
 
-    // Determine row styling - Alternating white and light grey
-    const isEven = index % 2 === 0;
+    // Determine row styling - Clean card style
     const rowBackground = isExcluded
-        ? 'bg-slate-200/80 opacity-60'
+        ? 'bg-slate-100'
         : isCategoryMissing
-            ? 'bg-amber-50 border-amber-300'
+            ? 'bg-amber-50 !border-amber-400'
             : isDirty
                 ? 'bg-indigo-50/60'
-                : (isEven ? 'bg-white' : 'bg-slate-100');
+                : 'bg-white';
 
     // Common cell styles for the "sheet" look - More spacious padding
     const cellClass = "h-full flex flex-col justify-center px-4 py-3 border-r border-slate-200/60 last:border-r-0";
@@ -236,7 +235,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     return (
         <>
             {/* Mobile Row */}
-            <div className={`md:hidden grid grid-cols-[1fr_1fr_75px] items-center h-9 text-xs border-b border-slate-100 ${isCategoryMissing ? 'bg-amber-50 border-l-4 border-l-amber-400' : index % 2 === 0 ? 'bg-white' : 'bg-slate-100'} ${isExcluded ? 'opacity-40' : ''}`}>
+            <div className={`md:hidden grid grid-cols-[1fr_1fr_75px] items-center h-9 text-xs rounded-lg border border-slate-300 ${isCategoryMissing ? 'bg-amber-50 border-l-4 border-l-amber-400' : 'bg-white'} ${isExcluded ? 'opacity-40' : ''}`}>
                 <div className="flex items-center gap-1.5 px-2 border-r border-slate-100 min-w-0">
                     {isCategoryMissing ? (
                         <AlertTriangle size={14} className="text-amber-500 shrink-0" />
@@ -253,8 +252,8 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 </span>
             </div>
 
-            {/* Desktop Grid View - Clean table style */}
-            <div className={`hidden md:grid ${gridTemplate} gap-0 items-center text-sm group transition-colors border-b border-slate-200 hover:bg-slate-50 ${rowBackground} ${isExcluded ? 'opacity-50' : ''}`}>
+            {/* Desktop Grid View - Card style with outline */}
+            <div className={`hidden md:grid ${gridTemplate} gap-0 items-center text-sm group transition-colors border border-slate-300 rounded-lg hover:border-slate-400 hover:shadow-sm ${rowBackground} ${isExcluded ? 'opacity-50' : ''}`}>
                 {/* 1. Date */}
                 <div className="h-full flex items-center px-4 py-4 border-r border-slate-100">
                     <span className="text-sm text-slate-500 font-medium whitespace-nowrap">{t.date}</span>
@@ -455,7 +454,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
         </div>
 
         {/* Rows */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
+        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-2 py-2">
             {transactions.map((t, index) => (
                 <TransactionRow
                     key={t.id}
