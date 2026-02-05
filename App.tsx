@@ -685,12 +685,12 @@ const App: React.FC = () => {
     );
   }, [activeTransactions]);
 
-  // Daily Average Spending Calculation
+  // Daily Average Spending Calculation - uses filterCategory for single category selection
   const dailyAverageData = useMemo(() => {
-    // Get expenses from selected categories within date range
+    // Get expenses from selected category within date range
     const selectedExpenses = activeTransactions.filter(t =>
       t.type === 'EXPENSE' &&
-      dailyAvgCategories.includes(t.categoryId)
+      (filterCategory === 'all' ? true : t.categoryId === filterCategory)
     );
 
     const totalSpend = selectedExpenses.reduce((sum, t) => sum + t.amount, 0);
@@ -708,7 +708,7 @@ const App: React.FC = () => {
       daysInRange: daysDiff,
       transactionCount: selectedExpenses.length
     };
-  }, [activeTransactions, dailyAvgCategories, dateRange]);
+  }, [activeTransactions, filterCategory, dateRange]);
 
   // Main Category Breakdown (respects date filter)
   const categoryBreakdown = useMemo(() => {
@@ -1500,23 +1500,32 @@ const App: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Right: Category Selection */}
-                    <div className="flex-1 max-w-[400px]">
+                    {/* Right: Category Filter */}
+                    <div className="flex-1 max-w-[500px]">
                       <p className="text-xs font-bold text-slate-500 uppercase mb-2">
-                        Select Categories (max 10) <span className="text-slate-400">({dailyAvgCategories.length}/10)</span>
+                        Filter by Category
                       </p>
                       <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => { setFilterCategory('all'); setFilterSubcategory('all'); }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                            filterCategory === 'all'
+                              ? 'bg-slate-800 text-white shadow-sm'
+                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                          }`}
+                        >
+                          All
+                        </button>
                         {expenseCategories.filter(c => c.id !== 'excluded').map(cat => {
-                          const isSelected = dailyAvgCategories.includes(cat.id);
+                          const isSelected = filterCategory === cat.id;
                           return (
                             <button
                               key={cat.id}
-                              onClick={() => toggleDailyAvgCategory(cat.id)}
-                              disabled={!isSelected && dailyAvgCategories.length >= 10}
+                              onClick={() => { setFilterCategory(cat.id); setFilterSubcategory('all'); }}
                               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                                 isSelected
                                   ? 'text-white shadow-sm'
-                                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed'
+                                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                               }`}
                               style={isSelected ? { backgroundColor: cat.color } : {}}
                             >
@@ -1525,9 +1534,6 @@ const App: React.FC = () => {
                           );
                         })}
                       </div>
-                      {dailyAvgCategories.length === 0 && (
-                        <p className="text-xs text-amber-500 mt-2">Select at least one category to see your daily average</p>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -1562,23 +1568,32 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Category Selection */}
+                {/* Category Filter */}
                 <div>
                   <p className="text-[10px] text-slate-400 mb-2">
-                    Tap to select categories ({dailyAvgCategories.length}/10)
+                    Tap to filter by category
                   </p>
                   <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => { setFilterCategory('all'); setFilterSubcategory('all'); }}
+                      className={`px-3 py-2 rounded-lg text-[11px] font-bold transition-all ${
+                        filterCategory === 'all'
+                          ? 'bg-white text-slate-800 ring-2 ring-white/30'
+                          : 'bg-white/10 text-slate-300 active:bg-white/20'
+                      }`}
+                    >
+                      All
+                    </button>
                     {expenseCategories.filter(c => c.id !== 'excluded').map(cat => {
-                      const isSelected = dailyAvgCategories.includes(cat.id);
+                      const isSelected = filterCategory === cat.id;
                       return (
                         <button
                           key={cat.id}
-                          onClick={() => toggleDailyAvgCategory(cat.id)}
-                          disabled={!isSelected && dailyAvgCategories.length >= 10}
+                          onClick={() => { setFilterCategory(cat.id); setFilterSubcategory('all'); }}
                           className={`px-3 py-2 rounded-lg text-[11px] font-bold transition-all ${
                             isSelected
                               ? 'text-white ring-2 ring-white/30'
-                              : 'bg-white/10 text-slate-300 active:bg-white/20 disabled:opacity-30'
+                              : 'bg-white/10 text-slate-300 active:bg-white/20'
                           }`}
                           style={isSelected ? { backgroundColor: cat.color } : {}}
                         >
@@ -1587,9 +1602,6 @@ const App: React.FC = () => {
                       );
                     })}
                   </div>
-                  {dailyAvgCategories.length === 0 && (
-                    <p className="text-[10px] text-amber-400 mt-2">Select categories to calculate average</p>
-                  )}
                 </div>
               </div>
 
