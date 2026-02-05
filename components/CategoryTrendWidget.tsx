@@ -138,21 +138,23 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
              </select>
       </div>
 
-      {/* List - Simple alternating rows */}
+      {/* List - Grid with separators */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {groupedTransactions.length > 0 ? (
           <div>
             {groupedTransactions.map((t, idx) => (
               <div
                 key={t.id}
-                className={`flex items-center justify-between px-4 py-2.5 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
+                className={`grid grid-cols-[1fr_auto_auto_auto] items-center py-2.5 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
               >
-                 <div className="flex items-center gap-2 flex-1 min-w-0 mr-3">
-                    <span className="text-sm font-medium text-slate-700 truncate" title={t.description}>{t.description || "Unknown"}</span>
-                    {t.count > 1 && <span className="text-[10px] text-slate-400">x{t.count}</span>}
-                    <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] text-slate-500 shrink-0">{t.subcategoryName}</span>
-                 </div>
-                 <span className="text-sm font-medium text-slate-700">
+                 <span className="text-sm font-medium text-slate-700 truncate px-4 border-r border-slate-100" title={t.description}>{t.description || "Unknown"}</span>
+                 <span className="px-3 text-center border-r border-slate-100">
+                   <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] text-slate-500">{t.subcategoryName}</span>
+                 </span>
+                 <span className="px-3 text-center border-r border-slate-100 text-[10px] text-slate-400 w-8">
+                   {t.count > 1 ? `x${t.count}` : ''}
+                 </span>
+                 <span className="text-sm font-medium text-slate-700 px-4 text-right">
                     £{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                  </span>
               </div>

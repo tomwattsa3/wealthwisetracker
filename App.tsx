@@ -1093,13 +1093,15 @@ const App: React.FC = () => {
                       </div>
                       <div>
                         {topIncomeGrouped.slice(0, 4).map((g, idx) => (
-                          <div key={g.description} className={`flex items-center justify-between px-4 py-2.5 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
-                            <div className="flex items-center gap-2 flex-1 min-w-0 mr-3">
-                              <span className="text-sm font-medium text-slate-700 truncate">{g.description}</span>
-                              {g.count > 1 && <span className="text-[10px] text-slate-400">x{g.count}</span>}
-                              <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] text-slate-500 shrink-0">{g.subcategoryName}</span>
-                            </div>
-                            <span className="text-sm font-medium text-slate-700">£{g.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          <div key={g.description} className={`grid grid-cols-[1fr_auto_auto_auto] items-center py-2.5 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                            <span className="text-sm font-medium text-slate-700 truncate px-4 border-r border-slate-100">{g.description}</span>
+                            <span className="px-3 text-center border-r border-slate-100">
+                              <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] text-slate-500">{g.subcategoryName}</span>
+                            </span>
+                            <span className="px-3 text-center border-r border-slate-100 text-[10px] text-slate-400 w-8">
+                              {g.count > 1 ? `x${g.count}` : ''}
+                            </span>
+                            <span className="text-sm font-medium text-slate-700 px-4 text-right">£{g.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           </div>
                         ))}
                         {topIncomeGrouped.length === 0 && (
@@ -1166,16 +1168,18 @@ const App: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Top Transactions - Simple alternating rows */}
+                      {/* Top Transactions - Grid with separators */}
                       <div>
                         {topGrouped.slice(0, 4).map((g, idx) => (
-                          <div key={g.description} className={`flex items-center justify-between px-4 py-2.5 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
-                            <div className="flex items-center gap-2 flex-1 min-w-0 mr-3">
-                              <span className="text-sm font-medium text-slate-700 truncate">{g.description}</span>
-                              {g.count > 1 && <span className="text-[10px] text-slate-400">x{g.count}</span>}
-                              <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] text-slate-500 shrink-0">{g.subcategoryName}</span>
-                            </div>
-                            <span className="text-sm font-medium text-slate-700">£{g.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          <div key={g.description} className={`grid grid-cols-[1fr_auto_auto_auto] items-center py-2.5 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                            <span className="text-sm font-medium text-slate-700 truncate px-4 border-r border-slate-100">{g.description}</span>
+                            <span className="px-3 text-center border-r border-slate-100">
+                              <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] text-slate-500">{g.subcategoryName}</span>
+                            </span>
+                            <span className="px-3 text-center border-r border-slate-100 text-[10px] text-slate-400 w-8">
+                              {g.count > 1 ? `x${g.count}` : ''}
+                            </span>
+                            <span className="text-sm font-medium text-slate-700 px-4 text-right">£{g.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           </div>
                         ))}
                         {topGrouped.length === 0 && (
