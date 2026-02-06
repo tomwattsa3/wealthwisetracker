@@ -40,9 +40,20 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
   const [dateRange, setDateRange] = useState<DateRange>(presets.thisYear);
   const [viewType, setViewType] = useState<'all' | 'income' | 'expense'>('all');
   const [expandedMonths, setExpandedMonths] = useState<Set<number>>(new Set());
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [showCustom, setShowCustom] = useState(false);
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+
+  const toggleCategory = (key: string) => {
+    const newSet = new Set(expandedCategories);
+    if (newSet.has(key)) {
+      newSet.delete(key);
+    } else {
+      newSet.add(key);
+    }
+    setExpandedCategories(newSet);
+  };
 
   const toggleMonth = (monthIndex: number) => {
     const newSet = new Set(expandedMonths);
@@ -127,7 +138,14 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
         const d = new Date(t.date);
         return d.getFullYear() === row.year && d.getMonth() === row.monthIndex;
       });
-      const expenseByCategory: { [key: string]: { name: string; color: string; amount: number; count: number } } = {};
+      const expenseByCategory: { [key: string]: {
+        id: string;
+        name: string;
+        color: string;
+        amount: number;
+        count: number;
+        subcategories: { name: string; amount: number; count: number }[];
+      } } = {};
 
       monthTransactions.filter(t => t.type === 'EXPENSE').forEach(t => {
         const cat = categories.find(c => c.id === t.categoryId || c.name === t.categoryName);
@@ -136,10 +154,25 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
         const catId = cat?.id || catName;
 
         if (!expenseByCategory[catId]) {
-          expenseByCategory[catId] = { name: catName, color: catColor, amount: 0, count: 0 };
+          expenseByCategory[catId] = { id: catId, name: catName, color: catColor, amount: 0, count: 0, subcategories: [] };
         }
         expenseByCategory[catId].amount += t.amount;
         expenseByCategory[catId].count += 1;
+
+        // Track subcategories
+        const subName = t.subcategoryName || 'Other';
+        const existingSub = expenseByCategory[catId].subcategories.find(s => s.name === subName);
+        if (existingSub) {
+          existingSub.amount += t.amount;
+          existingSub.count += 1;
+        } else {
+          expenseByCategory[catId].subcategories.push({ name: subName, amount: t.amount, count: 1 });
+        }
+      });
+
+      // Sort subcategories by amount
+      Object.values(expenseByCategory).forEach(cat => {
+        cat.subcategories.sort((a, b) => b.amount - a.amount);
       });
 
       return Object.values(expenseByCategory).sort((a, b) => b.amount - a.amount);
@@ -434,17 +467,51 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
                         <div className="space-y-2 ml-6">
                           {categoryBreakdown.map((cat, catIdx) => {
                             const percentage = row.expense > 0 ? ((cat.amount / row.expense) * 100).toFixed(0) : '0';
+                            const catKey = `${idx}-${cat.id}`;
+                            const isCatExpanded = expandedCategories.has(catKey);
+                            const hasSubcategories = cat.subcategories.length > 1 || (cat.subcategories.length === 1 && cat.subcategories[0].name !== 'Other');
+
                             return (
-                              <div key={catIdx} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-slate-100">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }}></div>
-                                  <span className="text-sm text-slate-700 truncate">{cat.name}</span>
-                                  <span className="text-[10px] text-slate-400">({cat.count})</span>
-                                </div>
-                                <div className="flex items-center gap-3 shrink-0">
-                                  <span className="text-sm font-semibold text-slate-900">£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</span>
-                                  <span className="text-xs text-slate-400 w-10 text-right">{percentage}%</span>
-                                </div>
+                              <div key={catIdx}>
+                                <button
+                                  onClick={() => hasSubcategories && toggleCategory(catKey)}
+                                  className={`w-full flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-slate-100 ${hasSubcategories ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default'} transition-colors`}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <ChevronRight
+                                      size={12}
+                                      className={`text-slate-400 transition-transform shrink-0 ${isCatExpanded ? 'rotate-90' : ''} ${!hasSubcategories ? 'opacity-0' : ''}`}
+                                    />
+                                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }}></div>
+                                    <span className="text-sm text-slate-700 truncate">{cat.name}</span>
+                                    <span className="text-[10px] text-slate-400">({cat.count})</span>
+                                  </div>
+                                  <div className="flex items-center gap-3 shrink-0">
+                                    <span className="text-sm font-semibold text-slate-900">£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</span>
+                                    <span className="text-xs text-slate-400 w-10 text-right">{percentage}%</span>
+                                  </div>
+                                </button>
+
+                                {/* Subcategory Breakdown */}
+                                {isCatExpanded && hasSubcategories && (
+                                  <div className="ml-6 mt-1 space-y-1">
+                                    {cat.subcategories.map((sub, subIdx) => {
+                                      const subPercentage = cat.amount > 0 ? ((sub.amount / cat.amount) * 100).toFixed(0) : '0';
+                                      return (
+                                        <div key={subIdx} className="flex items-center justify-between bg-slate-100 rounded-md px-3 py-1.5">
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <span className="text-xs text-slate-600 truncate">{sub.name}</span>
+                                            <span className="text-[9px] text-slate-400">({sub.count})</span>
+                                          </div>
+                                          <div className="flex items-center gap-2 shrink-0">
+                                            <span className="text-xs font-medium text-slate-700">£{sub.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</span>
+                                            <span className="text-[10px] text-slate-400 w-8 text-right">{subPercentage}%</span>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
