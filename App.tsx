@@ -1545,7 +1545,7 @@ const App: React.FC = () => {
                   <span className="text-lg font-semibold text-slate-900">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col items-center">
-                  <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">Average</span>
+                  <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">Avg/Trans</span>
                   <span className="text-lg font-semibold text-slate-900">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalSpend / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</span>
                 </div>
                 <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col items-center">
@@ -1561,7 +1561,7 @@ const App: React.FC = () => {
                   <span className="text-sm font-semibold text-slate-900">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="bg-white rounded-xl border border-slate-200 p-3 flex flex-col items-center">
-                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider mb-1">Average</span>
+                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider mb-1">Avg/Trans</span>
                   <span className="text-sm font-semibold text-slate-900">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalSpend / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</span>
                 </div>
                 <div className="bg-white rounded-xl border border-slate-200 p-3 flex flex-col items-center">
