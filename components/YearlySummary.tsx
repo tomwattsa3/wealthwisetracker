@@ -131,11 +131,26 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
       }));
   }, [filteredTransactions]);
 
-  // Number of months in the range for average calculations
-  const monthsInRange = useMemo(() => {
+  // Number of COMPLETED months in the range for average calculations (excludes current month)
+  const completedMonthsInRange = useMemo(() => {
     const start = new Date(dateRange.start);
-    const end = new Date(dateRange.end);
-    const months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    // Calculate end date - either the range end or last day of previous month, whichever is earlier
+    const rangeEnd = new Date(dateRange.end);
+    const lastCompletedMonth = new Date(currentYear, currentMonth, 0); // Last day of previous month
+
+    // Use the earlier of the two dates
+    const effectiveEnd = rangeEnd < lastCompletedMonth ? rangeEnd : lastCompletedMonth;
+
+    // If the effective end is before the start, no completed months
+    if (effectiveEnd < start) {
+      return 1; // Return 1 to avoid division by zero, but this means no completed months
+    }
+
+    const months = (effectiveEnd.getFullYear() - start.getFullYear()) * 12 + (effectiveEnd.getMonth() - start.getMonth()) + 1;
     return Math.max(1, months);
   }, [dateRange]);
 
@@ -233,8 +248,8 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
   const totalExpense = filteredTransactions.filter(t => t.type === 'EXPENSE').reduce((sum, t) => sum + t.amount, 0);
   const netBalance = totalIncome - totalExpense;
   const totalTransactions = filteredTransactions.length;
-  const avgMonthlySpend = totalExpense / monthsInRange;
-  const avgMonthlyIncome = totalIncome / monthsInRange;
+  const avgMonthlySpend = totalExpense / completedMonthsInRange;
+  const avgMonthlyIncome = totalIncome / completedMonthsInRange;
 
   // Donut chart data for top categories
   const donutData = topExpenseCategories.slice(0, 4);
