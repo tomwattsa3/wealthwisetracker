@@ -39,7 +39,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
   const presets = getDatePresets();
 
   const [dateRange, setDateRange] = useState<DateRange>(presets.thisYear);
-  const [viewType, setViewType] = useState<'all' | 'income' | 'expense'>('all');
   const [expandedMonths, setExpandedMonths] = useState<Set<number>>(new Set());
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [showCustom, setShowCustom] = useState(false);
@@ -257,37 +256,9 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
       </div>
 
       {/* Filters Row */}
-      <div className="px-4 md:px-8 pb-6">
-        <div className="bg-white rounded-xl border border-slate-200 p-3 md:p-4 flex flex-wrap items-center justify-between gap-3">
-          {/* Left: Type filters */}
-          <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
-            <button
-              onClick={() => setViewType('all')}
-              className={`px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-md transition-all ${
-                viewType === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setViewType('income')}
-              className={`px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-md transition-all ${
-                viewType === 'income' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              Income
-            </button>
-            <button
-              onClick={() => setViewType('expense')}
-              className={`px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-md transition-all ${
-                viewType === 'expense' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              Expenses
-            </button>
-          </div>
-
-          {/* Right: Date Range Selector */}
+      <div className="px-4 md:px-8 pb-4">
+        <div className="bg-white rounded-xl border border-slate-200 p-2.5 md:p-3 flex items-center justify-center">
+          {/* Date Range Selector */}
           <div className="flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5">
             <button
               onClick={() => setDateRange(presets.lastMonth)}
@@ -541,24 +512,27 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
             </div>
 
             {/* Donut Visual */}
-            <div className="p-4 md:p-5 flex justify-center">
-              <div className="relative w-32 h-32 md:w-40 md:h-40">
+            <div className="p-6 md:p-8 flex justify-center">
+              <div className="relative w-44 h-44 md:w-56 md:h-56">
                 <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
                   {donutData.length > 0 ? (
                     donutData.reduce((acc, cat, idx) => {
                       const percentage = (cat.amount / donutTotal) * 100;
+                      const gap = 1.5; // Gap between segments
+                      const adjustedPercentage = Math.max(0, percentage - gap);
                       const offset = acc.offset;
                       acc.segments.push(
                         <circle
                           key={idx}
                           cx="50"
                           cy="50"
-                          r="40"
+                          r="38"
                           fill="none"
                           stroke={cat.color}
-                          strokeWidth="12"
-                          strokeDasharray={`${percentage * 2.51} ${251 - percentage * 2.51}`}
-                          strokeDashoffset={-offset * 2.51}
+                          strokeWidth="14"
+                          strokeLinecap="round"
+                          strokeDasharray={`${adjustedPercentage * 2.39} ${239 - adjustedPercentage * 2.39}`}
+                          strokeDashoffset={-(offset + gap / 2) * 2.39}
                           className="transition-all duration-500"
                         />
                       );
@@ -566,13 +540,13 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                       return acc;
                     }, { segments: [] as JSX.Element[], offset: 0 }).segments
                   ) : (
-                    <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" strokeWidth="12" />
+                    <circle cx="50" cy="50" r="38" fill="none" stroke="#e2e8f0" strokeWidth="14" />
                   )}
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center">
-                    <p className="text-lg md:text-xl font-semibold text-slate-900">{formatAmount(totalExpense)}</p>
-                    <p className="text-[10px] text-slate-400">Total</p>
+                    <p className="text-lg md:text-2xl font-semibold text-slate-900">{formatAmount(totalExpense)}</p>
+                    <p className="text-[10px] md:text-xs text-slate-400">Total Expenses</p>
                   </div>
                 </div>
               </div>
