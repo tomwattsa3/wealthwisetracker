@@ -233,9 +233,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
   const donutTotal = donutData.reduce((sum, c) => sum + c.amount, 0);
 
   const formatAmount = (amount: number) => {
-    if (amount >= 1000000) return `£${(amount / 1000000).toFixed(1)}M`;
-    if (amount >= 1000) return `£${(amount / 1000).toFixed(0)}k`;
-    return `£${amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}`;
+    return `£${amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   return (
