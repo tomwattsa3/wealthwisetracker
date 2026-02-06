@@ -515,13 +515,22 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
             <div className="p-6 md:p-8 flex justify-center">
               <div className="relative w-44 h-44 md:w-56 md:h-56">
                 <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                  {donutData.length > 0 ? (
-                    donutData.reduce((acc, cat, idx) => {
-                      const percentage = (cat.amount / donutTotal) * 100;
-                      const gap = 1.5; // Gap between segments
-                      const adjustedPercentage = Math.max(0, percentage - gap);
-                      const offset = acc.offset;
-                      acc.segments.push(
+                  {/* Background circle */}
+                  <circle cx="50" cy="50" r="38" fill="none" stroke="#f1f5f9" strokeWidth="14" />
+                  {donutData.length > 0 && (() => {
+                    const circumference = 2 * Math.PI * 38; // ~238.76
+                    const gapSize = 4; // Gap in pixels
+                    const totalGaps = donutData.length * gapSize;
+                    const availableLength = circumference - totalGaps;
+                    let currentOffset = 0;
+
+                    return donutData.map((cat, idx) => {
+                      const percentage = cat.amount / donutTotal;
+                      const segmentLength = percentage * availableLength;
+                      const dashOffset = -currentOffset;
+                      currentOffset += segmentLength + gapSize;
+
+                      return (
                         <circle
                           key={idx}
                           cx="50"
@@ -530,18 +539,13 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                           fill="none"
                           stroke={cat.color}
                           strokeWidth="14"
-                          strokeLinecap="round"
-                          strokeDasharray={`${adjustedPercentage * 2.39} ${239 - adjustedPercentage * 2.39}`}
-                          strokeDashoffset={-(offset + gap / 2) * 2.39}
+                          strokeDasharray={`${segmentLength} ${circumference - segmentLength}`}
+                          strokeDashoffset={dashOffset}
                           className="transition-all duration-500"
                         />
                       );
-                      acc.offset += percentage;
-                      return acc;
-                    }, { segments: [] as JSX.Element[], offset: 0 }).segments
-                  ) : (
-                    <circle cx="50" cy="50" r="38" fill="none" stroke="#e2e8f0" strokeWidth="14" />
-                  )}
+                    });
+                  })()}
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center">
