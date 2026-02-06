@@ -292,6 +292,16 @@ const App: React.FC = () => {
           const moneyInAED = Number(t['Money In - AED']) || 0;
           const moneyOutAED = Number(t['Money Out - AED']) || 0;
 
+          // Debug: log raw values for income transactions
+          if (moneyInGBP > 0 || moneyInAED > 0) {
+            console.log('Income transaction:', t['Description'], {
+              'Raw Money In - GBP': t['Money In - GBP'],
+              'Raw Money In - AED': t['Money In - AED'],
+              'Parsed GBP': moneyInGBP,
+              'Parsed AED': moneyInAED
+            });
+          }
+
           // Determine type based on which column has a value
           // If Money In > 0, it's income. If Money Out > 0, it's expense.
           const isIncome = moneyInGBP > 0 || moneyInAED > 0;
@@ -303,6 +313,7 @@ const App: React.FC = () => {
 
           // If AED is missing, convert from GBP
           if (amountAED === 0 && amountGBP > 0) {
+            console.log('Converting GBP to AED for:', t['Description'], amountGBP, '->', amountGBP * GBP_TO_AED_RATE);
             amountAED = amountGBP * GBP_TO_AED_RATE;
           }
           // If GBP is missing, convert from AED
