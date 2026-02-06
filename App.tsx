@@ -893,7 +893,7 @@ const App: React.FC = () => {
              {[
                { id: 'home', icon: Home, label: 'Dashboard', mobileLabel: 'Home', mobileOnly: true },
                { id: 'history', icon: ArrowRightLeft, label: 'Transactions', mobileLabel: 'Trans', mobileOnly: true },
-               { id: 'yearly', icon: CalendarRange, label: 'Yearly', mobileLabel: 'Yearly', mobileOnly: true },
+               { id: 'yearly', icon: CalendarRange, label: 'Analytics', mobileLabel: 'Analytics', mobileOnly: true },
                { id: 'categories', icon: FolderCog, label: 'Categories', mobileLabel: 'Cats', mobileOnly: true },
                { id: 'settings', icon: Settings, label: 'Settings', mobileLabel: 'Settings', mobileOnly: false }
              ].map((item) => (
@@ -913,12 +913,12 @@ const App: React.FC = () => {
                  {/* Mobile label */}
                  <span className="text-[9px] mt-0.5 md:hidden">{item.mobileLabel}</span>
                  {/* Desktop label */}
-                 {!isSidebarCollapsed && <span className="text-sm hidden md:block">{item.id === 'yearly' ? 'Yearly Summary' : item.label}</span>}
+                 {!isSidebarCollapsed && <span className="text-sm hidden md:block">{item.label}</span>}
 
                  {/* Tooltip for collapsed state */}
                  {isSidebarCollapsed && (
                    <span className="absolute left-14 bg-slate-900 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 border border-slate-700 pointer-events-none hidden md:block shadow-lg">
-                     {item.id === 'yearly' ? 'Yearly Summary' : item.label}
+                     {item.label}
                    </span>
                  )}
                </button>
