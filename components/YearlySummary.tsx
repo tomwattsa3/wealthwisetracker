@@ -542,7 +542,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                   <circle cx="50" cy="50" r="38" fill="none" stroke="#f1f5f9" strokeWidth="14" />
                   {donutData.length > 0 && (() => {
                     const circumference = 2 * Math.PI * 38; // ~238.76
-                    const gapSize = 4; // Gap in pixels
+                    const gapSize = 8; // Gap in pixels (larger for rounded edges)
                     const totalGaps = donutData.length * gapSize;
                     const availableLength = circumference - totalGaps;
                     let currentOffset = 0;
@@ -562,6 +562,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                           fill="none"
                           stroke={cat.color}
                           strokeWidth="14"
+                          strokeLinecap="round"
                           strokeDasharray={`${segmentLength} ${circumference - segmentLength}`}
                           strokeDashoffset={dashOffset}
                           className="transition-all duration-500"
