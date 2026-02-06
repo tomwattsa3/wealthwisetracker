@@ -661,9 +661,10 @@ const App: React.FC = () => {
     return filteredTransactions
       .filter(t => !t.excluded && t.categoryId !== 'excluded')
       .reduce((acc, t) => {
-        return t.type === 'INCOME' ? acc + t.amount : acc - t.amount;
+        const amount = currency === 'GBP' ? t.amountGBP : t.amountAED;
+        return t.type === 'INCOME' ? acc + amount : acc - amount;
       }, 0);
-  }, [filteredTransactions, hasActiveFilters]);
+  }, [filteredTransactions, hasActiveFilters, currency]);
 
   // KPI Summary (Respects Date Filter and Currency)
   const summary = useMemo<FinancialSummary>(() => {
@@ -1257,6 +1258,7 @@ const App: React.FC = () => {
                               onCategoryChange={(newId) => handleWidgetCategoryChange(index, newId)}
                               allCategories={isIncomeWidget ? incomeCategories : expenseCategories}
                               transactions={activeTransactions}
+                              currency={currency}
                           />
                         </div>
                       );
@@ -1285,6 +1287,7 @@ const App: React.FC = () => {
                           onCategoryChange={(newId) => handleWidgetCategoryChange(index + 4, newId)}
                           allCategories={expenseCategories}
                           transactions={activeTransactions}
+                          currency={currency}
                         />
                       </div>
                     ))}
@@ -1443,7 +1446,7 @@ const App: React.FC = () => {
                                         <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Excluded ({excludedTransactions.length})</span>
                                     </div>
                                     <span className="text-xs font-medium text-slate-500 font-mono">
-                                        {formatCurrency(excludedTransactions.reduce((sum, t) => sum + t.amount, 0))}
+                                        {formatCurrency(excludedTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0))}
                                     </span>
                                 </div>
                                 <div className="rounded-lg overflow-hidden border border-slate-100 flex flex-col max-h-48 overflow-y-auto custom-scrollbar">
@@ -1462,7 +1465,7 @@ const App: React.FC = () => {
                                                 </div>
                                             </div>
                                             <span className="text-xs font-medium text-slate-500 font-mono">
-                                                {formatCurrency(t.amount)}
+                                                {formatCurrency(currency === 'GBP' ? t.amountGBP : t.amountAED)}
                                             </span>
                                         </div>
                                     ))}

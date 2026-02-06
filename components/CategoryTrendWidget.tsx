@@ -8,14 +8,24 @@ interface CategoryTrendWidgetProps {
   onCategoryChange: (newId: string) => void;
   allCategories: Category[];
   transactions: Transaction[];
+  currency?: 'GBP' | 'AED';
 }
 
-const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({ 
-  categoryId, 
-  onCategoryChange, 
-  allCategories, 
-  transactions
+const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
+  categoryId,
+  onCategoryChange,
+  allCategories,
+  transactions,
+  currency = 'GBP'
 }) => {
+  // Currency formatter helper
+  const formatCurrency = (amount: number) => {
+    const formatted = amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return currency === 'GBP' ? `£${formatted}` : `AED ${formatted}`;
+  };
+
+  // Get amount based on currency
+  const getAmount = (t: Transaction) => currency === 'GBP' ? t.amountGBP : t.amountAED;
   const [subFilter, setSubFilter] = useState('all');
 
   const category = useMemo(() => 
@@ -51,9 +61,10 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
       }>();
 
       filteredTransactions.forEach(t => {
+          const txAmount = getAmount(t);
           const existing = groups.get(t.description);
           if (existing) {
-              existing.amount += t.amount;
+              existing.amount += txAmount;
               existing.count += 1;
               // Update to latest metadata if current transaction is newer
               if (new Date(t.date) > new Date(existing.date)) {
@@ -66,7 +77,7 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
                   id: t.id,
                   description: t.description,
                   subcategoryName: t.subcategoryName,
-                  amount: t.amount,
+                  amount: txAmount,
                   count: 1,
                   date: t.date
               });
@@ -75,7 +86,7 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
 
       // Sort by Total Amount Descending
       return Array.from(groups.values()).sort((a, b) => b.amount - a.amount);
-  }, [filteredTransactions]);
+  }, [filteredTransactions, currency]);
 
   // Handle case where no categories exist yet
   if (!category) {
@@ -86,7 +97,7 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
     );
   }
 
-  const totalAmount = filteredTransactions.reduce((sum, t) => sum + t.amount, 0);
+  const totalAmount = filteredTransactions.reduce((sum, t) => sum + getAmount(t), 0);
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-[380px] overflow-hidden">
@@ -119,7 +130,7 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
 
           {/* Total Amount */}
           <span className="text-sm font-semibold text-slate-900 font-mono">
-            £{totalAmount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatCurrency(totalAmount)}
           </span>
       </div>
 
@@ -155,7 +166,7 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
                    {t.count > 1 ? `x${t.count}` : ''}
                  </span>
                  <span className="text-sm font-medium text-slate-700 px-4 text-right">
-                    £{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatCurrency(t.amount)}
                  </span>
               </div>
             ))}
