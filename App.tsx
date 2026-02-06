@@ -282,6 +282,9 @@ const App: React.FC = () => {
       }
 
       // Map DB columns to app's expected format
+      // Exchange rate: 1 GBP = ~4.6 AED (adjust as needed)
+      const GBP_TO_AED_RATE = 4.6;
+
       const mappedTxs: Transaction[] = (txData || []).map(t => {
           // Parse money columns - ensure they're numbers, handle null/undefined/string
           const moneyInGBP = Number(t['Money In - GBP']) || 0;
@@ -294,9 +297,18 @@ const App: React.FC = () => {
           const isIncome = moneyInGBP > 0 || moneyInAED > 0;
           const type: 'INCOME' | 'EXPENSE' = isIncome ? 'INCOME' : 'EXPENSE';
 
-          // Store both currency amounts
-          const amountGBP = isIncome ? moneyInGBP : moneyOutGBP;
-          const amountAED = isIncome ? moneyInAED : moneyOutAED;
+          // Store both currency amounts with conversion fallback
+          let amountGBP = isIncome ? moneyInGBP : moneyOutGBP;
+          let amountAED = isIncome ? moneyInAED : moneyOutAED;
+
+          // If AED is missing, convert from GBP
+          if (amountAED === 0 && amountGBP > 0) {
+            amountAED = amountGBP * GBP_TO_AED_RATE;
+          }
+          // If GBP is missing, convert from AED
+          if (amountGBP === 0 && amountAED > 0) {
+            amountGBP = amountAED / GBP_TO_AED_RATE;
+          }
 
           // Find categoryId from category name
           const categoryName = t['Catagory'] || '';
