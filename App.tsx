@@ -96,6 +96,15 @@ const App: React.FC = () => {
       };
   });
 
+  // Currency State
+  const [currency, setCurrency] = useState<'GBP' | 'AED'>('GBP');
+
+  // Currency formatter helper
+  const formatCurrency = (amount: number) => {
+    const formatted = amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return currency === 'GBP' ? `£${formatted}` : `AED ${formatted}`;
+  };
+
   const [activeTab, setActiveTab] = useState<'home' | 'history' | 'categories' | 'yearly' | 'settings'>(() => {
     const saved = localStorage.getItem('activeTab');
     if (saved && ['home', 'history', 'categories', 'yearly', 'settings'].includes(saved)) {
@@ -1042,17 +1051,34 @@ const App: React.FC = () => {
                   <h1 className="text-xl md:text-2xl font-semibold text-slate-900">Overview</h1>
                   <p className="text-xs md:text-sm text-slate-400 mt-0.5">{dateRange.label}</p>
                 </div>
-                {/* Mobile Date Filter */}
-                <div className="md:hidden w-32">
-                  <DashboardDateFilter range={dateRange} onRangeChange={setDateRange} />
+                <div className="flex items-center gap-2">
+                  {/* Currency Switcher */}
+                  <div className="flex bg-slate-100 p-0.5 rounded-lg">
+                    <button
+                      onClick={() => setCurrency('GBP')}
+                      className={`px-2.5 py-1 text-[10px] md:text-xs font-semibold rounded-md transition-all ${currency === 'GBP' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                      £ GBP
+                    </button>
+                    <button
+                      onClick={() => setCurrency('AED')}
+                      className={`px-2.5 py-1 text-[10px] md:text-xs font-semibold rounded-md transition-all ${currency === 'AED' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                      AED
+                    </button>
+                  </div>
+                  {/* Mobile Date Filter */}
+                  <div className="md:hidden w-32">
+                    <DashboardDateFilter range={dateRange} onRangeChange={setDateRange} />
+                  </div>
                 </div>
               </div>
 
               {/* Mercury Style KPI Cards - 3 columns */}
               <div className="grid grid-cols-3 gap-2 md:gap-4">
-                <StatsCard label="Income" amount={summary.totalIncome} type="INCOME" subtitle="Total Earnings" />
-                <StatsCard label="Expenses" amount={summary.totalExpense} type="EXPENSE" subtitle="Total Spent" />
-                <StatsCard label="Balance" amount={summary.balance} type="BALANCE" subtitle="Net Position" />
+                <StatsCard label="Income" amount={summary.totalIncome} type="INCOME" subtitle="Total Earnings" currency={currency} />
+                <StatsCard label="Expenses" amount={summary.totalExpense} type="EXPENSE" subtitle="Total Spent" currency={currency} />
+                <StatsCard label="Balance" amount={summary.balance} type="BALANCE" subtitle="Net Position" currency={currency} />
               </div>
 
               {/* Mobile: Mercury Style Category Cards */}
@@ -1089,7 +1115,7 @@ const App: React.FC = () => {
                           <TrendingUp size={12} className="text-slate-400" />
                           <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Income</span>
                         </div>
-                        <span className="text-xs font-semibold text-slate-900 font-mono">£{incomeTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span className="text-xs font-semibold text-slate-900 font-mono">{formatCurrency(incomeTotal)}</span>
                       </div>
                       <div>
                         {topIncomeGrouped.slice(0, 6).map((g, idx) => (
@@ -1101,7 +1127,7 @@ const App: React.FC = () => {
                             <span className="px-2 flex items-center justify-center">
                               <span className="px-1 py-0.5 bg-slate-100 rounded text-[7px] text-slate-500">{g.subcategoryName}</span>
                             </span>
-                            <span className="text-[10px] font-medium text-slate-700 pl-2 pr-3 text-right whitespace-nowrap">£{g.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            <span className="text-[10px] font-medium text-slate-700 pl-2 pr-3 text-right whitespace-nowrap">{formatCurrency(g.amount)}</span>
                           </div>
                         ))}
                         {topIncomeGrouped.length === 0 && (
@@ -1156,7 +1182,7 @@ const App: React.FC = () => {
                           </select>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-xs font-semibold text-slate-900 font-mono">£{catTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          <span className="text-xs font-semibold text-slate-900 font-mono">{formatCurrency(catTotal)}</span>
                           {mobileCategoryIds.length > 1 && (
                             <button
                               onClick={() => handleRemoveMobileCardWithConfirm(index)}
@@ -1179,7 +1205,7 @@ const App: React.FC = () => {
                             <span className="px-2 flex items-center justify-center">
                               <span className="px-1 py-0.5 bg-slate-100 rounded text-[7px] text-slate-500">{g.subcategoryName}</span>
                             </span>
-                            <span className="text-[10px] font-medium text-slate-700 pl-2 pr-3 text-right whitespace-nowrap">£{g.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            <span className="text-[10px] font-medium text-slate-700 pl-2 pr-3 text-right whitespace-nowrap">{formatCurrency(g.amount)}</span>
                           </div>
                         ))}
                         {topGrouped.length === 0 && (
@@ -1369,7 +1395,7 @@ const App: React.FC = () => {
                                               />
                                               <span className="text-xs font-medium text-slate-700">{label}</span>
                                             </div>
-                                            <span className="text-xs font-semibold text-slate-900 font-mono">£{item.total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                            <span className="text-xs font-semibold text-slate-900 font-mono">{formatCurrency(item.total)}</span>
                                           </div>
                                           <div className="flex items-center gap-2">
                                             <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
@@ -1393,7 +1419,7 @@ const App: React.FC = () => {
                         <div className="pt-4 mt-4 border-t border-slate-100 flex-shrink-0">
                             <div className="flex items-center justify-between">
                                 <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Total Expenses</span>
-                                <span className="text-xl sm:text-2xl font-semibold text-slate-900 font-mono">£{globalSummary.totalExpense.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                <span className="text-xl sm:text-2xl font-semibold text-slate-900 font-mono">{formatCurrency(globalSummary.totalExpense)}</span>
                             </div>
                         </div>
 
@@ -1406,7 +1432,7 @@ const App: React.FC = () => {
                                         <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Excluded ({excludedTransactions.length})</span>
                                     </div>
                                     <span className="text-xs font-medium text-slate-500 font-mono">
-                                        £{excludedTransactions.reduce((sum, t) => sum + t.amount, 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        {formatCurrency(excludedTransactions.reduce((sum, t) => sum + t.amount, 0))}
                                     </span>
                                 </div>
                                 <div className="rounded-lg overflow-hidden border border-slate-100 flex flex-col max-h-48 overflow-y-auto custom-scrollbar">
@@ -1425,7 +1451,7 @@ const App: React.FC = () => {
                                                 </div>
                                             </div>
                                             <span className="text-xs font-medium text-slate-500 font-mono">
-                                                £{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                {formatCurrency(t.amount)}
                                             </span>
                                         </div>
                                     ))}

@@ -8,10 +8,12 @@ interface StatsCardProps {
   type: 'BALANCE' | 'INCOME' | 'EXPENSE' | 'SAVINGS' | 'NET_WORTH' | 'DEBT' | 'ASSETS';
   filled?: boolean;
   subtitle?: string;
+  currency?: 'GBP' | 'AED';
 }
 
-const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle }) => {
+const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, currency = 'GBP' }) => {
   const formattedAmount = amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const currencyDisplay = currency === 'GBP' ? `£${formattedAmount}` : `AED ${formattedAmount}`;
 
   // Mercury Bank style - muted icons and subtle colors
   const getIcon = () => {
@@ -44,7 +46,7 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle }) 
 
       {/* Amount */}
       <p className="text-base md:text-3xl font-semibold text-slate-900 mb-0.5 md:mb-1">
-        £{formattedAmount}
+        {currencyDisplay}
       </p>
 
       {/* Subtitle */}
