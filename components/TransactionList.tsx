@@ -223,21 +223,21 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     return (
         <>
             {/* Mobile Row */}
-            <div className={`md:hidden flex items-center justify-between px-4 py-3 border-b border-slate-100 ${isCategoryMissing ? 'bg-amber-50' : 'bg-white'} ${isExcluded ? 'opacity-40' : ''}`}>
-                <div className="flex-1 min-w-0 mr-3">
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-slate-700 truncate">{t.description || 'No merchant'}</span>
+            <div className={`md:hidden flex items-center justify-between px-3 py-1.5 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} ${isCategoryMissing ? '!bg-amber-50' : ''} ${isExcluded ? 'opacity-40' : ''}`}>
+                <div className="flex-1 min-w-0 mr-2">
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-medium text-slate-700 truncate">{t.description || 'No merchant'}</span>
                         {t.subcategoryName && (
-                            <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] text-slate-500 shrink-0">{t.subcategoryName}</span>
+                            <span className="px-1 py-0.5 bg-slate-100 rounded text-[8px] text-slate-500 shrink-0">{t.subcategoryName}</span>
                         )}
                     </div>
-                    <span className="text-[11px] text-slate-400 mt-0.5 block">{t.categoryName || 'Uncategorized'}</span>
+                    <span className="text-[9px] text-slate-400 block">{t.categoryName || 'Uncategorized'}</span>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                    <span className={`w-8 text-center px-1 py-0.5 text-[9px] font-medium rounded border ${displayType === 'INCOME' ? 'text-emerald-600 border-emerald-200' : 'text-slate-400 border-slate-200'}`}>
+                <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={`w-6 text-center py-0.5 text-[8px] font-medium rounded border ${displayType === 'INCOME' ? 'text-emerald-600 border-emerald-200' : 'text-slate-400 border-slate-200'}`}>
                         {displayType === 'INCOME' ? 'IN' : 'OUT'}
                     </span>
-                    <span className={`text-sm font-medium tabular-nums ${isExcluded ? 'text-slate-400' : 'text-slate-700'}`}>
+                    <span className={`text-xs font-medium tabular-nums ${isExcluded ? 'text-slate-400' : 'text-slate-700'}`}>
                         £{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                 </div>
@@ -431,13 +431,13 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
         </div>
 
         {/* Mobile Header - Mercury Style */}
-        <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-slate-200">
-            <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Transactions</span>
-            <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Amount</span>
+        <div className="md:hidden flex items-center justify-between px-3 py-2 border-b border-slate-200">
+            <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Transactions</span>
+            <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Amount</span>
         </div>
 
         {/* Rows */}
-        <div className="flex-1 md:overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-0 md:gap-2 py-2 md:py-3 pb-8 md:pb-3">
+        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-0 md:gap-2 py-1 md:py-3 pb-8 md:pb-3">
             {transactions.map((t, index) => (
                 <TransactionRow
                     key={t.id}
