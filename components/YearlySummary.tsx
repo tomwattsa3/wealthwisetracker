@@ -1,26 +1,48 @@
 
 import React, { useState, useMemo } from 'react';
 import { Transaction, Category } from '../types';
-import { TrendingUp, TrendingDown, PieChart, ChevronRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, PieChart, ChevronRight, Calendar } from 'lucide-react';
 
 interface YearlySummaryProps {
   transactions: Transaction[];
   categories: Category[];
 }
 
+interface DateRange {
+  start: string;
+  end: string;
+  label: string;
+}
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const FULL_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories }) => {
-  const availableYears = useMemo(() => {
-    const years = new Set(transactions.map(t => new Date(t.date).getFullYear()));
-    const sorted = Array.from(years).sort((a: number, b: number) => b - a);
-    return sorted.length > 0 ? sorted : [new Date().getFullYear()];
-  }, [transactions]);
+// Date presets
+const getDatePresets = () => {
+  const now = new Date();
+  return {
+    lastMonth: {
+      start: new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0],
+      end: new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0],
+      label: 'Last Month'
+    },
+    thisYear: {
+      start: new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0],
+      end: new Date(now.getFullYear(), 11, 31).toISOString().split('T')[0],
+      label: 'This Year'
+    }
+  };
+};
 
-  const [selectedYear, setSelectedYear] = useState<number>(availableYears[0]);
+const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories }) => {
+  const presets = getDatePresets();
+
+  const [dateRange, setDateRange] = useState<DateRange>(presets.thisYear);
   const [viewType, setViewType] = useState<'all' | 'income' | 'expense'>('all');
   const [expandedMonths, setExpandedMonths] = useState<Set<number>>(new Set());
+  const [showCustom, setShowCustom] = useState(false);
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
 
   const toggleMonth = (monthIndex: number) => {
     const newSet = new Set(expandedMonths);
@@ -32,27 +54,79 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
     setExpandedMonths(newSet);
   };
 
-  const yearlyTransactions = useMemo(() => {
+  // Apply custom date range
+  const applyCustomRange = () => {
+    if (customStart && customEnd) {
+      setDateRange({
+        start: customStart,
+        end: customEnd,
+        label: 'Custom'
+      });
+      setShowCustom(false);
+    }
+  };
+
+  const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
-      const d = new Date(t.date);
-      return d.getFullYear() === selectedYear && !t.excluded;
+      if (t.excluded) return false;
+      const txDate = t.date;
+      return txDate >= dateRange.start && txDate <= dateRange.end;
     });
-  }, [transactions, selectedYear]);
+  }, [transactions, dateRange]);
 
-  // Monthly data
+  // Monthly data - group by year-month for date ranges that span multiple years
   const monthlyData = useMemo(() => {
-    return MONTHS.map((month, idx) => {
-      const monthTx = yearlyTransactions.filter(t => new Date(t.date).getMonth() === idx);
-      const income = monthTx.filter(t => t.type === 'INCOME').reduce((sum, t) => sum + t.amount, 0);
-      const expense = monthTx.filter(t => t.type === 'EXPENSE').reduce((sum, t) => sum + t.amount, 0);
-      return { month, fullMonth: FULL_MONTHS[idx], income, expense, net: income - expense, txCount: monthTx.length };
-    });
-  }, [yearlyTransactions]);
+    const monthMap = new Map<string, { year: number; monthIndex: number; income: number; expense: number; txCount: number }>();
 
-  // Monthly category breakdown for expandable rows
+    filteredTransactions.forEach(t => {
+      const d = new Date(t.date);
+      const year = d.getFullYear();
+      const monthIndex = d.getMonth();
+      const key = `${year}-${monthIndex}`;
+
+      if (!monthMap.has(key)) {
+        monthMap.set(key, { year, monthIndex, income: 0, expense: 0, txCount: 0 });
+      }
+
+      const entry = monthMap.get(key)!;
+      if (t.type === 'INCOME') {
+        entry.income += t.amount;
+      } else {
+        entry.expense += t.amount;
+      }
+      entry.txCount += 1;
+    });
+
+    // Sort by date and return
+    return Array.from(monthMap.values())
+      .sort((a, b) => a.year - b.year || a.monthIndex - b.monthIndex)
+      .map(entry => ({
+        month: MONTHS[entry.monthIndex],
+        fullMonth: `${FULL_MONTHS[entry.monthIndex]} ${entry.year}`,
+        monthIndex: entry.monthIndex,
+        year: entry.year,
+        income: entry.income,
+        expense: entry.expense,
+        net: entry.income - entry.expense,
+        txCount: entry.txCount
+      }));
+  }, [filteredTransactions]);
+
+  // Number of months in the range for average calculations
+  const monthsInRange = useMemo(() => {
+    const start = new Date(dateRange.start);
+    const end = new Date(dateRange.end);
+    const months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
+    return Math.max(1, months);
+  }, [dateRange]);
+
+  // Monthly category breakdown for expandable rows - now keyed by year-month
   const monthlyCategoryBreakdown = useMemo(() => {
-    return MONTHS.map((_, monthIndex) => {
-      const monthTransactions = yearlyTransactions.filter(t => new Date(t.date).getMonth() === monthIndex);
+    return monthlyData.map(row => {
+      const monthTransactions = filteredTransactions.filter(t => {
+        const d = new Date(t.date);
+        return d.getFullYear() === row.year && d.getMonth() === row.monthIndex;
+      });
       const expenseByCategory: { [key: string]: { name: string; color: string; amount: number; count: number } } = {};
 
       monthTransactions.filter(t => t.type === 'EXPENSE').forEach(t => {
@@ -70,11 +144,11 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
 
       return Object.values(expenseByCategory).sort((a, b) => b.amount - a.amount);
     });
-  }, [yearlyTransactions, categories]);
+  }, [filteredTransactions, categories, monthlyData]);
 
   // Top categories
   const topExpenseCategories = useMemo(() => {
-    const expenseTx = yearlyTransactions.filter(t => t.type === 'EXPENSE');
+    const expenseTx = filteredTransactions.filter(t => t.type === 'EXPENSE');
     const byCategory: { [key: string]: { name: string; color: string; amount: number; count: number } } = {};
 
     expenseTx.forEach(t => {
@@ -91,10 +165,10 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
     });
 
     return Object.values(byCategory).sort((a, b) => b.amount - a.amount).slice(0, 5);
-  }, [yearlyTransactions, categories]);
+  }, [filteredTransactions, categories]);
 
   const topIncomeCategories = useMemo(() => {
-    const incomeTx = yearlyTransactions.filter(t => t.type === 'INCOME');
+    const incomeTx = filteredTransactions.filter(t => t.type === 'INCOME');
     const byCategory: { [key: string]: { name: string; color: string; amount: number; count: number } } = {};
 
     incomeTx.forEach(t => {
@@ -111,15 +185,15 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
     });
 
     return Object.values(byCategory).sort((a, b) => b.amount - a.amount).slice(0, 5);
-  }, [yearlyTransactions, categories]);
+  }, [filteredTransactions, categories]);
 
   // KPI calculations
-  const totalIncome = yearlyTransactions.filter(t => t.type === 'INCOME').reduce((sum, t) => sum + t.amount, 0);
-  const totalExpense = yearlyTransactions.filter(t => t.type === 'EXPENSE').reduce((sum, t) => sum + t.amount, 0);
+  const totalIncome = filteredTransactions.filter(t => t.type === 'INCOME').reduce((sum, t) => sum + t.amount, 0);
+  const totalExpense = filteredTransactions.filter(t => t.type === 'EXPENSE').reduce((sum, t) => sum + t.amount, 0);
   const netBalance = totalIncome - totalExpense;
-  const totalTransactions = yearlyTransactions.length;
-  const avgMonthlySpend = totalExpense / 12;
-  const avgMonthlyIncome = totalIncome / 12;
+  const totalTransactions = filteredTransactions.length;
+  const avgMonthlySpend = totalExpense / monthsInRange;
+  const avgMonthlyIncome = totalIncome / monthsInRange;
 
   // Donut chart data for top categories
   const donutData = topExpenseCategories.slice(0, 4);
@@ -135,7 +209,8 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
     <div className="min-h-screen bg-slate-50 pb-20">
       {/* Header */}
       <div className="px-4 md:px-8 pt-4 md:pt-6 pb-4">
-        <h1 className="text-2xl md:text-3xl font-semibold text-slate-900">Yearly Summary</h1>
+        <h1 className="text-2xl md:text-3xl font-semibold text-slate-900">Analytics</h1>
+        <p className="text-sm text-slate-500 mt-1">{dateRange.label}: {new Date(dateRange.start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} - {new Date(dateRange.end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
       </div>
 
       {/* Filters Row */}
@@ -169,18 +244,68 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
             </button>
           </div>
 
-          {/* Right: Year selector */}
-          <div className="flex items-center gap-2">
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="appearance-none bg-slate-100 border-0 rounded-lg px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium text-slate-700 cursor-pointer hover:bg-slate-200 transition-colors pr-8"
-              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', backgroundSize: '16px' }}
-            >
-              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
+          {/* Right: Date Range Selector */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+              <button
+                onClick={() => setDateRange(presets.lastMonth)}
+                className={`px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-md transition-all ${
+                  dateRange.label === 'Last Month' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Last Month
+              </button>
+              <button
+                onClick={() => setDateRange(presets.thisYear)}
+                className={`px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-md transition-all ${
+                  dateRange.label === 'This Year' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                This Year
+              </button>
+              <button
+                onClick={() => setShowCustom(!showCustom)}
+                className={`px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-md transition-all flex items-center gap-1 ${
+                  dateRange.label === 'Custom' || showCustom ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Calendar size={14} />
+                Custom
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* Custom Date Picker */}
+        {showCustom && (
+          <div className="mt-3 bg-slate-50 rounded-lg p-3 flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-slate-500">From:</label>
+              <input
+                type="date"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-slate-500">To:</label>
+              <input
+                type="date"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700"
+              />
+            </div>
+            <button
+              onClick={applyCustomRange}
+              disabled={!customStart || !customEnd}
+              className="px-4 py-1.5 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Apply
+            </button>
+          </div>
+        )}
       </div>
 
       {/* KPI Cards Row */}
