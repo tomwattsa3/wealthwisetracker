@@ -1515,23 +1515,23 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Daily Average Card - Mobile - Inline style */}
-              <div className="md:hidden bg-white rounded-xl border border-slate-200">
-                <div className="divide-y divide-slate-100">
-                  <div className="flex items-center justify-between px-4 py-3">
-                    <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Daily Avg</span>
+              {/* Daily Average Card - Mobile - 2x2 Grid */}
+              <div className="md:hidden bg-white rounded-xl border border-slate-200 p-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg">
+                    <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Daily Avg</span>
                     <span className="text-sm font-semibold text-slate-900">£{dailyAverageData.dailyAverage.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
-                  <div className="flex items-center justify-between px-4 py-3">
-                    <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Total</span>
+                  <div className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg">
+                    <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Total</span>
                     <span className="text-sm font-semibold text-slate-900">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
-                  <div className="flex items-center justify-between px-4 py-3">
-                    <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Days</span>
+                  <div className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg">
+                    <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Days</span>
                     <span className="text-sm font-semibold text-slate-900">{dailyAverageData.daysInRange}</span>
                   </div>
-                  <div className="flex items-center justify-between px-4 py-3">
-                    <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Transactions</span>
+                  <div className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg">
+                    <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Trans</span>
                     <span className="text-sm font-semibold text-slate-900">{dailyAverageData.transactionCount}</span>
                   </div>
                 </div>
