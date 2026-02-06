@@ -99,6 +99,11 @@ const App: React.FC = () => {
   // Currency State
   const [currency, setCurrency] = useState<'GBP' | 'AED'>('GBP');
 
+  // Get transaction amount based on selected currency
+  const getAmount = (t: Transaction) => {
+    return currency === 'GBP' ? t.amountGBP : t.amountAED;
+  };
+
   // Currency formatter helper
   const formatCurrency = (amount: number) => {
     const formatted = amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -284,20 +289,14 @@ const App: React.FC = () => {
           const moneyInAED = Number(t['Money In - AED']) || 0;
           const moneyOutAED = Number(t['Money Out - AED']) || 0;
 
-          // Debug: log raw values from Supabase
-          console.log('Transaction ID:', t.id, 'Raw values:', {
-            'Money In - GBP': t['Money In - GBP'],
-            'Money Out - GBP': t['Money Out - GBP'],
-            parsed: { moneyInGBP, moneyOutGBP }
-          });
-
           // Determine type based on which column has a value
           // If Money In > 0, it's income. If Money Out > 0, it's expense.
-          const isIncome = moneyInGBP > 0;
-          const isExpense = moneyOutGBP > 0;
+          const isIncome = moneyInGBP > 0 || moneyInAED > 0;
           const type: 'INCOME' | 'EXPENSE' = isIncome ? 'INCOME' : 'EXPENSE';
-          const amount = isIncome ? moneyInGBP : moneyOutGBP;
-          const originalAmount = isIncome ? moneyInAED : moneyOutAED;
+
+          // Store both currency amounts
+          const amountGBP = isIncome ? moneyInGBP : moneyOutGBP;
+          const amountAED = isIncome ? moneyInAED : moneyOutAED;
 
           // Find categoryId from category name
           const categoryName = t['Catagory'] || '';
@@ -309,9 +308,11 @@ const App: React.FC = () => {
           return {
             id: String(t.id),
             date: t['Transaction Date'] || new Date().toISOString().split('T')[0],
-            amount: Number(amount) || 0,
-            originalAmount: originalAmount > 0 ? Number(originalAmount) : undefined,
-            originalCurrency: originalAmount > 0 ? 'AED' : undefined,
+            amount: amountGBP, // Default to GBP for backwards compatibility
+            amountGBP,
+            amountAED,
+            originalAmount: amountAED > 0 ? amountAED : undefined,
+            originalCurrency: amountAED > 0 ? 'AED' : undefined,
             type,
             categoryId,
             categoryName,
@@ -652,47 +653,41 @@ const App: React.FC = () => {
       }, 0);
   }, [filteredTransactions, hasActiveFilters]);
 
-  // KPI Summary (Respects Date Filter)
+  // KPI Summary (Respects Date Filter and Currency)
   const summary = useMemo<FinancialSummary>(() => {
-    const incomeTransactions = activeTransactions.filter(t => t.type === 'INCOME');
-    const expenseTransactions = activeTransactions.filter(t => t.type === 'EXPENSE');
-
-    console.log('=== SUMMARY CALCULATION ===');
-    console.log('Active transactions:', activeTransactions.length);
-    console.log('Income transactions:', incomeTransactions.length, incomeTransactions);
-    console.log('Expense transactions:', expenseTransactions.length);
-
     return activeTransactions.reduce(
       (acc, curr) => {
+        const amount = currency === 'GBP' ? curr.amountGBP : curr.amountAED;
         if (curr.type === 'INCOME') {
-          acc.totalIncome += curr.amount;
-          acc.balance += curr.amount;
+          acc.totalIncome += amount;
+          acc.balance += amount;
         } else {
-          acc.totalExpense += curr.amount;
-          acc.balance -= curr.amount;
+          acc.totalExpense += amount;
+          acc.balance -= amount;
         }
         return acc;
       },
       { totalIncome: 0, totalExpense: 0, balance: 0 }
     );
-  }, [activeTransactions]);
+  }, [activeTransactions, currency]);
 
-  // Summary for Breakdown Percentages (respects date filter)
+  // Summary for Breakdown Percentages (respects date filter and currency)
   const globalSummary = useMemo<FinancialSummary>(() => {
     return activeTransactions.reduce(
       (acc, curr) => {
+        const amount = currency === 'GBP' ? curr.amountGBP : curr.amountAED;
         if (curr.type === 'INCOME') {
-          acc.totalIncome += curr.amount;
-          acc.balance += curr.amount;
+          acc.totalIncome += amount;
+          acc.balance += amount;
         } else {
-          acc.totalExpense += curr.amount;
-          acc.balance -= curr.amount;
+          acc.totalExpense += amount;
+          acc.balance -= amount;
         }
         return acc;
       },
       { totalIncome: 0, totalExpense: 0, balance: 0 }
     );
-  }, [activeTransactions]);
+  }, [activeTransactions, currency]);
 
   // Daily Average Calculation - uses the same filters as transaction log including type filter
   const dailyAverageData = useMemo(() => {
@@ -706,7 +701,7 @@ const App: React.FC = () => {
       t.categoryId !== 'excluded'
     );
 
-    const totalAmount = selectedTransactions.reduce((sum, t) => sum + t.amount, 0);
+    const totalAmount = selectedTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
 
     // Calculate number of days in the selected date range
     const startDate = new Date(dateRange.start);
@@ -722,18 +717,18 @@ const App: React.FC = () => {
       transactionCount: selectedTransactions.length,
       isIncome: targetType === 'INCOME'
     };
-  }, [filteredTransactions, dateRange, filterType]);
+  }, [filteredTransactions, dateRange, filterType, currency]);
 
-  // Main Category Breakdown (respects date filter)
+  // Main Category Breakdown (respects date filter and currency)
   const categoryBreakdown = useMemo(() => {
     return categories.map(cat => {
       const catTransactions = activeTransactions.filter(t => t.categoryId === cat.id);
-      const total = catTransactions.reduce((sum, t) => sum + t.amount, 0);
+      const total = catTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
       return { category: cat, transactions: catTransactions, total };
     }).filter(c => c.total > 0).sort((a, b) => b.total - a.total);
-  }, [activeTransactions, categories]);
+  }, [activeTransactions, categories, currency]);
 
-  // Subcategory Breakdown (respects date filter)
+  // Subcategory Breakdown (respects date filter and currency)
   const subcategoryBreakdown = useMemo(() => {
     if (filterCategory === 'all') return [];
 
@@ -744,7 +739,8 @@ const App: React.FC = () => {
 
     activeTransactions.forEach(t => {
       if (t.type === 'EXPENSE' && t.categoryId === filterCategory) {
-        groups[t.subcategoryName] = (groups[t.subcategoryName] || 0) + t.amount;
+        const amount = currency === 'GBP' ? t.amountGBP : t.amountAED;
+        groups[t.subcategoryName] = (groups[t.subcategoryName] || 0) + amount;
       }
     });
 
@@ -754,9 +750,9 @@ const App: React.FC = () => {
       color: activeCat.color,
       parentId: activeCat.id
     })).sort((a, b) => b.total - a.total);
-  }, [activeTransactions, filterCategory, categories]);
+  }, [activeTransactions, filterCategory, categories, currency]);
 
-  // All Subcategories Breakdown (respects date filter)
+  // All Subcategories Breakdown (respects date filter and currency)
   const allSubcategoryBreakdown = useMemo(() => {
      const groups: Record<string, { total: number, parentId: string, color: string }> = {};
      activeTransactions.forEach(t => {
@@ -770,7 +766,8 @@ const App: React.FC = () => {
                     color: parent?.color || '#94a3b8'
                 };
             }
-            groups[t.subcategoryName].total += t.amount;
+            const amount = currency === 'GBP' ? t.amountGBP : t.amountAED;
+            groups[t.subcategoryName].total += amount;
         }
      });
      return Object.entries(groups).map(([name, data]) => ({
@@ -779,7 +776,7 @@ const App: React.FC = () => {
          color: data.color,
          parentId: data.parentId,
      })).sort((a, b) => b.total - a.total);
-  }, [activeTransactions, categories]);
+  }, [activeTransactions, categories, currency]);
 
   // Derive available banks for filter (Configured Banks + Historical Banks)
   const availableBanks = useMemo(() => {
@@ -1089,18 +1086,19 @@ const App: React.FC = () => {
                   if (!incomeCat) return null;
 
                   const incomeTransactions = activeTransactions.filter(t => t.type === 'INCOME');
-                  const incomeTotal = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
+                  const incomeTotal = incomeTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
 
                   // Group transactions by description
                   const groupedIncome = new Map<string, { description: string; subcategoryName: string; amount: number; count: number }>();
                   incomeTransactions.forEach(t => {
                     const key = t.description || 'Unknown';
+                    const txAmount = currency === 'GBP' ? t.amountGBP : t.amountAED;
                     const existing = groupedIncome.get(key);
                     if (existing) {
-                      existing.amount += t.amount;
+                      existing.amount += txAmount;
                       existing.count += 1;
                     } else {
-                      groupedIncome.set(key, { description: key, subcategoryName: t.subcategoryName, amount: t.amount, count: 1 });
+                      groupedIncome.set(key, { description: key, subcategoryName: t.subcategoryName, amount: txAmount, count: 1 });
                     }
                   });
                   const topIncomeGrouped = Array.from(groupedIncome.values())
@@ -1144,18 +1142,19 @@ const App: React.FC = () => {
                   if (!cat) return null;
 
                   const catTransactions = activeTransactions.filter(t => t.categoryId === cat.id);
-                  const catTotal = catTransactions.reduce((sum, t) => sum + t.amount, 0);
+                  const catTotal = catTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
 
                   // Group transactions by description
                   const groupedTransactions = new Map<string, { description: string; subcategoryName: string; amount: number; count: number }>();
                   catTransactions.forEach(t => {
                     const key = t.description || 'Unknown';
+                    const txAmount = currency === 'GBP' ? t.amountGBP : t.amountAED;
                     const existing = groupedTransactions.get(key);
                     if (existing) {
-                      existing.amount += t.amount;
+                      existing.amount += txAmount;
                       existing.count += 1;
                     } else {
-                      groupedTransactions.set(key, { description: key, subcategoryName: t.subcategoryName, amount: t.amount, count: 1 });
+                      groupedTransactions.set(key, { description: key, subcategoryName: t.subcategoryName, amount: txAmount, count: 1 });
                     }
                   });
                   const topGrouped = Array.from(groupedTransactions.values())

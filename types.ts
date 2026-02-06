@@ -21,6 +21,8 @@ export interface Transaction {
   id: string;
   date: string;
   amount: number;
+  amountGBP: number;
+  amountAED: number;
   originalAmount?: number;
   originalCurrency?: string;
   type: TransactionType;
