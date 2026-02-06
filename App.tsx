@@ -1591,19 +1591,19 @@ const App: React.FC = () => {
                           <Filter size={10} className="sm:w-3 sm:h-3 absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                       </div>
 
-                      {/* Subcategory Filter - Hide on mobile */}
-                      <div className="relative hidden sm:block">
+                      {/* Subcategory Filter */}
+                      <div className="relative">
                           <select
                               value={filterSubcategory}
                               onChange={(e) => setFilterSubcategory(e.target.value)}
-                              className="appearance-none pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors"
+                              className="appearance-none pl-2 sm:pl-3 pr-6 sm:pr-8 py-1.5 sm:py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] sm:text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors"
                           >
-                              <option value="all">Subcategory: All</option>
+                              <option value="all">Sub: All</option>
                               {availableSubcategories.map(sub => (
                                   <option key={sub} value={sub}>{sub}</option>
                               ))}
                           </select>
-                          <Filter size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                          <Filter size={10} className="sm:w-3 sm:h-3 absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                       </div>
 
                       {/* Reset Button */}
