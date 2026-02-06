@@ -863,7 +863,7 @@ const App: React.FC = () => {
         {/* Collapsible Sidebar - Simplified Styles */}
         <nav
           className={`
-            fixed bottom-0 left-0 w-full bg-white border-t border-slate-100 z-50 pb-2 pt-1
+            fixed bottom-0 left-0 w-full bg-white border-t border-slate-100 z-50 pb-4 pt-3
             md:relative md:border-r md:border-t-0 md:flex-col md:h-full md:p-4 md:pb-4 md:pt-4 md:justify-start
             transition-all duration-300 ease-in-out
             ${isSidebarCollapsed ? 'md:w-20' : 'md:w-64'}
@@ -1494,7 +1494,7 @@ const App: React.FC = () => {
           {/* YEARLY VIEW */}
           {activeTab === 'yearly' && (
              <div className="h-full">
-                <YearlySummary transactions={transactions} categories={categories} />
+                <YearlySummary transactions={transactions} categories={categories} onRefresh={fetchData} />
              </div>
           )}
           

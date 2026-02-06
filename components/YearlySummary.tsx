@@ -1,11 +1,12 @@
 
 import React, { useState, useMemo } from 'react';
 import { Transaction, Category } from '../types';
-import { TrendingUp, TrendingDown, PieChart, ChevronRight, Calendar } from 'lucide-react';
+import { TrendingUp, TrendingDown, PieChart, ChevronRight, Calendar, RefreshCw } from 'lucide-react';
 
 interface YearlySummaryProps {
   transactions: Transaction[];
   categories: Category[];
+  onRefresh?: () => void;
 }
 
 interface DateRange {
@@ -34,7 +35,7 @@ const getDatePresets = () => {
   };
 };
 
-const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories }) => {
+const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories, onRefresh }) => {
   const presets = getDatePresets();
 
   const [dateRange, setDateRange] = useState<DateRange>(presets.thisYear);
@@ -239,9 +240,20 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
       {/* Header */}
-      <div className="px-4 md:px-8 pt-4 md:pt-6 pb-4">
-        <h1 className="text-2xl md:text-3xl font-semibold text-slate-900">Analytics</h1>
-        <p className="text-sm text-slate-500 mt-1">{dateRange.label}: {new Date(dateRange.start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} - {new Date(dateRange.end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+      <div className="px-4 md:px-8 pt-4 md:pt-6 pb-4 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-semibold text-slate-900">Analytics</h1>
+          <p className="text-sm text-slate-500 mt-1">{dateRange.label}: {new Date(dateRange.start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} - {new Date(dateRange.end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+        </div>
+        {onRefresh && (
+          <button
+            onClick={onRefresh}
+            className="p-2 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+            title="Refresh data"
+          >
+            <RefreshCw size={18} />
+          </button>
+        )}
       </div>
 
       {/* Filters Row */}
