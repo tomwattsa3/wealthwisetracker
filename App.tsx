@@ -1487,31 +1487,19 @@ const App: React.FC = () => {
                  />
                </div>
 
-              {/* Daily Average Card - Desktop - Inline style */}
-              <div className="hidden md:block">
-                <div className="bg-white rounded-xl border border-slate-200 py-3">
-                  <div className="flex items-center justify-between divide-x divide-slate-100">
-                    <div className="flex-1 px-6 flex items-center justify-between">
-                      <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Daily Avg</span>
-                      <span className="text-sm font-semibold text-slate-900">£{dailyAverageData.dailyAverage.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-                    <div className="flex-1 px-6 flex items-center justify-between">
-                      <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Total</span>
-                      <span className="text-sm font-semibold text-slate-900">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-                    <div className="flex-1 px-6 flex items-center justify-between">
-                      <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Avg Trans</span>
-                      <span className="text-sm font-semibold text-slate-900">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalSpend / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</span>
-                    </div>
-                    <div className="flex-1 px-6 flex items-center justify-between">
-                      <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Days</span>
-                      <span className="text-sm font-semibold text-slate-900">{dailyAverageData.daysInRange}</span>
-                    </div>
-                    <div className="flex-1 px-6 flex items-center justify-between">
-                      <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Transactions</span>
-                      <span className="text-sm font-semibold text-slate-900">{dailyAverageData.transactionCount}</span>
-                    </div>
-                  </div>
+              {/* Daily Average Card - Desktop - 3 Cards */}
+              <div className="hidden md:grid md:grid-cols-3 gap-3">
+                <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col items-center">
+                  <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">Total</span>
+                  <span className="text-lg font-semibold text-slate-900">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col items-center">
+                  <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">Average</span>
+                  <span className="text-lg font-semibold text-slate-900">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalSpend / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</span>
+                </div>
+                <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col items-center">
+                  <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">Trans</span>
+                  <span className="text-lg font-semibold text-slate-900">{dailyAverageData.transactionCount}</span>
                 </div>
               </div>
 
