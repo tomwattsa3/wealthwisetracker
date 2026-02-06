@@ -1084,28 +1084,28 @@ const App: React.FC = () => {
                   return (
                     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                       {/* Mercury Style Header */}
-                      <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100">
-                        <div className="flex items-center gap-2">
-                          <TrendingUp size={14} className="text-slate-400" />
-                          <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Income</span>
+                      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100">
+                        <div className="flex items-center gap-1.5">
+                          <TrendingUp size={12} className="text-slate-400" />
+                          <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Income</span>
                         </div>
-                        <span className="text-sm font-semibold text-slate-900 font-mono">£{incomeTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span className="text-xs font-semibold text-slate-900 font-mono">£{incomeTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
                       <div>
-                        {topIncomeGrouped.slice(0, 4).map((g, idx) => (
-                          <div key={g.description} className={`grid grid-cols-[1fr_auto_auto_auto] items-center py-2.5 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
-                            <span className="text-sm font-medium text-slate-700 truncate px-4 border-r border-slate-100">{g.description}</span>
-                            <span className="px-3 text-center border-r border-slate-100">
-                              <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] text-slate-500">{g.subcategoryName}</span>
+                        {topIncomeGrouped.slice(0, 6).map((g, idx) => (
+                          <div key={g.description} className={`grid grid-cols-[1fr_auto_auto_auto] items-center py-1.5 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                            <span className="text-xs font-medium text-slate-700 truncate px-3 border-r border-slate-100">{g.description}</span>
+                            <span className="px-2 text-center border-r border-slate-100">
+                              <span className="px-1 py-0.5 bg-slate-100 rounded text-[8px] text-slate-500">{g.subcategoryName}</span>
                             </span>
-                            <span className="px-3 text-center border-r border-slate-100 text-[10px] text-slate-400 w-8">
+                            <span className="px-2 text-center border-r border-slate-100 text-[9px] text-slate-400 w-6">
                               {g.count > 1 ? `x${g.count}` : ''}
                             </span>
-                            <span className="text-sm font-medium text-slate-700 px-4 text-right">£{g.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            <span className="text-xs font-medium text-slate-700 px-3 text-right">£{g.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           </div>
                         ))}
                         {topIncomeGrouped.length === 0 && (
-                          <div className="py-6 text-center text-slate-400 text-xs">No income</div>
+                          <div className="py-4 text-center text-slate-400 text-[10px]">No income</div>
                         )}
                       </div>
                     </div>
@@ -1139,16 +1139,16 @@ const App: React.FC = () => {
                   return (
                     <div key={`mobile-${index}-${catId}`} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                       {/* Mercury Style Header with Category Selector */}
-                      <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100">
-                        <div className="flex items-center gap-2 flex-1 min-w-0 mr-3">
+                      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100">
+                        <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-3">
                           <div
-                            className="w-2 h-2 rounded-full shrink-0"
+                            className="w-1.5 h-1.5 rounded-full shrink-0"
                             style={{ backgroundColor: cat.color }}
                           />
                           <select
                             value={catId}
                             onChange={(e) => handleMobileCategoryChange(index, e.target.value)}
-                            className="text-xs font-medium text-slate-400 uppercase tracking-wide bg-transparent outline-none border-0 cursor-pointer appearance-none flex-1 min-w-0"
+                            className="text-[10px] font-medium text-slate-400 uppercase tracking-wide bg-transparent outline-none border-0 cursor-pointer appearance-none flex-1 min-w-0"
                           >
                             {expenseCategories.map(c => (
                               <option key={c.id} value={c.id} className="text-slate-900 bg-white normal-case">{c.name}</option>
@@ -1156,11 +1156,11 @@ const App: React.FC = () => {
                           </select>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-sm font-semibold text-slate-900 font-mono">£{catTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          <span className="text-xs font-semibold text-slate-900 font-mono">£{catTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           {mobileCategoryIds.length > 1 && (
                             <button
                               onClick={() => handleRemoveMobileCardWithConfirm(index)}
-                              className="w-5 h-5 flex items-center justify-center text-slate-300 hover:text-slate-500 text-sm"
+                              className="w-4 h-4 flex items-center justify-center text-slate-300 hover:text-slate-500 text-xs"
                             >
                               ×
                             </button>
@@ -1170,20 +1170,20 @@ const App: React.FC = () => {
 
                       {/* Top Transactions - Grid with separators */}
                       <div>
-                        {topGrouped.slice(0, 4).map((g, idx) => (
-                          <div key={g.description} className={`grid grid-cols-[1fr_auto_auto_auto] items-center py-2.5 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
-                            <span className="text-sm font-medium text-slate-700 truncate px-4 border-r border-slate-100">{g.description}</span>
-                            <span className="px-3 text-center border-r border-slate-100">
-                              <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] text-slate-500">{g.subcategoryName}</span>
+                        {topGrouped.slice(0, 6).map((g, idx) => (
+                          <div key={g.description} className={`grid grid-cols-[1fr_auto_auto_auto] items-center py-1.5 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                            <span className="text-xs font-medium text-slate-700 truncate px-3 border-r border-slate-100">{g.description}</span>
+                            <span className="px-2 text-center border-r border-slate-100">
+                              <span className="px-1 py-0.5 bg-slate-100 rounded text-[8px] text-slate-500">{g.subcategoryName}</span>
                             </span>
-                            <span className="px-3 text-center border-r border-slate-100 text-[10px] text-slate-400 w-8">
+                            <span className="px-2 text-center border-r border-slate-100 text-[9px] text-slate-400 w-6">
                               {g.count > 1 ? `x${g.count}` : ''}
                             </span>
-                            <span className="text-sm font-medium text-slate-700 px-4 text-right">£{g.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            <span className="text-xs font-medium text-slate-700 px-3 text-right">£{g.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           </div>
                         ))}
                         {topGrouped.length === 0 && (
-                          <div className="py-6 text-center text-slate-400 text-xs">No transactions</div>
+                          <div className="py-4 text-center text-slate-400 text-[10px]">No transactions</div>
                         )}
                       </div>
                     </div>

@@ -35,20 +35,20 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle }) 
   };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-3 md:p-5 h-full flex flex-col justify-between">
+    <div className="bg-white rounded-xl border border-slate-200 p-2.5 md:p-5 h-full flex flex-col justify-between">
       {/* Header with icon and label */}
-      <div className="flex items-center gap-2 mb-2 md:mb-3">
+      <div className="flex items-center gap-1.5 mb-1 md:mb-3">
         {getIcon()}
-        <span className="text-[10px] md:text-xs font-medium text-slate-400 uppercase tracking-wide">{label}</span>
+        <span className="text-[9px] md:text-xs font-medium text-slate-400 uppercase tracking-wide">{label}</span>
       </div>
 
       {/* Amount */}
-      <p className="text-lg md:text-3xl font-semibold text-slate-900 mb-0.5 md:mb-1">
+      <p className="text-base md:text-3xl font-semibold text-slate-900 mb-0.5 md:mb-1">
         £{formattedAmount}
       </p>
 
       {/* Subtitle */}
-      <p className="text-[10px] md:text-xs text-slate-400">{getSubtitle()}</p>
+      <p className="text-[9px] md:text-xs text-slate-400">{getSubtitle()}</p>
     </div>
   );
 };
