@@ -223,24 +223,22 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     return (
         <>
             {/* Mobile Row */}
-            <div className={`md:hidden flex items-center justify-between px-3 py-1.5 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} ${isCategoryMissing ? '!bg-amber-50' : ''} ${isExcluded ? 'opacity-40' : ''}`}>
-                <div className="flex-1 min-w-0 mr-2">
+            <div className={`md:hidden flex items-center px-3 py-1.5 gap-2 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} ${isCategoryMissing ? '!bg-amber-50' : ''} ${isExcluded ? 'opacity-40' : ''}`}>
+                <span className={`w-6 text-center py-0.5 text-[8px] font-medium rounded border shrink-0 ${displayType === 'INCOME' ? 'text-emerald-600 border-emerald-200' : 'text-slate-400 border-slate-200'}`}>
+                    {displayType === 'INCOME' ? 'IN' : 'OUT'}
+                </span>
+                <div className="flex-1 min-w-0">
+                    <span className="text-xs font-medium text-slate-700 truncate block">{t.description || 'No merchant'}</span>
                     <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-medium text-slate-700 truncate">{t.description || 'No merchant'}</span>
+                        <span className="text-[9px] text-slate-400">{t.categoryName || 'Uncategorized'}</span>
                         {t.subcategoryName && (
-                            <span className="px-1 py-0.5 bg-slate-100 rounded text-[8px] text-slate-500 shrink-0">{t.subcategoryName}</span>
+                            <span className="px-1 py-0.5 bg-slate-100 rounded text-[8px] text-slate-500">{t.subcategoryName}</span>
                         )}
                     </div>
-                    <span className="text-[9px] text-slate-400 block">{t.categoryName || 'Uncategorized'}</span>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                    <span className={`w-6 text-center py-0.5 text-[8px] font-medium rounded border ${displayType === 'INCOME' ? 'text-emerald-600 border-emerald-200' : 'text-slate-400 border-slate-200'}`}>
-                        {displayType === 'INCOME' ? 'IN' : 'OUT'}
-                    </span>
-                    <span className={`text-xs font-medium tabular-nums ${isExcluded ? 'text-slate-400' : 'text-slate-700'}`}>
-                        £{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                </div>
+                <span className={`text-xs font-medium tabular-nums shrink-0 ${isExcluded ? 'text-slate-400' : 'text-slate-700'}`}>
+                    £{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
             </div>
 
             {/* Desktop Grid View - Mercury Table Style */}
