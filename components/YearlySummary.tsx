@@ -245,34 +245,34 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories 
           </div>
 
           {/* Right: Date Range Selector */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
-              <button
-                onClick={() => setDateRange(presets.lastMonth)}
-                className={`px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-md transition-all ${
-                  dateRange.label === 'Last Month' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                Last Month
-              </button>
-              <button
-                onClick={() => setDateRange(presets.thisYear)}
-                className={`px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-md transition-all ${
-                  dateRange.label === 'This Year' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                This Year
-              </button>
-              <button
-                onClick={() => setShowCustom(!showCustom)}
-                className={`px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-md transition-all flex items-center gap-1 ${
-                  dateRange.label === 'Custom' || showCustom ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                <Calendar size={14} />
-                Custom
-              </button>
-            </div>
+          <div className="flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5">
+            <button
+              onClick={() => setDateRange(presets.lastMonth)}
+              className={`px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-medium rounded-md transition-all ${
+                dateRange.label === 'Last Month' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <span className="md:hidden">Last Mo</span>
+              <span className="hidden md:inline">Last Month</span>
+            </button>
+            <button
+              onClick={() => setDateRange(presets.thisYear)}
+              className={`px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-medium rounded-md transition-all ${
+                dateRange.label === 'This Year' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <span className="md:hidden">Year</span>
+              <span className="hidden md:inline">This Year</span>
+            </button>
+            <button
+              onClick={() => setShowCustom(!showCustom)}
+              className={`px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-medium rounded-md transition-all flex items-center gap-0.5 ${
+                dateRange.label === 'Custom' || showCustom ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Calendar size={10} className="md:w-3 md:h-3" />
+              <span>Custom</span>
+            </button>
           </div>
         </div>
 
