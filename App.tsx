@@ -1066,34 +1066,28 @@ const App: React.FC = () => {
 
           {/* DASHBOARD VIEW - Mercury Bank Style */}
           {activeTab === 'home' && (
-            <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-500 px-2 sm:px-0">
+            <div className="space-y-3 sm:space-y-4 animate-in fade-in duration-500 px-2 sm:px-0">
 
-              {/* Mercury Style Header */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-xl md:text-xl font-semibold text-slate-900">Overview</h1>
-                  <p className="text-xs md:text-sm text-slate-400 mt-0.5">{dateRange.label}</p>
+              {/* Compact Header - Date + Currency on same row */}
+              <div className="flex items-center justify-between gap-2">
+                {/* Date Filter */}
+                <div className="flex-1 max-w-[140px] md:max-w-[160px]">
+                  <DashboardDateFilter range={dateRange} onRangeChange={setDateRange} />
                 </div>
-                <div className="flex items-center gap-2">
-                  {/* Currency Switcher */}
-                  <div className="flex bg-slate-100 p-0.5 rounded-lg">
-                    <button
-                      onClick={() => setCurrency('GBP')}
-                      className={`px-2.5 py-1 text-[10px] md:text-xs font-semibold rounded-md transition-all ${currency === 'GBP' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                      £ GBP
-                    </button>
-                    <button
-                      onClick={() => setCurrency('AED')}
-                      className={`px-2.5 py-1 text-[10px] md:text-xs font-semibold rounded-md transition-all ${currency === 'AED' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                      AED
-                    </button>
-                  </div>
-                  {/* Mobile Date Filter */}
-                  <div className="md:hidden w-32">
-                    <DashboardDateFilter range={dateRange} onRangeChange={setDateRange} />
-                  </div>
+                {/* Currency Switcher */}
+                <div className="flex bg-slate-100 p-0.5 rounded-lg">
+                  <button
+                    onClick={() => setCurrency('GBP')}
+                    className={`px-2 py-1 text-[10px] md:text-xs font-semibold rounded-md transition-all ${currency === 'GBP' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    £ GBP
+                  </button>
+                  <button
+                    onClick={() => setCurrency('AED')}
+                    className={`px-2 py-1 text-[10px] md:text-xs font-semibold rounded-md transition-all ${currency === 'AED' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    AED
+                  </button>
                 </div>
               </div>
 
