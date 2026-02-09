@@ -100,7 +100,7 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
   const totalAmount = filteredTransactions.reduce((sum, t) => sum + getAmount(t), 0);
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-[380px] overflow-hidden">
+    <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-[520px] overflow-hidden">
 
       {/* Mercury Style Header */}
       <div className="px-4 py-3 border-b border-slate-100 flex justify-between items-center">
