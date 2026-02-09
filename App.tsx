@@ -1139,27 +1139,27 @@ const App: React.FC = () => {
                           <TrendingUp size={12} className="text-slate-400" />
                           <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Income</span>
                         </div>
-                        <span className="text-xs font-semibold text-slate-900 font-mono">{formatCurrency(incomeTotal)}</span>
+                        <span className={`${currency === 'AED' ? 'text-[10px]' : 'text-xs'} font-semibold text-slate-900 font-mono`}>{formatCurrency(incomeTotal)}</span>
                       </div>
                       <div>
                         {/* Spreadsheet Header */}
                         <div className="grid grid-cols-[1fr_auto_auto] bg-slate-50/80 border-b border-slate-200 sticky top-0">
                           <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider border-r border-slate-200">Merchant</div>
                           <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-slate-200 w-10">Qty</div>
-                          <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-right w-20">Amount</div>
+                          <div className={`px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-right ${currency === 'AED' ? 'w-24' : 'w-20'}`}>Amount</div>
                         </div>
                         <div className="max-h-[180px] overflow-y-auto">
                           {topIncomeGrouped.map((g) => (
                             <div key={g.description} className="grid grid-cols-[1fr_auto_auto] items-center bg-white border-b border-slate-200 last:border-b-0">
                               <div className="px-2 py-2 border-r border-slate-200 flex items-center gap-1.5 min-w-0">
-                                <span className="text-[11px] font-medium text-slate-700 truncate">{g.description}</span>
+                                <span className={`${currency === 'AED' ? 'text-[10px]' : 'text-[11px]'} font-medium text-slate-700 truncate`}>{g.description}</span>
                                 <span className="px-1 py-0.5 bg-slate-100 rounded text-[7px] text-slate-500 shrink-0">{g.subcategoryName}</span>
                               </div>
                               <div className="px-2 py-2 text-center border-r border-slate-200 w-10">
-                                <span className="text-[11px] text-slate-500">{g.count > 1 ? g.count : '-'}</span>
+                                <span className={`${currency === 'AED' ? 'text-[10px]' : 'text-[11px]'} text-slate-500`}>{g.count > 1 ? g.count : '-'}</span>
                               </div>
-                              <div className="px-2 py-2 text-right w-20">
-                                <span className="text-[11px] font-semibold text-slate-800">{formatCurrency(g.amount)}</span>
+                              <div className={`px-2 py-2 text-right ${currency === 'AED' ? 'w-24' : 'w-20'}`}>
+                                <span className={`${currency === 'AED' ? 'text-[9px]' : 'text-[11px]'} font-semibold text-slate-800`}>{formatCurrency(g.amount)}</span>
                               </div>
                             </div>
                           ))}
@@ -1216,7 +1216,7 @@ const App: React.FC = () => {
                           </select>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-xs font-semibold text-slate-900 font-mono">{formatCurrency(catTotal)}</span>
+                          <span className={`${currency === 'AED' ? 'text-[10px]' : 'text-xs'} font-semibold text-slate-900 font-mono`}>{formatCurrency(catTotal)}</span>
                           {mobileCategoryIds.length > 1 && (
                             <button
                               onClick={() => handleRemoveMobileCardWithConfirm(index)}
@@ -1234,20 +1234,20 @@ const App: React.FC = () => {
                         <div className="grid grid-cols-[1fr_auto_auto] bg-slate-50/80 border-b border-slate-200 sticky top-0">
                           <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider border-r border-slate-200">Merchant</div>
                           <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-slate-200 w-10">Qty</div>
-                          <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-right w-20">Amount</div>
+                          <div className={`px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-right ${currency === 'AED' ? 'w-24' : 'w-20'}`}>Amount</div>
                         </div>
                         <div className="max-h-[180px] overflow-y-auto">
                           {topGrouped.map((g) => (
                             <div key={g.description} className="grid grid-cols-[1fr_auto_auto] items-center bg-white border-b border-slate-200 last:border-b-0">
                               <div className="px-2 py-2 border-r border-slate-200 flex items-center gap-1.5 min-w-0">
-                                <span className="text-[11px] font-medium text-slate-700 truncate">{g.description}</span>
+                                <span className={`${currency === 'AED' ? 'text-[10px]' : 'text-[11px]'} font-medium text-slate-700 truncate`}>{g.description}</span>
                                 <span className="px-1 py-0.5 bg-slate-100 rounded text-[7px] text-slate-500 shrink-0">{g.subcategoryName}</span>
                               </div>
                               <div className="px-2 py-2 text-center border-r border-slate-200 w-10">
-                                <span className="text-[11px] text-slate-500">{g.count > 1 ? g.count : '-'}</span>
+                                <span className={`${currency === 'AED' ? 'text-[10px]' : 'text-[11px]'} text-slate-500`}>{g.count > 1 ? g.count : '-'}</span>
                               </div>
-                              <div className="px-2 py-2 text-right w-20">
-                                <span className="text-[11px] font-semibold text-slate-800">{formatCurrency(g.amount)}</span>
+                              <div className={`px-2 py-2 text-right ${currency === 'AED' ? 'w-24' : 'w-20'}`}>
+                                <span className={`${currency === 'AED' ? 'text-[9px]' : 'text-[11px]'} font-semibold text-slate-800`}>{formatCurrency(g.amount)}</span>
                               </div>
                             </div>
                           ))}

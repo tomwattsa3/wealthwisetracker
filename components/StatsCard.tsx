@@ -45,7 +45,7 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
       </div>
 
       {/* Amount */}
-      <p className="text-base md:text-xl font-semibold text-slate-900 mb-0.5 md:mb-1">
+      <p className={`${currency === 'AED' ? 'text-sm md:text-lg' : 'text-base md:text-xl'} font-semibold text-slate-900 mb-0.5 md:mb-1`}>
         {currencyDisplay}
       </p>
 
