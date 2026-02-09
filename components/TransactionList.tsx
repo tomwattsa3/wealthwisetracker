@@ -324,14 +324,15 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 </div>
 
                 {/* 8. Action */}
-                <div className="px-4 flex items-center justify-end gap-1">
+                <div className="px-3 flex items-center justify-end gap-1.5">
                     {isDirty && (
                         <button
                             onClick={handleManualSave}
-                            className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
+                            className="px-2 py-1 text-xs font-medium text-white bg-indigo-500 hover:bg-indigo-600 rounded-md transition-colors flex items-center gap-1"
                             title="Save"
                         >
-                            <Save size={14} />
+                            <Save size={12} />
+                            <span>Save</span>
                         </button>
                     )}
                     {saveStatus === 'success' && (
@@ -339,14 +340,14 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                     )}
                     <button
                         onClick={(e) => { e.stopPropagation(); onExclude(t.id); }}
-                        className={`p-1 transition-colors ${isExcluded ? 'text-emerald-500' : 'text-slate-300 hover:text-slate-500'}`}
+                        className={`p-1.5 rounded-md transition-colors ${isExcluded ? 'text-white bg-emerald-500 hover:bg-emerald-600' : 'text-amber-600 bg-amber-100 hover:bg-amber-200'}`}
                         title={isExcluded ? "Include" : "Exclude"}
                     >
                         {isExcluded ? <Eye size={14} /> : <EyeOff size={14} />}
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
-                        className="p-1 text-slate-300 hover:text-slate-500 transition-colors"
+                        className="p-1.5 text-rose-600 bg-rose-100 hover:bg-rose-200 rounded-md transition-colors"
                         title="Delete"
                     >
                         <Trash2 size={14} />
@@ -359,7 +360,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
 
 const TransactionList: React.FC<TransactionListProps> = ({ transactions, categories, onUpdate, onDelete }) => {
   // Desktop Grid Template: Date | Type | Category | Subcategory | Merchant | GBP | AED | Action
-  const gridTemplate = "grid-cols-[100px_80px_140px_140px_1fr_100px_100px_70px]";
+  const gridTemplate = "grid-cols-[100px_80px_140px_140px_1fr_85px_85px_130px]";
   // Mobile Grid Template: simplified
   const mobileGridTemplate = "grid-cols-[1fr_auto_auto]";
 
