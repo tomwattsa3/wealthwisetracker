@@ -243,12 +243,12 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
             {/* Desktop Grid View - Mercury Table Style */}
             <div className={`hidden md:grid ${gridTemplate} items-center py-4 border-b border-slate-800 ${isCategoryMissing ? 'bg-amber-50' : isDirty ? 'bg-indigo-50/30' : 'bg-white'} ${isExcluded ? 'opacity-50' : ''}`}>
                 {/* 1. Date */}
-                <div className="px-6">
-                    <span className="text-sm text-slate-400">{t.date}</span>
+                <div className="px-4">
+                    <span className="text-sm font-semibold text-slate-700 whitespace-nowrap">{t.date}</span>
                 </div>
 
                 {/* 2. Type - Pill Style */}
-                <div className="px-6">
+                <div className="px-4">
                     <span className={`inline-block px-2 py-0.5 text-[10px] font-medium rounded ${displayType === 'INCOME' ? 'text-white bg-emerald-500' : 'text-white bg-rose-500'}`}>
                         {displayType === 'INCOME' ? 'INCOME' : 'EXPENSE'}
                     </span>
@@ -359,7 +359,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
 
 const TransactionList: React.FC<TransactionListProps> = ({ transactions, categories, onUpdate, onDelete }) => {
   // Desktop Grid Template: Date | Type | Category | Subcategory | Merchant | GBP | AED | Action
-  const gridTemplate = "grid-cols-[95px_85px_150px_150px_1fr_110px_110px_80px]";
+  const gridTemplate = "grid-cols-[100px_80px_140px_140px_1fr_100px_100px_70px]";
   // Mobile Grid Template: simplified
   const mobileGridTemplate = "grid-cols-[1fr_auto_auto]";
 
@@ -427,8 +427,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
         <div className="flex flex-col h-full bg-transparent overflow-visible md:overflow-hidden">
         {/* Desktop Header - Mercury Table Style */}
         <div className={`hidden md:grid ${gridTemplate} py-3 border-b border-slate-200 text-[11px] font-medium text-slate-400 uppercase tracking-wider`}>
-            <div className="px-6">Date</div>
-            <div className="px-6">Type</div>
+            <div className="px-4">Date</div>
+            <div className="px-4">Type</div>
             <div className="pl-6 pr-4">Category</div>
             <div className="pl-4 pr-6">Subcategory</div>
             <div className="px-8 border-l border-slate-100">Merchant</div>
