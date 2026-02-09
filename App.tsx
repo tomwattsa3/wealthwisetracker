@@ -1148,7 +1148,7 @@ const App: React.FC = () => {
                           <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-slate-200 w-10">Qty</div>
                           <div className={`px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-right ${currency === 'AED' ? 'w-24' : 'w-20'}`}>Amount</div>
                         </div>
-                        <div className="max-h-[180px] overflow-y-auto">
+                        <div className="max-h-[420px] overflow-y-auto">
                           {topIncomeGrouped.map((g) => (
                             <div key={g.description} className="grid grid-cols-[1fr_auto_auto] items-center bg-white border-b border-slate-200 last:border-b-0">
                               <div className="px-2 py-2 border-r border-slate-200 flex items-center gap-1.5 min-w-0">
@@ -1236,7 +1236,7 @@ const App: React.FC = () => {
                           <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-slate-200 w-10">Qty</div>
                           <div className={`px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-right ${currency === 'AED' ? 'w-24' : 'w-20'}`}>Amount</div>
                         </div>
-                        <div className="max-h-[180px] overflow-y-auto">
+                        <div className="max-h-[420px] overflow-y-auto">
                           {topGrouped.map((g) => (
                             <div key={g.description} className="grid grid-cols-[1fr_auto_auto] items-center bg-white border-b border-slate-200 last:border-b-0">
                               <div className="px-2 py-2 border-r border-slate-200 flex items-center gap-1.5 min-w-0">
