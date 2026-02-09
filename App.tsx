@@ -1441,7 +1441,7 @@ const App: React.FC = () => {
                         <div className="max-h-[420px] overflow-y-auto">
                           {topIncomeGrouped.map((g) => (
                             <div key={g.description} className="grid grid-cols-[1fr_auto_auto] items-center bg-white border-b border-dashed border-slate-300 last:border-b-0">
-                              <div className="px-2 py-2 border-r border-slate-200 flex items-center gap-1.5 min-w-0">
+                              <div className="px-2 py-2 border-r border-slate-200 flex items-center justify-between gap-1.5 min-w-0">
                                 <span className={`${currency === 'AED' ? 'text-[10px]' : 'text-[11px]'} font-medium text-slate-700 truncate`}>{g.description}</span>
                                 <span className="px-1 py-0.5 bg-slate-100 rounded text-[7px] text-slate-500 shrink-0">{g.subcategoryName}</span>
                               </div>
@@ -1529,7 +1529,7 @@ const App: React.FC = () => {
                         <div className="max-h-[420px] overflow-y-auto">
                           {topGrouped.map((g) => (
                             <div key={g.description} className="grid grid-cols-[1fr_auto_auto] items-center bg-white border-b border-dashed border-slate-300 last:border-b-0">
-                              <div className="px-2 py-2 border-r border-slate-200 flex items-center gap-1.5 min-w-0">
+                              <div className="px-2 py-2 border-r border-slate-200 flex items-center justify-between gap-1.5 min-w-0">
                                 <span className={`${currency === 'AED' ? 'text-[10px]' : 'text-[11px]'} font-medium text-slate-700 truncate`}>{g.description}</span>
                                 <span className="px-1 py-0.5 bg-slate-100 rounded text-[7px] text-slate-500 shrink-0">{g.subcategoryName}</span>
                               </div>
