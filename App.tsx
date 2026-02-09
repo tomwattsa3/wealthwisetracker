@@ -1071,7 +1071,7 @@ const App: React.FC = () => {
               {/* Mercury Style Header */}
               <div className="flex items-center justify-between">
                 <div>
-                  <h1 className="text-xl md:text-2xl font-semibold text-slate-900">Overview</h1>
+                  <h1 className="text-xl md:text-xl font-semibold text-slate-900">Overview</h1>
                   <p className="text-xs md:text-sm text-slate-400 mt-0.5">{dateRange.label}</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1446,7 +1446,7 @@ const App: React.FC = () => {
                         <div className="pt-4 mt-4 border-t border-slate-100 flex-shrink-0">
                             <div className="flex items-center justify-between">
                                 <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Total Expenses</span>
-                                <span className="text-xl sm:text-2xl font-semibold text-slate-900 font-mono">{formatCurrency(globalSummary.totalExpense)}</span>
+                                <span className="text-lg sm:text-xl font-semibold text-slate-900 font-mono">{formatCurrency(globalSummary.totalExpense)}</span>
                             </div>
                         </div>
 
@@ -1544,15 +1544,15 @@ const App: React.FC = () => {
               <div className="hidden md:grid md:grid-cols-3 gap-3">
                 <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col items-center">
                   <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">Total</span>
-                  <span className="text-lg font-semibold text-slate-900">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span className="text-base font-semibold text-slate-900">£{dailyAverageData.totalSpend.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col items-center">
                   <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">Avg/Trans</span>
-                  <span className="text-lg font-semibold text-slate-900">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalSpend / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</span>
+                  <span className="text-base font-semibold text-slate-900">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalSpend / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</span>
                 </div>
                 <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col items-center">
                   <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">Trans</span>
-                  <span className="text-lg font-semibold text-slate-900">{dailyAverageData.transactionCount}</span>
+                  <span className="text-base font-semibold text-slate-900">{dailyAverageData.transactionCount}</span>
                 </div>
               </div>
 
