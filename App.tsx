@@ -1144,26 +1144,26 @@ const App: React.FC = () => {
                       <div>
                         {/* Spreadsheet Header */}
                         <div className="grid grid-cols-[1fr_auto_auto] bg-slate-50/80 border-b border-slate-200">
-                          <div className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-r border-slate-200">Merchant</div>
-                          <div className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-slate-200 w-12">Qty</div>
-                          <div className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-right w-24">Amount</div>
+                          <div className="px-2 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider border-r border-slate-200">Merchant</div>
+                          <div className="px-2 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-slate-200 w-10">Qty</div>
+                          <div className="px-2 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right w-20">Amount</div>
                         </div>
                         {topIncomeGrouped.slice(0, 6).map((g) => (
                           <div key={g.description} className="grid grid-cols-[1fr_auto_auto] items-center bg-white border-b border-slate-200 last:border-b-0">
-                            <div className="px-3 py-3 border-r border-slate-200">
-                              <span className="text-sm font-medium text-slate-700 block truncate">{g.description}</span>
-                              <span className="text-[10px] text-slate-400">{g.subcategoryName}</span>
+                            <div className="px-2 py-2 border-r border-slate-200 flex items-center gap-1.5 min-w-0">
+                              <span className="text-xs font-medium text-slate-700 truncate">{g.description}</span>
+                              <span className="px-1 py-0.5 bg-slate-100 rounded text-[8px] text-slate-500 shrink-0">{g.subcategoryName}</span>
                             </div>
-                            <div className="px-3 py-3 text-center border-r border-slate-200 w-12">
-                              <span className="text-sm text-slate-500">{g.count > 1 ? g.count : '-'}</span>
+                            <div className="px-2 py-2 text-center border-r border-slate-200 w-10">
+                              <span className="text-xs text-slate-500">{g.count > 1 ? g.count : '-'}</span>
                             </div>
-                            <div className="px-3 py-3 text-right w-24">
-                              <span className="text-sm font-semibold text-slate-800">{formatCurrency(g.amount)}</span>
+                            <div className="px-2 py-2 text-right w-20">
+                              <span className="text-xs font-semibold text-slate-800">{formatCurrency(g.amount)}</span>
                             </div>
                           </div>
                         ))}
                         {topIncomeGrouped.length === 0 && (
-                          <div className="py-4 text-center text-slate-400 text-[10px]">No income</div>
+                          <div className="py-3 text-center text-slate-400 text-[10px]">No income</div>
                         )}
                       </div>
                     </div>
@@ -1231,26 +1231,26 @@ const App: React.FC = () => {
                       <div>
                         {/* Spreadsheet Header */}
                         <div className="grid grid-cols-[1fr_auto_auto] bg-slate-50/80 border-b border-slate-200">
-                          <div className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-r border-slate-200">Merchant</div>
-                          <div className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-slate-200 w-12">Qty</div>
-                          <div className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-right w-24">Amount</div>
+                          <div className="px-2 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider border-r border-slate-200">Merchant</div>
+                          <div className="px-2 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-slate-200 w-10">Qty</div>
+                          <div className="px-2 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right w-20">Amount</div>
                         </div>
                         {topGrouped.slice(0, 6).map((g) => (
                           <div key={g.description} className="grid grid-cols-[1fr_auto_auto] items-center bg-white border-b border-slate-200 last:border-b-0">
-                            <div className="px-3 py-3 border-r border-slate-200">
-                              <span className="text-sm font-medium text-slate-700 block truncate">{g.description}</span>
-                              <span className="text-[10px] text-slate-400">{g.subcategoryName}</span>
+                            <div className="px-2 py-2 border-r border-slate-200 flex items-center gap-1.5 min-w-0">
+                              <span className="text-xs font-medium text-slate-700 truncate">{g.description}</span>
+                              <span className="px-1 py-0.5 bg-slate-100 rounded text-[8px] text-slate-500 shrink-0">{g.subcategoryName}</span>
                             </div>
-                            <div className="px-3 py-3 text-center border-r border-slate-200 w-12">
-                              <span className="text-sm text-slate-500">{g.count > 1 ? g.count : '-'}</span>
+                            <div className="px-2 py-2 text-center border-r border-slate-200 w-10">
+                              <span className="text-xs text-slate-500">{g.count > 1 ? g.count : '-'}</span>
                             </div>
-                            <div className="px-3 py-3 text-right w-24">
-                              <span className="text-sm font-semibold text-slate-800">{formatCurrency(g.amount)}</span>
+                            <div className="px-2 py-2 text-right w-20">
+                              <span className="text-xs font-semibold text-slate-800">{formatCurrency(g.amount)}</span>
                             </div>
                           </div>
                         ))}
                         {topGrouped.length === 0 && (
-                          <div className="py-4 text-center text-slate-400 text-[10px]">No transactions</div>
+                          <div className="py-3 text-center text-slate-400 text-[10px]">No transactions</div>
                         )}
                       </div>
                     </div>
