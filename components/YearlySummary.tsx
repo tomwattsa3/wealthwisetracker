@@ -614,13 +614,13 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
           {/* Highest Expenses */}
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div className="p-4 md:p-5 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-semibold text-slate-900">Highest Expenses</h3>
-              <span className="text-[10px] font-medium text-slate-400 bg-slate-100 px-2 py-1 rounded">TOP 5</span>
+            <div className="p-3 md:p-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="font-semibold text-slate-900 text-sm">Highest Expenses</h3>
+              <span className="text-[9px] font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">TOP 5</span>
             </div>
 
             {/* Header */}
-            <div className="grid grid-cols-3 gap-4 px-4 md:px-5 py-2 bg-slate-50 text-[10px] md:text-xs font-medium text-slate-500 uppercase tracking-wide border-b border-slate-100">
+            <div className="grid grid-cols-3 gap-3 px-3 md:px-4 py-1.5 bg-slate-50 text-[9px] md:text-[10px] font-medium text-slate-500 uppercase tracking-wide border-b border-slate-100">
               <div>Category</div>
               <div className="text-right">Amount</div>
               <div className="text-right">Share</div>
@@ -630,22 +630,22 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
               {topExpenseCategories.map((cat, idx) => {
                 const percentage = totalExpense > 0 ? ((cat.amount / totalExpense) * 100).toFixed(1) : '0';
                 return (
-                  <div key={idx} className="grid grid-cols-3 gap-4 px-4 md:px-5 py-3 md:py-4 hover:bg-slate-50 transition-colors">
+                  <div key={idx} className="grid grid-cols-3 gap-3 px-3 md:px-4 py-2 md:py-2.5 hover:bg-slate-50 transition-colors">
                     <div className="min-w-0">
-                      <p className="font-medium text-slate-900 text-sm truncate">{cat.name}</p>
-                      <p className="text-[10px] text-slate-400">{cat.count} transactions</p>
+                      <p className="font-medium text-slate-900 text-xs truncate">{cat.name}</p>
+                      <p className="text-[9px] text-slate-400">{cat.count} transactions</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-semibold text-slate-900">£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</p>
+                      <p className="text-xs font-semibold text-slate-900">£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium text-rose-600">{percentage}%</p>
+                      <p className="text-xs font-medium text-rose-600">{percentage}%</p>
                     </div>
                   </div>
                 );
               })}
               {topExpenseCategories.length === 0 && (
-                <div className="px-5 py-8 text-center text-slate-400 text-sm">No expenses recorded</div>
+                <div className="px-4 py-6 text-center text-slate-400 text-xs">No expenses recorded</div>
               )}
             </div>
           </div>
