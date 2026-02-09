@@ -1368,12 +1368,8 @@ const App: React.FC = () => {
           {activeTab === 'home' && (
             <div className="space-y-3 sm:space-y-4 animate-in fade-in duration-500 px-2 sm:px-0">
 
-              {/* Compact Header - Date + Currency on same row */}
-              <div className="flex items-center justify-between gap-2">
-                {/* Date Filter */}
-                <div className="flex-1 max-w-[140px] md:max-w-[160px]">
-                  <DashboardDateFilter range={dateRange} onRangeChange={setDateRange} />
-                </div>
+              {/* Compact Header - Currency Switcher */}
+              <div className="flex items-center justify-end gap-2">
                 {/* Currency Switcher */}
                 <div className="flex bg-slate-100 p-0.5 rounded-lg">
                   <button
