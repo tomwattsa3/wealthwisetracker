@@ -1994,7 +1994,7 @@ const App: React.FC = () => {
       {/* Import Review Modal */}
       {importReviewOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-[80vw] max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
               <div className="flex items-center gap-3">
@@ -2049,11 +2049,20 @@ const App: React.FC = () => {
                             <p className="text-xs text-slate-400">{t.date} • {t.bankName}</p>
                           </div>
 
-                          {/* Amount */}
-                          <div className="text-right sm:w-24">
-                            <p className={`font-bold font-mono ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
-                              {t.type === 'INCOME' ? '+' : '-'}£{t.amountGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </p>
+                          {/* Amounts - GBP & AED */}
+                          <div className="flex items-center gap-4 sm:w-48">
+                            <div className="text-right">
+                              <p className={`font-bold font-mono text-sm ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                                {t.type === 'INCOME' ? '+' : '-'}£{t.amountGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </p>
+                              <p className="text-[10px] text-slate-400 font-mono">GBP</p>
+                            </div>
+                            <div className="text-right">
+                              <p className={`font-bold font-mono text-sm ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                                {t.type === 'INCOME' ? '+' : '-'}{t.amountAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </p>
+                              <p className="text-[10px] text-slate-400 font-mono">AED</p>
+                            </div>
                           </div>
 
                           {/* Category Selector */}
