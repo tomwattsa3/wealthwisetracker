@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Transaction, Category } from '../types';
-import { EyeOff, Eye, FileSpreadsheet, Save, AlertTriangle, Check, Trash2 } from 'lucide-react';
+import { EyeOff, Eye, FileSpreadsheet, Save, AlertTriangle, Check, Trash2, ArrowUpDown } from 'lucide-react';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -364,6 +364,18 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
   // Mobile Grid Template: simplified
   const mobileGridTemplate = "grid-cols-[1fr_auto_auto]";
 
+  // Sort state: 'newest' or 'oldest'
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+
+  // Sorted transactions
+  const sortedTransactions = useMemo(() => {
+    return [...transactions].sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+    });
+  }, [transactions, sortOrder]);
+
   // State for tracking which transaction is pending delete
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
 
@@ -428,7 +440,14 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
         <div className="flex flex-col h-full bg-transparent overflow-visible md:overflow-hidden">
         {/* Desktop Header - Mercury Table Style */}
         <div className={`hidden md:grid ${gridTemplate} py-3 border-b border-slate-200 text-[11px] font-medium text-slate-400 uppercase tracking-wider`}>
-            <div className="px-4">Date</div>
+            <button
+              onClick={() => setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest')}
+              className="px-4 flex items-center gap-1 hover:text-slate-600 transition-colors"
+            >
+              Date
+              <ArrowUpDown size={10} />
+              <span className="text-[9px] normal-case">({sortOrder === 'newest' ? 'New' : 'Old'})</span>
+            </button>
             <div className="px-4">Type</div>
             <div className="pl-6 pr-4">Category</div>
             <div className="pl-4 pr-6">Subcategory</div>
@@ -440,13 +459,19 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
 
         {/* Mobile Header - Mercury Style */}
         <div className="md:hidden flex items-center justify-between px-3 py-2 border-b border-slate-200">
-            <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Transactions</span>
+            <button
+              onClick={() => setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest')}
+              className="flex items-center gap-1 text-[9px] font-medium text-slate-400 uppercase tracking-wider hover:text-slate-600"
+            >
+              <ArrowUpDown size={10} />
+              {sortOrder === 'newest' ? 'Newest First' : 'Oldest First'}
+            </button>
             <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Amount</span>
         </div>
 
         {/* Rows */}
         <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-2 md:gap-3 py-1 md:py-3 pb-8 md:pb-3 min-h-[350px] md:min-h-[450px]">
-            {transactions.map((t, index) => (
+            {sortedTransactions.map((t, index) => (
                 <TransactionRow
                     key={t.id}
                     t={t}
