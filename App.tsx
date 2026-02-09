@@ -2123,13 +2123,13 @@ const App: React.FC = () => {
 
             {/* Transaction List */}
             {/* Header Row */}
-            <div className="px-4 py-2 bg-slate-100 border-b border-slate-200">
-              <div className="flex items-center gap-3">
-                <div className="w-[80px] text-[10px] font-bold text-slate-500 uppercase">Date</div>
-                <div className="w-[80px] text-[10px] font-bold text-slate-500 uppercase">Bank</div>
+            <div className="px-3 py-2 bg-slate-100 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <div className="w-[75px] text-[10px] font-bold text-slate-500 uppercase">Date</div>
+                <div className="w-[70px] text-[10px] font-bold text-slate-500 uppercase">Bank</div>
                 <div className="flex-1 text-[10px] font-bold text-slate-500 uppercase">Merchant</div>
-                <div className="w-[90px] text-[10px] font-bold text-slate-500 uppercase text-right">GBP</div>
-                <div className="w-[90px] text-[10px] font-bold text-slate-500 uppercase text-right">AED</div>
+                <div className="w-[85px] text-[10px] font-bold text-slate-500 uppercase text-right">GBP</div>
+                <div className="w-[85px] text-[10px] font-bold text-slate-500 uppercase text-right">AED</div>
                 <div className="w-[120px] text-[10px] font-bold text-slate-500 uppercase">Category</div>
                 <div className="w-[120px] text-[10px] font-bold text-slate-500 uppercase">Subcategory</div>
               </div>
@@ -2140,15 +2140,15 @@ const App: React.FC = () => {
                 {pendingImportTransactions.map(t => {
                     const currentCategory = categories.find(c => c.id === t.categoryId);
                     return (
-                      <div key={t.id} className={`px-4 py-2.5 hover:bg-slate-50 transition-colors ${!t.categoryId ? 'bg-amber-50/50' : ''}`}>
-                        <div className="flex items-center gap-3">
+                      <div key={t.id} className={`px-3 py-2.5 hover:bg-slate-50 transition-colors ${!t.categoryId ? 'bg-amber-50/50' : ''}`}>
+                        <div className="flex items-center gap-2">
                           {/* Date */}
-                          <div className="w-[80px] shrink-0">
+                          <div className="w-[75px] shrink-0">
                             <p className="text-sm font-medium text-slate-700">{t.date}</p>
                           </div>
 
                           {/* Bank */}
-                          <div className="w-[80px] shrink-0">
+                          <div className="w-[70px] shrink-0">
                             <p className="text-xs text-slate-600 truncate" title={t.bankName}>{t.bankName}</p>
                           </div>
 
@@ -2158,14 +2158,14 @@ const App: React.FC = () => {
                           </div>
 
                           {/* GBP Amount */}
-                          <div className="w-[90px] shrink-0 text-right">
+                          <div className="w-[85px] shrink-0 text-right">
                             <p className={`font-bold font-mono text-sm ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
                               £{t.amountGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
                           </div>
 
                           {/* AED Amount */}
-                          <div className="w-[90px] shrink-0 text-right">
+                          <div className="w-[85px] shrink-0 text-right">
                             <p className={`font-bold font-mono text-sm ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
                               {t.amountAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
