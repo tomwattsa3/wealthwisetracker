@@ -127,9 +127,10 @@ const App: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Import Review Modal State
+  // Import Review Modal State - Pending transactions not yet saved
   const [importReviewOpen, setImportReviewOpen] = useState(false);
-  const [importedTransactionIds, setImportedTransactionIds] = useState<string[]>([]);
+  const [pendingImportTransactions, setPendingImportTransactions] = useState<Transaction[]>([]);
+  const [savingImport, setSavingImport] = useState(false);
 
   // Sidebar State
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -520,75 +521,135 @@ const App: React.FC = () => {
     }
   };
 
-  const handleImportTransactions = async (imported: Omit<Transaction, 'id'>[]) => {
-      // Map all to your Supabase schema
-      const dbPayloads = imported.map(t => {
+  // Store imported transactions in pending state (NOT saved to Supabase yet)
+  const handleImportTransactions = (imported: Omit<Transaction, 'id'>[]) => {
+      // Create pending transactions with temporary IDs
+      const pendingTxs: Transaction[] = imported.map((t, index) => {
           const isIncome = t.type === 'INCOME';
           const gbpAmount = t.amountGBP || t.amount || 0;
           const aedAmount = t.amountAED || t.originalAmount || 0;
+
+          // Find categoryId from category name (for auto-categorized ones)
+          const matchedCategory = t.categoryName
+            ? categories.find(c => c.name.toLowerCase() === t.categoryName.toLowerCase())
+            : null;
+
           return {
-            'Transaction Date': t.date,
-            'Description': t.description,
-            'Catagory': t.categoryName,
-            'Sub-Category': t.subcategoryName,
-            'Money Out - GBP': isIncome ? null : gbpAmount,
-            'Money In - GBP': isIncome ? gbpAmount : null,
-            'Money Out - AED': isIncome ? null : aedAmount,
-            'Money In - AED': isIncome ? aedAmount : null,
-            'Bank Account': t.bankName,
-            'Note': t.notes || null
+            id: `pending-${Date.now()}-${index}`, // Temporary ID
+            date: t.date,
+            amount: gbpAmount,
+            amountGBP: gbpAmount,
+            amountAED: aedAmount,
+            originalAmount: aedAmount > 0 ? aedAmount : undefined,
+            originalCurrency: aedAmount > 0 ? 'AED' : undefined,
+            type: isIncome ? 'INCOME' as const : 'EXPENSE' as const,
+            categoryId: matchedCategory?.id || t.categoryId || '',
+            categoryName: t.categoryName || '',
+            subcategoryName: t.subcategoryName || '',
+            description: t.description || '',
+            notes: t.notes || '',
+            excluded: false,
+            bankName: t.bankName || '',
+            createdAt: new Date().toISOString()
           };
       });
 
-      console.log('Importing transactions to Supabase:', dbPayloads.length);
-      const { data, error } = await supabase.from('Transactions').insert(dbPayloads).select();
+      console.log('Staging transactions for review:', pendingTxs.length);
+      setPendingImportTransactions(pendingTxs);
+      setImportReviewOpen(true);
+  };
 
-      if (error) {
-        console.error('Supabase import error:', error.message);
-        alert('Failed to import transactions: ' + error.message);
-        return;
+  // Update a pending transaction (before saving)
+  const updatePendingTransaction = (id: string, updates: Partial<Transaction>) => {
+    setPendingImportTransactions(prev =>
+      prev.map(t => t.id === id ? { ...t, ...updates } : t)
+    );
+  };
+
+  // Save all pending transactions to Supabase
+  const saveImportedTransactions = async () => {
+    if (pendingImportTransactions.length === 0) return;
+
+    setSavingImport(true);
+
+    // Map to Supabase schema
+    const dbPayloads = pendingImportTransactions.map(t => {
+      const isIncome = t.type === 'INCOME';
+      return {
+        'Transaction Date': t.date,
+        'Description': t.description,
+        'Catagory': t.categoryName,
+        'Sub-Category': t.subcategoryName,
+        'Money Out - GBP': isIncome ? null : t.amountGBP,
+        'Money In - GBP': isIncome ? t.amountGBP : null,
+        'Money Out - AED': isIncome ? null : t.amountAED,
+        'Money In - AED': isIncome ? t.amountAED : null,
+        'Bank Account': t.bankName,
+        'Note': t.notes || null
+      };
+    });
+
+    console.log('Saving transactions to Supabase:', dbPayloads.length);
+    const { data, error } = await supabase.from('Transactions').insert(dbPayloads).select();
+
+    if (error) {
+      console.error('Supabase import error:', error.message);
+      alert('Failed to save transactions: ' + error.message);
+      setSavingImport(false);
+      return;
+    }
+
+    if (data) {
+      // Map saved data back to Transaction format with real IDs
+      const savedTxs: Transaction[] = data.map(t => {
+        const moneyInGBP = t['Money In - GBP'] || 0;
+        const moneyOutGBP = t['Money Out - GBP'] || 0;
+        const moneyInAED = t['Money In - AED'] || 0;
+        const moneyOutAED = t['Money Out - AED'] || 0;
+        const isIncome = moneyInGBP > 0 || moneyInAED > 0;
+
+        const categoryName = t['Catagory'] || '';
+        const matchedCategory = categories.find(c =>
+          c.name.toLowerCase() === categoryName.toLowerCase()
+        );
+
+        return {
+          id: String(t.id),
+          date: t['Transaction Date'] || new Date().toISOString().split('T')[0],
+          amount: isIncome ? Number(moneyInGBP) : Number(moneyOutGBP),
+          amountGBP: isIncome ? Number(moneyInGBP) : Number(moneyOutGBP),
+          amountAED: isIncome ? Number(moneyInAED) : Number(moneyOutAED),
+          originalAmount: isIncome ? (moneyInAED > 0 ? Number(moneyInAED) : undefined) : (moneyOutAED > 0 ? Number(moneyOutAED) : undefined),
+          originalCurrency: (moneyInAED > 0 || moneyOutAED > 0) ? 'AED' : undefined,
+          type: isIncome ? 'INCOME' as const : 'EXPENSE' as const,
+          categoryId: matchedCategory?.id || '',
+          categoryName: categoryName,
+          subcategoryName: t['Sub-Category'] || '',
+          description: t['Description'] || '',
+          notes: t['Note'] || '',
+          excluded: false,
+          bankName: t['Bank Account'] || '',
+          createdAt: t.created_at || new Date().toISOString()
+        };
+      });
+
+      // Add to main transactions list
+      setTransactions(prev => [...savedTxs, ...prev]);
+
+      // Save merchant mappings for categorized transactions
+      for (const t of savedTxs) {
+        if (t.categoryId && t.categoryId !== 'excluded' && t.categoryName) {
+          saveMerchantMapping(t.description, t.categoryId, t.categoryName, t.subcategoryName || '');
+        }
       }
 
-      if (data) {
-          const newTxs: Transaction[] = data.map(t => {
-            const moneyInGBP = t['Money In - GBP'] || 0;
-            const moneyOutGBP = t['Money Out - GBP'] || 0;
-            const moneyInAED = t['Money In - AED'] || 0;
-            const moneyOutAED = t['Money Out - AED'] || 0;
-            const isIncome = moneyInGBP > 0 || moneyInAED > 0;
+      // Close modal and clear pending
+      setPendingImportTransactions([]);
+      setImportReviewOpen(false);
+      console.log('Saved', savedTxs.length, 'transactions');
+    }
 
-            // Find categoryId from category name
-            const categoryName = t['Catagory'] || '';
-            const matchedCategory = categories.find(c =>
-              c.name.toLowerCase() === categoryName.toLowerCase()
-            );
-
-            return {
-              id: String(t.id),
-              date: t['Transaction Date'] || new Date().toISOString().split('T')[0],
-              amount: isIncome ? Number(moneyInGBP) : Number(moneyOutGBP),
-              amountGBP: isIncome ? Number(moneyInGBP) : Number(moneyOutGBP),
-              amountAED: isIncome ? Number(moneyInAED) : Number(moneyOutAED),
-              originalAmount: isIncome ? (moneyInAED > 0 ? Number(moneyInAED) : undefined) : (moneyOutAED > 0 ? Number(moneyOutAED) : undefined),
-              originalCurrency: (moneyInAED > 0 || moneyOutAED > 0) ? 'AED' : undefined,
-              type: isIncome ? 'INCOME' as const : 'EXPENSE' as const,
-              categoryId: matchedCategory?.id || '',
-              categoryName: categoryName,
-              subcategoryName: t['Sub-Category'] || '',
-              description: t['Description'] || '',
-              notes: t['Note'] || '',
-              excluded: false,
-              bankName: t['Bank Account'] || '',
-              createdAt: t.created_at || new Date().toISOString()
-            };
-          });
-
-          // Store imported IDs and open review modal
-          const importedIds = newTxs.map(t => t.id);
-          setImportedTransactionIds(importedIds);
-          setTransactions(prev => [...newTxs, ...prev]);
-          setImportReviewOpen(true);
-      }
+    setSavingImport(false);
   };
 
   const deleteTransaction = async (id: string) => {
@@ -2004,12 +2065,17 @@ const App: React.FC = () => {
                 <div>
                   <h2 className="text-lg font-bold text-slate-900">Review Imported Transactions</h2>
                   <p className="text-sm text-slate-500">
-                    {importedTransactionIds.length} transactions imported • Categorize before adding to log
+                    {pendingImportTransactions.length} transactions • Categorize before saving
                   </p>
                 </div>
               </div>
               <button
-                onClick={() => setImportReviewOpen(false)}
+                onClick={() => {
+                  if (confirm('Discard imported transactions without saving?')) {
+                    setPendingImportTransactions([]);
+                    setImportReviewOpen(false);
+                  }
+                }}
                 className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 <X size={20} className="text-slate-500" />
@@ -2020,8 +2086,30 @@ const App: React.FC = () => {
             <div className="px-6 py-3 bg-slate-50 border-b border-slate-200 flex items-center gap-3">
               <button
                 onClick={() => {
-                  const importedTxs = transactions.filter(t => importedTransactionIds.includes(t.id));
-                  applyMerchantMemory(importedTxs);
+                  // Apply merchant memory to pending transactions
+                  const readyMappings = merchantMappings.filter(m => (m.count || 0) >= MAPPING_THRESHOLD);
+                  let applied = 0;
+                  setPendingImportTransactions(prev => prev.map(t => {
+                    if (t.categoryId) return t; // Already categorized
+                    const mapping = readyMappings.find(m =>
+                      m.merchant_pattern.toLowerCase() === t.description.toLowerCase()
+                    );
+                    if (mapping) {
+                      applied++;
+                      return {
+                        ...t,
+                        categoryId: mapping.category_id,
+                        categoryName: mapping.category_name,
+                        subcategoryName: mapping.subcategory_name
+                      };
+                    }
+                    return t;
+                  }));
+                  if (applied > 0) {
+                    alert(`Applied memory to ${applied} transactions`);
+                  } else {
+                    alert('No matching merchants found in memory');
+                  }
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-100 border border-violet-200 rounded-lg text-violet-700 text-sm font-medium hover:bg-violet-200 transition-colors"
               >
@@ -2029,16 +2117,14 @@ const App: React.FC = () => {
                 Apply Memory
               </button>
               <span className="text-xs text-slate-400">
-                {transactions.filter(t => importedTransactionIds.includes(t.id) && (!t.categoryId || t.categoryId === '')).length} uncategorized
+                {pendingImportTransactions.filter(t => !t.categoryId || t.categoryId === '').length} uncategorized
               </span>
             </div>
 
             {/* Transaction List */}
             <div className="flex-1 overflow-y-auto p-4">
               <div className="space-y-2">
-                {transactions
-                  .filter(t => importedTransactionIds.includes(t.id))
-                  .map(t => {
+                {pendingImportTransactions.map(t => {
                     const currentCategory = categories.find(c => c.id === t.categoryId);
                     return (
                       <div key={t.id} className="bg-white border border-slate-200 rounded-xl p-3 hover:border-slate-300 transition-colors">
@@ -2072,7 +2158,7 @@ const App: React.FC = () => {
                               onChange={(e) => {
                                 const cat = categories.find(c => c.id === e.target.value);
                                 const firstSub = cat?.subcategories[0] || '';
-                                updateTransaction(t.id, {
+                                updatePendingTransaction(t.id, {
                                   categoryId: e.target.value,
                                   categoryName: cat?.name || '',
                                   subcategoryName: firstSub
@@ -2089,7 +2175,7 @@ const App: React.FC = () => {
                             </select>
                             <select
                               value={t.subcategoryName}
-                              onChange={(e) => updateTransaction(t.id, { subcategoryName: e.target.value })}
+                              onChange={(e) => updatePendingTransaction(t.id, { subcategoryName: e.target.value })}
                               disabled={!currentCategory || currentCategory.subcategories.length === 0}
                               className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border outline-none cursor-pointer ${
                                 !currentCategory || currentCategory.subcategories.length === 0
@@ -2113,16 +2199,24 @@ const App: React.FC = () => {
             {/* Modal Footer */}
             <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between rounded-b-2xl">
               <p className="text-sm text-slate-500">
-                Transactions are already saved. Close when done categorizing.
+                {pendingImportTransactions.filter(t => !t.categoryId).length > 0
+                  ? `${pendingImportTransactions.filter(t => !t.categoryId).length} transactions still need categorizing`
+                  : 'All transactions categorized!'
+                }
               </p>
               <button
-                onClick={() => {
-                  setImportReviewOpen(false);
-                  setImportedTransactionIds([]);
-                }}
-                className="px-6 py-2.5 bg-[#635bff] text-white font-semibold rounded-xl hover:bg-[#5851e3] transition-colors shadow-md"
+                onClick={saveImportedTransactions}
+                disabled={savingImport}
+                className="px-6 py-2.5 bg-[#635bff] text-white font-semibold rounded-xl hover:bg-[#5851e3] transition-colors shadow-md disabled:opacity-50 flex items-center gap-2"
               >
-                Done
+                {savingImport ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save'
+                )}
               </button>
             </div>
           </div>
