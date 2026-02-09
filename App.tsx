@@ -2041,32 +2041,32 @@ const App: React.FC = () => {
                   .map(t => {
                     const currentCategory = categories.find(c => c.id === t.categoryId);
                     return (
-                      <div key={t.id} className="bg-white border border-slate-200 rounded-xl p-4 hover:border-slate-300 transition-colors">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                          {/* Description & Date */}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-slate-900 truncate">{t.description}</p>
-                            <p className="text-xs text-slate-400">{t.date} • {t.bankName}</p>
+                      <div key={t.id} className="bg-white border border-slate-200 rounded-xl p-3 hover:border-slate-300 transition-colors">
+                        <div className="flex items-center gap-3">
+                          {/* Description & Date - Fixed width */}
+                          <div className="w-[200px] shrink-0">
+                            <p className="font-medium text-slate-900 text-sm truncate" title={t.description}>{t.description}</p>
+                            <p className="text-[10px] text-slate-400">{t.date} • {t.bankName}</p>
                           </div>
 
-                          {/* Amounts - GBP & AED */}
-                          <div className="flex items-center gap-4 sm:w-48">
+                          {/* Amounts - GBP & AED - Compact */}
+                          <div className="flex items-center gap-3 w-[160px] shrink-0">
                             <div className="text-right">
-                              <p className={`font-bold font-mono text-sm ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
-                                {t.type === 'INCOME' ? '+' : '-'}£{t.amountGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              <p className={`font-bold font-mono text-xs ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                                £{t.amountGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </p>
-                              <p className="text-[10px] text-slate-400 font-mono">GBP</p>
+                              <p className="text-[9px] text-slate-400">GBP</p>
                             </div>
                             <div className="text-right">
-                              <p className={`font-bold font-mono text-sm ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
-                                {t.type === 'INCOME' ? '+' : '-'}{t.amountAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              <p className={`font-bold font-mono text-xs ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                                {t.amountAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </p>
-                              <p className="text-[10px] text-slate-400 font-mono">AED</p>
+                              <p className="text-[9px] text-slate-400">AED</p>
                             </div>
                           </div>
 
-                          {/* Category Selector */}
-                          <div className="flex gap-2 sm:w-64">
+                          {/* Category Selector - Takes remaining space */}
+                          <div className="flex gap-3 flex-1">
                             <select
                               value={t.categoryId}
                               onChange={(e) => {
@@ -2078,8 +2078,8 @@ const App: React.FC = () => {
                                   subcategoryName: firstSub
                                 });
                               }}
-                              className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-lg border outline-none cursor-pointer ${
-                                t.categoryId ? 'bg-white border-slate-200' : 'bg-amber-50 border-amber-200 text-amber-700'
+                              className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border outline-none cursor-pointer ${
+                                t.categoryId ? 'bg-white border-slate-300' : 'bg-amber-50 border-amber-300 text-amber-700'
                               }`}
                             >
                               <option value="">Select Category</option>
@@ -2087,17 +2087,21 @@ const App: React.FC = () => {
                                 <option key={c.id} value={c.id}>{c.name}</option>
                               ))}
                             </select>
-                            {currentCategory && currentCategory.subcategories.length > 0 && (
-                              <select
-                                value={t.subcategoryName}
-                                onChange={(e) => updateTransaction(t.id, { subcategoryName: e.target.value })}
-                                className="flex-1 px-2 py-1.5 text-xs font-medium rounded-lg border border-slate-200 outline-none cursor-pointer bg-white"
-                              >
-                                {currentCategory.subcategories.map(s => (
-                                  <option key={s} value={s}>{s}</option>
-                                ))}
-                              </select>
-                            )}
+                            <select
+                              value={t.subcategoryName}
+                              onChange={(e) => updateTransaction(t.id, { subcategoryName: e.target.value })}
+                              disabled={!currentCategory || currentCategory.subcategories.length === 0}
+                              className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border outline-none cursor-pointer ${
+                                !currentCategory || currentCategory.subcategories.length === 0
+                                  ? 'bg-slate-50 border-slate-200 text-slate-400'
+                                  : 'bg-white border-slate-300'
+                              }`}
+                            >
+                              <option value="">Select Subcategory</option>
+                              {currentCategory?.subcategories.map(s => (
+                                <option key={s} value={s}>{s}</option>
+                              ))}
+                            </select>
                           </div>
                         </div>
                       </div>
