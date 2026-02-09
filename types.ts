@@ -33,6 +33,7 @@ export interface Transaction {
   notes?: string;
   excluded?: boolean;
   bankName?: string;
+  createdAt?: string;
 }
 
 export interface FinancialSummary {

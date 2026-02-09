@@ -135,6 +135,7 @@ const App: React.FC = () => {
   const [filterSubcategory, setFilterSubcategory] = useState<string>('all');
   const [filterType, setFilterType] = useState<'all' | 'INCOME' | 'EXPENSE'>('all');
   const [filterBank, setFilterBank] = useState<string>('all');
+  const [filterRecentlyAdded, setFilterRecentlyAdded] = useState<'all' | 'today' | 'week' | 'uncategorized'>('all');
 
   // Breakdown View Mode (Category vs Subcategory)
   const [breakdownViewMode, setBreakdownViewMode] = useState<'category' | 'subcategory'>('category');
@@ -344,7 +345,8 @@ const App: React.FC = () => {
             description: t['Description'] || '',
             notes: t['Note'] || '',
             excluded: categoryId === 'excluded',
-            bankName: t['Bank Account'] || ''
+            bankName: t['Bank Account'] || '',
+            createdAt: t.created_at || null
           };
       });
 
@@ -462,6 +464,7 @@ const App: React.FC = () => {
     setFilterSubcategory('all');
     setFilterType('all');
     setFilterBank('all');
+    setFilterRecentlyAdded('all');
     setBreakdownViewMode('category');
   }
 
@@ -818,9 +821,25 @@ const App: React.FC = () => {
     // Use dateFilteredTransactions to respect the date selector
     const sourceData = dateFilteredTransactions;
 
+    // Calculate date thresholds for recently added filter
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
     return sourceData.filter(t => {
       if (filterType !== 'all' && t.type !== filterType) return false;
       if (filterBank !== 'all' && (!t.bankName || t.bankName.trim().toLowerCase() !== filterBank.trim().toLowerCase())) return false;
+
+      // Recently Added filter
+      if (filterRecentlyAdded !== 'all') {
+        if (filterRecentlyAdded === 'uncategorized') {
+          if (t.categoryId && t.categoryId !== '') return false;
+        } else if (filterRecentlyAdded === 'today') {
+          if (!t.createdAt || t.createdAt < todayStart) return false;
+        } else if (filterRecentlyAdded === 'week') {
+          if (!t.createdAt || t.createdAt < weekAgo) return false;
+        }
+      }
 
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
@@ -840,16 +859,21 @@ const App: React.FC = () => {
 
       return true;
     }).sort((a, b) => {
+      // If filtering by recently added, sort by createdAt first
+      if (filterRecentlyAdded !== 'all' && filterRecentlyAdded !== 'uncategorized') {
+        const createdDiff = new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        if (createdDiff !== 0) return createdDiff;
+      }
       // Primary sort by date (newest first)
       const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
       if (dateDiff !== 0) return dateDiff;
       // Secondary sort by ID to maintain stable order for same-date transactions
       return a.id.localeCompare(b.id);
     });
-  }, [dateFilteredTransactions, searchQuery, filterCategory, filterSubcategory, filterType, filterBank]);
+  }, [dateFilteredTransactions, searchQuery, filterCategory, filterSubcategory, filterType, filterBank, filterRecentlyAdded]);
 
   // Check if any specific filters are active (not including date filter)
-  const hasActiveFilters = filterType !== 'all' || filterBank !== 'all' || filterCategory !== 'all' || filterSubcategory !== 'all' || searchQuery.trim() !== '';
+  const hasActiveFilters = filterType !== 'all' || filterBank !== 'all' || filterCategory !== 'all' || filterSubcategory !== 'all' || filterRecentlyAdded !== 'all' || searchQuery.trim() !== '';
 
   // Calculate total for filtered view (History Tab Total) - only shows value when filters are active
   const filteredTotal = useMemo(() => {
@@ -1858,8 +1882,23 @@ const App: React.FC = () => {
                           <Filter size={10} className="sm:w-3 sm:h-3 absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                       </div>
 
+                      {/* Recently Added Filter */}
+                      <div className="relative">
+                          <select
+                              value={filterRecentlyAdded}
+                              onChange={(e) => setFilterRecentlyAdded(e.target.value as 'all' | 'today' | 'week' | 'uncategorized')}
+                              className="appearance-none pl-2 sm:pl-3 pr-6 sm:pr-8 py-1.5 sm:py-2 bg-violet-50 border border-violet-200 rounded-lg text-[10px] sm:text-xs font-bold text-violet-700 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 cursor-pointer hover:bg-violet-100 transition-colors"
+                          >
+                              <option value="all">Added: All</option>
+                              <option value="today">Added Today</option>
+                              <option value="week">Added This Week</option>
+                              <option value="uncategorized">Uncategorized</option>
+                          </select>
+                          <Sparkles size={10} className="sm:w-3 sm:h-3 absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-violet-400 pointer-events-none" />
+                      </div>
+
                       {/* Reset Button */}
-                      {(filterCategory !== 'all' || filterSubcategory !== 'all' || filterType !== 'all' || filterBank !== 'all') && (
+                      {(filterCategory !== 'all' || filterSubcategory !== 'all' || filterType !== 'all' || filterBank !== 'all' || filterRecentlyAdded !== 'all') && (
                           <button
                               onClick={handleResetFilters}
                               className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors"
