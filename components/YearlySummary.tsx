@@ -388,7 +388,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
             </div>
 
             {/* Table Header */}
-            <div className="hidden md:grid grid-cols-5 gap-4 px-5 py-3 bg-slate-50 text-xs font-medium text-slate-500 uppercase tracking-wide border-b border-slate-100">
+            <div className="hidden md:grid grid-cols-5 gap-4 px-5 py-2 bg-slate-50 text-[10px] font-medium text-slate-500 uppercase tracking-wide border-b border-slate-100">
               <div>Month</div>
               <div className="text-right">Income</div>
               <div className="text-right">Expenses</div>
@@ -408,25 +408,25 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                     {/* Month Row - Mobile */}
                     <button
                       onClick={() => hasData && toggleMonth(idx)}
-                      className={`md:hidden w-full flex items-center justify-between px-4 py-3 transition-colors text-left ${hasData ? 'hover:bg-slate-50 cursor-pointer' : 'cursor-default'} ${isExpanded ? 'bg-slate-50' : ''}`}
+                      className={`md:hidden w-full flex items-center justify-between px-3 py-2.5 transition-colors text-left ${hasData ? 'hover:bg-slate-50 cursor-pointer' : 'cursor-default'} ${isExpanded ? 'bg-slate-50' : ''}`}
                       disabled={!hasData}
                     >
-                      <div className="flex items-center gap-2">
-                        <ChevronRight size={14} className={`text-slate-400 transition-transform shrink-0 ${isExpanded ? 'rotate-90' : ''} ${!hasData ? 'opacity-0' : ''}`} />
-                        <span className="font-medium text-slate-900 text-sm">{row.fullMonth}</span>
+                      <div className="flex items-center gap-1.5">
+                        <ChevronRight size={12} className={`text-slate-400 transition-transform shrink-0 ${isExpanded ? 'rotate-90' : ''} ${!hasData ? 'opacity-0' : ''}`} />
+                        <span className="font-medium text-slate-900 text-xs">{row.fullMonth}</span>
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3">
                         <div className="text-right">
-                          <p className={`text-sm font-semibold ${row.income > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
+                          <p className={`text-xs font-semibold ${row.income > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
                             {row.income > 0 ? `+£${row.income.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
                           </p>
-                          <p className="text-[9px] text-slate-400">Income</p>
+                          <p className="text-[8px] text-slate-400">Income</p>
                         </div>
                         <div className="text-right">
-                          <p className={`text-sm font-semibold ${row.expense > 0 ? 'text-slate-800' : 'text-slate-300'}`}>
+                          <p className={`text-xs font-semibold ${row.expense > 0 ? 'text-slate-800' : 'text-slate-300'}`}>
                             {row.expense > 0 ? `£${row.expense.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
                           </p>
-                          <p className="text-[9px] text-slate-400">Expenses</p>
+                          <p className="text-[8px] text-slate-400">Expenses</p>
                         </div>
                       </div>
                     </button>
@@ -434,38 +434,38 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                     {/* Month Row - Desktop */}
                     <button
                       onClick={() => hasData && toggleMonth(idx)}
-                      className={`hidden md:grid w-full grid-cols-5 gap-4 px-5 py-4 transition-colors text-left ${hasData ? 'hover:bg-slate-50 cursor-pointer' : 'cursor-default'} ${isExpanded ? 'bg-slate-50' : ''}`}
+                      className={`hidden md:grid w-full grid-cols-5 gap-4 px-5 py-3 transition-colors text-left ${hasData ? 'hover:bg-slate-50 cursor-pointer' : 'cursor-default'} ${isExpanded ? 'bg-slate-50' : ''}`}
                       disabled={!hasData}
                     >
                       <div className="flex items-center gap-2">
-                        <ChevronRight size={14} className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-90' : ''} ${!hasData ? 'opacity-0' : ''}`} />
-                        <p className="font-medium text-slate-900 text-sm">{row.fullMonth}</p>
+                        <ChevronRight size={12} className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-90' : ''} ${!hasData ? 'opacity-0' : ''}`} />
+                        <p className="font-medium text-slate-900 text-xs">{row.fullMonth}</p>
                       </div>
                       <div className="text-right">
-                        <p className={`text-sm font-medium ${row.income > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
+                        <p className={`text-xs font-medium ${row.income > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
                           {row.income > 0 ? `+£${row.income.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className={`text-sm font-medium ${row.expense > 0 ? 'text-slate-700' : 'text-slate-300'}`}>
+                        <p className={`text-xs font-medium ${row.expense > 0 ? 'text-slate-700' : 'text-slate-300'}`}>
                           {row.expense > 0 ? `£${row.expense.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className={`text-sm font-semibold ${row.net > 0 ? 'text-emerald-600' : row.net < 0 ? 'text-rose-600' : 'text-slate-300'}`}>
+                        <p className={`text-xs font-semibold ${row.net > 0 ? 'text-emerald-600' : row.net < 0 ? 'text-rose-600' : 'text-slate-300'}`}>
                           {row.income > 0 || row.expense > 0 ? (row.net >= 0 ? '+' : '') + `£${row.net.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm text-slate-500">{row.txCount > 0 ? row.txCount : '-'}</p>
+                        <p className="text-xs text-slate-500">{row.txCount > 0 ? row.txCount : '-'}</p>
                       </div>
                     </button>
 
                     {/* Expanded Category Breakdown */}
                     {isExpanded && hasData && (
-                      <div className="bg-slate-50 border-t border-slate-100 px-4 md:px-5 py-3">
-                        <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wide mb-2 ml-6">Expenses by Category</p>
-                        <div className="space-y-2 ml-6">
+                      <div className="bg-slate-50 border-t border-slate-100 px-3 md:px-5 py-2">
+                        <p className="text-[9px] font-medium text-slate-500 uppercase tracking-wide mb-1.5 ml-5">Expenses by Category</p>
+                        <div className="space-y-1.5 ml-5">
                           {categoryBreakdown.map((cat, catIdx) => {
                             const percentage = row.expense > 0 ? ((cat.amount / row.expense) * 100).toFixed(0) : '0';
                             const catKey = `${idx}-${cat.id}`;
@@ -476,37 +476,37 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                               <div key={catIdx}>
                                 <button
                                   onClick={() => hasSubcategories && toggleCategory(catKey)}
-                                  className={`w-full flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-slate-100 ${hasSubcategories ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default'} transition-colors`}
+                                  className={`w-full flex items-center justify-between bg-white rounded-md px-2.5 py-1.5 border border-slate-100 ${hasSubcategories ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default'} transition-colors`}
                                 >
-                                  <div className="flex items-center gap-2 min-w-0">
+                                  <div className="flex items-center gap-1.5 min-w-0">
                                     <ChevronRight
-                                      size={12}
+                                      size={10}
                                       className={`text-slate-400 transition-transform shrink-0 ${isCatExpanded ? 'rotate-90' : ''} ${!hasSubcategories ? 'opacity-0' : ''}`}
                                     />
-                                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }}></div>
-                                    <span className="text-sm text-slate-700 truncate">{cat.name}</span>
-                                    <span className="text-[10px] text-slate-400">({cat.count})</span>
+                                    <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }}></div>
+                                    <span className="text-xs text-slate-700 truncate">{cat.name}</span>
+                                    <span className="text-[9px] text-slate-400">({cat.count})</span>
                                   </div>
-                                  <div className="flex items-center gap-3 shrink-0">
-                                    <span className="text-sm font-semibold text-slate-900">£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</span>
-                                    <span className="text-xs text-slate-400 w-10 text-right">{percentage}%</span>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <span className="text-xs font-semibold text-slate-900">£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</span>
+                                    <span className="text-[10px] text-slate-400 w-8 text-right">{percentage}%</span>
                                   </div>
                                 </button>
 
                                 {/* Subcategory Breakdown */}
                                 {isCatExpanded && hasSubcategories && (
-                                  <div className="ml-6 mt-1 space-y-1">
+                                  <div className="ml-5 mt-1 space-y-1">
                                     {cat.subcategories.map((sub, subIdx) => {
                                       const subPercentage = cat.amount > 0 ? ((sub.amount / cat.amount) * 100).toFixed(0) : '0';
                                       return (
-                                        <div key={subIdx} className="flex items-center justify-between bg-slate-100 rounded-md px-3 py-1.5">
-                                          <div className="flex items-center gap-2 min-w-0">
-                                            <span className="text-xs text-slate-600 truncate">{sub.name}</span>
-                                            <span className="text-[9px] text-slate-400">({sub.count})</span>
+                                        <div key={subIdx} className="flex items-center justify-between bg-slate-100 rounded-md px-2.5 py-1">
+                                          <div className="flex items-center gap-1.5 min-w-0">
+                                            <span className="text-[11px] text-slate-600 truncate">{sub.name}</span>
+                                            <span className="text-[8px] text-slate-400">({sub.count})</span>
                                           </div>
                                           <div className="flex items-center gap-2 shrink-0">
-                                            <span className="text-xs font-medium text-slate-700">£{sub.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</span>
-                                            <span className="text-[10px] text-slate-400 w-8 text-right">{subPercentage}%</span>
+                                            <span className="text-[11px] font-medium text-slate-700">£{sub.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</span>
+                                            <span className="text-[9px] text-slate-400 w-7 text-right">{subPercentage}%</span>
                                           </div>
                                         </div>
                                       );
@@ -517,7 +517,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                             );
                           })}
                           {categoryBreakdown.length === 0 && (
-                            <p className="text-sm text-slate-400 py-2">No expenses this month</p>
+                            <p className="text-xs text-slate-400 py-2">No expenses this month</p>
                           )}
                         </div>
                       </div>
