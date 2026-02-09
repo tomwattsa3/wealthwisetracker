@@ -223,7 +223,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     return (
         <>
             {/* Mobile Row */}
-            <div className={`md:hidden flex items-center px-3 py-1.5 gap-2 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} ${isCategoryMissing ? '!bg-amber-50' : ''} ${isExcluded ? 'opacity-40' : ''}`}>
+            <div className={`md:hidden flex items-center px-3 py-2 gap-2 border-b border-slate-200 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} ${isCategoryMissing ? '!bg-amber-50' : ''} ${isExcluded ? 'opacity-40' : ''}`}>
                 <span className={`w-6 text-center py-0.5 text-[8px] font-medium rounded border shrink-0 ${displayType === 'INCOME' ? 'text-emerald-600 border-emerald-200' : 'text-slate-400 border-slate-200'}`}>
                     {displayType === 'INCOME' ? 'IN' : 'OUT'}
                 </span>
@@ -241,7 +241,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
             </div>
 
             {/* Desktop Grid View - Mercury Table Style */}
-            <div className={`hidden md:grid ${gridTemplate} items-center py-4 border-b border-slate-100 ${isCategoryMissing ? 'bg-amber-50' : isDirty ? 'bg-indigo-50/30' : 'bg-white'} ${isExcluded ? 'opacity-50' : ''}`}>
+            <div className={`hidden md:grid ${gridTemplate} items-center py-4 border-b border-slate-200 ${isCategoryMissing ? 'bg-amber-50' : isDirty ? 'bg-indigo-50/30' : 'bg-white'} ${isExcluded ? 'opacity-50' : ''}`}>
                 {/* 1. Date */}
                 <div className="px-6">
                     <span className="text-sm text-slate-400">{t.date}</span>
