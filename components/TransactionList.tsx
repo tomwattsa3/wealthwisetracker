@@ -224,7 +224,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
         <>
             {/* Mobile Row */}
             <div className={`md:hidden flex items-center px-3 py-2 gap-2 border-b border-slate-200 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} ${isCategoryMissing ? '!bg-amber-50' : ''} ${isExcluded ? 'opacity-40' : ''}`}>
-                <span className={`w-6 text-center py-0.5 text-[8px] font-medium rounded border shrink-0 ${displayType === 'INCOME' ? 'text-emerald-600 border-emerald-200' : 'text-slate-400 border-slate-200'}`}>
+                <span className={`w-6 text-center py-0.5 text-[8px] font-medium rounded shrink-0 ${displayType === 'INCOME' ? 'text-white bg-emerald-500' : 'text-white bg-rose-500'}`}>
                     {displayType === 'INCOME' ? 'IN' : 'OUT'}
                 </span>
                 <span className="text-xs font-medium text-slate-700 truncate flex-1 min-w-0">{t.description || 'No merchant'}</span>
@@ -249,7 +249,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
 
                 {/* 2. Type - Pill Style */}
                 <div className="px-6">
-                    <span className={`inline-block px-2 py-0.5 text-[10px] font-medium rounded border ${displayType === 'INCOME' ? 'text-emerald-600 border-emerald-200' : 'text-slate-400 border-slate-200'}`}>
+                    <span className={`inline-block px-2 py-0.5 text-[10px] font-medium rounded ${displayType === 'INCOME' ? 'text-white bg-emerald-500' : 'text-white bg-rose-500'}`}>
                         {displayType === 'INCOME' ? 'INCOME' : 'EXPENSE'}
                     </span>
                 </div>
