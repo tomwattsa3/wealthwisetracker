@@ -463,9 +463,9 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
                     {/* Expanded Category Breakdown */}
                     {isExpanded && hasData && (
-                      <div className="bg-slate-50 border-t border-slate-100 px-3 md:px-5 py-2">
-                        <p className="text-[9px] font-medium text-slate-500 uppercase tracking-wide mb-1.5 ml-5">Expenses by Category</p>
-                        <div className="space-y-1.5 ml-5">
+                      <div className="bg-slate-50 border-t border-slate-100 px-3 md:px-5 py-3">
+                        <p className="text-[9px] font-medium text-slate-500 uppercase tracking-wide mb-2.5 ml-5">Expenses by Category</p>
+                        <div className="space-y-2 ml-5">
                           {categoryBreakdown.map((cat, catIdx) => {
                             const percentage = row.expense > 0 ? ((cat.amount / row.expense) * 100).toFixed(0) : '0';
                             const catKey = `${idx}-${cat.id}`;
@@ -476,7 +476,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                               <div key={catIdx}>
                                 <button
                                   onClick={() => hasSubcategories && toggleCategory(catKey)}
-                                  className={`w-full flex items-center justify-between bg-white rounded-md px-2.5 py-1.5 border border-slate-100 ${hasSubcategories ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default'} transition-colors`}
+                                  className={`w-full flex items-center justify-between bg-white rounded-md px-3 py-2.5 border border-slate-100 ${hasSubcategories ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default'} transition-colors`}
                                 >
                                   <div className="flex items-center gap-1.5 min-w-0">
                                     <ChevronRight
@@ -495,11 +495,11 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
                                 {/* Subcategory Breakdown */}
                                 {isCatExpanded && hasSubcategories && (
-                                  <div className="ml-5 mt-1 space-y-1">
+                                  <div className="ml-5 mt-2 space-y-1.5">
                                     {cat.subcategories.map((sub, subIdx) => {
                                       const subPercentage = cat.amount > 0 ? ((sub.amount / cat.amount) * 100).toFixed(0) : '0';
                                       return (
-                                        <div key={subIdx} className="flex items-center justify-between bg-slate-100 rounded-md px-2.5 py-1">
+                                        <div key={subIdx} className="flex items-center justify-between bg-slate-100 rounded-md px-3 py-2">
                                           <div className="flex items-center gap-1.5 min-w-0">
                                             <span className="text-[11px] text-slate-600 truncate">{sub.name}</span>
                                             <span className="text-[8px] text-slate-400">({sub.count})</span>
