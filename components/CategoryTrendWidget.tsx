@@ -163,7 +163,7 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
             {groupedTransactions.map((t, idx) => (
               <div key={t.id}>
                 {/* Mobile Spreadsheet Row */}
-                <div className="md:hidden grid grid-cols-[1fr_auto_auto] items-center bg-white border-b border-slate-200 last:border-b-0">
+                <div className="md:hidden grid grid-cols-[1fr_auto_auto] items-center bg-white border-b border-dashed border-slate-300 last:border-b-0">
                   <div className="px-3 py-3 border-r border-slate-200">
                     <span className="text-sm font-medium text-slate-700 block truncate" title={t.description}>{t.description || "Unknown"}</span>
                     <span className="text-[10px] text-slate-400">{t.subcategoryName}</span>
@@ -177,7 +177,7 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
                 </div>
 
                 {/* Desktop Row (unchanged) */}
-                <div className={`hidden md:grid grid-cols-[1fr_auto_auto_auto] items-center py-2.5 border-b border-slate-200 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                <div className={`hidden md:grid grid-cols-[1fr_auto_auto_auto] items-center py-2.5 border-b border-dashed border-slate-300 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
                   <span className="text-xs font-medium text-slate-700 truncate px-4 border-r border-slate-100" title={t.description}>{t.description || "Unknown"}</span>
                   <span className="px-3 flex items-center justify-center border-r border-slate-100">
                     <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] text-slate-500">{t.subcategoryName}</span>
