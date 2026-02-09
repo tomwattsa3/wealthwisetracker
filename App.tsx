@@ -1221,18 +1221,16 @@ const App: React.FC = () => {
                                 className="w-full sm:w-64 pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all shadow-sm placeholder:text-slate-400"
                                 />
                             </div>
-                            {/* Apply Merchant Memory Button */}
-                            {merchantMappings.filter(m => (m.count || 0) >= MAPPING_THRESHOLD).length > 0 && (
-                              <button
-                                onClick={() => applyMerchantMemory(filteredTransactions)}
-                                disabled={applyingMemory}
-                                className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-violet-50 border border-violet-200 rounded-lg text-violet-700 text-sm font-medium hover:bg-violet-100 hover:border-violet-300 transition-all shadow-sm disabled:opacity-50"
-                                title="Apply learned categorizations to uncategorized transactions"
-                              >
-                                <Sparkles size={14} />
-                                <span className="hidden lg:inline">{applyingMemory ? 'Applying...' : 'Apply Memory'}</span>
-                              </button>
-                            )}
+                            {/* Apply Merchant Memory Button - Always visible */}
+                            <button
+                              onClick={() => applyMerchantMemory(filteredTransactions)}
+                              disabled={applyingMemory}
+                              className="flex items-center gap-1.5 px-3 py-2 bg-violet-50 border border-violet-200 rounded-lg text-violet-700 text-sm font-medium hover:bg-violet-100 hover:border-violet-300 transition-all shadow-sm disabled:opacity-50"
+                              title="Apply learned categorizations to uncategorized transactions"
+                            >
+                              <Sparkles size={14} />
+                              <span>{applyingMemory ? 'Applying...' : 'Apply Memory'}</span>
+                            </button>
                         </div>
                     )}
                     
