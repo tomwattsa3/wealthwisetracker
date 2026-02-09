@@ -56,3 +56,12 @@ export interface AssetItem {
   amount: number; // Current value
   type: 'cash' | 'investment' | 'property' | 'crypto' | 'other';
 }
+
+export interface MerchantMapping {
+  id?: string;
+  merchant_pattern: string;
+  category_id: string;
+  category_name: string;
+  subcategory_name: string;
+  count?: number;
+}

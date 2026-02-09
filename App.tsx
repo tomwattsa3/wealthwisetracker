@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Session } from '@supabase/supabase-js';
-import { Transaction, FinancialSummary, Category, Bank } from './types';
+import { Transaction, FinancialSummary, Category, Bank, MerchantMapping } from './types';
 import { INITIAL_CATEGORIES, INITIAL_BANKS } from './constants';
 import { supabase } from './supabaseClient';
 import LoginPage from './components/LoginPage';
@@ -19,7 +19,7 @@ import {
   ChevronLeft, ChevronRight, Filter, EyeOff, TrendingUp,
   Car, Plane, Smartphone, Coffee, ShoppingBag, PoundSterling, Activity, X,
   ArrowUpDown, FolderCog, CalendarRange, Building, ArrowRightLeft, Settings,
-  RotateCcw, Loader2, LogOut
+  RotateCcw, Loader2, LogOut, Sparkles
 } from 'lucide-react';
 
 // Helper for category icons
@@ -68,6 +68,7 @@ const App: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [banks, setBanks] = useState<Bank[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [merchantMappings, setMerchantMappings] = useState<MerchantMapping[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Webhook State
@@ -350,6 +351,30 @@ const App: React.FC = () => {
       console.log('Mapped transactions:', mappedTxs.length, mappedTxs);
       setTransactions(mappedTxs);
 
+      // Fetch Merchant Mappings from Supabase
+      try {
+        console.log('Fetching merchant mappings...');
+        const { data: mappingData, error: mappingError } = await supabase
+          .from('merchant_mappings')
+          .select('*');
+
+        if (!mappingError && mappingData) {
+          const mappings: MerchantMapping[] = mappingData.map(m => ({
+            id: m.id,
+            merchant_pattern: m.merchant_pattern,
+            category_id: m.category_id,
+            category_name: m.category_name,
+            subcategory_name: m.subcategory_name,
+            count: m.count || 1
+          }));
+          console.log('Loaded merchant mappings:', mappings.length);
+          setMerchantMappings(mappings);
+        }
+      } catch (mappingErr) {
+        console.log('Merchant mappings table not found or error:', mappingErr);
+        // Table might not exist yet - that's ok
+      }
+
     } catch (error) {
       console.error('Error fetching data from Supabase:', error);
       setCategories(INITIAL_CATEGORIES);
@@ -597,12 +622,172 @@ const App: React.FC = () => {
           alert('Failed to save: ' + error.message);
         } else {
           console.log('Update successful!');
+
+          // Save merchant mapping when category is set (skip excluded)
+          const transaction = transactions.find(t => t.id === id);
+          if (transaction && updates.categoryId && updates.categoryId !== 'excluded' && updates.categoryName !== undefined) {
+            saveMerchantMapping(
+              transaction.description,
+              updates.categoryId,
+              updates.categoryName,
+              updates.subcategoryName || ''
+            );
+          }
         }
       }
     } catch (err) {
       console.error('Exception:', err);
       alert('Failed to save transaction');
     }
+  };
+
+  // Save merchant mapping to remember categorization (with count threshold)
+  const MAPPING_THRESHOLD = 3; // Auto-categorize after 3 consistent categorizations
+
+  const saveMerchantMapping = async (
+    merchantPattern: string,
+    categoryId: string,
+    categoryName: string,
+    subcategoryName: string
+  ) => {
+    if (!merchantPattern || !categoryId) return;
+
+    console.log('Saving merchant mapping:', { merchantPattern, categoryId, categoryName, subcategoryName });
+
+    try {
+      // Check if mapping already exists
+      const existingMapping = merchantMappings.find(
+        m => m.merchant_pattern.toLowerCase() === merchantPattern.toLowerCase()
+      );
+
+      let newCount = 1;
+
+      if (existingMapping) {
+        // If same category, increment count; if different category, reset to 1
+        if (existingMapping.category_id === categoryId && existingMapping.subcategory_name === subcategoryName) {
+          newCount = (existingMapping.count || 1) + 1;
+          console.log(`Same categorization - incrementing count to ${newCount}`);
+        } else {
+          newCount = 1;
+          console.log('Different categorization - resetting count to 1');
+        }
+      }
+
+      // Use upsert to update if exists or insert if new
+      const { data, error } = await supabase
+        .from('merchant_mappings')
+        .upsert(
+          {
+            merchant_pattern: merchantPattern,
+            category_id: categoryId,
+            category_name: categoryName,
+            subcategory_name: subcategoryName,
+            count: newCount,
+            updated_at: new Date().toISOString()
+          },
+          { onConflict: 'merchant_pattern' }
+        )
+        .select();
+
+      if (error) {
+        console.error('Failed to save merchant mapping:', error);
+      } else {
+        console.log('Merchant mapping saved:', data, `count: ${newCount}/${MAPPING_THRESHOLD}`);
+        // Update local state
+        setMerchantMappings(prev => {
+          const existingIdx = prev.findIndex(m => m.merchant_pattern.toLowerCase() === merchantPattern.toLowerCase());
+          if (existingIdx >= 0) {
+            const updated = [...prev];
+            updated[existingIdx] = {
+              ...updated[existingIdx],
+              category_id: categoryId,
+              category_name: categoryName,
+              subcategory_name: subcategoryName,
+              count: newCount
+            };
+            return updated;
+          }
+          return [...prev, {
+            merchant_pattern: merchantPattern,
+            category_id: categoryId,
+            category_name: categoryName,
+            subcategory_name: subcategoryName,
+            count: newCount
+          }];
+        });
+      }
+    } catch (err) {
+      console.error('Exception saving merchant mapping:', err);
+    }
+  };
+
+  // Apply merchant memory to uncategorized transactions
+  const [applyingMemory, setApplyingMemory] = useState(false);
+
+  const applyMerchantMemory = async (transactionsToProcess: Transaction[]) => {
+    const readyMappings = merchantMappings.filter(m => (m.count || 0) >= MAPPING_THRESHOLD);
+    if (readyMappings.length === 0) {
+      alert('No merchant mappings are ready yet (need 3+ consistent categorizations).');
+      return;
+    }
+
+    // Find uncategorized transactions that match ready mappings
+    const uncategorized = transactionsToProcess.filter(t => !t.categoryId || t.categoryId === '');
+    const toUpdate: { transaction: Transaction; mapping: MerchantMapping }[] = [];
+
+    uncategorized.forEach(t => {
+      const mapping = readyMappings.find(m =>
+        m.merchant_pattern.toLowerCase() === t.description.toLowerCase()
+      );
+      if (mapping) {
+        toUpdate.push({ transaction: t, mapping });
+      }
+    });
+
+    if (toUpdate.length === 0) {
+      alert('No uncategorized transactions match your learned merchants.');
+      return;
+    }
+
+    const confirmed = confirm(`Apply merchant memory to ${toUpdate.length} transaction${toUpdate.length > 1 ? 's' : ''}?`);
+    if (!confirmed) return;
+
+    setApplyingMemory(true);
+    let successCount = 0;
+
+    for (const { transaction, mapping } of toUpdate) {
+      try {
+        const numericId = parseInt(transaction.id, 10);
+        const { error } = await supabase
+          .from('Transactions')
+          .update({
+            'Catagory': mapping.category_name,
+            'Sub-Category': mapping.subcategory_name
+          })
+          .eq('id', numericId);
+
+        if (!error) {
+          // Update local state
+          setTransactions(prev => prev.map(t =>
+            t.id === transaction.id
+              ? {
+                  ...t,
+                  categoryId: mapping.category_id,
+                  categoryName: mapping.category_name,
+                  subcategoryName: mapping.subcategory_name,
+                  notes: (t.notes ? t.notes + ' ' : '') + '✨ Auto-categorized'
+                }
+              : t
+          ));
+          successCount++;
+        }
+      } catch (err) {
+        console.error('Failed to update transaction:', transaction.id, err);
+      }
+    }
+
+    setApplyingMemory(false);
+    alert(`Successfully categorized ${successCount} of ${toUpdate.length} transactions.`);
   };
 
   // 1. Base Filter: By Date Range (Used for Dashboard KPI Summary)
@@ -1023,17 +1208,31 @@ const App: React.FC = () => {
                   <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto items-center">
                     {/* Global Search - Only show in history tab */}
                     {activeTab === 'history' && (
-                        <div className="relative group w-full sm:w-auto">
-                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors">
-                            <Search size={16} />
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <div className="relative group flex-1 sm:flex-none">
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors">
+                                <Search size={16} />
+                                </div>
+                                <input
+                                type="text"
+                                placeholder="Search transactions..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full sm:w-64 pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all shadow-sm placeholder:text-slate-400"
+                                />
                             </div>
-                            <input
-                            type="text"
-                            placeholder="Search transactions..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full sm:w-64 pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all shadow-sm placeholder:text-slate-400"
-                            />
+                            {/* Apply Merchant Memory Button */}
+                            {merchantMappings.filter(m => (m.count || 0) >= MAPPING_THRESHOLD).length > 0 && (
+                              <button
+                                onClick={() => applyMerchantMemory(filteredTransactions)}
+                                disabled={applyingMemory}
+                                className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-violet-50 border border-violet-200 rounded-lg text-violet-700 text-sm font-medium hover:bg-violet-100 hover:border-violet-300 transition-all shadow-sm disabled:opacity-50"
+                                title="Apply learned categorizations to uncategorized transactions"
+                              >
+                                <Sparkles size={14} />
+                                <span className="hidden lg:inline">{applyingMemory ? 'Applying...' : 'Apply Memory'}</span>
+                              </button>
+                            )}
                         </div>
                     )}
                     
@@ -1550,6 +1749,7 @@ const App: React.FC = () => {
                     onImport={handleImportTransactions}
                     webhookUrl={webhookUrl}
                     banks={banks}
+                    merchantMappings={merchantMappings}
                  />
                </div>
 

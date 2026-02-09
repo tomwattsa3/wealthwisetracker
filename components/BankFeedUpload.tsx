@@ -1,18 +1,19 @@
 
 import React, { useState, useMemo } from 'react';
 import Papa from 'papaparse';
-import { Upload, AlertCircle, FileSpreadsheet, ChevronDown, Webhook, Loader2, CheckCircle2 } from 'lucide-react';
-import { Transaction, Bank } from '../types';
+import { Upload, AlertCircle, FileSpreadsheet, ChevronDown, Webhook, Loader2, CheckCircle2, Sparkles } from 'lucide-react';
+import { Transaction, Bank, MerchantMapping } from '../types';
 
 interface BankFeedUploadProps {
   onImport: (transactions: Omit<Transaction, 'id'>[]) => void;
   webhookUrl?: string;
   banks: Bank[];
+  merchantMappings?: MerchantMapping[];
 }
 
 const AED_TO_GBP_RATE = 0.21;
 
-const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, banks }) => {
+const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, banks, merchantMappings = [] }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedBankId, setSelectedBankId] = useState<string>(banks.length > 0 ? banks[0].id : '');
@@ -64,6 +65,7 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
         }
 
         let count = 0;
+        let autoCategorizedCount = 0;
 
         data.forEach((row) => {
             const rawDate = row[dateCol];
@@ -117,6 +119,27 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
             // Use bank from CSV if available, otherwise use selected bank
             const bankName = bankCol && row[bankCol] ? row[bankCol] : selectedBank.name;
 
+            // Auto-categorize based on merchant mappings (threshold: 3+ times)
+            const MAPPING_THRESHOLD = 3;
+            let categoryId = '';
+            let categoryName = '';
+            let subcategoryName = '';
+            let wasAutoCategorized = false;
+
+            // Find matching merchant mapping (exact match on description)
+            const mapping = merchantMappings.find(m =>
+              m.merchant_pattern.toLowerCase() === rawDesc.toLowerCase()
+            );
+
+            // Only auto-categorize if the mapping has been confirmed 3+ times
+            if (mapping && (mapping.count || 0) >= MAPPING_THRESHOLD) {
+              categoryId = mapping.category_id;
+              categoryName = mapping.category_name;
+              subcategoryName = mapping.subcategory_name;
+              wasAutoCategorized = true;
+              autoCategorizedCount++;
+            }
+
             parsed.push({
                 date: dateStr,
                 amount: amountGBP,
@@ -125,11 +148,11 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
                 originalAmount: amountAED > 0 ? amountAED : undefined,
                 originalCurrency: amountAED > 0 ? 'AED' : undefined,
                 type: isIncome ? 'INCOME' : 'EXPENSE',
-                categoryId: '',
-                categoryName: '',
-                subcategoryName: '',
+                categoryId,
+                categoryName,
+                subcategoryName,
                 description: rawDesc,
-                notes: '',
+                notes: wasAutoCategorized ? '✨ Auto-categorized' : '',
                 excluded: false,
                 bankName: bankName
             });
@@ -186,7 +209,8 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
 
         // Direct Import
         onImport(parsed);
-        setSuccessMessage(`Successfully imported ${count} transactions${webhookResultMsg}.`);
+        const autoMsg = autoCategorizedCount > 0 ? ` (${autoCategorizedCount} auto-categorized)` : '';
+        setSuccessMessage(`Successfully imported ${count} transactions${autoMsg}${webhookResultMsg}.`);
         
         // Clear success message after 10 seconds (longer to read error)
         setTimeout(() => {
@@ -239,7 +263,16 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
                   <div className="min-w-0 flex-1">
                       <h3 className="text-sm sm:text-lg font-bold text-slate-900 mb-0.5 sm:mb-1 flex items-center gap-2 flex-wrap">
                         <span>Upload Bank Feed</span>
-                        {/* Hide webhook badge on mobile */}
+                        {/* Hide badges on mobile */}
+                        {merchantMappings.length > 0 && (() => {
+                          const readyCount = merchantMappings.filter(m => (m.count || 0) >= 3).length;
+                          const learningCount = merchantMappings.length - readyCount;
+                          return (
+                            <span className="hidden sm:flex text-[10px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold items-center gap-1">
+                              <Sparkles size={10} /> {readyCount} Ready{learningCount > 0 ? `, ${learningCount} Learning` : ''}
+                            </span>
+                          );
+                        })()}
                         {webhookUrl ? (
                           <span className="hidden sm:flex text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold items-center gap-1">
                             <Webhook size={10} /> Webhook Active
