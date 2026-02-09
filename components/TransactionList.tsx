@@ -444,7 +444,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
         </div>
 
         {/* Rows */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-0 md:gap-2 py-1 md:py-3 pb-8 md:pb-3">
+        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-0 md:gap-2 py-1 md:py-3 pb-8 md:pb-3 min-h-[350px] md:min-h-[450px]">
             {transactions.map((t, index) => (
                 <TransactionRow
                     key={t.id}

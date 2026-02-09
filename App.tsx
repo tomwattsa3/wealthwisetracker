@@ -1572,7 +1572,7 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-2 sm:p-3 animate-in fade-in shadow-sm flex flex-col flex-1 min-h-0 overflow-visible md:overflow-hidden">
+              <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-2 sm:p-3 animate-in fade-in shadow-sm flex flex-col flex-1 min-h-[500px] md:min-h-[600px] overflow-visible md:overflow-hidden">
                 <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-3 sm:mb-6 gap-2 sm:gap-4 border-b border-slate-100 pb-3 sm:pb-6">
                   <div className="flex items-center gap-2">
                       <div className="p-1.5 sm:p-2 bg-slate-100 rounded-lg text-slate-700">
