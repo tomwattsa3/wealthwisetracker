@@ -149,25 +149,46 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
              </select>
       </div>
 
-      {/* List - Grid with separators */}
+      {/* List - Spreadsheet Style */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {groupedTransactions.length > 0 ? (
-          <div>
+          <div className="md:block">
+            {/* Mobile Spreadsheet Header */}
+            <div className="md:hidden grid grid-cols-[1fr_auto_auto] bg-slate-50/80 border-b border-slate-200">
+              <div className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-r border-slate-200">Merchant</div>
+              <div className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-slate-200 w-12">Qty</div>
+              <div className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-right w-24">Amount</div>
+            </div>
+
             {groupedTransactions.map((t, idx) => (
-              <div
-                key={t.id}
-                className={`grid grid-cols-[1fr_auto_auto_auto] items-center py-2.5 border-b border-dashed md:border-solid border-slate-200 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
-              >
-                 <span className="text-sm md:text-xs font-medium text-slate-700 truncate px-4 border-r border-slate-100" title={t.description}>{t.description || "Unknown"}</span>
-                 <span className="px-3 flex items-center justify-center border-r border-slate-100">
-                   <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] text-slate-500">{t.subcategoryName}</span>
-                 </span>
-                 <span className="px-3 flex items-center justify-center border-r border-slate-100 text-[10px] text-slate-400 w-8">
-                   {t.count > 1 ? `x${t.count}` : ''}
-                 </span>
-                 <span className="text-sm md:text-xs font-medium text-slate-700 px-4 text-right">
+              <div key={t.id}>
+                {/* Mobile Spreadsheet Row */}
+                <div className="md:hidden grid grid-cols-[1fr_auto_auto] items-center bg-white border-b border-slate-200 last:border-b-0">
+                  <div className="px-3 py-3 border-r border-slate-200">
+                    <span className="text-sm font-medium text-slate-700 block truncate" title={t.description}>{t.description || "Unknown"}</span>
+                    <span className="text-[10px] text-slate-400">{t.subcategoryName}</span>
+                  </div>
+                  <div className="px-3 py-3 text-center border-r border-slate-200 w-12">
+                    <span className="text-sm text-slate-500">{t.count > 1 ? t.count : '-'}</span>
+                  </div>
+                  <div className="px-3 py-3 text-right w-24">
+                    <span className="text-sm font-semibold text-slate-800">{formatCurrency(t.amount)}</span>
+                  </div>
+                </div>
+
+                {/* Desktop Row (unchanged) */}
+                <div className={`hidden md:grid grid-cols-[1fr_auto_auto_auto] items-center py-2.5 border-b border-slate-200 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                  <span className="text-xs font-medium text-slate-700 truncate px-4 border-r border-slate-100" title={t.description}>{t.description || "Unknown"}</span>
+                  <span className="px-3 flex items-center justify-center border-r border-slate-100">
+                    <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] text-slate-500">{t.subcategoryName}</span>
+                  </span>
+                  <span className="px-3 flex items-center justify-center border-r border-slate-100 text-[10px] text-slate-400 w-8">
+                    {t.count > 1 ? `x${t.count}` : ''}
+                  </span>
+                  <span className="text-xs font-medium text-slate-700 px-4 text-right">
                     {formatCurrency(t.amount)}
-                 </span>
+                  </span>
+                </div>
               </div>
             ))}
           </div>
