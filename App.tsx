@@ -2127,11 +2127,11 @@ const App: React.FC = () => {
               <div className="flex items-center gap-3">
                 <div className="w-[80px] text-[10px] font-bold text-slate-500 uppercase">Date</div>
                 <div className="w-[80px] text-[10px] font-bold text-slate-500 uppercase">Bank</div>
-                <div className="w-[180px] text-[10px] font-bold text-slate-500 uppercase">Merchant</div>
+                <div className="flex-1 text-[10px] font-bold text-slate-500 uppercase">Merchant</div>
                 <div className="w-[90px] text-[10px] font-bold text-slate-500 uppercase text-right">GBP</div>
                 <div className="w-[90px] text-[10px] font-bold text-slate-500 uppercase text-right">AED</div>
-                <div className="flex-1 text-[10px] font-bold text-slate-500 uppercase text-center">Category</div>
-                <div className="flex-1 text-[10px] font-bold text-slate-500 uppercase text-center">Subcategory</div>
+                <div className="w-[120px] text-[10px] font-bold text-slate-500 uppercase">Category</div>
+                <div className="w-[120px] text-[10px] font-bold text-slate-500 uppercase">Subcategory</div>
               </div>
             </div>
 
@@ -2153,7 +2153,7 @@ const App: React.FC = () => {
                           </div>
 
                           {/* Merchant/Description */}
-                          <div className="w-[180px] shrink-0">
+                          <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-slate-900 truncate" title={t.description}>{t.description}</p>
                           </div>
 
@@ -2172,7 +2172,7 @@ const App: React.FC = () => {
                           </div>
 
                           {/* Category */}
-                          <div className="flex-1">
+                          <div className="w-[120px] shrink-0">
                             <select
                               value={t.categoryId}
                               onChange={(e) => {
@@ -2184,7 +2184,7 @@ const App: React.FC = () => {
                                   subcategoryName: firstSub
                                 });
                               }}
-                              className={`w-full px-2 py-1.5 text-sm font-medium rounded border outline-none cursor-pointer ${
+                              className={`w-full px-2 py-1 text-xs font-medium rounded border outline-none cursor-pointer ${
                                 t.categoryId ? 'bg-white border-slate-300' : 'bg-amber-100 border-amber-300 text-amber-700'
                               }`}
                             >
@@ -2196,12 +2196,12 @@ const App: React.FC = () => {
                           </div>
 
                           {/* Subcategory */}
-                          <div className="flex-1">
+                          <div className="w-[120px] shrink-0">
                             <select
                               value={t.subcategoryName}
                               onChange={(e) => updatePendingTransaction(t.id, { subcategoryName: e.target.value })}
                               disabled={!currentCategory || currentCategory.subcategories.length === 0}
-                              className={`w-full px-2 py-1.5 text-sm font-medium rounded border outline-none cursor-pointer ${
+                              className={`w-full px-2 py-1 text-xs font-medium rounded border outline-none cursor-pointer ${
                                 !currentCategory || currentCategory.subcategories.length === 0
                                   ? 'bg-slate-100 border-slate-200 text-slate-400'
                                   : 'bg-white border-slate-300'
