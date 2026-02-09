@@ -228,13 +228,16 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                     {displayType === 'INCOME' ? 'IN' : 'OUT'}
                 </span>
                 <span className="text-xs font-medium text-slate-700 truncate flex-1 min-w-0">{t.description || 'No merchant'}</span>
-                <span className="text-[9px] text-slate-400 shrink-0">{t.categoryName || 'Uncategorized'}</span>
-                {t.subcategoryName && (
-                    <span className="px-1 py-0.5 bg-slate-100 rounded text-[8px] text-slate-500 shrink-0">{t.subcategoryName}</span>
-                )}
-                <span className={`text-xs font-medium tabular-nums shrink-0 ${isExcluded ? 'text-slate-400' : 'text-slate-700'}`}>
-                    £{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
+                <div className="flex flex-col items-end shrink-0">
+                    <span className={`text-xs font-medium tabular-nums ${isExcluded ? 'text-slate-400' : 'text-slate-700'}`}>
+                        £{(t.amountGBP || t.amount || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                    {(t.amountAED || 0) > 0 && (
+                        <span className="text-[9px] text-slate-400 tabular-nums">
+                            AED {(t.amountAED || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                    )}
+                </div>
             </div>
 
             {/* Desktop Grid View - Mercury Table Style */}
@@ -304,15 +307,22 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                     )}
                 </div>
 
-                {/* 6. Amount */}
-                <div className="px-6 text-right">
+                {/* 6. GBP Amount */}
+                <div className="px-4 text-right">
                     <span className={`text-sm font-medium ${isExcluded ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
-                        £{t.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        £{(t.amountGBP || t.amount || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                 </div>
 
-                {/* 7. Action */}
-                <div className="px-6 flex items-center justify-end gap-1">
+                {/* 7. AED Amount */}
+                <div className="px-4 text-right">
+                    <span className={`text-sm font-medium ${isExcluded ? 'text-slate-400 line-through' : 'text-slate-500'}`}>
+                        {(t.amountAED || 0) > 0 ? `AED ${(t.amountAED || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                    </span>
+                </div>
+
+                {/* 8. Action */}
+                <div className="px-4 flex items-center justify-end gap-1">
                     {isDirty && (
                         <button
                             onClick={handleManualSave}
@@ -346,8 +356,8 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
 };
 
 const TransactionList: React.FC<TransactionListProps> = ({ transactions, categories, onUpdate, onDelete }) => {
-  // Desktop Grid Template: Date | Type | Category | Subcategory | Merchant | Amount | Action
-  const gridTemplate = "grid-cols-[95px_85px_180px_180px_1fr_130px_90px]";
+  // Desktop Grid Template: Date | Type | Category | Subcategory | Merchant | GBP | AED | Action
+  const gridTemplate = "grid-cols-[95px_85px_150px_150px_1fr_110px_110px_80px]";
   // Mobile Grid Template: simplified
   const mobileGridTemplate = "grid-cols-[1fr_auto_auto]";
 
@@ -420,8 +430,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
             <div className="pl-6 pr-4">Category</div>
             <div className="pl-4 pr-6">Subcategory</div>
             <div className="px-8 border-l border-slate-100">Merchant</div>
-            <div className="px-6 text-right">Amount</div>
-            <div className="px-6 text-right">Action</div>
+            <div className="px-4 text-right">GBP</div>
+            <div className="px-4 text-right">AED</div>
+            <div className="px-4 text-right">Action</div>
         </div>
 
         {/* Mobile Header - Mercury Style */}
