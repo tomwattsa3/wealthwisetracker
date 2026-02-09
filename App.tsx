@@ -1143,7 +1143,7 @@ const App: React.FC = () => {
                       </div>
                       <div>
                         {topIncomeGrouped.slice(0, 6).map((g, idx) => (
-                          <div key={g.description} className={`grid grid-cols-[1fr_auto_auto_auto] items-center py-1 border-b border-slate-300 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
+                          <div key={g.description} className={`grid grid-cols-[1fr_auto_auto_auto] items-center py-1 border-b border-slate-400 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
                             <span className="text-[10px] font-medium text-slate-700 truncate pl-3 pr-2">{g.description}</span>
                             <span className="w-5 text-center text-[8px] text-slate-400">
                               {g.count > 1 ? `x${g.count}` : ''}
@@ -1222,7 +1222,7 @@ const App: React.FC = () => {
                       {/* Top Transactions - Grid with separators */}
                       <div>
                         {topGrouped.slice(0, 6).map((g, idx) => (
-                          <div key={g.description} className={`grid grid-cols-[1fr_auto_auto_auto] items-center py-1 border-b border-slate-300 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
+                          <div key={g.description} className={`grid grid-cols-[1fr_auto_auto_auto] items-center py-1 border-b border-slate-400 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
                             <span className="text-[10px] font-medium text-slate-700 truncate pl-3 pr-2">{g.description}</span>
                             <span className="w-5 text-center text-[8px] text-slate-400">
                               {g.count > 1 ? `x${g.count}` : ''}
