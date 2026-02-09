@@ -2122,37 +2122,57 @@ const App: React.FC = () => {
             </div>
 
             {/* Transaction List */}
-            <div className="flex-1 overflow-y-auto p-4">
-              <div className="space-y-2">
+            {/* Header Row */}
+            <div className="px-4 py-2 bg-slate-100 border-b border-slate-200">
+              <div className="flex items-center gap-4">
+                <div className="w-[90px] text-[10px] font-bold text-slate-500 uppercase">Date</div>
+                <div className="w-[100px] text-[10px] font-bold text-slate-500 uppercase">Bank</div>
+                <div className="flex-1 text-[10px] font-bold text-slate-500 uppercase">Merchant</div>
+                <div className="w-[100px] text-[10px] font-bold text-slate-500 uppercase text-right">GBP</div>
+                <div className="w-[100px] text-[10px] font-bold text-slate-500 uppercase text-right">AED</div>
+                <div className="w-[140px] text-[10px] font-bold text-slate-500 uppercase">Category</div>
+                <div className="w-[140px] text-[10px] font-bold text-slate-500 uppercase">Subcategory</div>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              <div className="divide-y divide-slate-100">
                 {pendingImportTransactions.map(t => {
                     const currentCategory = categories.find(c => c.id === t.categoryId);
                     return (
-                      <div key={t.id} className="bg-white border border-slate-200 rounded-xl p-3 hover:border-slate-300 transition-colors">
-                        <div className="flex items-center gap-3">
-                          {/* Description & Date - Fixed width */}
-                          <div className="w-[200px] shrink-0">
-                            <p className="font-medium text-slate-900 text-sm truncate" title={t.description}>{t.description}</p>
-                            <p className="text-[10px] text-slate-400">{t.date} • {t.bankName}</p>
+                      <div key={t.id} className={`px-4 py-2.5 hover:bg-slate-50 transition-colors ${!t.categoryId ? 'bg-amber-50/50' : ''}`}>
+                        <div className="flex items-center gap-4">
+                          {/* Date */}
+                          <div className="w-[90px] shrink-0">
+                            <p className="text-sm font-medium text-slate-700">{t.date}</p>
                           </div>
 
-                          {/* Amounts - GBP & AED - Larger */}
-                          <div className="flex items-center gap-4 w-[200px] shrink-0">
-                            <div className="text-right">
-                              <p className={`font-bold font-mono text-base ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
-                                £{t.amountGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </p>
-                              <p className="text-[10px] text-slate-400">GBP</p>
-                            </div>
-                            <div className="text-right">
-                              <p className={`font-bold font-mono text-base ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
-                                {t.amountAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </p>
-                              <p className="text-[10px] text-slate-400">AED</p>
-                            </div>
+                          {/* Bank */}
+                          <div className="w-[100px] shrink-0">
+                            <p className="text-sm text-slate-600 truncate" title={t.bankName}>{t.bankName}</p>
                           </div>
 
-                          {/* Category Selector - Compact */}
-                          <div className="flex gap-2 w-[280px] shrink-0">
+                          {/* Merchant/Description */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-900 truncate" title={t.description}>{t.description}</p>
+                          </div>
+
+                          {/* GBP Amount */}
+                          <div className="w-[100px] shrink-0 text-right">
+                            <p className={`font-bold font-mono text-sm ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                              £{t.amountGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                          </div>
+
+                          {/* AED Amount */}
+                          <div className="w-[100px] shrink-0 text-right">
+                            <p className={`font-bold font-mono text-sm ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                              {t.amountAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                          </div>
+
+                          {/* Category */}
+                          <div className="w-[140px] shrink-0">
                             <select
                               value={t.categoryId}
                               onChange={(e) => {
@@ -2164,26 +2184,30 @@ const App: React.FC = () => {
                                   subcategoryName: firstSub
                                 });
                               }}
-                              className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-lg border outline-none cursor-pointer ${
-                                t.categoryId ? 'bg-white border-slate-300' : 'bg-amber-50 border-amber-300 text-amber-700'
+                              className={`w-full px-2 py-1.5 text-xs font-medium rounded border outline-none cursor-pointer ${
+                                t.categoryId ? 'bg-white border-slate-300' : 'bg-amber-100 border-amber-300 text-amber-700'
                               }`}
                             >
-                              <option value="">Category</option>
+                              <option value="">Select...</option>
                               {categories.map(c => (
                                 <option key={c.id} value={c.id}>{c.name}</option>
                               ))}
                             </select>
+                          </div>
+
+                          {/* Subcategory */}
+                          <div className="w-[140px] shrink-0">
                             <select
                               value={t.subcategoryName}
                               onChange={(e) => updatePendingTransaction(t.id, { subcategoryName: e.target.value })}
                               disabled={!currentCategory || currentCategory.subcategories.length === 0}
-                              className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-lg border outline-none cursor-pointer ${
+                              className={`w-full px-2 py-1.5 text-xs font-medium rounded border outline-none cursor-pointer ${
                                 !currentCategory || currentCategory.subcategories.length === 0
-                                  ? 'bg-slate-50 border-slate-200 text-slate-400'
+                                  ? 'bg-slate-100 border-slate-200 text-slate-400'
                                   : 'bg-white border-slate-300'
                               }`}
                             >
-                              <option value="">Subcategory</option>
+                              <option value="">Select...</option>
                               {currentCategory?.subcategories.map(s => (
                                 <option key={s} value={s}>{s}</option>
                               ))}
