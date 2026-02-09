@@ -126,7 +126,11 @@ const App: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  
+
+  // Import Review Modal State
+  const [importReviewOpen, setImportReviewOpen] = useState(false);
+  const [importedTransactionIds, setImportedTransactionIds] = useState<string[]>([]);
+
   // Sidebar State
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
@@ -553,23 +557,37 @@ const App: React.FC = () => {
             const moneyOutAED = t['Money Out - AED'] || 0;
             const isIncome = moneyInGBP > 0 || moneyInAED > 0;
 
+            // Find categoryId from category name
+            const categoryName = t['Catagory'] || '';
+            const matchedCategory = categories.find(c =>
+              c.name.toLowerCase() === categoryName.toLowerCase()
+            );
+
             return {
               id: String(t.id),
               date: t['Transaction Date'] || new Date().toISOString().split('T')[0],
               amount: isIncome ? Number(moneyInGBP) : Number(moneyOutGBP),
+              amountGBP: isIncome ? Number(moneyInGBP) : Number(moneyOutGBP),
+              amountAED: isIncome ? Number(moneyInAED) : Number(moneyOutAED),
               originalAmount: isIncome ? (moneyInAED > 0 ? Number(moneyInAED) : undefined) : (moneyOutAED > 0 ? Number(moneyOutAED) : undefined),
               originalCurrency: (moneyInAED > 0 || moneyOutAED > 0) ? 'AED' : undefined,
               type: isIncome ? 'INCOME' as const : 'EXPENSE' as const,
-              categoryId: '',
-              categoryName: t['Catagory'] || '',
+              categoryId: matchedCategory?.id || '',
+              categoryName: categoryName,
               subcategoryName: t['Sub-Category'] || '',
               description: t['Description'] || '',
               notes: t['Note'] || '',
               excluded: false,
-              bankName: t['Bank Account'] || ''
+              bankName: t['Bank Account'] || '',
+              createdAt: t.created_at || new Date().toISOString()
             };
           });
+
+          // Store imported IDs and open review modal
+          const importedIds = newTxs.map(t => t.id);
+          setImportedTransactionIds(importedIds);
           setTransactions(prev => [...newTxs, ...prev]);
+          setImportReviewOpen(true);
       }
   };
 
@@ -1967,6 +1985,131 @@ const App: React.FC = () => {
                 className="flex-1 px-4 py-2.5 bg-rose-500 text-white font-semibold rounded-xl hover:bg-rose-600 transition-colors"
               >
                 Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Review Modal */}
+      {importReviewOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-violet-100 rounded-lg">
+                  <Sparkles className="text-violet-600" size={20} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">Review Imported Transactions</h2>
+                  <p className="text-sm text-slate-500">
+                    {importedTransactionIds.length} transactions imported • Categorize before adding to log
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setImportReviewOpen(false)}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X size={20} className="text-slate-500" />
+              </button>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="px-6 py-3 bg-slate-50 border-b border-slate-200 flex items-center gap-3">
+              <button
+                onClick={() => {
+                  const importedTxs = transactions.filter(t => importedTransactionIds.includes(t.id));
+                  applyMerchantMemory(importedTxs);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-100 border border-violet-200 rounded-lg text-violet-700 text-sm font-medium hover:bg-violet-200 transition-colors"
+              >
+                <Sparkles size={14} />
+                Apply Memory
+              </button>
+              <span className="text-xs text-slate-400">
+                {transactions.filter(t => importedTransactionIds.includes(t.id) && (!t.categoryId || t.categoryId === '')).length} uncategorized
+              </span>
+            </div>
+
+            {/* Transaction List */}
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="space-y-2">
+                {transactions
+                  .filter(t => importedTransactionIds.includes(t.id))
+                  .map(t => {
+                    const currentCategory = categories.find(c => c.id === t.categoryId);
+                    return (
+                      <div key={t.id} className="bg-white border border-slate-200 rounded-xl p-4 hover:border-slate-300 transition-colors">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                          {/* Description & Date */}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-slate-900 truncate">{t.description}</p>
+                            <p className="text-xs text-slate-400">{t.date} • {t.bankName}</p>
+                          </div>
+
+                          {/* Amount */}
+                          <div className="text-right sm:w-24">
+                            <p className={`font-bold font-mono ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                              {t.type === 'INCOME' ? '+' : '-'}£{t.amountGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                          </div>
+
+                          {/* Category Selector */}
+                          <div className="flex gap-2 sm:w-64">
+                            <select
+                              value={t.categoryId}
+                              onChange={(e) => {
+                                const cat = categories.find(c => c.id === e.target.value);
+                                const firstSub = cat?.subcategories[0] || '';
+                                updateTransaction(t.id, {
+                                  categoryId: e.target.value,
+                                  categoryName: cat?.name || '',
+                                  subcategoryName: firstSub
+                                });
+                              }}
+                              className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-lg border outline-none cursor-pointer ${
+                                t.categoryId ? 'bg-white border-slate-200' : 'bg-amber-50 border-amber-200 text-amber-700'
+                              }`}
+                            >
+                              <option value="">Select Category</option>
+                              {categories.map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                              ))}
+                            </select>
+                            {currentCategory && currentCategory.subcategories.length > 0 && (
+                              <select
+                                value={t.subcategoryName}
+                                onChange={(e) => updateTransaction(t.id, { subcategoryName: e.target.value })}
+                                className="flex-1 px-2 py-1.5 text-xs font-medium rounded-lg border border-slate-200 outline-none cursor-pointer bg-white"
+                              >
+                                {currentCategory.subcategories.map(s => (
+                                  <option key={s} value={s}>{s}</option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between rounded-b-2xl">
+              <p className="text-sm text-slate-500">
+                Transactions are already saved. Close when done categorizing.
+              </p>
+              <button
+                onClick={() => {
+                  setImportReviewOpen(false);
+                  setImportedTransactionIds([]);
+                }}
+                className="px-6 py-2.5 bg-[#635bff] text-white font-semibold rounded-xl hover:bg-[#5851e3] transition-colors shadow-md"
+              >
+                Done
               </button>
             </div>
           </div>
