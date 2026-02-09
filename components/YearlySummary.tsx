@@ -87,7 +87,8 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
-      if (t.excluded) return false;
+      // Exclude transactions marked as excluded or with 'excluded' category
+      if (t.excluded || t.categoryId === 'excluded') return false;
       const txDate = t.date;
       return txDate >= dateRange.start && txDate <= dateRange.end;
     });
