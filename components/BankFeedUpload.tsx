@@ -40,14 +40,26 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
         const parsed: Omit<Transaction, 'id'>[] = [];
         const data = results.data as any[];
         const headers = results.meta.fields || [];
-        
-        // Flexible column detection
-        const dateCol = headers.find(h => /date|time|dt/i.test(h));
-        const descCol = headers.find(h => /desc|narrative|details|merchant|memo/i.test(h));
-        const amountCol = headers.find(h => /amount|value|debit|credit|cost/i.test(h));
 
-        if (!dateCol || !amountCol) {
-           setError("Could not automatically detect 'Date' or 'Amount' columns. Please ensure your CSV has standard headers.");
+        // Column detection - matches your Supabase columns exactly
+        const dateCol = headers.find(h => h === 'Transaction Date') || headers.find(h => /date|time/i.test(h));
+        const descCol = headers.find(h => h === 'Description') || headers.find(h => /desc|narrative|merchant/i.test(h));
+        const bankCol = headers.find(h => h === 'Bank Account') || headers.find(h => /bank/i.test(h));
+
+        // Exact match for Money columns (matches Supabase schema)
+        const moneyOutGBPCol = headers.find(h => h === 'Money Out - GBP') || headers.find(h => /money.*out.*gbp/i.test(h));
+        const moneyInGBPCol = headers.find(h => h === 'Money In - GBP') || headers.find(h => /money.*in.*gbp/i.test(h));
+        const moneyOutAEDCol = headers.find(h => h === 'Money Out - AED') || headers.find(h => /money.*out.*aed/i.test(h));
+        const moneyInAEDCol = headers.find(h => h === 'Money In - AED') || headers.find(h => /money.*in.*aed/i.test(h));
+
+        // Fallback to single amount column
+        const amountCol = headers.find(h => /^amount$|^value$|^debit$|^credit$|^cost$/i.test(h));
+
+        // Check if we have the multi-column format or single amount
+        const hasMultiColumns = moneyOutGBPCol || moneyInGBPCol || moneyOutAEDCol || moneyInAEDCol;
+
+        if (!dateCol || (!hasMultiColumns && !amountCol)) {
+           setError("Could not detect required columns. Need 'Transaction Date' + money columns (MONEY OUT GBP, MONEY IN GBP, etc.) or 'Date' + 'Amount'.");
            return;
         }
 
@@ -56,41 +68,70 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
         data.forEach((row) => {
             const rawDate = row[dateCol];
             const rawDesc = descCol ? row[descCol] : 'Unknown Transaction';
-            const rawAmount = row[amountCol];
 
-            // Clean Amount
-            let amountSource = parseFloat(String(rawAmount).replace(/[^0-9.-]/g, ''));
-            if (isNaN(amountSource)) return;
+            let amountGBP = 0;
+            let amountAED = 0;
+            let isIncome = false;
 
-            // Currency Conversion if needed
-            const isForeign = selectedBank.currency !== 'GBP';
-            const rate = selectedBank.currency === 'AED' ? AED_TO_GBP_RATE : 1;
-            const amountGBP = Math.abs(amountSource * rate);
+            if (hasMultiColumns) {
+                // Parse multi-column format
+                const moneyOutGBP = moneyOutGBPCol ? parseFloat(String(row[moneyOutGBPCol]).replace(/[^0-9.-]/g, '')) || 0 : 0;
+                const moneyInGBP = moneyInGBPCol ? parseFloat(String(row[moneyInGBPCol]).replace(/[^0-9.-]/g, '')) || 0 : 0;
+                const moneyOutAED = moneyOutAEDCol ? parseFloat(String(row[moneyOutAEDCol]).replace(/[^0-9.-]/g, '')) || 0 : 0;
+                const moneyInAED = moneyInAEDCol ? parseFloat(String(row[moneyInAEDCol]).replace(/[^0-9.-]/g, '')) || 0 : 0;
+
+                // Determine if income or expense
+                isIncome = moneyInGBP > 0 || moneyInAED > 0;
+                amountGBP = isIncome ? moneyInGBP : moneyOutGBP;
+                amountAED = isIncome ? moneyInAED : moneyOutAED;
+
+                // Skip rows with no amounts
+                if (amountGBP === 0 && amountAED === 0) return;
+
+                // If one currency is missing, convert from the other
+                if (amountGBP === 0 && amountAED > 0) {
+                    amountGBP = amountAED * AED_TO_GBP_RATE;
+                }
+                if (amountAED === 0 && amountGBP > 0) {
+                    amountAED = amountGBP / AED_TO_GBP_RATE;
+                }
+            } else {
+                // Single amount column (legacy format)
+                const rawAmount = row[amountCol];
+                let amountSource = parseFloat(String(rawAmount).replace(/[^0-9.-]/g, ''));
+                if (isNaN(amountSource)) return;
+
+                isIncome = amountSource >= 0;
+                const isForeign = selectedBank.currency !== 'GBP';
+                const rate = selectedBank.currency === 'AED' ? AED_TO_GBP_RATE : 1;
+                amountGBP = Math.abs(amountSource * rate);
+                amountAED = isForeign ? Math.abs(amountSource) : amountGBP / AED_TO_GBP_RATE;
+            }
 
             // Date Formatting
             const dateObj = new Date(rawDate);
-            const dateStr = !isNaN(dateObj.getTime()) 
-                ? dateObj.toISOString().split('T')[0] 
+            const dateStr = !isNaN(dateObj.getTime())
+                ? dateObj.toISOString().split('T')[0]
                 : new Date().toISOString().split('T')[0];
 
-            // Add source info to notes if currency converted
-            const sourceInfo = isForeign
-                ? `Source: ${selectedBank.name} (${new Intl.NumberFormat('en-US', { style: 'currency', currency: selectedBank.currency }).format(amountSource)})`
-                : '';
+            // Use bank from CSV if available, otherwise use selected bank
+            const bankName = bankCol && row[bankCol] ? row[bankCol] : selectedBank.name;
 
             parsed.push({
                 date: dateStr,
                 amount: amountGBP,
-                originalAmount: isForeign ? Math.abs(amountSource) : undefined,
-                originalCurrency: isForeign ? selectedBank.currency : undefined,
-                type: amountSource >= 0 ? 'INCOME' : 'EXPENSE',
-                categoryId: '', // Explicitly empty for manual processing
+                amountGBP: amountGBP,
+                amountAED: amountAED,
+                originalAmount: amountAED > 0 ? amountAED : undefined,
+                originalCurrency: amountAED > 0 ? 'AED' : undefined,
+                type: isIncome ? 'INCOME' : 'EXPENSE',
+                categoryId: '',
                 categoryName: '',
-                subcategoryName: '', 
+                subcategoryName: '',
                 description: rawDesc,
-                notes: sourceInfo,
+                notes: '',
                 excluded: false,
-                bankName: selectedBank.name
+                bankName: bankName
             });
             count++;
         });

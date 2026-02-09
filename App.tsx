@@ -492,15 +492,17 @@ const App: React.FC = () => {
       // Map all to your Supabase schema
       const dbPayloads = imported.map(t => {
           const isIncome = t.type === 'INCOME';
+          const gbpAmount = t.amountGBP || t.amount || 0;
+          const aedAmount = t.amountAED || t.originalAmount || 0;
           return {
             'Transaction Date': t.date,
             'Description': t.description,
             'Catagory': t.categoryName,
             'Sub-Category': t.subcategoryName,
-            'Money Out - GBP': isIncome ? null : t.amount,
-            'Money In - GBP': isIncome ? t.amount : null,
-            'Money Out - AED': isIncome ? null : (t.originalAmount || null),
-            'Money In - AED': isIncome ? (t.originalAmount || null) : null,
+            'Money Out - GBP': isIncome ? null : gbpAmount,
+            'Money In - GBP': isIncome ? gbpAmount : null,
+            'Money Out - AED': isIncome ? null : aedAmount,
+            'Money In - AED': isIncome ? aedAmount : null,
             'Bank Account': t.bankName,
             'Note': t.notes || null
           };
