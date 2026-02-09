@@ -1156,7 +1156,7 @@ const App: React.FC = () => {
                                 <span className="px-1 py-0.5 bg-slate-100 rounded text-[7px] text-slate-500 shrink-0">{g.subcategoryName}</span>
                               </div>
                               <div className="px-2 py-2 text-center border-r border-slate-200 w-10">
-                                <span className={`${currency === 'AED' ? 'text-[10px]' : 'text-[11px]'} text-slate-500`}>{g.count > 1 ? g.count : '-'}</span>
+                                <span className={`${currency === 'AED' ? 'text-[10px]' : 'text-[11px]'} text-slate-500`}>{g.count}</span>
                               </div>
                               <div className={`px-2 py-2 text-right ${currency === 'AED' ? 'w-24' : 'w-20'}`}>
                                 <span className={`${currency === 'AED' ? 'text-[9px]' : 'text-[11px]'} font-semibold text-slate-800`}>{formatCurrency(g.amount)}</span>
@@ -1244,7 +1244,7 @@ const App: React.FC = () => {
                                 <span className="px-1 py-0.5 bg-slate-100 rounded text-[7px] text-slate-500 shrink-0">{g.subcategoryName}</span>
                               </div>
                               <div className="px-2 py-2 text-center border-r border-slate-200 w-10">
-                                <span className={`${currency === 'AED' ? 'text-[10px]' : 'text-[11px]'} text-slate-500`}>{g.count > 1 ? g.count : '-'}</span>
+                                <span className={`${currency === 'AED' ? 'text-[10px]' : 'text-[11px]'} text-slate-500`}>{g.count}</span>
                               </div>
                               <div className={`px-2 py-2 text-right ${currency === 'AED' ? 'w-24' : 'w-20'}`}>
                                 <span className={`${currency === 'AED' ? 'text-[9px]' : 'text-[11px]'} font-semibold text-slate-800`}>{formatCurrency(g.amount)}</span>
