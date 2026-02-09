@@ -2135,24 +2135,24 @@ const App: React.FC = () => {
                             <p className="text-[10px] text-slate-400">{t.date} • {t.bankName}</p>
                           </div>
 
-                          {/* Amounts - GBP & AED - Compact */}
-                          <div className="flex items-center gap-3 w-[160px] shrink-0">
+                          {/* Amounts - GBP & AED - Larger */}
+                          <div className="flex items-center gap-4 w-[200px] shrink-0">
                             <div className="text-right">
-                              <p className={`font-bold font-mono text-xs ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                              <p className={`font-bold font-mono text-base ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
                                 £{t.amountGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </p>
-                              <p className="text-[9px] text-slate-400">GBP</p>
+                              <p className="text-[10px] text-slate-400">GBP</p>
                             </div>
                             <div className="text-right">
-                              <p className={`font-bold font-mono text-xs ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                              <p className={`font-bold font-mono text-base ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
                                 {t.amountAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </p>
-                              <p className="text-[9px] text-slate-400">AED</p>
+                              <p className="text-[10px] text-slate-400">AED</p>
                             </div>
                           </div>
 
-                          {/* Category Selector - Takes remaining space */}
-                          <div className="flex gap-3 flex-1">
+                          {/* Category Selector - Compact */}
+                          <div className="flex gap-2 w-[280px] shrink-0">
                             <select
                               value={t.categoryId}
                               onChange={(e) => {
@@ -2164,11 +2164,11 @@ const App: React.FC = () => {
                                   subcategoryName: firstSub
                                 });
                               }}
-                              className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border outline-none cursor-pointer ${
+                              className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-lg border outline-none cursor-pointer ${
                                 t.categoryId ? 'bg-white border-slate-300' : 'bg-amber-50 border-amber-300 text-amber-700'
                               }`}
                             >
-                              <option value="">Select Category</option>
+                              <option value="">Category</option>
                               {categories.map(c => (
                                 <option key={c.id} value={c.id}>{c.name}</option>
                               ))}
@@ -2177,13 +2177,13 @@ const App: React.FC = () => {
                               value={t.subcategoryName}
                               onChange={(e) => updatePendingTransaction(t.id, { subcategoryName: e.target.value })}
                               disabled={!currentCategory || currentCategory.subcategories.length === 0}
-                              className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border outline-none cursor-pointer ${
+                              className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-lg border outline-none cursor-pointer ${
                                 !currentCategory || currentCategory.subcategories.length === 0
                                   ? 'bg-slate-50 border-slate-200 text-slate-400'
                                   : 'bg-white border-slate-300'
                               }`}
                             >
-                              <option value="">Select Subcategory</option>
+                              <option value="">Subcategory</option>
                               {currentCategory?.subcategories.map(s => (
                                 <option key={s} value={s}>{s}</option>
                               ))}
