@@ -958,7 +958,7 @@ const App: React.FC = () => {
         </nav>
 
         {/* Main Content Area - Updated padding */}
-        <main className={`flex-1 h-full bg-slate-50 p-2 pb-24 md:px-8 md:py-6 max-w-[100vw] ${activeTab === 'history' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+        <main className={`flex-1 h-full bg-slate-100 p-2 pb-24 md:px-8 md:py-6 max-w-[100vw] ${activeTab === 'history' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
           
           {/* Top Bar with Filter & Search (Hidden in Cat/Yearly View) */}
           {activeTab !== 'categories' && activeTab !== 'yearly' && activeTab !== 'settings' && (
@@ -1143,7 +1143,7 @@ const App: React.FC = () => {
                       </div>
                       <div>
                         {topIncomeGrouped.slice(0, 6).map((g, idx) => (
-                          <div key={g.description} className={`grid grid-cols-[1fr_auto_auto_auto] items-center py-1 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                          <div key={g.description} className={`grid grid-cols-[1fr_auto_auto_auto] items-center py-1 border-b border-slate-100/50 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
                             <span className="text-[10px] font-medium text-slate-700 truncate pl-3 pr-2">{g.description}</span>
                             <span className="w-5 text-center text-[8px] text-slate-400">
                               {g.count > 1 ? `x${g.count}` : ''}
@@ -1222,7 +1222,7 @@ const App: React.FC = () => {
                       {/* Top Transactions - Grid with separators */}
                       <div>
                         {topGrouped.slice(0, 6).map((g, idx) => (
-                          <div key={g.description} className={`grid grid-cols-[1fr_auto_auto_auto] items-center py-1 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                          <div key={g.description} className={`grid grid-cols-[1fr_auto_auto_auto] items-center py-1 border-b border-slate-100/50 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
                             <span className="text-[10px] font-medium text-slate-700 truncate pl-3 pr-2">{g.description}</span>
                             <span className="w-5 text-center text-[8px] text-slate-400">
                               {g.count > 1 ? `x${g.count}` : ''}
