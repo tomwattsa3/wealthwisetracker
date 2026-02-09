@@ -308,14 +308,14 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 </div>
 
                 {/* 6. GBP Amount */}
-                <div className="px-4 text-right">
+                <div className="px-2 text-center">
                     <span className={`text-sm font-medium ${isExcluded ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
                         £{(t.amountGBP || t.amount || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                 </div>
 
                 {/* 7. AED Amount - Only show for Wio Bank */}
-                <div className="px-4 text-right">
+                <div className="px-2 text-center">
                     <span className={`text-sm font-medium ${isExcluded ? 'text-slate-400 line-through' : 'text-slate-500'}`}>
                         {t.bankName === 'Wio Bank' && (t.amountAED || 0) > 0
                             ? `AED ${(t.amountAED || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -360,7 +360,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
 
 const TransactionList: React.FC<TransactionListProps> = ({ transactions, categories, onUpdate, onDelete }) => {
   // Desktop Grid Template: Date | Type | Category | Subcategory | Merchant | GBP | AED | Action
-  const gridTemplate = "grid-cols-[100px_80px_140px_140px_1fr_85px_85px_130px]";
+  const gridTemplate = "grid-cols-[100px_80px_140px_140px_1fr_80px_80px_160px]";
   // Mobile Grid Template: simplified
   const mobileGridTemplate = "grid-cols-[1fr_auto_auto]";
 
@@ -433,8 +433,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
             <div className="pl-6 pr-4">Category</div>
             <div className="pl-4 pr-6">Subcategory</div>
             <div className="px-8 border-l border-slate-100">Merchant</div>
-            <div className="px-4 text-right">GBP</div>
-            <div className="px-4 text-right">AED</div>
+            <div className="px-2 text-center">GBP</div>
+            <div className="px-2 text-center">AED</div>
             <div className="px-4 text-right">Action</div>
         </div>
 
