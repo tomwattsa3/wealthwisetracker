@@ -156,7 +156,7 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
             {groupedTransactions.map((t, idx) => (
               <div
                 key={t.id}
-                className={`grid grid-cols-[1fr_auto_auto_auto] items-center py-2.5 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
+                className={`grid grid-cols-[1fr_auto_auto_auto] items-center py-2.5 border-b border-slate-200 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
               >
                  <span className="text-sm font-medium text-slate-700 truncate px-4 border-r border-slate-100" title={t.description}>{t.description || "Unknown"}</span>
                  <span className="px-3 flex items-center justify-center border-r border-slate-100">
