@@ -232,7 +232,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                     <span className={`text-xs font-medium tabular-nums ${isExcluded ? 'text-slate-400' : 'text-slate-700'}`}>
                         £{(t.amountGBP || t.amount || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
-                    {t.bankName === 'Wio Bank' && (t.amountAED || 0) > 0 && (
+                    {(t.bankName === 'Wio Bank' || t.bankName === 'Revolut') && (t.amountAED || 0) > 0 && (
                         <span className="text-[9px] text-slate-400 tabular-nums">
                             AED {(t.amountAED || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
@@ -317,7 +317,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 {/* 7. AED Amount - Only show for Wio Bank */}
                 <div className="px-2 text-center">
                     <span className={`text-sm font-medium ${isExcluded ? 'text-slate-400 line-through' : 'text-slate-500'}`}>
-                        {t.bankName === 'Wio Bank' && (t.amountAED || 0) > 0
+                        {(t.bankName === 'Wio Bank' || t.bankName === 'Revolut') && (t.amountAED || 0) > 0
                             ? `AED ${(t.amountAED || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                             : '-'}
                     </span>
