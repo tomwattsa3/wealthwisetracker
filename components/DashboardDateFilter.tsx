@@ -97,7 +97,7 @@ const DashboardDateFilter: React.FC<DashboardDateFilterProps> = ({ range, onRang
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-100 z-[100] animate-in fade-in slide-in-from-top-2 overflow-hidden">
+        <div className="fixed md:absolute left-1/2 md:left-auto md:right-0 -translate-x-1/2 md:translate-x-0 top-20 md:top-full mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-100 z-[100] animate-in fade-in slide-in-from-top-2 overflow-hidden">
            <div className="p-3 grid grid-cols-2 gap-2 border-b border-slate-50 bg-slate-50/50">
               {PRESETS.map((preset) => (
                   <button

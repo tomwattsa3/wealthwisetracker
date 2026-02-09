@@ -1,0 +1,21 @@
+{
+  "name": "WealthWise Tracker",
+  "short_name": "WealthWise",
+  "description": "Personal finance tracker",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#1e293b",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
