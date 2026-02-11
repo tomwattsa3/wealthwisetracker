@@ -153,16 +153,16 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
             <div>
               {/* Column Headers */}
               <div className="grid grid-cols-[1fr_90px] bg-slate-50/80 border-b border-dashed border-slate-200/80 sticky top-0">
-                <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider">Merchant</div>
+                <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Merchant</div>
                 <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
               </div>
 
               {groupedTransactions.map((t) => (
                 <div key={t.id} className="grid grid-cols-[1fr_90px] items-center border-b border-dashed border-slate-200/80 last:border-b-0">
-                  <div className="px-3 py-2 min-w-0 flex items-center gap-1.5">
+                  <div className="px-3 py-2 min-w-0 flex items-center gap-1.5 border-r border-dashed border-slate-200/80">
                     <span className="text-[11px] font-medium text-slate-700 truncate" title={t.description}>{t.description || "Unknown"}</span>
                     {t.subcategoryName && (
-                      <span className="px-1.5 py-0.5 bg-slate-100 rounded-full text-[8px] text-slate-500 shrink-0 leading-none">#{t.subcategoryName}</span>
+                      <span className="px-1.5 py-0.5 bg-slate-100 rounded-full text-[8px] text-slate-500 shrink-0 leading-none">{t.subcategoryName}</span>
                     )}
                   </div>
                   <div className="px-3 py-2 text-right">
