@@ -1803,6 +1803,8 @@ const App: React.FC = () => {
                       totalExpenses={globalSummary.totalExpense}
                       formatCurrency={formatCurrency}
                       getCategoryEmoji={getCategoryEmoji}
+                      incomeTransactions={activeTransactions.filter(t => t.type === 'INCOME')}
+                      currency={currency}
                     />
                   </div>
 
