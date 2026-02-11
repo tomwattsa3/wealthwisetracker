@@ -24,6 +24,13 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
     return currency === 'GBP' ? `£${formatted}` : `AED ${formatted}`;
   };
 
+  // Spreadsheet-style currency: faint symbol + bold number
+  const formatCurrencyFinancial = (amount: number) => {
+    const formatted = amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const symbol = currency === 'GBP' ? '£' : 'AED ';
+    return { symbol, formatted };
+  };
+
   // Get amount based on currency
   const getAmount = (t: Transaction) => currency === 'GBP' ? t.amountGBP : t.amountAED;
   const [subFilter, setSubFilter] = useState('all');
@@ -129,8 +136,8 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
           </div>
 
           {/* Total Amount */}
-          <span className="text-sm font-semibold text-slate-900 font-mono">
-            {formatCurrency(totalAmount)}
+          <span className="text-sm font-semibold text-slate-900 font-mono" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            <span className="text-slate-400 font-normal">{formatCurrencyFinancial(totalAmount).symbol}</span>{formatCurrencyFinancial(totalAmount).formatted}
           </span>
       </div>
 
@@ -178,8 +185,8 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
                   <div className="px-3 py-3 text-center border-r border-dashed border-slate-200/80 w-12">
                     <span className="text-sm text-slate-500">{t.count > 1 ? t.count : '-'}</span>
                   </div>
-                  <div className="px-3 py-3 text-right w-24">
-                    <span className="text-sm font-semibold text-slate-800">{formatCurrency(t.amount)}</span>
+                  <div className="px-3 py-3 text-right w-24 font-mono" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    <span className="text-[11px] text-slate-400">{formatCurrencyFinancial(t.amount).symbol}</span><span className="text-sm font-semibold text-slate-800">{formatCurrencyFinancial(t.amount).formatted}</span>
                   </div>
                 </div>
 
@@ -192,8 +199,8 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
                   <div className="px-1 py-2 text-center border-r border-dashed border-slate-200/80">
                     <span className="text-[9px] text-slate-400">{t.count > 1 ? t.count : ''}</span>
                   </div>
-                  <div className="px-2.5 py-2 text-right">
-                    <span className="text-[11px] font-semibold text-slate-800">{formatCurrency(t.amount)}</span>
+                  <div className="px-2.5 py-2 text-right font-mono" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    <span className="text-[10px] text-slate-400">{formatCurrencyFinancial(t.amount).symbol}</span><span className="text-[11px] font-semibold text-slate-800">{formatCurrencyFinancial(t.amount).formatted}</span>
                   </div>
                 </div>
               </div>
