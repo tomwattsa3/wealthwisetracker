@@ -11,7 +11,10 @@ interface CategoryTrendWidgetProps {
   currency?: 'GBP' | 'AED';
   variant?: 'default' | 'expense-sheet';
   getCategoryEmoji?: (categoryId: string) => string;
+  onEmojiChange?: (categoryId: string, emoji: string) => void;
 }
+
+const EMOJI_OPTIONS = ['🏠','🚗','✈️','🛍️','🍔','🛒','💰','📊','🎮','🏥','📱','🎓','🐶','🏋️','🎬','☕','🍕','👶','💡','🔧','🎁','👔','🧾','💳'];
 
 const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
   categoryId,
@@ -20,7 +23,8 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
   transactions,
   currency = 'GBP',
   variant = 'default',
-  getCategoryEmoji
+  getCategoryEmoji,
+  onEmojiChange
 }) => {
   // Currency formatter helper
   const formatCurrency = (amount: number) => {
@@ -105,6 +109,8 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
   const totalAmount = filteredTransactions.reduce((sum, t) => sum + getAmount(t), 0);
 
   // --- Expense Sheet variant (desktop dashboard) ---
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+
   if (variant === 'expense-sheet') {
     const emoji = getCategoryEmoji ? getCategoryEmoji(categoryId) : '📊';
 
@@ -114,7 +120,34 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
         <div className="px-4 py-3 border-b border-slate-100">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-lg">{emoji}</span>
+              {/* Clickable emoji with picker */}
+              <div className="relative">
+                <button
+                  onClick={() => setEmojiPickerOpen(!emojiPickerOpen)}
+                  className="text-lg hover:scale-110 transition-transform cursor-pointer"
+                  title="Change emoji"
+                >
+                  {emoji}
+                </button>
+                {emojiPickerOpen && (
+                  <div className="absolute top-8 left-0 z-50 bg-white rounded-xl shadow-lg border border-slate-200 p-2 w-[220px]">
+                    <div className="grid grid-cols-6 gap-1">
+                      {EMOJI_OPTIONS.map(e => (
+                        <button
+                          key={e}
+                          onClick={() => {
+                            onEmojiChange?.(categoryId, e);
+                            setEmojiPickerOpen(false);
+                          }}
+                          className={`w-8 h-8 flex items-center justify-center rounded-lg text-base hover:bg-slate-100 transition-colors ${e === emoji ? 'bg-slate-100 ring-1 ring-slate-300' : ''}`}
+                        >
+                          {e}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               <div className="relative">
                 <span className="text-sm font-bold text-slate-900">{category.name}</span>
                 <select
@@ -147,23 +180,27 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
           </div>
         </div>
 
-        {/* 2-Column Grid: Merchant + Amount */}
+        {/* 3-Column Grid: Merchant | Qty | Amount */}
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           {groupedTransactions.length > 0 ? (
             <div>
               {/* Column Headers */}
-              <div className="grid grid-cols-[1fr_90px] bg-slate-50/80 border-b border-dashed border-slate-200/80 sticky top-0">
+              <div className="grid grid-cols-[1fr_32px_80px] bg-slate-50/80 border-b border-dashed border-slate-200/80 sticky top-0">
                 <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Merchant</div>
+                <div className="px-1 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80">Qty</div>
                 <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
               </div>
 
               {groupedTransactions.map((t) => (
-                <div key={t.id} className="grid grid-cols-[1fr_90px] items-center border-b border-dashed border-slate-200/80 last:border-b-0">
-                  <div className="px-3 py-2 min-w-0 flex items-center gap-1.5 border-r border-dashed border-slate-200/80">
+                <div key={t.id} className="grid grid-cols-[1fr_32px_80px] items-center border-b border-dashed border-slate-200/80 last:border-b-0">
+                  <div className="px-3 py-2 min-w-0 flex items-center justify-between gap-1.5 border-r border-dashed border-slate-200/80">
                     <span className="text-[11px] font-medium text-slate-700 truncate" title={t.description}>{t.description || "Unknown"}</span>
                     {t.subcategoryName && (
-                      <span className="px-1.5 py-0.5 bg-slate-100 rounded-full text-[8px] text-slate-500 shrink-0 leading-none">{t.subcategoryName}</span>
+                      <span className="px-2 py-0.5 bg-slate-50 border border-slate-200 rounded-md text-[9px] font-medium text-slate-600 shrink-0 leading-tight">{t.subcategoryName}</span>
                     )}
+                  </div>
+                  <div className="px-1 py-2 text-center border-r border-dashed border-slate-200/80">
+                    <span className="text-[10px] text-slate-400">{t.count > 1 ? t.count : ''}</span>
                   </div>
                   <div className="px-3 py-2 text-right">
                     <span className="text-[11px] font-semibold text-slate-800">{formatCurrency(t.amount)}</span>

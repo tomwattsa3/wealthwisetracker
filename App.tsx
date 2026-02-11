@@ -37,18 +37,15 @@ const getCategoryIcon = (categoryId: string) => {
     }
 };
 
-// Helper for category emojis (used in desktop dashboard)
-const getCategoryEmoji = (categoryId: string): string => {
-    switch(categoryId) {
-        case 'apt': return '🏠';
-        case 'car': return '🚗';
-        case 'travel': return '✈️';
-        case 'personal': return '🛍️';
-        case 'food': return '🍔';
-        case 'groceries': return '🛒';
-        case 'income_salary': return '💰';
-        default: return '📊';
-    }
+// Default emojis for categories
+const DEFAULT_CATEGORY_EMOJIS: Record<string, string> = {
+    apt: '🏠',
+    car: '🚗',
+    travel: '✈️',
+    personal: '🛍️',
+    food: '🍔',
+    groceries: '🛒',
+    income_salary: '💰',
 };
 
 const App: React.FC = () => {
@@ -159,6 +156,24 @@ const App: React.FC = () => {
 
   // Breakdown View Mode (Category vs Subcategory)
   const [breakdownViewMode, setBreakdownViewMode] = useState<'category' | 'subcategory'>('category');
+
+  // Emoji Override State (persisted in localStorage)
+  const [emojiOverrides, setEmojiOverrides] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem('categoryEmojiOverrides');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  useEffect(() => {
+    localStorage.setItem('categoryEmojiOverrides', JSON.stringify(emojiOverrides));
+  }, [emojiOverrides]);
+
+  const getCategoryEmoji = (categoryId: string): string => {
+    return emojiOverrides[categoryId] || DEFAULT_CATEGORY_EMOJIS[categoryId] || '📊';
+  };
+
+  const handleEmojiChange = (categoryId: string, emoji: string) => {
+    setEmojiOverrides(prev => ({ ...prev, [categoryId]: emoji }));
+  };
 
   // Widget Configuration State
   const [widgetCategoryIds, setWidgetCategoryIds] = useState<string[]>(() => {
@@ -1764,6 +1779,7 @@ const App: React.FC = () => {
                             currency={currency}
                             variant="expense-sheet"
                             getCategoryEmoji={getCategoryEmoji}
+                            onEmojiChange={handleEmojiChange}
                           />
                         </div>
                       ))}
