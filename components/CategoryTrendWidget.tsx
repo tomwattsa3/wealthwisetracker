@@ -176,16 +176,16 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
                   </div>
                 </div>
 
-                {/* Desktop Row (unchanged) */}
-                <div className={`hidden md:grid grid-cols-[1fr_auto_auto_auto] items-center py-2.5 border-b border-dashed border-slate-400/60 last:border-b-0 bg-white`}>
-                  <span className="text-xs font-medium text-slate-700 truncate px-4 border-r border-slate-100" title={t.description}>{t.description || "Unknown"}</span>
-                  <span className="px-3 flex items-center justify-center border-r border-slate-100">
-                    <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] text-slate-500">{t.subcategoryName}</span>
+                {/* Desktop Row */}
+                <div className={`hidden md:grid grid-cols-[1fr_auto_auto_auto] items-center py-3 border-b border-dashed border-slate-300 last:border-b-0 bg-white`}>
+                  <span className="text-[13px] font-medium text-slate-700 truncate px-4 border-r border-slate-200/40" title={t.description}>{t.description || "Unknown"}</span>
+                  <span className="px-3 flex items-center justify-center border-r border-slate-200/40">
+                    <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] text-slate-500">{t.subcategoryName}</span>
                   </span>
-                  <span className="px-3 flex items-center justify-center border-r border-slate-100 text-[10px] text-slate-400 w-8">
+                  <span className="px-3 flex items-center justify-center border-r border-slate-200/40 text-[11px] text-slate-500 w-8">
                     {t.count > 1 ? `x${t.count}` : ''}
                   </span>
-                  <span className="text-xs font-medium text-slate-700 px-4 text-right">
+                  <span className="text-[13px] font-semibold text-slate-800 px-4 text-right">
                     {formatCurrency(t.amount)}
                   </span>
                 </div>
