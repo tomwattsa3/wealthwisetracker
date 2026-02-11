@@ -161,11 +161,10 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
             </div>
 
             {/* Desktop Spreadsheet Header */}
-            <div className="hidden md:grid grid-cols-[1fr_auto_auto_auto] bg-slate-50/80 border-b border-slate-200 sticky top-0">
+            <div className="hidden md:grid grid-cols-[1fr_48px_100px] bg-slate-50/80 border-b border-slate-200 sticky top-0">
               <div className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-r border-slate-200">Merchant</div>
-              <div className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-slate-200 w-28">Subcategory</div>
-              <div className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-slate-200 w-12">Qty</div>
-              <div className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-right w-28">Amount</div>
+              <div className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-slate-200">Qty</div>
+              <div className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
             </div>
 
             {groupedTransactions.map((t, idx) => (
@@ -185,17 +184,15 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
                 </div>
 
                 {/* Desktop Spreadsheet Row */}
-                <div className={`hidden md:grid grid-cols-[1fr_auto_auto_auto] items-center bg-white border-b border-dashed border-slate-300 last:border-b-0`}>
-                  <div className="px-3 py-2.5 border-r border-slate-200 min-w-0">
-                    <span className="text-[13px] font-medium text-slate-700 truncate block" title={t.description}>{t.description || "Unknown"}</span>
+                <div className={`hidden md:grid grid-cols-[1fr_48px_100px] items-center bg-white border-b border-dashed border-slate-300 last:border-b-0`}>
+                  <div className="px-3 py-2.5 border-r border-slate-200 min-w-0 flex items-center gap-2">
+                    <span className="text-[13px] font-medium text-slate-700 truncate" title={t.description}>{t.description || "Unknown"}</span>
+                    <span className="px-1 py-0.5 bg-slate-100 rounded text-[8px] text-slate-400 shrink-0 leading-none">{t.subcategoryName}</span>
                   </div>
-                  <div className="px-3 py-2.5 border-r border-slate-200 w-28 flex items-center justify-center">
-                    <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] text-slate-500">{t.subcategoryName}</span>
+                  <div className="px-3 py-2.5 text-center border-r border-slate-200">
+                    <span className="text-xs text-slate-500">{t.count > 1 ? t.count : '-'}</span>
                   </div>
-                  <div className="px-3 py-2.5 text-center border-r border-slate-200 w-12">
-                    <span className="text-[12px] text-slate-500">{t.count > 1 ? t.count : '-'}</span>
-                  </div>
-                  <div className="px-3 py-2.5 text-right w-28">
+                  <div className="px-3 py-2.5 text-right">
                     <span className="text-[13px] font-semibold text-slate-800">{formatCurrency(t.amount)}</span>
                   </div>
                 </div>
