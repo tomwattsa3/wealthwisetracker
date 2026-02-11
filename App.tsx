@@ -1753,12 +1753,14 @@ const App: React.FC = () => {
                   />
                 </div>
 
-                {/* Main Content: Category Cards (left) + Allocation Sidebar (right) */}
-                <div className="grid grid-cols-12 gap-6">
+                {/* Section Title */}
+                <h3 className="text-xl font-bold text-slate-900">Top Expense Categories</h3>
 
-                  {/* Left: Top Expense Categories */}
+                {/* Main Content: Category Cards (left) + Allocation Sidebar (right) */}
+                <div className="grid grid-cols-12 gap-6 items-start">
+
+                  {/* Left: Category Cards */}
                   <div className="col-span-12 xl:col-span-9">
-                    <h3 className="text-xl font-bold text-slate-900 mb-4">Top Expense Categories</h3>
                     <div className="grid xl:grid-cols-3 lg:grid-cols-2 gap-4">
                       {widgetCategoryIds.map((catId, index) => (
                         <div key={`desktop-${index}-${catId}`} className="relative group">
