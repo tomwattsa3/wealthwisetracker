@@ -1761,7 +1761,7 @@ const App: React.FC = () => {
 
                   {/* Left: Category Cards */}
                   <div className="col-span-12 xl:col-span-9">
-                    <div className="grid xl:grid-cols-3 lg:grid-cols-2 gap-4">
+                    <div className="grid xl:grid-cols-3 lg:grid-cols-2 gap-5">
                       {widgetCategoryIds.map((catId, index) => (
                         <div key={`desktop-${index}-${catId}`} className="relative group">
                           {widgetCategoryIds.length > 1 && (
