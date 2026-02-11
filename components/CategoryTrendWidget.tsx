@@ -188,7 +188,7 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
                 <div className={`hidden md:grid grid-cols-[1fr_24px_80px] items-center bg-white border-b border-dashed border-slate-200/80 last:border-b-0`}>
                   <div className="px-2.5 py-2 border-r border-dashed border-slate-200/80 min-w-0 flex items-center justify-between gap-1">
                     <span className="text-[11px] font-medium text-slate-700 truncate" title={t.description}>{t.description || "Unknown"}</span>
-                    <span className="px-1 py-0.5 bg-slate-100 rounded text-[7px] text-slate-400 shrink-0 leading-none">{t.subcategoryName}</span>
+                    <span className="px-1 py-0.5 bg-slate-100 rounded text-[7px] text-slate-600 shrink-0 leading-none">{t.subcategoryName}</span>
                   </div>
                   <div className="px-1 py-2 text-center border-r border-dashed border-slate-200/80">
                     <span className="text-[9px] text-slate-400">{t.count > 1 ? t.count : ''}</span>
