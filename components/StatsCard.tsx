@@ -60,34 +60,24 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
     );
   }
 
-  // --- KPI Profitability variant ---
+  // --- KPI Net Saved variant ---
   if (variant === 'kpi-profitability') {
     const rev = revenueAmount ?? 0;
     const exp = expenseAmount ?? 0;
-    const profit = rev - exp;
-    const margin = rev > 0 ? (profit / rev) * 100 : 0;
+    const netSaved = rev - exp;
 
     return (
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col justify-between h-full">
         <div className="flex items-center gap-2 mb-3">
-          <span className={`text-sm font-bold ${margin >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-            {margin.toFixed(1)}% Margin
+          <span className="text-base">💰</span>
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Net Saved</span>
+        </div>
+        <p className={`text-3xl font-bold mb-2 ${netSaved >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatVal(netSaved)}</p>
+        {rev > 0 && (
+          <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full w-fit ${netSaved >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+            {((netSaved / rev) * 100).toFixed(1)}% of income
           </span>
-        </div>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400">Revenue</span>
-            <span className="text-sm font-semibold text-slate-700">{formatVal(rev)}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400">Expenses</span>
-            <span className="text-sm font-semibold text-slate-700">{formatVal(exp)}</span>
-          </div>
-          <div className="border-t border-slate-100 pt-2 flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Profit</span>
-            <span className={`text-sm font-bold ${profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatVal(profit)}</span>
-          </div>
-        </div>
+        )}
       </div>
     );
   }
