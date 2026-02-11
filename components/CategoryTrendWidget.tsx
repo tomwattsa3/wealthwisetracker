@@ -9,6 +9,8 @@ interface CategoryTrendWidgetProps {
   allCategories: Category[];
   transactions: Transaction[];
   currency?: 'GBP' | 'AED';
+  variant?: 'default' | 'expense-sheet';
+  getCategoryEmoji?: (categoryId: string) => string;
 }
 
 const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
@@ -16,7 +18,9 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
   onCategoryChange,
   allCategories,
   transactions,
-  currency = 'GBP'
+  currency = 'GBP',
+  variant = 'default',
+  getCategoryEmoji
 }) => {
   // Currency formatter helper
   const formatCurrency = (amount: number) => {
@@ -29,8 +33,8 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
   const getAmount = (t: Transaction) => currency === 'GBP' ? t.amountGBP : t.amountAED;
   const [subFilter, setSubFilter] = useState('all');
 
-  const category = useMemo(() => 
-    allCategories.find(c => c.id === categoryId) || allCategories[0], 
+  const category = useMemo(() =>
+    allCategories.find(c => c.id === categoryId) || allCategories[0],
   [allCategories, categoryId]);
 
   // Reset subfilter when category changes
@@ -100,6 +104,85 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
 
   const totalAmount = filteredTransactions.reduce((sum, t) => sum + getAmount(t), 0);
 
+  // --- Expense Sheet variant (desktop dashboard) ---
+  if (variant === 'expense-sheet') {
+    const emoji = getCategoryEmoji ? getCategoryEmoji(categoryId) : '📊';
+
+    return (
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col h-[420px] overflow-hidden">
+        {/* Expense Sheet Header */}
+        <div className="px-4 py-3 border-b border-slate-100">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{emoji}</span>
+              <div className="relative">
+                <span className="text-sm font-bold text-slate-900">{category.name}</span>
+                <select
+                  value={categoryId}
+                  onChange={(e) => onCategoryChange(e.target.value)}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                >
+                  {allCategories.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <span className="text-sm font-bold text-slate-900">{formatCurrency(totalAmount)}</span>
+          </div>
+          <div className="flex items-center gap-1.5 mt-1">
+            <span className="text-[10px] text-slate-400">📋 EXPENSE SHEET</span>
+            {category.subcategories.length > 0 && (
+              <select
+                value={subFilter}
+                onChange={(e) => setSubFilter(e.target.value)}
+                className="bg-transparent text-[10px] font-medium text-slate-400 outline-none cursor-pointer hover:text-slate-600 transition-colors ml-auto"
+              >
+                <option value="all">All</option>
+                {category.subcategories.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            )}
+          </div>
+        </div>
+
+        {/* 2-Column Grid: Merchant + Amount */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          {groupedTransactions.length > 0 ? (
+            <div>
+              {/* Column Headers */}
+              <div className="grid grid-cols-[1fr_90px] bg-slate-50/80 border-b border-dashed border-slate-200/80 sticky top-0">
+                <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider">Merchant</div>
+                <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
+              </div>
+
+              {groupedTransactions.map((t) => (
+                <div key={t.id} className="grid grid-cols-[1fr_90px] items-center border-b border-dashed border-slate-200/80 last:border-b-0">
+                  <div className="px-3 py-2 min-w-0 flex items-center gap-1.5">
+                    <span className="text-[11px] font-medium text-slate-700 truncate" title={t.description}>{t.description || "Unknown"}</span>
+                    {t.subcategoryName && (
+                      <span className="px-1.5 py-0.5 bg-slate-100 rounded-full text-[8px] text-slate-500 shrink-0 leading-none">#{t.subcategoryName}</span>
+                    )}
+                  </div>
+                  <div className="px-3 py-2 text-right">
+                    <span className="text-[11px] font-semibold text-slate-800">{formatCurrency(t.amount)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-2 py-8">
+              <ShoppingBag size={20} className="opacity-30" />
+              <p className="text-xs text-slate-400">No transactions</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // --- Default variant ---
   return (
     <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-[520px] overflow-hidden">
 

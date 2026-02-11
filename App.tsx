@@ -10,6 +10,7 @@ import TransactionList from './components/TransactionList';
 import StatsCard from './components/StatsCard';
 import DashboardDateFilter, { DateRange } from './components/DashboardDateFilter';
 import CategoryTrendWidget from './components/CategoryTrendWidget';
+import AllocationSidebar from './components/AllocationSidebar';
 import CategoryManager from './components/CategoryManager';
 import BankFeedUpload from './components/BankFeedUpload';
 import YearlySummary from './components/YearlySummary';
@@ -33,6 +34,20 @@ const getCategoryIcon = (categoryId: string) => {
         case 'groceries': return <ShoppingBag size={16} />;
         case 'income_salary': return <PoundSterling size={16} />;
         default: return <Activity size={16} />;
+    }
+};
+
+// Helper for category emojis (used in desktop dashboard)
+const getCategoryEmoji = (categoryId: string): string => {
+    switch(categoryId) {
+        case 'apt': return '🏠';
+        case 'car': return '🚗';
+        case 'travel': return '✈️';
+        case 'personal': return '🛍️';
+        case 'food': return '🍔';
+        case 'groceries': return '🛒';
+        case 'income_salary': return '💰';
+        default: return '📊';
     }
 };
 
@@ -1300,7 +1315,7 @@ const App: React.FC = () => {
                 <div className="hidden md:flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
                   <div className="flex-1">
                     <h2 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">
-                        {activeTab === 'home' && 'Dashboard'}
+                        {activeTab === 'home' && 'Overview'}
                         {activeTab === 'history' && 'Transactions'}
                     </h2>
                     <p className="text-slate-500 text-sm mt-1 font-medium">
@@ -1364,38 +1379,37 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* DASHBOARD VIEW - Mercury Bank Style */}
+          {/* DASHBOARD VIEW */}
           {activeTab === 'home' && (
-            <div className="space-y-3 sm:space-y-4 animate-in fade-in duration-500 px-2 sm:px-0">
+            <div className="animate-in fade-in duration-500">
 
-              {/* Compact Header - Currency Switcher */}
-              <div className="flex items-center justify-end gap-2">
-                {/* Currency Switcher */}
-                <div className="flex bg-slate-100 p-0.5 rounded-lg">
-                  <button
-                    onClick={() => setCurrency('GBP')}
-                    className={`px-2 py-1 text-[10px] md:text-xs font-semibold rounded-md transition-all ${currency === 'GBP' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    £ GBP
-                  </button>
-                  <button
-                    onClick={() => setCurrency('AED')}
-                    className={`px-2 py-1 text-[10px] md:text-xs font-semibold rounded-md transition-all ${currency === 'AED' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    AED
-                  </button>
+              {/* ===== MOBILE DASHBOARD (untouched) ===== */}
+              <div className="md:hidden space-y-3 px-2 sm:px-0">
+                {/* Compact Header - Currency Switcher */}
+                <div className="flex items-center justify-end gap-2">
+                  <div className="flex bg-slate-100 p-0.5 rounded-lg">
+                    <button
+                      onClick={() => setCurrency('GBP')}
+                      className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all ${currency === 'GBP' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                      £ GBP
+                    </button>
+                    <button
+                      onClick={() => setCurrency('AED')}
+                      className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all ${currency === 'AED' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                      AED
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              {/* Mercury Style KPI Cards - 3 columns */}
-              <div className="grid grid-cols-3 gap-2 md:gap-4">
-                <StatsCard label="Income" amount={summary.totalIncome} type="INCOME" subtitle="Total Earnings" currency={currency} />
-                <StatsCard label="Expenses" amount={summary.totalExpense} type="EXPENSE" subtitle="Total Spent" currency={currency} />
-                <StatsCard label="Balance" amount={summary.balance} type="BALANCE" subtitle="Net Position" currency={currency} />
-              </div>
+                {/* Mobile KPI Cards - 3 columns */}
+                <div className="grid grid-cols-3 gap-2">
+                  <StatsCard label="Income" amount={summary.totalIncome} type="INCOME" subtitle="Total Earnings" currency={currency} />
+                  <StatsCard label="Expenses" amount={summary.totalExpense} type="EXPENSE" subtitle="Total Spent" currency={currency} />
+                  <StatsCard label="Balance" amount={summary.balance} type="BALANCE" subtitle="Net Position" currency={currency} />
+                </div>
 
-              {/* Mobile: Mercury Style Category Cards */}
-              <div className="md:hidden space-y-3">
                 {/* Fixed Income Card - Mercury Style */}
                 {(() => {
                   const incomeCat = incomeCategories[0];
@@ -1404,7 +1418,6 @@ const App: React.FC = () => {
                   const incomeTransactions = activeTransactions.filter(t => t.type === 'INCOME');
                   const incomeTotal = incomeTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
 
-                  // Group transactions by description
                   const groupedIncome = new Map<string, { description: string; subcategoryName: string; amount: number; count: number }>();
                   incomeTransactions.forEach(t => {
                     const key = t.description || 'Unknown';
@@ -1423,7 +1436,6 @@ const App: React.FC = () => {
 
                   return (
                     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                      {/* Mercury Style Header */}
                       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100">
                         <div className="flex items-center gap-1.5">
                           <TrendingUp size={12} className="text-slate-400" />
@@ -1432,7 +1444,6 @@ const App: React.FC = () => {
                         <span className={`${currency === 'AED' ? 'text-[10px]' : 'text-xs'} font-semibold text-slate-900 font-mono`}>{formatCurrency(incomeTotal)}</span>
                       </div>
                       <div>
-                        {/* Spreadsheet Header */}
                         <div className="grid grid-cols-[1fr_auto_auto] bg-slate-50/80 border-b border-slate-200 sticky top-0">
                           <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider border-r border-slate-200">Merchant</div>
                           <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-slate-200 w-10">Qty</div>
@@ -1462,7 +1473,7 @@ const App: React.FC = () => {
                   );
                 })()}
 
-                {/* Configurable Expense Cards - Mercury Style */}
+                {/* Configurable Expense Cards */}
                 {mobileCategoryIds.map((catId, index) => {
                   const cat = expenseCategories.find(c => c.id === catId);
                   if (!cat) return null;
@@ -1470,7 +1481,6 @@ const App: React.FC = () => {
                   const catTransactions = activeTransactions.filter(t => t.categoryId === cat.id);
                   const catTotal = catTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
 
-                  // Group transactions by description
                   const groupedTransactions = new Map<string, { description: string; subcategoryName: string; amount: number; count: number }>();
                   catTransactions.forEach(t => {
                     const key = t.description || 'Unknown';
@@ -1488,7 +1498,6 @@ const App: React.FC = () => {
 
                   return (
                     <div key={`mobile-${index}-${catId}`} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                      {/* Mercury Style Header with Category Selector */}
                       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100">
                         <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-3">
                           <div
@@ -1518,9 +1527,7 @@ const App: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Top Transactions - Spreadsheet Style */}
                       <div>
-                        {/* Spreadsheet Header */}
                         <div className="grid grid-cols-[1fr_auto_auto] bg-slate-50/80 border-b border-slate-200 sticky top-0">
                           <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider border-r border-slate-200">Merchant</div>
                           <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-slate-200 w-10">Qty</div>
@@ -1550,7 +1557,6 @@ const App: React.FC = () => {
                   );
                 })}
 
-                {/* Add Card Button - Mercury Style */}
                 <button
                   onClick={handleAddMobileCard}
                   className="w-full py-3 border border-dashed border-slate-200 rounded-xl text-slate-400 text-xs font-medium hover:border-slate-300 hover:text-slate-500 transition-colors flex items-center justify-center gap-1.5"
@@ -1558,14 +1564,189 @@ const App: React.FC = () => {
                   <Plus size={14} />
                   Add Category Card
                 </button>
+
+                {/* Mobile Summary Card */}
+                <div className="bg-white rounded-xl border border-slate-200 flex flex-col min-h-[300px] overflow-hidden">
+                  <div className="flex flex-col gap-3 p-3 border-b border-slate-100 flex-shrink-0">
+                     <div className="flex justify-between items-center">
+                         {filterCategory === 'all' && filterSubcategory === 'all' ? (
+                             <div className="flex bg-slate-50 p-0.5 rounded-lg border border-slate-100">
+                                 <button
+                                    onClick={() => setBreakdownViewMode('category')}
+                                    className={`px-2.5 py-1.5 text-[10px] font-medium rounded-md transition-all ${breakdownViewMode === 'category' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                 >
+                                     Categories
+                                 </button>
+                                 <button
+                                    onClick={() => setBreakdownViewMode('subcategory')}
+                                    className={`px-2.5 py-1.5 text-[10px] font-medium rounded-md transition-all ${breakdownViewMode === 'subcategory' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                 >
+                                     Subcategories
+                                 </button>
+                             </div>
+                         ) : (
+                             <h3 className="text-xs font-medium text-slate-400 uppercase tracking-wide">
+                               {filterCategory !== 'all' ? 'Breakdown' : 'Filtered'}
+                             </h3>
+                         )}
+                         {(filterCategory !== 'all' || filterSubcategory !== 'all') && (
+                            <button onClick={handleResetFilters} className="text-[10px] font-medium text-slate-500 hover:text-slate-700 transition-colors">Reset</button>
+                        )}
+                     </div>
+                     <div className="flex gap-2">
+                        <select
+                            value={filterCategory}
+                            onChange={(e) => { setFilterCategory(e.target.value); setFilterSubcategory('all'); }}
+                            className="flex-1 bg-slate-50 border border-slate-100 text-slate-600 text-[10px] font-medium rounded-lg px-2.5 py-2 outline-none cursor-pointer appearance-none"
+                        >
+                            <option value="all">Category: All</option>
+                            {expenseCategories.map(cat => (<option key={cat.id} value={cat.id}>{cat.name}</option>))}
+                        </select>
+                        <select
+                            value={filterSubcategory}
+                            onChange={(e) => setFilterSubcategory(e.target.value)}
+                            className="flex-1 bg-slate-50 border border-slate-100 text-slate-600 text-[10px] font-medium rounded-lg px-2.5 py-2 outline-none cursor-pointer appearance-none"
+                        >
+                            <option value="all">Sub: All</option>
+                            {availableSubcategories.map(sub => (<option key={sub} value={sub}>{sub}</option>))}
+                        </select>
+                     </div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-3">
+                      <div className="space-y-3">
+                          {(() => {
+                              let displayData: { name?: string; category?: Category; total: number; color?: string; parentId?: string }[] = [];
+                              let listType: 'category' | 'subcategory' = 'category';
+                              if (filterCategory !== 'all') { displayData = subcategoryBreakdown; listType = 'subcategory'; }
+                              else if (filterSubcategory !== 'all') { displayData = allSubcategoryBreakdown.filter(i => i.name === filterSubcategory); listType = 'subcategory'; }
+                              else if (breakdownViewMode === 'subcategory') { displayData = allSubcategoryBreakdown; listType = 'subcategory'; }
+                              else { displayData = categoryBreakdown.filter(c => c.category.type === 'EXPENSE'); listType = 'category'; }
+
+                              if (displayData.length === 0) return <div className="flex items-center justify-center h-20 text-slate-400 text-xs">No expenses found</div>;
+
+                              return displayData.map((item: any) => {
+                                  const percentage = globalSummary.totalExpense > 0 ? ((item.total / globalSummary.totalExpense) * 100).toFixed(1) : '0';
+                                  const label = listType === 'category' ? item.category.name : item.name;
+                                  const color = listType === 'category' ? item.category.color : item.color;
+                                  return (
+                                      <div key={label} className="group">
+                                        <div className="flex items-center justify-between mb-1.5">
+                                          <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color || '#94a3b8' }} />
+                                            <span className="text-xs font-medium text-slate-700">{label}</span>
+                                          </div>
+                                          <span className="text-xs font-semibold text-slate-900 font-mono">{formatCurrency(item.total)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                              <div className="h-full rounded-full transition-all duration-500 ease-out" style={{ width: `${percentage}%`, backgroundColor: color || '#94a3b8' }} />
+                                          </div>
+                                          <span className="text-[10px] text-slate-400 w-10 text-right">{percentage}%</span>
+                                        </div>
+                                      </div>
+                                  );
+                              });
+                          })()}
+                      </div>
+                      <div className="pt-4 mt-4 border-t border-slate-100 flex-shrink-0">
+                          <div className="flex items-center justify-between">
+                              <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Total Expenses</span>
+                              <span className="text-lg font-semibold text-slate-900 font-mono">{formatCurrency(globalSummary.totalExpense)}</span>
+                          </div>
+                      </div>
+                      {excludedTransactions.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-slate-100">
+                              <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                      <EyeOff size={12} className="text-slate-400" />
+                                      <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Excluded ({excludedTransactions.length})</span>
+                                  </div>
+                                  <span className="text-xs font-medium text-slate-500 font-mono">
+                                      {formatCurrency(excludedTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0))}
+                                  </span>
+                              </div>
+                              <div className="rounded-lg overflow-hidden border border-slate-100 flex flex-col max-h-48 overflow-y-auto custom-scrollbar">
+                                  {excludedTransactions.map(t => (
+                                      <div key={t.id} className="px-3 py-2 flex justify-between items-center border-b border-slate-50 last:border-b-0">
+                                          <div className="flex-1 min-w-0 mr-3">
+                                              <span className="text-xs font-medium text-slate-600 truncate block">{t.description}</span>
+                                              <div className="flex items-center gap-1.5 mt-0.5">
+                                                  <span className="text-[10px] text-slate-400">{t.date}</span>
+                                                  {t.subcategoryName && (<><span className="text-slate-300">•</span><span className="text-[10px] text-slate-400">{t.subcategoryName}</span></>)}
+                                              </div>
+                                          </div>
+                                          <span className="text-xs font-medium text-slate-500 font-mono">{formatCurrency(currency === 'GBP' ? t.amountGBP : t.amountAED)}</span>
+                                      </div>
+                                  ))}
+                              </div>
+                          </div>
+                      )}
+                  </div>
+                </div>
               </div>
 
-              {/* Row 2: Top 4 Transaction Widgets - Hidden on mobile - Mercury Style */}
-              <div className="hidden md:grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                 {widgetCategoryIds.slice(0, 4).map((catId, index) => {
-                      const isIncomeWidget = index === 3;
-                      return (
-                        <div key={`top-${index}-${catId}`} className="relative group">
+              {/* ===== DESKTOP DASHBOARD (new fintech SaaS layout) ===== */}
+              <div className="hidden md:block space-y-6">
+
+                {/* Desktop KPI Row */}
+                <div className="grid grid-cols-3 gap-4">
+                  <StatsCard
+                    label="Revenue"
+                    amount={summary.totalIncome}
+                    type="INCOME"
+                    currency={currency}
+                    variant="kpi-revenue"
+                    percentChange={(() => {
+                      // Simple period-over-period: compare current range to same-length prior range
+                      const start = new Date(dateRange.start);
+                      const end = new Date(dateRange.end);
+                      const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+                      const priorStart = new Date(start.getTime() - days * 24 * 60 * 60 * 1000);
+                      const priorEnd = new Date(start.getTime() - 24 * 60 * 60 * 1000);
+                      const priorIncome = transactions
+                        .filter(t => !t.excluded && t.categoryId !== 'excluded' && t.type === 'INCOME' && t.date >= priorStart.toISOString().split('T')[0] && t.date <= priorEnd.toISOString().split('T')[0])
+                        .reduce((s, t) => s + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
+                      return priorIncome > 0 ? ((summary.totalIncome - priorIncome) / priorIncome) * 100 : 0;
+                    })()}
+                  />
+                  <StatsCard
+                    label="Expenses"
+                    amount={summary.totalExpense}
+                    type="EXPENSE"
+                    currency={currency}
+                    variant="kpi-expense"
+                    percentChange={(() => {
+                      const start = new Date(dateRange.start);
+                      const end = new Date(dateRange.end);
+                      const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+                      const priorStart = new Date(start.getTime() - days * 24 * 60 * 60 * 1000);
+                      const priorEnd = new Date(start.getTime() - 24 * 60 * 60 * 1000);
+                      const priorExpense = transactions
+                        .filter(t => !t.excluded && t.categoryId !== 'excluded' && t.type === 'EXPENSE' && t.date >= priorStart.toISOString().split('T')[0] && t.date <= priorEnd.toISOString().split('T')[0])
+                        .reduce((s, t) => s + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
+                      return priorExpense > 0 ? ((summary.totalExpense - priorExpense) / priorExpense) * 100 : 0;
+                    })()}
+                  />
+                  <StatsCard
+                    label="Profitability"
+                    amount={summary.balance}
+                    type="BALANCE"
+                    currency={currency}
+                    variant="kpi-profitability"
+                    revenueAmount={summary.totalIncome}
+                    expenseAmount={summary.totalExpense}
+                  />
+                </div>
+
+                {/* Main Content: Category Cards (left) + Allocation Sidebar (right) */}
+                <div className="grid grid-cols-12 gap-6">
+
+                  {/* Left: Top Expense Categories */}
+                  <div className="col-span-12 xl:col-span-9">
+                    <h3 className="text-xl font-bold text-slate-900 mb-4">Top Expense Categories</h3>
+                    <div className="grid xl:grid-cols-3 lg:grid-cols-2 gap-4">
+                      {widgetCategoryIds.map((catId, index) => (
+                        <div key={`desktop-${index}-${catId}`} className="relative group">
                           {widgetCategoryIds.length > 1 && (
                             <button
                               onClick={() => handleRemoveDesktopWidget(index)}
@@ -1576,229 +1757,40 @@ const App: React.FC = () => {
                             </button>
                           )}
                           <CategoryTrendWidget
-                              categoryId={catId}
-                              onCategoryChange={(newId) => handleWidgetCategoryChange(index, newId)}
-                              allCategories={isIncomeWidget ? incomeCategories : expenseCategories}
-                              transactions={activeTransactions}
-                              currency={currency}
+                            categoryId={catId}
+                            onCategoryChange={(newId) => handleWidgetCategoryChange(index, newId)}
+                            allCategories={[...expenseCategories, ...incomeCategories]}
+                            transactions={activeTransactions}
+                            currency={currency}
+                            variant="expense-sheet"
+                            getCategoryEmoji={getCategoryEmoji}
                           />
                         </div>
-                      );
-                 })}
-              </div>
-
-              {/* Row 3: Summary + Remaining Widgets - Mercury Style */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-
-                 {/* Remaining Widgets - Left Side - Hidden on mobile */}
-                <div className="hidden lg:flex lg:col-span-8 xl:col-span-9 flex-col gap-4">
-                  <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                    {widgetCategoryIds.slice(4).map((catId, index) => (
-                      <div key={`bottom-${index + 4}-${catId}`} className="relative group">
-                        {widgetCategoryIds.length > 1 && (
-                          <button
-                            onClick={() => handleRemoveDesktopWidget(index + 4)}
-                            className="absolute -top-2 -right-2 w-5 h-5 bg-white border border-slate-200 hover:bg-rose-500 hover:border-rose-500 text-slate-400 hover:text-white rounded-full flex items-center justify-center text-xs font-medium transition-all shadow-sm z-50 opacity-0 group-hover:opacity-100"
-                            title="Remove widget"
-                          >
-                            ×
-                          </button>
-                        )}
-                        <CategoryTrendWidget
-                          categoryId={catId}
-                          onCategoryChange={(newId) => handleWidgetCategoryChange(index + 4, newId)}
-                          allCategories={expenseCategories}
-                          transactions={activeTransactions}
-                          currency={currency}
-                        />
-                      </div>
-                    ))}
-                    {/* Add Widget Button - Mercury Style */}
-                    <button
-                      onClick={handleAddDesktopWidget}
-                      className="h-full min-h-[200px] border border-dashed border-slate-200 rounded-xl text-slate-400 hover:border-slate-300 hover:text-slate-500 transition-colors flex flex-col items-center justify-center gap-2"
-                    >
-                      <Plus size={20} />
-                      <span className="text-xs font-medium">Add Widget</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Summary Card - Full width on mobile - Mercury Style */}
-                <div className="col-span-1 lg:col-span-4 xl:col-span-3 flex flex-col h-full">
-                  <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full min-h-[300px] sm:min-h-[500px] overflow-hidden">
-
-                    {/* Header - Mercury Style */}
-                    <div className="flex flex-col gap-3 p-3 sm:p-4 border-b border-slate-100 flex-shrink-0">
-                       <div className="flex justify-between items-center">
-                           {/* View Mode Toggle - Mercury Style */}
-                           {filterCategory === 'all' && filterSubcategory === 'all' ? (
-                               <div className="flex bg-slate-50 p-0.5 rounded-lg border border-slate-100">
-                                   <button
-                                      onClick={() => setBreakdownViewMode('category')}
-                                      className={`px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-md transition-all ${breakdownViewMode === 'category' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                   >
-                                       Categories
-                                   </button>
-                                   <button
-                                      onClick={() => setBreakdownViewMode('subcategory')}
-                                      className={`px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-md transition-all ${breakdownViewMode === 'subcategory' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                   >
-                                       Subcategories
-                                   </button>
-                               </div>
-                           ) : (
-                               <h3 className="text-xs sm:text-sm font-medium text-slate-400 uppercase tracking-wide">
-                                 {filterCategory !== 'all' ? 'Breakdown' : 'Filtered'}
-                               </h3>
-                           )}
-
-                           {(filterCategory !== 'all' || filterSubcategory !== 'all') && (
-                              <button
-                                  onClick={handleResetFilters}
-                                  className="text-[10px] sm:text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
-                              >
-                                  Reset
-                              </button>
-                          )}
-                       </div>
-
-                       <div className="flex gap-2">
-                          <select
-                              value={filterCategory}
-                              onChange={(e) => {
-                                  setFilterCategory(e.target.value);
-                                  setFilterSubcategory('all');
-                              }}
-                              className="flex-1 bg-slate-50 border border-slate-100 text-slate-600 text-[10px] sm:text-xs font-medium rounded-lg focus:border-slate-300 focus:ring-1 focus:ring-slate-200 block px-2.5 sm:px-3 py-2 outline-none hover:bg-slate-100 transition-colors cursor-pointer appearance-none"
-                          >
-                              <option value="all">Category: All</option>
-                              {expenseCategories.map(cat => (
-                                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                              ))}
-                          </select>
-
-                          <select
-                              value={filterSubcategory}
-                              onChange={(e) => setFilterSubcategory(e.target.value)}
-                              className="flex-1 bg-slate-50 border border-slate-100 text-slate-600 text-[10px] sm:text-xs font-medium rounded-lg focus:border-slate-300 focus:ring-1 focus:ring-slate-200 block px-2.5 sm:px-3 py-2 outline-none hover:bg-slate-100 transition-colors cursor-pointer appearance-none"
-                          >
-                              <option value="all">Sub: All</option>
-                              {availableSubcategories.map(sub => (
-                                  <option key={sub} value={sub}>{sub}</option>
-                              ))}
-                          </select>
-                       </div>
+                      ))}
+                      {/* Add Widget Button */}
+                      <button
+                        onClick={handleAddDesktopWidget}
+                        className="h-full min-h-[200px] border border-dashed border-slate-200 rounded-2xl text-slate-400 hover:border-slate-300 hover:text-slate-500 transition-colors flex flex-col items-center justify-center gap-2"
+                      >
+                        <Plus size={20} />
+                        <span className="text-xs font-medium">Add Widget</span>
+                      </button>
                     </div>
-
-                    {/* Category Breakdown List - Mercury Style */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-3 sm:p-4">
-                        <div className="space-y-3">
-                            {(() => {
-                                let displayData: { name?: string; category?: Category; total: number; color?: string; parentId?: string }[] = [];
-                                let listType: 'category' | 'subcategory' = 'category';
-
-                                if (filterCategory !== 'all') {
-                                    displayData = subcategoryBreakdown;
-                                    listType = 'subcategory';
-                                } else if (filterSubcategory !== 'all') {
-                                    displayData = allSubcategoryBreakdown.filter(i => i.name === filterSubcategory);
-                                    listType = 'subcategory';
-                                } else if (breakdownViewMode === 'subcategory') {
-                                    displayData = allSubcategoryBreakdown;
-                                    listType = 'subcategory';
-                                } else {
-                                    displayData = categoryBreakdown.filter(c => c.category.type === 'EXPENSE');
-                                    listType = 'category';
-                                }
-
-                                if (displayData.length === 0) {
-                                    return <div className="flex items-center justify-center h-20 text-slate-400 text-xs">No expenses found</div>;
-                                }
-
-                                return displayData.map((item: any) => {
-                                    const percentage = globalSummary.totalExpense > 0 ? ((item.total / globalSummary.totalExpense) * 100).toFixed(1) : '0';
-                                    const label = listType === 'category' ? item.category.name : item.name;
-                                    const color = listType === 'category' ? item.category.color : item.color;
-
-                                    return (
-                                        <div key={label} className="group">
-                                          <div className="flex items-center justify-between mb-1.5">
-                                            <div className="flex items-center gap-2">
-                                              <div
-                                                className="w-2 h-2 rounded-full shrink-0"
-                                                style={{ backgroundColor: color || '#94a3b8' }}
-                                              />
-                                              <span className="text-xs font-medium text-slate-700">{label}</span>
-                                            </div>
-                                            <span className="text-xs font-semibold text-slate-900 font-mono">{formatCurrency(item.total)}</span>
-                                          </div>
-                                          <div className="flex items-center gap-2">
-                                            <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                                                <div
-                                                  className="h-full rounded-full transition-all duration-500 ease-out"
-                                                  style={{
-                                                      width: `${percentage}%`,
-                                                      backgroundColor: color || '#94a3b8'
-                                                  }}
-                                                />
-                                            </div>
-                                            <span className="text-[10px] text-slate-400 w-10 text-right">{percentage}%</span>
-                                          </div>
-                                        </div>
-                                    );
-                                });
-                            })()}
-                        </div>
-
-                        {/* Total Display - Mercury Style */}
-                        <div className="pt-4 mt-4 border-t border-slate-100 flex-shrink-0">
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Total Expenses</span>
-                                <span className="text-lg sm:text-xl font-semibold text-slate-900 font-mono">{formatCurrency(globalSummary.totalExpense)}</span>
-                            </div>
-                        </div>
-
-                         {/* Excluded Transactions - Mercury Style */}
-                        {excludedTransactions.length > 0 && (
-                            <div className="mt-4 pt-4 border-t border-slate-100">
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-2">
-                                        <EyeOff size={12} className="text-slate-400" />
-                                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Excluded ({excludedTransactions.length})</span>
-                                    </div>
-                                    <span className="text-xs font-medium text-slate-500 font-mono">
-                                        {formatCurrency(excludedTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0))}
-                                    </span>
-                                </div>
-                                <div className="rounded-lg overflow-hidden border border-slate-100 flex flex-col max-h-48 overflow-y-auto custom-scrollbar">
-                                    {excludedTransactions.map(t => (
-                                        <div key={t.id} className="px-3 py-2 flex justify-between items-center border-b border-slate-50 last:border-b-0">
-                                            <div className="flex-1 min-w-0 mr-3">
-                                                <span className="text-xs font-medium text-slate-600 truncate block">{t.description}</span>
-                                                <div className="flex items-center gap-1.5 mt-0.5">
-                                                    <span className="text-[10px] text-slate-400">{t.date}</span>
-                                                    {t.subcategoryName && (
-                                                        <>
-                                                            <span className="text-slate-300">•</span>
-                                                            <span className="text-[10px] text-slate-400">{t.subcategoryName}</span>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <span className="text-xs font-medium text-slate-500 font-mono">
-                                                {formatCurrency(currency === 'GBP' ? t.amountGBP : t.amountAED)}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                    
                   </div>
+
+                  {/* Right: Allocation Sidebar */}
+                  <div className="col-span-12 xl:col-span-3">
+                    <AllocationSidebar
+                      categoryBreakdown={categoryBreakdown}
+                      totalExpenses={globalSummary.totalExpense}
+                      formatCurrency={formatCurrency}
+                      getCategoryEmoji={getCategoryEmoji}
+                    />
+                  </div>
+
                 </div>
               </div>
+
             </div>
           )}
           
