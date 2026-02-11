@@ -191,18 +191,18 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
                 <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
               </div>
 
-              {groupedTransactions.map((t) => (
-                <div key={t.id} className="grid grid-cols-[1fr_32px_80px] items-center border-b border-dashed border-slate-200/80 last:border-b-0">
-                  <div className="px-3 py-2 min-w-0 flex items-center justify-between gap-1.5 border-r border-dashed border-slate-200/80">
+              {groupedTransactions.map((t, idx) => (
+                <div key={t.id} className={`grid grid-cols-[1fr_32px_80px] items-center border-b border-dashed border-slate-200/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}`}>
+                  <div className="px-3 py-3 min-w-0 flex items-center justify-between gap-1.5 border-r border-dashed border-slate-200/80">
                     <span className="text-[11px] font-medium text-slate-700 truncate" title={t.description}>{t.description || "Unknown"}</span>
                     {t.subcategoryName && (
-                      <span className="px-2 py-0.5 bg-slate-50 border border-slate-200 rounded-md text-[9px] font-medium text-slate-600 shrink-0 leading-tight">{t.subcategoryName}</span>
+                      <span className="px-1.5 py-px bg-slate-50 border border-slate-200 rounded-md text-[8px] font-medium text-slate-500 shrink-0 leading-tight">{t.subcategoryName}</span>
                     )}
                   </div>
-                  <div className="px-1 py-2 text-center border-r border-dashed border-slate-200/80">
+                  <div className="px-1 py-3 text-center border-r border-dashed border-slate-200/80">
                     <span className="text-[10px] text-slate-400">{t.count > 1 ? t.count : ''}</span>
                   </div>
-                  <div className="px-3 py-2 text-right">
+                  <div className="px-3 py-3 text-right">
                     <span className="text-[11px] font-semibold text-slate-800">{formatCurrency(t.amount)}</span>
                   </div>
                 </div>
