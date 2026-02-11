@@ -161,21 +161,21 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
             </div>
 
             {/* Desktop Spreadsheet Header */}
-            <div className="hidden md:grid grid-cols-[1fr_32px_80px] bg-slate-50/80 border-b border-slate-200 sticky top-0">
-              <div className="px-2 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider border-r border-slate-200">Merchant</div>
-              <div className="px-1 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right border-r border-slate-200">Qty</div>
-              <div className="px-2 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
+            <div className="hidden md:grid grid-cols-[1fr_36px_80px] bg-slate-50/80 border-b border-dashed border-slate-200/80 sticky top-0">
+              <div className="px-2.5 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Merchant</div>
+              <div className="px-1 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80">Qty</div>
+              <div className="px-2.5 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
             </div>
 
             {groupedTransactions.map((t, idx) => (
               <div key={t.id}>
                 {/* Mobile Spreadsheet Row */}
-                <div className="md:hidden grid grid-cols-[1fr_auto_auto] items-center bg-white border-b border-dashed border-slate-300 last:border-b-0">
-                  <div className="px-3 py-3 border-r border-slate-200">
+                <div className="md:hidden grid grid-cols-[1fr_auto_auto] items-center bg-white border-b border-dashed border-slate-200/80 last:border-b-0">
+                  <div className="px-3 py-3 border-r border-dashed border-slate-200/80">
                     <span className="text-sm font-medium text-slate-700 block truncate" title={t.description}>{t.description || "Unknown"}</span>
                     <span className="text-[10px] text-slate-400">{t.subcategoryName}</span>
                   </div>
-                  <div className="px-3 py-3 text-center border-r border-slate-200 w-12">
+                  <div className="px-3 py-3 text-center border-r border-dashed border-slate-200/80 w-12">
                     <span className="text-sm text-slate-500">{t.count > 1 ? t.count : '-'}</span>
                   </div>
                   <div className="px-3 py-3 text-right w-24">
@@ -184,15 +184,15 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
                 </div>
 
                 {/* Desktop Spreadsheet Row */}
-                <div className={`hidden md:grid grid-cols-[1fr_32px_80px] items-center bg-white border-b border-dashed border-slate-300 last:border-b-0`}>
-                  <div className="px-2 py-2 border-r border-slate-200 min-w-0 flex items-center justify-between gap-1">
+                <div className={`hidden md:grid grid-cols-[1fr_36px_80px] items-center bg-white border-b border-dashed border-slate-200/80 last:border-b-0`}>
+                  <div className="px-2.5 py-2 border-r border-dashed border-slate-200/80 min-w-0 flex items-center justify-between gap-1">
                     <span className="text-[11px] font-medium text-slate-700 truncate" title={t.description}>{t.description || "Unknown"}</span>
                     <span className="px-1 py-0.5 bg-slate-100 rounded text-[7px] text-slate-400 shrink-0 leading-none">{t.subcategoryName}</span>
                   </div>
-                  <div className="px-1 py-2 text-right border-r border-slate-200">
+                  <div className="px-1 py-2 text-center border-r border-dashed border-slate-200/80">
                     <span className="text-[9px] text-slate-400">{t.count > 1 ? t.count : ''}</span>
                   </div>
-                  <div className="px-2 py-2 text-right">
+                  <div className="px-2.5 py-2 text-right">
                     <span className="text-[11px] font-semibold text-slate-800">{formatCurrency(t.amount)}</span>
                   </div>
                 </div>
