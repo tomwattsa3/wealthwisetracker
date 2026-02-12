@@ -1831,6 +1831,8 @@ const App: React.FC = () => {
                     onAddSubcategory={handleAddSubcategory}
                     onDeleteSubcategory={handleDeleteSubcategory}
                     onDeleteCategory={handleDeleteCategory}
+                    getCategoryEmoji={getCategoryEmoji}
+                    onEmojiChange={handleEmojiChange}
                  />
              </div>
           )}

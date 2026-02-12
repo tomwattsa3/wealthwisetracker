@@ -10,6 +10,8 @@ interface CategoryManagerProps {
   onAddSubcategory: (categoryId: string, subcategory: string) => void;
   onDeleteSubcategory: (categoryId: string, subcategory: string) => void;
   onDeleteCategory: (categoryId: string) => void;
+  getCategoryEmoji?: (categoryId: string) => string;
+  onEmojiChange?: (categoryId: string, emoji: string) => void;
 }
 
 const PRESET_COLORS = [
@@ -123,13 +125,17 @@ const DeleteSubcategoryModal = ({
     );
 };
 
+const EMOJI_OPTIONS = ['🏠','🚗','✈️','🛍️','🍔','🛒','💰','📊','🎮','🏥','📱','🎓','🐶','🏋️','🎬','☕','🍕','👶','💡','🔧','🎁','👔','🧾','💳','🎉','🏦','📚','🎵','🌍','⛽','🏨','🧹'];
+
 const CategoryManager: React.FC<CategoryManagerProps> = ({
   categories,
   onAddCategory,
   onUpdateCategory,
   onAddSubcategory,
   onDeleteSubcategory,
-  onDeleteCategory
+  onDeleteCategory,
+  getCategoryEmoji,
+  onEmojiChange
 }) => {
   // Selection State
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -154,6 +160,9 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
 
   // Subcategory Delete Confirmation State
   const [subcategoryToDelete, setSubcategoryToDelete] = useState<string | null>(null);
+
+  // Emoji Picker State
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Initialize selection
   useEffect(() => {
@@ -260,15 +269,15 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
   const renderCategoryRow = (cat: Category) => (
     <button
       key={cat.id}
-      onClick={() => setSelectedCategoryId(cat.id)}
+      onClick={() => { setSelectedCategoryId(cat.id); setShowEmojiPicker(false); }}
       className={`w-full flex items-center justify-between p-2 sm:p-4 rounded-lg sm:rounded-xl transition-all border group ${
         selectedCategoryId === cat.id
           ? 'bg-violet-50 border-violet-200 shadow-sm ring-1 ring-violet-200'
           : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-100'
       }`}
     >
-       <div className="flex items-center gap-2 sm:gap-4">
-          <div className="w-3 sm:w-4 h-3 sm:h-4 rounded-full ring-2 ring-offset-1 sm:ring-offset-2 ring-offset-white shadow-sm" style={{ backgroundColor: cat.color, '--tw-ring-color': cat.color } as any}></div>
+       <div className="flex items-center gap-2 sm:gap-3">
+          <span className="text-base sm:text-xl shrink-0">{getCategoryEmoji ? getCategoryEmoji(cat.id) : '📊'}</span>
           <div className="text-left">
              <p className={`text-xs sm:text-base font-bold ${selectedCategoryId === cat.id ? 'text-violet-900' : 'text-slate-800'}`}>{cat.name}</p>
              <p className="text-[10px] sm:text-xs text-slate-400 font-medium">{cat.subcategories.length} subs</p>
@@ -366,10 +375,37 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
               <div className="p-2 sm:p-3 border-b border-slate-100 flex justify-between items-start bg-slate-50/30">
                  <div>
                     <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
-                       <div className="w-2 sm:w-3 h-2 sm:h-3 rounded-full shadow-sm" style={{ backgroundColor: selectedCategory.color }}></div>
+                       <div className="relative">
+                         <button
+                           onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                           className="text-xl sm:text-2xl hover:scale-110 transition-transform cursor-pointer"
+                           title="Change emoji"
+                         >
+                           {getCategoryEmoji ? getCategoryEmoji(selectedCategory.id) : '📊'}
+                         </button>
+                         {showEmojiPicker && (
+                           <div className="absolute top-9 left-0 z-50 bg-white rounded-xl shadow-lg border border-slate-200 p-2.5 w-[240px]">
+                             <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider mb-2 px-1">Choose emoji</p>
+                             <div className="grid grid-cols-8 gap-1">
+                               {EMOJI_OPTIONS.map(e => (
+                                 <button
+                                   key={e}
+                                   onClick={() => {
+                                     onEmojiChange?.(selectedCategory.id, e);
+                                     setShowEmojiPicker(false);
+                                   }}
+                                   className={`w-7 h-7 flex items-center justify-center rounded-lg text-base hover:bg-slate-100 transition-colors ${e === (getCategoryEmoji ? getCategoryEmoji(selectedCategory.id) : '') ? 'bg-violet-50 ring-1 ring-violet-300' : ''}`}
+                                 >
+                                   {e}
+                                 </button>
+                               ))}
+                             </div>
+                           </div>
+                         )}
+                       </div>
                        <h2 className="text-sm sm:text-xl font-bold text-slate-900">{selectedCategory.name}</h2>
                     </div>
-                    <p className="text-slate-500 text-[10px] sm:text-xs font-medium">Subcategories</p>
+                    <p className="text-slate-500 text-[10px] sm:text-xs font-medium ml-8 sm:ml-9">Subcategories</p>
                  </div>
                  <div className="flex items-center gap-1.5 sm:gap-2">
                      <span className={`px-1.5 sm:px-2 py-0.5 rounded-md text-[8px] sm:text-[10px] font-bold border uppercase tracking-wider ${
