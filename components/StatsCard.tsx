@@ -30,7 +30,7 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col justify-between h-full">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-base">↗</span>
-          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Revenue</span>
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Income</span>
         </div>
         <p className="text-3xl font-bold text-slate-900 mb-2">{currencyDisplay}</p>
         {percentChange !== undefined && (
