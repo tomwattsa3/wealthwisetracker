@@ -1817,7 +1817,7 @@ const App: React.FC = () => {
           {/* YEARLY VIEW */}
           {activeTab === 'yearly' && (
              <div className="h-full">
-                <YearlySummary transactions={transactions} categories={categories} onRefresh={fetchData} />
+                <YearlySummary transactions={transactions} categories={categories} onRefresh={fetchData} getCategoryEmoji={getCategoryEmoji} />
              </div>
           )}
           

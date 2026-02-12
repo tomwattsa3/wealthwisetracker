@@ -7,6 +7,7 @@ interface YearlySummaryProps {
   transactions: Transaction[];
   categories: Category[];
   onRefresh?: () => void;
+  getCategoryEmoji?: (categoryId: string) => string;
 }
 
 interface DateRange {
@@ -42,7 +43,7 @@ const getDatePresets = () => {
   };
 };
 
-const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories, onRefresh }) => {
+const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories, onRefresh, getCategoryEmoji }) => {
   const presets = getDatePresets();
 
   const [dateRange, setDateRange] = useState<DateRange>(presets.thisYear);
@@ -194,7 +195,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
   const topExpenseCategories = useMemo(() => {
     const expenseTx = filteredTransactions.filter(t => t.type === 'EXPENSE');
-    const byCategory: { [key: string]: { name: string; color: string; amount: number; count: number } } = {};
+    const byCategory: { [key: string]: { id: string; name: string; color: string; amount: number; count: number } } = {};
 
     expenseTx.forEach(t => {
       const cat = categories.find(c => c.id === t.categoryId || c.name === t.categoryName);
@@ -203,7 +204,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
       const catId = cat?.id || catName;
 
       if (!byCategory[catId]) {
-        byCategory[catId] = { name: catName, color: catColor, amount: 0, count: 0 };
+        byCategory[catId] = { id: catId, name: catName, color: catColor, amount: 0, count: 0 };
       }
       byCategory[catId].amount += t.amount;
       byCategory[catId].count += 1;
@@ -214,7 +215,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
   const topIncomeCategories = useMemo(() => {
     const incomeTx = filteredTransactions.filter(t => t.type === 'INCOME');
-    const byCategory: { [key: string]: { name: string; color: string; amount: number; count: number } } = {};
+    const byCategory: { [key: string]: { id: string; name: string; color: string; amount: number; count: number } } = {};
 
     incomeTx.forEach(t => {
       const cat = categories.find(c => c.id === t.categoryId || c.name === t.categoryName);
@@ -223,7 +224,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
       const catId = cat?.id || catName;
 
       if (!byCategory[catId]) {
-        byCategory[catId] = { name: catName, color: catColor, amount: 0, count: 0 };
+        byCategory[catId] = { id: catId, name: catName, color: catColor, amount: 0, count: 0 };
       }
       byCategory[catId].amount += t.amount;
       byCategory[catId].count += 1;
@@ -436,7 +437,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                                     size={10}
                                     className={`text-slate-400 transition-transform shrink-0 ${isCatExpanded ? 'rotate-90' : ''} ${!hasSubcategories ? 'opacity-0' : ''}`}
                                   />
-                                  <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }}></div>
+                                  <span className="text-sm shrink-0">{getCategoryEmoji ? getCategoryEmoji(cat.id) : '📊'}</span>
                                   <span className="text-[11px] font-medium text-slate-700 truncate">{cat.name}</span>
                                   <span className="text-[9px] text-slate-400">({cat.count})</span>
                                 </div>
@@ -513,6 +514,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                         fill="none"
                         stroke={cat.color}
                         strokeWidth="14"
+                        strokeLinecap="round"
                         strokeDasharray={`${segmentLength} ${circumference - segmentLength}`}
                         strokeDashoffset={dashOffset}
                         className="transition-all duration-500"
@@ -538,7 +540,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                 <div key={idx} className="py-1">
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }}></div>
+                      <span className="text-sm shrink-0">{getCategoryEmoji ? getCategoryEmoji(cat.id) : '📊'}</span>
                       <span className="text-xs font-medium text-slate-700 truncate">{cat.name}</span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -580,9 +582,12 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
               const percentage = totalExpense > 0 ? ((cat.amount / totalExpense) * 100).toFixed(1) : '0';
               return (
                 <div key={idx} className={`grid grid-cols-3 border-b border-dashed border-slate-200/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}`}>
-                  <div className="px-4 py-3.5 min-w-0 border-r border-dashed border-slate-200/80">
-                    <p className="font-medium text-slate-900 text-[11px] truncate">{cat.name}</p>
-                    <p className="text-[9px] text-slate-400">{cat.count} trans</p>
+                  <div className="px-4 py-3.5 min-w-0 border-r border-dashed border-slate-200/80 flex items-center gap-2">
+                    <span className="text-sm shrink-0">{getCategoryEmoji ? getCategoryEmoji(cat.id) : '📊'}</span>
+                    <div className="min-w-0">
+                      <p className="font-medium text-slate-900 text-[11px] truncate">{cat.name}</p>
+                      <p className="text-[9px] text-slate-400">{cat.count} trans</p>
+                    </div>
                   </div>
                   <div className="px-3 py-3.5 text-right border-r border-dashed border-slate-200/80">
                     <p className="text-[11px] font-semibold text-slate-900">£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</p>
@@ -617,9 +622,12 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
               const percentage = totalIncome > 0 ? ((cat.amount / totalIncome) * 100).toFixed(1) : '0';
               return (
                 <div key={idx} className={`grid grid-cols-3 border-b border-dashed border-slate-200/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}`}>
-                  <div className="px-4 py-3.5 min-w-0 border-r border-dashed border-slate-200/80">
-                    <p className="font-medium text-slate-900 text-[11px] truncate">{cat.name}</p>
-                    <p className="text-[9px] text-slate-400">{cat.count} trans</p>
+                  <div className="px-4 py-3.5 min-w-0 border-r border-dashed border-slate-200/80 flex items-center gap-2">
+                    <span className="text-sm shrink-0">{getCategoryEmoji ? getCategoryEmoji(cat.id) : '💰'}</span>
+                    <div className="min-w-0">
+                      <p className="font-medium text-slate-900 text-[11px] truncate">{cat.name}</p>
+                      <p className="text-[9px] text-slate-400">{cat.count} trans</p>
+                    </div>
                   </div>
                   <div className="px-3 py-3.5 text-right border-r border-dashed border-slate-200/80">
                     <p className="text-[11px] font-semibold text-emerald-600">+£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</p>
