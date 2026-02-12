@@ -125,7 +125,32 @@ const DeleteSubcategoryModal = ({
     );
 };
 
-const EMOJI_OPTIONS = ['🏠','🚗','✈️','🛍️','🍔','🛒','💰','📊','🎮','🏥','📱','🎓','🐶','🏋️','🎬','☕','🍕','👶','💡','🔧','🎁','👔','🧾','💳','🎉','🏦','📚','🎵','🌍','⛽','🏨','🧹'];
+const EMOJI_OPTIONS = [
+  // Home & Living
+  '🏠','🏡','🛋️','🧹','🔧','💡','🪴','🏗️',
+  // Transport
+  '🚗','🚕','⛽','🚌','🚇','🚲','✈️','🛳️',
+  // Food & Drink
+  '🍔','🍕','🍣','🛒','☕','🍷','🥗','🧁',
+  // Shopping & Fashion
+  '🛍️','👔','👗','👟','💄','💎','🎁','🛒',
+  // Finance & Work
+  '💰','💳','🏦','📊','💵','📈','🧾','💼',
+  // Health & Fitness
+  '🏥','💊','🏋️','🧘','🦷','🩺','❤️','🧠',
+  // Entertainment
+  '🎮','🎬','🎵','📺','🎭','🎪','🎯','🎲',
+  // Education & Tech
+  '📱','💻','🎓','📚','📝','🔬','🧪','📡',
+  // Family & Pets
+  '👶','👨‍👩‍👧','🐶','🐱','🐾','🧸','🍼','🎂',
+  // Travel & Nature
+  '🌍','🏖️','🏔️','🏨','🗺️','⛺','🌅','🎒',
+  // Sports
+  '⚽','🎾','⛳','🏊','🎿','🏄','🥊','🏆',
+  // Misc
+  '🎉','📦','🔑','🪙','⭐','🔔','🏷️','📌',
+];
 
 const CategoryManager: React.FC<CategoryManagerProps> = ({
   categories,
@@ -384,7 +409,7 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
                            {getCategoryEmoji ? getCategoryEmoji(selectedCategory.id) : '📊'}
                          </button>
                          {showEmojiPicker && (
-                           <div className="absolute top-9 left-0 z-50 bg-white rounded-xl shadow-lg border border-slate-200 p-2.5 w-[240px]">
+                           <div className="absolute top-9 left-0 z-50 bg-white rounded-xl shadow-lg border border-slate-200 p-2.5 w-[280px] max-h-[320px] overflow-y-auto custom-scrollbar">
                              <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider mb-2 px-1">Choose emoji</p>
                              <div className="grid grid-cols-8 gap-1">
                                {EMOJI_OPTIONS.map(e => (
