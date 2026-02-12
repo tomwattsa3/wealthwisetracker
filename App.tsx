@@ -1486,7 +1486,7 @@ const App: React.FC = () => {
                         </div>
                       </div>
                       <div>
-                        <div className="grid grid-cols-[1fr_28px_72px] bg-slate-50/80 border-b border-dashed border-slate-200/80 sticky top-0">
+                        <div className="grid grid-cols-[1fr_28px_72px] bg-slate-100 border-b border-dashed border-slate-200/80 sticky top-0 z-10">
                           <div className="px-3 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Merchant</div>
                           <div className="px-1 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80">Qty</div>
                           <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
@@ -1577,7 +1577,7 @@ const App: React.FC = () => {
                       </div>
 
                       <div>
-                        <div className="grid grid-cols-[1fr_28px_72px] bg-slate-50/80 border-b border-dashed border-slate-200/80 sticky top-0">
+                        <div className="grid grid-cols-[1fr_28px_72px] bg-slate-100 border-b border-dashed border-slate-200/80 sticky top-0 z-10">
                           <div className="px-3 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Merchant</div>
                           <div className="px-1 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80">Qty</div>
                           <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
@@ -1727,7 +1727,7 @@ const App: React.FC = () => {
                       </div>
                     </div>
                     <div className="max-h-[300px] overflow-y-auto">
-                      <div className="grid grid-cols-[1fr_72px] bg-slate-50/80 border-b border-dashed border-slate-200/80 sticky top-0">
+                      <div className="grid grid-cols-[1fr_72px] bg-slate-100 border-b border-dashed border-slate-200/80 sticky top-0 z-10">
                         <div className="px-3 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Merchant</div>
                         <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
                       </div>

@@ -127,7 +127,7 @@ const AllocationSidebar: React.FC<AllocationSidebarProps> = ({
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           {groupedIncome.length > 0 ? (
             <div>
-              <div className="grid grid-cols-[1fr_32px_80px] bg-slate-50/80 border-b border-dashed border-slate-200/80 sticky top-0">
+              <div className="grid grid-cols-[1fr_32px_80px] bg-slate-100 border-b border-dashed border-slate-200/80 sticky top-0 z-10">
                 <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Merchant</div>
                 <div className="px-1 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80">Qty</div>
                 <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
@@ -209,7 +209,7 @@ const AllocationSidebar: React.FC<AllocationSidebarProps> = ({
           </div>
 
           <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
-            <div className="grid grid-cols-[1fr_32px_80px] bg-slate-50/80 border-b border-dashed border-slate-200/80 sticky top-0">
+            <div className="grid grid-cols-[1fr_32px_80px] bg-slate-100 border-b border-dashed border-slate-200/80 sticky top-0 z-10">
               <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Merchant</div>
               <div className="px-1 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80">Qty</div>
               <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
