@@ -1015,6 +1015,24 @@ const App: React.FC = () => {
     );
   }, [activeTransactions, currency]);
 
+  // Alternate currency summary (for showing AED under GBP or vice versa)
+  const summaryAlt = useMemo(() => {
+    return activeTransactions.reduce(
+      (acc, curr) => {
+        const amount = currency === 'GBP' ? curr.amountAED : curr.amountGBP;
+        if (curr.type === 'INCOME') {
+          acc.totalIncome += amount;
+          acc.balance += amount;
+        } else {
+          acc.totalExpense += amount;
+          acc.balance -= amount;
+        }
+        return acc;
+      },
+      { totalIncome: 0, totalExpense: 0, balance: 0 }
+    );
+  }, [activeTransactions, currency]);
+
   // Summary for Breakdown Percentages (respects date filter and currency)
   const globalSummary = useMemo<FinancialSummary>(() => {
     return activeTransactions.reduce(
@@ -1753,11 +1771,12 @@ const App: React.FC = () => {
                 {/* Desktop KPI Row */}
                 <div className="grid grid-cols-3 gap-4">
                   <StatsCard
-                    label="Revenue"
+                    label="Income"
                     amount={summary.totalIncome}
                     type="INCOME"
                     currency={currency}
                     variant="kpi-revenue"
+                    amountAlt={summaryAlt.totalIncome}
                     percentChange={(() => {
                       // Simple period-over-period: compare current range to same-length prior range
                       const start = new Date(dateRange.start);
@@ -1778,6 +1797,7 @@ const App: React.FC = () => {
                     currency={currency}
                     variant="kpi-expense"
                     revenueAmount={summary.totalIncome}
+                    amountAlt={summaryAlt.totalExpense}
                     percentChange={(() => {
                       const start = new Date(dateRange.start);
                       const end = new Date(dateRange.end);
@@ -1798,6 +1818,8 @@ const App: React.FC = () => {
                     variant="kpi-profitability"
                     revenueAmount={summary.totalIncome}
                     expenseAmount={summary.totalExpense}
+                    revenueAmountAlt={summaryAlt.totalIncome}
+                    expenseAmountAlt={summaryAlt.totalExpense}
                   />
                 </div>
 
