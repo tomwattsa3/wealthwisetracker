@@ -241,7 +241,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
   const avgMonthlySpend = totalExpense / completedMonthsInRange;
   const avgMonthlyIncome = totalIncome / completedMonthsInRange;
 
-  const donutData = topExpenseCategories.slice(0, 4);
+  const donutData = topExpenseCategories.slice(0, 5);
   const donutTotal = donutData.reduce((sum, c) => sum + c.amount, 0);
 
   const formatAmount = (amount: number) => {
@@ -334,8 +334,8 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         </div>
       </div>
 
-      {/* Main Content: Monthly Table + Top Categories */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      {/* Main Content: Monthly Table + Top Categories + Bottom Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
 
         {/* Monthly Breakdown Table */}
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
@@ -481,20 +481,21 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
           </div>
         </div>
 
-        {/* Top Categories — Donut + List */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        {/* Top Categories — Donut + List (spans both rows) */}
+        <div className="lg:row-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
           <div className="px-5 py-4 border-b border-slate-100">
             <h3 className="text-sm font-bold text-slate-900">Top Categories</h3>
           </div>
 
           {/* Donut Visual */}
-          <div className="p-6 flex justify-center">
-            <div className="relative w-44 h-44 md:w-48 md:h-48">
-              <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                <circle cx="50" cy="50" r="38" fill="none" stroke="#f1f5f9" strokeWidth="14" />
+          <div className="p-8 flex justify-center">
+            <div className="relative w-52 h-52 md:w-56 md:h-56">
+              <svg viewBox="0 0 200 200" className="w-full h-full -rotate-90">
+                <circle cx="100" cy="100" r="76" fill="none" stroke="#f1f5f9" strokeWidth="26" />
                 {donutData.length > 0 && (() => {
-                  const circumference = 2 * Math.PI * 38;
-                  const gapSize = 4;
+                  const radius = 76;
+                  const circumference = 2 * Math.PI * radius;
+                  const gapSize = 8;
                   const totalGaps = donutData.length * gapSize;
                   const availableLength = circumference - totalGaps;
                   let currentOffset = 0;
@@ -508,12 +509,12 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                     return (
                       <circle
                         key={idx}
-                        cx="50"
-                        cy="50"
-                        r="38"
+                        cx="100"
+                        cy="100"
+                        r={radius}
                         fill="none"
                         stroke={cat.color}
-                        strokeWidth="14"
+                        strokeWidth="26"
                         strokeLinecap="round"
                         strokeDasharray={`${segmentLength} ${circumference - segmentLength}`}
                         strokeDashoffset={dashOffset}
@@ -525,15 +526,15 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
-                  <p className="text-lg font-bold text-slate-900">{formatAmount(totalExpense)}</p>
-                  <p className="text-[10px] text-slate-400">Total Expenses</p>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Total</p>
+                  <p className="text-xl font-bold text-slate-800">{formatAmount(totalExpense)}</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Category List */}
-          <div className="px-5 pb-5 space-y-4">
+          <div className="px-5 pb-5 space-y-4 flex-1">
             {topExpenseCategories.slice(0, 5).map((cat, idx) => {
               const percentage = totalExpense > 0 ? ((cat.amount / totalExpense) * 100) : 0;
               return (
@@ -559,13 +560,9 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
             )}
           </div>
         </div>
-      </div>
-
-      {/* Bottom Cards: Top Expenses & Top Income */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
         {/* Highest Expenses */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-900">Highest Expenses</h3>
             <span className="text-[9px] font-semibold text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md">TOP 5</span>
@@ -605,7 +602,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         </div>
 
         {/* Top Income Sources */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-900">Income Sources</h3>
             <span className="text-[9px] font-semibold text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md">TOP 5</span>
