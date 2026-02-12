@@ -1398,34 +1398,52 @@ const App: React.FC = () => {
           {activeTab === 'home' && (
             <div className="animate-in fade-in duration-500">
 
-              {/* ===== MOBILE DASHBOARD (untouched) ===== */}
-              <div className="md:hidden space-y-3 px-2 sm:px-0">
-                {/* Compact Header - Currency Switcher */}
+              {/* ===== MOBILE DASHBOARD (fintech SaaS style) ===== */}
+              <div className="md:hidden space-y-4 px-2 sm:px-0">
+                {/* Currency Switcher */}
                 <div className="flex items-center justify-end gap-2">
                   <div className="flex bg-slate-100 p-0.5 rounded-lg">
                     <button
                       onClick={() => setCurrency('GBP')}
-                      className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all ${currency === 'GBP' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                      className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all ${currency === 'GBP' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                       £ GBP
                     </button>
                     <button
                       onClick={() => setCurrency('AED')}
-                      className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all ${currency === 'AED' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                      className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all ${currency === 'AED' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                       AED
                     </button>
                   </div>
                 </div>
 
-                {/* Mobile KPI Cards - 3 columns */}
-                <div className="grid grid-cols-3 gap-2">
-                  <StatsCard label="Income" amount={summary.totalIncome} type="INCOME" subtitle="Total Earnings" currency={currency} />
-                  <StatsCard label="Expenses" amount={summary.totalExpense} type="EXPENSE" subtitle="Total Spent" currency={currency} />
-                  <StatsCard label="Balance" amount={summary.balance} type="BALANCE" subtitle="Net Position" currency={currency} />
+                {/* Mobile KPI Cards */}
+                <div className="grid grid-cols-3 gap-2.5">
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-3">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="text-sm">↗</span>
+                      <span className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider">Income</span>
+                    </div>
+                    <p className="text-base font-bold text-emerald-600">{formatCurrency(summary.totalIncome)}</p>
+                  </div>
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-3">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="text-sm">↘</span>
+                      <span className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider">Expenses</span>
+                    </div>
+                    <p className="text-base font-bold text-slate-900">{formatCurrency(summary.totalExpense)}</p>
+                  </div>
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-3">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="text-sm">💰</span>
+                      <span className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider">Saved</span>
+                    </div>
+                    <p className={`text-base font-bold ${summary.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(summary.balance)}</p>
+                  </div>
                 </div>
 
-                {/* Fixed Income Card - Mercury Style */}
+                {/* Income Card */}
                 {(() => {
                   const incomeCat = incomeCategories[0];
                   if (!incomeCat) return null;
@@ -1450,37 +1468,44 @@ const App: React.FC = () => {
                     .slice(0, 6);
 
                   return (
-                    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100">
-                        <div className="flex items-center gap-1.5">
-                          <TrendingUp size={12} className="text-slate-400" />
-                          <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Income</span>
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                      <div className="px-3 py-2.5 border-b border-slate-100">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-base">💰</span>
+                            <span className="text-xs font-bold text-slate-900">Income</span>
+                          </div>
+                          <span className="text-xs font-bold text-slate-900">{formatCurrency(incomeTotal)}</span>
                         </div>
-                        <span className={`${currency === 'AED' ? 'text-[10px]' : 'text-xs'} font-semibold text-slate-900 font-mono`}>{formatCurrency(incomeTotal)}</span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[9px] text-slate-400">📋 INCOME SHEET</span>
+                        </div>
                       </div>
                       <div>
-                        <div className="grid grid-cols-[1fr_auto_auto] bg-slate-50/80 border-b border-slate-200 sticky top-0">
-                          <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider border-r border-slate-200">Merchant</div>
-                          <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-slate-200 w-10">Qty</div>
-                          <div className={`px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-right ${currency === 'AED' ? 'w-24' : 'w-20'}`}>Amount</div>
+                        <div className="grid grid-cols-[1fr_28px_72px] bg-slate-50/80 border-b border-dashed border-slate-200/80 sticky top-0">
+                          <div className="px-3 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Merchant</div>
+                          <div className="px-1 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80">Qty</div>
+                          <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
                         </div>
                         <div className="max-h-[420px] overflow-y-auto">
-                          {topIncomeGrouped.map((g) => (
-                            <div key={g.description} className="grid grid-cols-[1fr_auto_auto] items-center bg-white border-b border-dashed border-slate-300 last:border-b-0">
-                              <div className="px-2 py-2 border-r border-slate-200 flex items-center justify-between gap-1.5 min-w-0">
-                                <span className={`${currency === 'AED' ? 'text-[10px]' : 'text-[11px]'} font-medium text-slate-700 truncate`}>{g.description}</span>
-                                <span className="px-1 py-0.5 bg-slate-100 rounded text-[7px] text-slate-500 shrink-0">{g.subcategoryName}</span>
+                          {topIncomeGrouped.map((g, idx) => (
+                            <div key={g.description} className={`grid grid-cols-[1fr_28px_72px] items-center border-b border-dashed border-slate-200/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}`}>
+                              <div className="px-3 py-2.5 border-r border-dashed border-slate-200/80 flex items-center justify-between gap-1 min-w-0">
+                                <span className="text-[11px] font-medium text-slate-700 truncate">{g.description}</span>
+                                {g.subcategoryName && (
+                                  <span className="px-1.5 py-px bg-slate-50 border border-slate-200 rounded-md text-[7px] font-medium text-slate-500 shrink-0 leading-tight">{g.subcategoryName}</span>
+                                )}
                               </div>
-                              <div className="px-2 py-2 text-center border-r border-slate-200 w-10">
-                                <span className={`${currency === 'AED' ? 'text-[10px]' : 'text-[11px]'} text-slate-500`}>{g.count}</span>
+                              <div className="px-1 py-2.5 text-center border-r border-dashed border-slate-200/80">
+                                <span className="text-[10px] text-slate-400">{g.count > 1 ? g.count : ''}</span>
                               </div>
-                              <div className={`px-2 py-2 text-right ${currency === 'AED' ? 'w-24' : 'w-20'}`}>
-                                <span className={`${currency === 'AED' ? 'text-[9px]' : 'text-[11px]'} font-semibold text-slate-800`}>{formatCurrency(g.amount)}</span>
+                              <div className="px-2 py-2.5 text-right">
+                                <span className="text-[11px] font-semibold text-emerald-700">{formatCurrency(g.amount)}</span>
                               </div>
                             </div>
                           ))}
                           {topIncomeGrouped.length === 0 && (
-                            <div className="py-3 text-center text-slate-400 text-[9px]">No income</div>
+                            <div className="py-4 text-center text-slate-400 text-xs">No income</div>
                           )}
                         </div>
                       </div>
@@ -1488,7 +1513,7 @@ const App: React.FC = () => {
                   );
                 })()}
 
-                {/* Configurable Expense Cards */}
+                {/* Expense Category Cards */}
                 {mobileCategoryIds.map((catId, index) => {
                   const cat = expenseCategories.find(c => c.id === catId);
                   if (!cat) return null;
@@ -1512,59 +1537,66 @@ const App: React.FC = () => {
                     .sort((a, b) => b.amount - a.amount);
 
                   return (
-                    <div key={`mobile-${index}-${catId}`} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100">
-                        <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-3">
-                          <div
-                            className="w-1.5 h-1.5 rounded-full shrink-0"
-                            style={{ backgroundColor: cat.color }}
-                          />
-                          <select
-                            value={catId}
-                            onChange={(e) => handleMobileCategoryChange(index, e.target.value)}
-                            className="text-[10px] font-medium text-slate-400 uppercase tracking-wide bg-transparent outline-none border-0 cursor-pointer appearance-none flex-1 min-w-0"
-                          >
-                            {expenseCategories.map(c => (
-                              <option key={c.id} value={c.id} className="text-slate-900 bg-white normal-case">{c.name}</option>
-                            ))}
-                          </select>
+                    <div key={`mobile-${index}-${catId}`} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                      <div className="px-3 py-2.5 border-b border-slate-100">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-3">
+                            <span className="text-base">{getCategoryEmoji(catId)}</span>
+                            <div className="relative flex-1 min-w-0">
+                              <span className="text-xs font-bold text-slate-900">{cat.name}</span>
+                              <select
+                                value={catId}
+                                onChange={(e) => handleMobileCategoryChange(index, e.target.value)}
+                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                              >
+                                {expenseCategories.map(c => (
+                                  <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-xs font-bold text-slate-900">{formatCurrency(catTotal)}</span>
+                            {mobileCategoryIds.length > 1 && (
+                              <button
+                                onClick={() => handleRemoveMobileCardWithConfirm(index)}
+                                className="w-4 h-4 flex items-center justify-center text-slate-300 hover:text-slate-500 text-xs"
+                              >
+                                ×
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className={`${currency === 'AED' ? 'text-[10px]' : 'text-xs'} font-semibold text-slate-900 font-mono`}>{formatCurrency(catTotal)}</span>
-                          {mobileCategoryIds.length > 1 && (
-                            <button
-                              onClick={() => handleRemoveMobileCardWithConfirm(index)}
-                              className="w-4 h-4 flex items-center justify-center text-slate-300 hover:text-slate-500 text-xs"
-                            >
-                              ×
-                            </button>
-                          )}
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[9px] text-slate-400">📋 EXPENSE SHEET</span>
                         </div>
                       </div>
 
                       <div>
-                        <div className="grid grid-cols-[1fr_auto_auto] bg-slate-50/80 border-b border-slate-200 sticky top-0">
-                          <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider border-r border-slate-200">Merchant</div>
-                          <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-slate-200 w-10">Qty</div>
-                          <div className={`px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-right ${currency === 'AED' ? 'w-24' : 'w-20'}`}>Amount</div>
+                        <div className="grid grid-cols-[1fr_28px_72px] bg-slate-50/80 border-b border-dashed border-slate-200/80 sticky top-0">
+                          <div className="px-3 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Merchant</div>
+                          <div className="px-1 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80">Qty</div>
+                          <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
                         </div>
                         <div className="max-h-[420px] overflow-y-auto">
-                          {topGrouped.map((g) => (
-                            <div key={g.description} className="grid grid-cols-[1fr_auto_auto] items-center bg-white border-b border-dashed border-slate-300 last:border-b-0">
-                              <div className="px-2 py-2 border-r border-slate-200 flex items-center justify-between gap-1.5 min-w-0">
-                                <span className={`${currency === 'AED' ? 'text-[10px]' : 'text-[11px]'} font-medium text-slate-700 truncate`}>{g.description}</span>
-                                <span className="px-1 py-0.5 bg-slate-100 rounded text-[7px] text-slate-500 shrink-0">{g.subcategoryName}</span>
+                          {topGrouped.map((g, idx) => (
+                            <div key={g.description} className={`grid grid-cols-[1fr_28px_72px] items-center border-b border-dashed border-slate-200/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}`}>
+                              <div className="px-3 py-2.5 border-r border-dashed border-slate-200/80 flex items-center justify-between gap-1 min-w-0">
+                                <span className="text-[11px] font-medium text-slate-700 truncate">{g.description}</span>
+                                {g.subcategoryName && (
+                                  <span className="px-1.5 py-px bg-slate-50 border border-slate-200 rounded-md text-[7px] font-medium text-slate-500 shrink-0 leading-tight">{g.subcategoryName}</span>
+                                )}
                               </div>
-                              <div className="px-2 py-2 text-center border-r border-slate-200 w-10">
-                                <span className={`${currency === 'AED' ? 'text-[10px]' : 'text-[11px]'} text-slate-500`}>{g.count}</span>
+                              <div className="px-1 py-2.5 text-center border-r border-dashed border-slate-200/80">
+                                <span className="text-[10px] text-slate-400">{g.count > 1 ? g.count : ''}</span>
                               </div>
-                              <div className={`px-2 py-2 text-right ${currency === 'AED' ? 'w-24' : 'w-20'}`}>
-                                <span className={`${currency === 'AED' ? 'text-[9px]' : 'text-[11px]'} font-semibold text-slate-800`}>{formatCurrency(g.amount)}</span>
+                              <div className="px-2 py-2.5 text-right">
+                                <span className="text-[11px] font-semibold text-slate-800">{formatCurrency(g.amount)}</span>
                               </div>
                             </div>
                           ))}
                           {topGrouped.length === 0 && (
-                            <div className="py-3 text-center text-slate-400 text-[9px]">No transactions</div>
+                            <div className="py-4 text-center text-slate-400 text-xs">No transactions</div>
                           )}
                         </div>
                       </div>
@@ -1574,45 +1606,45 @@ const App: React.FC = () => {
 
                 <button
                   onClick={handleAddMobileCard}
-                  className="w-full py-3 border border-dashed border-slate-200 rounded-xl text-slate-400 text-xs font-medium hover:border-slate-300 hover:text-slate-500 transition-colors flex items-center justify-center gap-1.5"
+                  className="w-full py-3 border border-dashed border-slate-200 rounded-2xl text-slate-400 text-xs font-medium hover:border-slate-300 hover:text-slate-500 transition-colors flex items-center justify-center gap-1.5"
                 >
                   <Plus size={14} />
                   Add Category Card
                 </button>
 
-                {/* Mobile Summary Card */}
-                <div className="bg-white rounded-xl border border-slate-200 flex flex-col min-h-[300px] overflow-hidden">
-                  <div className="flex flex-col gap-3 p-3 border-b border-slate-100 flex-shrink-0">
+                {/* Spend by Category */}
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 overflow-hidden">
+                  <div className="flex flex-col gap-3 mb-3 flex-shrink-0">
                      <div className="flex justify-between items-center">
                          {filterCategory === 'all' && filterSubcategory === 'all' ? (
-                             <div className="flex bg-slate-50 p-0.5 rounded-lg border border-slate-100">
+                             <div className="flex bg-slate-100 p-0.5 rounded-lg">
                                  <button
                                     onClick={() => setBreakdownViewMode('category')}
-                                    className={`px-2.5 py-1.5 text-[10px] font-medium rounded-md transition-all ${breakdownViewMode === 'category' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                    className={`px-2.5 py-1.5 text-[10px] font-semibold rounded-md transition-all ${breakdownViewMode === 'category' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                  >
                                      Categories
                                  </button>
                                  <button
                                     onClick={() => setBreakdownViewMode('subcategory')}
-                                    className={`px-2.5 py-1.5 text-[10px] font-medium rounded-md transition-all ${breakdownViewMode === 'subcategory' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                    className={`px-2.5 py-1.5 text-[10px] font-semibold rounded-md transition-all ${breakdownViewMode === 'subcategory' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                  >
                                      Subcategories
                                  </button>
                              </div>
                          ) : (
-                             <h3 className="text-xs font-medium text-slate-400 uppercase tracking-wide">
+                             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                {filterCategory !== 'all' ? 'Breakdown' : 'Filtered'}
                              </h3>
                          )}
                          {(filterCategory !== 'all' || filterSubcategory !== 'all') && (
-                            <button onClick={handleResetFilters} className="text-[10px] font-medium text-slate-500 hover:text-slate-700 transition-colors">Reset</button>
+                            <button onClick={handleResetFilters} className="text-[10px] font-semibold text-slate-500 hover:text-slate-700 transition-colors">Reset</button>
                         )}
                      </div>
                      <div className="flex gap-2">
                         <select
                             value={filterCategory}
                             onChange={(e) => { setFilterCategory(e.target.value); setFilterSubcategory('all'); }}
-                            className="flex-1 bg-slate-50 border border-slate-100 text-slate-600 text-[10px] font-medium rounded-lg px-2.5 py-2 outline-none cursor-pointer appearance-none"
+                            className="flex-1 bg-slate-50 border border-slate-200 text-slate-600 text-[10px] font-medium rounded-lg px-2.5 py-2 outline-none cursor-pointer"
                         >
                             <option value="all">Category: All</option>
                             {expenseCategories.map(cat => (<option key={cat.id} value={cat.id}>{cat.name}</option>))}
@@ -1620,84 +1652,93 @@ const App: React.FC = () => {
                         <select
                             value={filterSubcategory}
                             onChange={(e) => setFilterSubcategory(e.target.value)}
-                            className="flex-1 bg-slate-50 border border-slate-100 text-slate-600 text-[10px] font-medium rounded-lg px-2.5 py-2 outline-none cursor-pointer appearance-none"
+                            className="flex-1 bg-slate-50 border border-slate-200 text-slate-600 text-[10px] font-medium rounded-lg px-2.5 py-2 outline-none cursor-pointer"
                         >
                             <option value="all">Sub: All</option>
                             {availableSubcategories.map(sub => (<option key={sub} value={sub}>{sub}</option>))}
                         </select>
                      </div>
                   </div>
-                  <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-3">
-                      <div className="space-y-3">
-                          {(() => {
-                              let displayData: { name?: string; category?: Category; total: number; color?: string; parentId?: string }[] = [];
-                              let listType: 'category' | 'subcategory' = 'category';
-                              if (filterCategory !== 'all') { displayData = subcategoryBreakdown; listType = 'subcategory'; }
-                              else if (filterSubcategory !== 'all') { displayData = allSubcategoryBreakdown.filter(i => i.name === filterSubcategory); listType = 'subcategory'; }
-                              else if (breakdownViewMode === 'subcategory') { displayData = allSubcategoryBreakdown; listType = 'subcategory'; }
-                              else { displayData = categoryBreakdown.filter(c => c.category.type === 'EXPENSE'); listType = 'category'; }
+                  <div className="space-y-4">
+                      {(() => {
+                          let displayData: { name?: string; category?: Category; total: number; color?: string; parentId?: string }[] = [];
+                          let listType: 'category' | 'subcategory' = 'category';
+                          if (filterCategory !== 'all') { displayData = subcategoryBreakdown; listType = 'subcategory'; }
+                          else if (filterSubcategory !== 'all') { displayData = allSubcategoryBreakdown.filter(i => i.name === filterSubcategory); listType = 'subcategory'; }
+                          else if (breakdownViewMode === 'subcategory') { displayData = allSubcategoryBreakdown; listType = 'subcategory'; }
+                          else { displayData = categoryBreakdown.filter(c => c.category.type === 'EXPENSE'); listType = 'category'; }
 
-                              if (displayData.length === 0) return <div className="flex items-center justify-center h-20 text-slate-400 text-xs">No expenses found</div>;
+                          if (displayData.length === 0) return <div className="flex items-center justify-center h-20 text-slate-400 text-xs">No expenses found</div>;
 
-                              return displayData.map((item: any) => {
-                                  const percentage = globalSummary.totalExpense > 0 ? ((item.total / globalSummary.totalExpense) * 100).toFixed(1) : '0';
-                                  const label = listType === 'category' ? item.category.name : item.name;
-                                  const color = listType === 'category' ? item.category.color : item.color;
-                                  return (
-                                      <div key={label} className="group">
-                                        <div className="flex items-center justify-between mb-1.5">
-                                          <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color || '#94a3b8' }} />
-                                            <span className="text-xs font-medium text-slate-700">{label}</span>
-                                          </div>
-                                          <span className="text-xs font-semibold text-slate-900 font-mono">{formatCurrency(item.total)}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                                              <div className="h-full rounded-full transition-all duration-500 ease-out" style={{ width: `${percentage}%`, backgroundColor: color || '#94a3b8' }} />
-                                          </div>
-                                          <span className="text-[10px] text-slate-400 w-10 text-right">{percentage}%</span>
-                                        </div>
+                          return displayData.map((item: any) => {
+                              const percentage = globalSummary.totalExpense > 0 ? ((item.total / globalSummary.totalExpense) * 100) : 0;
+                              const label = listType === 'category' ? item.category.name : item.name;
+                              const color = listType === 'category' ? item.category.color : item.color;
+                              const catId = listType === 'category' ? item.category.id : item.parentId;
+                              return (
+                                  <div key={label} className="py-1">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-sm">{getCategoryEmoji(catId || '')}</span>
+                                        <span className="text-xs font-medium text-slate-700">{label}</span>
                                       </div>
-                                  );
-                              });
-                          })()}
-                      </div>
-                      <div className="pt-4 mt-4 border-t border-slate-100 flex-shrink-0">
-                          <div className="flex items-center justify-between">
-                              <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Total Expenses</span>
-                              <span className="text-lg font-semibold text-slate-900 font-mono">{formatCurrency(globalSummary.totalExpense)}</span>
-                          </div>
-                      </div>
-                      {excludedTransactions.length > 0 && (
-                          <div className="mt-4 pt-4 border-t border-slate-100">
-                              <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-2">
-                                      <EyeOff size={12} className="text-slate-400" />
-                                      <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Excluded ({excludedTransactions.length})</span>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[10px] text-slate-400">{percentage.toFixed(1)}%</span>
+                                        <span className="text-xs font-semibold text-slate-900">{formatCurrency(item.total)}</span>
+                                      </div>
+                                    </div>
+                                    <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                        <div className="h-full rounded-full transition-all duration-500 ease-out" style={{ width: `${percentage}%`, backgroundColor: color || '#94a3b8' }} />
+                                    </div>
                                   </div>
-                                  <span className="text-xs font-medium text-slate-500 font-mono">
-                                      {formatCurrency(excludedTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0))}
-                                  </span>
-                              </div>
-                              <div className="rounded-lg overflow-hidden border border-slate-100 flex flex-col max-h-48 overflow-y-auto custom-scrollbar">
-                                  {excludedTransactions.map(t => (
-                                      <div key={t.id} className="px-3 py-2 flex justify-between items-center border-b border-slate-50 last:border-b-0">
-                                          <div className="flex-1 min-w-0 mr-3">
-                                              <span className="text-xs font-medium text-slate-600 truncate block">{t.description}</span>
-                                              <div className="flex items-center gap-1.5 mt-0.5">
-                                                  <span className="text-[10px] text-slate-400">{t.date}</span>
-                                                  {t.subcategoryName && (<><span className="text-slate-300">•</span><span className="text-[10px] text-slate-400">{t.subcategoryName}</span></>)}
-                                              </div>
-                                          </div>
-                                          <span className="text-xs font-medium text-slate-500 font-mono">{formatCurrency(currency === 'GBP' ? t.amountGBP : t.amountAED)}</span>
-                                      </div>
-                                  ))}
-                              </div>
-                          </div>
-                      )}
+                              );
+                          });
+                      })()}
+                  </div>
+                  <div className="pt-4 mt-4 border-t border-slate-100">
+                      <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Expenses</span>
+                          <span className="text-base font-bold text-slate-900">{formatCurrency(globalSummary.totalExpense)}</span>
+                      </div>
                   </div>
                 </div>
+
+                {/* Excluded Transactions */}
+                {excludedTransactions.length > 0 && (
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                    <div className="px-3 py-2.5 border-b border-slate-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-base">🚫</span>
+                          <span className="text-xs font-bold text-slate-900">Excluded</span>
+                        </div>
+                        <span className="text-xs font-bold text-slate-400">
+                          {formatCurrency(excludedTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0))}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-[9px] text-slate-400">{excludedTransactions.length} transactions</span>
+                      </div>
+                    </div>
+                    <div className="max-h-[300px] overflow-y-auto">
+                      <div className="grid grid-cols-[1fr_72px] bg-slate-50/80 border-b border-dashed border-slate-200/80 sticky top-0">
+                        <div className="px-3 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Merchant</div>
+                        <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
+                      </div>
+                      {excludedTransactions.map((t, idx) => (
+                        <div key={t.id} className={`grid grid-cols-[1fr_72px] items-center border-b border-dashed border-slate-200/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}`}>
+                          <div className="px-3 py-2.5 min-w-0 border-r border-dashed border-slate-200/80">
+                            <span className="text-[11px] font-medium text-slate-500 truncate block">{t.description}</span>
+                            <span className="text-[9px] text-slate-400">{t.date}</span>
+                          </div>
+                          <div className="px-2 py-2.5 text-right">
+                            <span className="text-[11px] font-semibold text-slate-400">{formatCurrency(currency === 'GBP' ? t.amountGBP : t.amountAED)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* ===== DESKTOP DASHBOARD (new fintech SaaS layout) ===== */}
