@@ -18,7 +18,6 @@ interface DateRange {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const FULL_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-// Date presets
 // Format date as YYYY-MM-DD without timezone issues
 const formatDateLocal = (date: Date) => {
   const year = date.getFullYear();
@@ -73,7 +72,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
     setExpandedMonths(newSet);
   };
 
-  // Apply custom date range
   const applyCustomRange = () => {
     if (customStart && customEnd) {
       setDateRange({
@@ -87,14 +85,13 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
-      // Exclude transactions marked as excluded or with 'excluded' category
       if (t.excluded || t.categoryId === 'excluded') return false;
       const txDate = t.date;
       return txDate >= dateRange.start && txDate <= dateRange.end;
     });
   }, [transactions, dateRange]);
 
-  // Monthly data - group by year-month for date ranges that span multiple years
+  // Monthly data
   const monthlyData = useMemo(() => {
     const monthMap = new Map<string, { year: number; monthIndex: number; income: number; expense: number; txCount: number }>();
 
@@ -117,7 +114,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
       entry.txCount += 1;
     });
 
-    // Sort by date and return
     return Array.from(monthMap.values())
       .sort((a, b) => a.year - b.year || a.monthIndex - b.monthIndex)
       .map(entry => ({
@@ -132,30 +128,25 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
       }));
   }, [filteredTransactions]);
 
-  // Number of COMPLETED months in the range for average calculations (excludes current month)
   const completedMonthsInRange = useMemo(() => {
     const start = new Date(dateRange.start);
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
 
-    // Calculate end date - either the range end or last day of previous month, whichever is earlier
     const rangeEnd = new Date(dateRange.end);
-    const lastCompletedMonth = new Date(currentYear, currentMonth, 0); // Last day of previous month
+    const lastCompletedMonth = new Date(currentYear, currentMonth, 0);
 
-    // Use the earlier of the two dates
     const effectiveEnd = rangeEnd < lastCompletedMonth ? rangeEnd : lastCompletedMonth;
 
-    // If the effective end is before the start, no completed months
     if (effectiveEnd < start) {
-      return 1; // Return 1 to avoid division by zero, but this means no completed months
+      return 1;
     }
 
     const months = (effectiveEnd.getFullYear() - start.getFullYear()) * 12 + (effectiveEnd.getMonth() - start.getMonth()) + 1;
     return Math.max(1, months);
   }, [dateRange]);
 
-  // Monthly category breakdown for expandable rows - now keyed by year-month
   const monthlyCategoryBreakdown = useMemo(() => {
     return monthlyData.map(row => {
       const monthTransactions = filteredTransactions.filter(t => {
@@ -183,7 +174,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         expenseByCategory[catId].amount += t.amount;
         expenseByCategory[catId].count += 1;
 
-        // Track subcategories
         const subName = t.subcategoryName || 'Other';
         const existingSub = expenseByCategory[catId].subcategories.find(s => s.name === subName);
         if (existingSub) {
@@ -194,7 +184,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         }
       });
 
-      // Sort subcategories by amount
       Object.values(expenseByCategory).forEach(cat => {
         cat.subcategories.sort((a, b) => b.amount - a.amount);
       });
@@ -203,7 +192,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
     });
   }, [filteredTransactions, categories, monthlyData]);
 
-  // Top categories
   const topExpenseCategories = useMemo(() => {
     const expenseTx = filteredTransactions.filter(t => t.type === 'EXPENSE');
     const byCategory: { [key: string]: { name: string; color: string; amount: number; count: number } } = {};
@@ -252,7 +240,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
   const avgMonthlySpend = totalExpense / completedMonthsInRange;
   const avgMonthlyIncome = totalIncome / completedMonthsInRange;
 
-  // Donut chart data for top categories
   const donutData = topExpenseCategories.slice(0, 4);
   const donutTotal = donutData.reduce((sum, c) => sum + c.amount, 0);
 
@@ -261,436 +248,395 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
+    <div className="pb-20 space-y-6">
       {/* Header */}
-      <div className="px-4 md:px-8 pt-4 md:pt-6 pb-4 flex items-start justify-between">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-semibold text-slate-900">Analytics</h1>
-          <p className="text-sm text-slate-500 mt-1">{dateRange.label}: {new Date(dateRange.start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} - {new Date(dateRange.end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-900">Analytics</h1>
+          <p className="text-xs text-slate-400 mt-1">{dateRange.label}: {new Date(dateRange.start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} – {new Date(dateRange.end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
         </div>
         {onRefresh && (
           <button
             onClick={onRefresh}
-            className="p-2 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+            className="p-2 rounded-xl bg-white border border-slate-100 shadow-sm text-slate-400 hover:text-slate-700 transition-colors"
             title="Refresh data"
           >
-            <RefreshCw size={18} />
+            <RefreshCw size={16} />
           </button>
         )}
       </div>
 
-      {/* Filters Row */}
-      <div className="px-4 md:px-8 pb-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-2.5 md:p-3 flex items-center justify-center">
-          {/* Date Range Selector */}
-          <div className="flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5">
-            <button
-              onClick={() => setDateRange(presets.lastMonth)}
-              className={`px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-medium rounded-md transition-all ${
-                dateRange.label === 'Last Month' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              <span className="md:hidden">Last Mo</span>
-              <span className="hidden md:inline">Last Month</span>
-            </button>
-            <button
-              onClick={() => setDateRange(presets.thisYear)}
-              className={`px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-medium rounded-md transition-all ${
-                dateRange.label === 'This Year' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              <span className="md:hidden">Year</span>
-              <span className="hidden md:inline">This Year</span>
-            </button>
-            <button
-              onClick={() => setShowCustom(!showCustom)}
-              className={`px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-medium rounded-md transition-all flex items-center gap-0.5 ${
-                dateRange.label === 'Custom' || showCustom ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              <Calendar size={10} className="md:w-3 md:h-3" />
-              <span>Custom</span>
-            </button>
-          </div>
+      {/* Date Filter */}
+      <div className="flex items-center gap-2">
+        <div className="flex bg-slate-100 p-0.5 rounded-lg">
+          <button
+            onClick={() => setDateRange(presets.lastMonth)}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${dateRange.label === 'Last Month' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Last Month
+          </button>
+          <button
+            onClick={() => setDateRange(presets.thisYear)}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${dateRange.label === 'This Year' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            This Year
+          </button>
+          <button
+            onClick={() => setShowCustom(!showCustom)}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1 ${dateRange.label === 'Custom' || showCustom ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            <Calendar size={12} />
+            Custom
+          </button>
         </div>
-
-        {/* Custom Date Picker */}
-        {showCustom && (
-          <div className="mt-3 bg-slate-50 rounded-lg p-3 flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-slate-500">From:</label>
-              <input
-                type="date"
-                value={customStart}
-                onChange={(e) => setCustomStart(e.target.value)}
-                className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-slate-500">To:</label>
-              <input
-                type="date"
-                value={customEnd}
-                onChange={(e) => setCustomEnd(e.target.value)}
-                className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700"
-              />
-            </div>
-            <button
-              onClick={applyCustomRange}
-              disabled={!customStart || !customEnd}
-              className="px-4 py-1.5 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Apply
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* KPI Cards Row */}
-      <div className="px-4 md:px-8 pb-4">
-        <div className="grid grid-cols-3 gap-2 md:gap-3">
-          {/* Total Income */}
-          <div className="bg-white rounded-lg border border-slate-200 p-2.5 md:p-3">
-            <div className="flex items-center gap-1.5 mb-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-              <span className="text-[9px] md:text-[10px] font-medium text-slate-400 uppercase tracking-wide">Income</span>
-            </div>
-            <p className="text-base md:text-xl font-semibold text-emerald-600">{formatAmount(totalIncome)}</p>
+      {showCustom && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-slate-400">From:</label>
+            <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 outline-none" />
           </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-slate-400">To:</label>
+            <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 outline-none" />
+          </div>
+          <button onClick={applyCustomRange} disabled={!customStart || !customEnd} className="px-4 py-1.5 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50">Apply</button>
+        </div>
+      )}
 
-          {/* Total Expenses */}
-          <div className="bg-white rounded-lg border border-slate-200 p-2.5 md:p-3">
-            <div className="flex items-center gap-1.5 mb-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
-              <span className="text-[9px] md:text-[10px] font-medium text-slate-400 uppercase tracking-wide">Expenses</span>
-            </div>
-            <p className="text-base md:text-xl font-semibold text-slate-900">{formatAmount(totalExpense)}</p>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-base">↗</span>
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Income</span>
           </div>
-
-          {/* Avg Monthly Spend */}
-          <div className="bg-white rounded-lg border border-slate-200 p-2.5 md:p-3">
-            <div className="flex items-center gap-1.5 mb-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-              <span className="text-[9px] md:text-[10px] font-medium text-slate-400 uppercase tracking-wide">Avg/Mo</span>
-            </div>
-            <p className="text-base md:text-xl font-semibold text-slate-900">{formatAmount(avgMonthlySpend)}</p>
+          <p className="text-2xl md:text-3xl font-bold text-emerald-600">{formatAmount(totalIncome)}</p>
+          <p className="text-[10px] text-slate-400 mt-1">Avg {formatAmount(avgMonthlyIncome)}/mo</p>
+        </div>
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-base">↘</span>
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Expenses</span>
           </div>
+          <p className="text-2xl md:text-3xl font-bold text-slate-900">{formatAmount(totalExpense)}</p>
+          <p className="text-[10px] text-slate-400 mt-1">Avg {formatAmount(avgMonthlySpend)}/mo</p>
+        </div>
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-base">💰</span>
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Net Saved</span>
+          </div>
+          <p className={`text-2xl md:text-3xl font-bold ${netBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatAmount(netBalance)}</p>
+          <p className="text-[10px] text-slate-400 mt-1">{totalTransactions} transactions</p>
         </div>
       </div>
 
       {/* Main Content: Monthly Table + Top Categories */}
-      <div className="px-4 md:px-8 pb-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-          {/* Monthly Breakdown Table */}
-          <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div className="p-4 md:p-5 border-b border-slate-100">
-              <h3 className="font-semibold text-slate-900">Monthly Breakdown</h3>
-            </div>
+        {/* Monthly Breakdown Table */}
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100">
+            <h3 className="text-sm font-bold text-slate-900">Monthly Breakdown</h3>
+          </div>
 
-            {/* Table Header */}
-            <div className="hidden md:grid grid-cols-5 gap-4 px-5 py-2 bg-slate-50 text-[10px] font-medium text-slate-500 uppercase tracking-wide border-b border-slate-100">
-              <div>Month</div>
-              <div className="text-right">Income</div>
-              <div className="text-right">Expenses</div>
-              <div className="text-right">Net</div>
-              <div className="text-right">Transactions</div>
-            </div>
+          {/* Desktop Table Header */}
+          <div className="hidden md:grid grid-cols-5 bg-slate-50/80 border-b border-dashed border-slate-200/80 sticky top-0">
+            <div className="px-4 py-2 text-[9px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Month</div>
+            <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right border-r border-dashed border-slate-200/80">Income</div>
+            <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right border-r border-dashed border-slate-200/80">Expenses</div>
+            <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right border-r border-dashed border-slate-200/80">Net</div>
+            <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right">Trans</div>
+          </div>
 
-            {/* Table Rows */}
-            <div className="divide-y divide-slate-100 max-h-[400px] md:max-h-[600px] overflow-y-auto">
-              {monthlyData.map((row, idx) => {
-                const isExpanded = expandedMonths.has(idx);
-                const categoryBreakdown = monthlyCategoryBreakdown[idx];
-                const hasData = row.expense > 0;
+          {/* Table Rows */}
+          <div className="max-h-[400px] md:max-h-[600px] overflow-y-auto custom-scrollbar">
+            {monthlyData.map((row, idx) => {
+              const isExpanded = expandedMonths.has(idx);
+              const categoryBreakdown = monthlyCategoryBreakdown[idx];
+              const hasData = row.expense > 0;
 
-                return (
-                  <div key={idx}>
-                    {/* Month Row - Mobile */}
-                    <button
-                      onClick={() => hasData && toggleMonth(idx)}
-                      className={`md:hidden w-full flex items-center justify-between px-3 py-2.5 transition-colors text-left ${hasData ? 'hover:bg-slate-50 cursor-pointer' : 'cursor-default'} ${isExpanded ? 'bg-slate-50' : ''}`}
-                      disabled={!hasData}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <ChevronRight size={12} className={`text-slate-400 transition-transform shrink-0 ${isExpanded ? 'rotate-90' : ''} ${!hasData ? 'opacity-0' : ''}`} />
-                        <span className="font-medium text-slate-900 text-xs">{row.fullMonth}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <p className={`text-xs font-semibold ${row.income > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
-                            {row.income > 0 ? `+£${row.income.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
-                          </p>
-                          <p className="text-[8px] text-slate-400">Income</p>
-                        </div>
-                        <div className="text-right">
-                          <p className={`text-xs font-semibold ${row.expense > 0 ? 'text-slate-800' : 'text-slate-300'}`}>
-                            {row.expense > 0 ? `£${row.expense.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
-                          </p>
-                          <p className="text-[8px] text-slate-400">Expenses</p>
-                        </div>
-                      </div>
-                    </button>
-
-                    {/* Month Row - Desktop */}
-                    <button
-                      onClick={() => hasData && toggleMonth(idx)}
-                      className={`hidden md:grid w-full grid-cols-5 gap-4 px-5 py-3 transition-colors text-left ${hasData ? 'hover:bg-slate-50 cursor-pointer' : 'cursor-default'} ${isExpanded ? 'bg-slate-50' : ''}`}
-                      disabled={!hasData}
-                    >
-                      <div className="flex items-center gap-2">
-                        <ChevronRight size={12} className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-90' : ''} ${!hasData ? 'opacity-0' : ''}`} />
-                        <p className="font-medium text-slate-900 text-xs">{row.fullMonth}</p>
-                      </div>
+              return (
+                <div key={idx}>
+                  {/* Month Row - Mobile */}
+                  <button
+                    onClick={() => hasData && toggleMonth(idx)}
+                    className={`md:hidden w-full flex items-center justify-between px-3 py-3 transition-colors text-left border-b border-dashed border-slate-200/80 ${hasData ? 'hover:bg-slate-50 cursor-pointer' : 'cursor-default'} ${isExpanded ? 'bg-slate-50' : idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}`}
+                    disabled={!hasData}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <ChevronRight size={12} className={`text-slate-400 transition-transform shrink-0 ${isExpanded ? 'rotate-90' : ''} ${!hasData ? 'opacity-0' : ''}`} />
+                      <span className="font-medium text-slate-900 text-xs">{row.fullMonth}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
                       <div className="text-right">
-                        <p className={`text-xs font-medium ${row.income > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
+                        <p className={`text-xs font-semibold ${row.income > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
                           {row.income > 0 ? `+£${row.income.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className={`text-xs font-medium ${row.expense > 0 ? 'text-slate-700' : 'text-slate-300'}`}>
+                        <p className={`text-xs font-semibold ${row.expense > 0 ? 'text-slate-800' : 'text-slate-300'}`}>
                           {row.expense > 0 ? `£${row.expense.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
                         </p>
                       </div>
-                      <div className="text-right">
-                        <p className={`text-xs font-semibold ${row.net > 0 ? 'text-emerald-600' : row.net < 0 ? 'text-rose-600' : 'text-slate-300'}`}>
-                          {row.income > 0 || row.expense > 0 ? (row.net >= 0 ? '+' : '') + `£${row.net.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-slate-500">{row.txCount > 0 ? row.txCount : '-'}</p>
-                      </div>
-                    </button>
+                    </div>
+                  </button>
 
-                    {/* Expanded Category Breakdown */}
-                    {isExpanded && hasData && (
-                      <div className="bg-slate-50 border-t border-slate-100 px-3 md:px-5 py-3">
-                        <p className="text-[9px] font-medium text-slate-500 uppercase tracking-wide mb-2.5 ml-5">Expenses by Category</p>
-                        <div className="space-y-2 ml-5">
-                          {categoryBreakdown.map((cat, catIdx) => {
-                            const percentage = row.expense > 0 ? ((cat.amount / row.expense) * 100).toFixed(0) : '0';
-                            const catKey = `${idx}-${cat.id}`;
-                            const isCatExpanded = expandedCategories.has(catKey);
-                            const hasSubcategories = cat.subcategories.length > 1 || (cat.subcategories.length === 1 && cat.subcategories[0].name !== 'Other');
+                  {/* Month Row - Desktop */}
+                  <button
+                    onClick={() => hasData && toggleMonth(idx)}
+                    className={`hidden md:grid w-full grid-cols-5 transition-colors text-left border-b border-dashed border-slate-200/80 ${hasData ? 'hover:bg-slate-50/80 cursor-pointer' : 'cursor-default'} ${isExpanded ? 'bg-slate-50' : idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}`}
+                    disabled={!hasData}
+                  >
+                    <div className="flex items-center gap-2 px-4 py-3.5 border-r border-dashed border-slate-200/80">
+                      <ChevronRight size={12} className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-90' : ''} ${!hasData ? 'opacity-0' : ''}`} />
+                      <p className="font-medium text-slate-900 text-[11px]">{row.fullMonth}</p>
+                    </div>
+                    <div className="px-3 py-3.5 text-right border-r border-dashed border-slate-200/80">
+                      <p className={`text-[11px] font-semibold ${row.income > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
+                        {row.income > 0 ? `+£${row.income.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
+                      </p>
+                    </div>
+                    <div className="px-3 py-3.5 text-right border-r border-dashed border-slate-200/80">
+                      <p className={`text-[11px] font-semibold ${row.expense > 0 ? 'text-slate-800' : 'text-slate-300'}`}>
+                        {row.expense > 0 ? `£${row.expense.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
+                      </p>
+                    </div>
+                    <div className="px-3 py-3.5 text-right border-r border-dashed border-slate-200/80">
+                      <p className={`text-[11px] font-semibold ${row.net > 0 ? 'text-emerald-600' : row.net < 0 ? 'text-rose-600' : 'text-slate-300'}`}>
+                        {row.income > 0 || row.expense > 0 ? (row.net >= 0 ? '+' : '') + `£${row.net.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
+                      </p>
+                    </div>
+                    <div className="px-3 py-3.5 text-right">
+                      <p className="text-[11px] text-slate-400">{row.txCount > 0 ? row.txCount : '-'}</p>
+                    </div>
+                  </button>
 
-                            return (
-                              <div key={catIdx}>
-                                <button
-                                  onClick={() => hasSubcategories && toggleCategory(catKey)}
-                                  className={`w-full flex items-center justify-between bg-white rounded-md px-3 py-2.5 border border-slate-100 ${hasSubcategories ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default'} transition-colors`}
-                                >
-                                  <div className="flex items-center gap-1.5 min-w-0">
-                                    <ChevronRight
-                                      size={10}
-                                      className={`text-slate-400 transition-transform shrink-0 ${isCatExpanded ? 'rotate-90' : ''} ${!hasSubcategories ? 'opacity-0' : ''}`}
-                                    />
-                                    <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }}></div>
-                                    <span className="text-xs text-slate-700 truncate">{cat.name}</span>
-                                    <span className="text-[9px] text-slate-400">({cat.count})</span>
-                                  </div>
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    <span className="text-xs font-semibold text-slate-900">£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</span>
-                                    <span className="text-[10px] text-slate-400 w-8 text-right">{percentage}%</span>
-                                  </div>
-                                </button>
+                  {/* Expanded Category Breakdown */}
+                  {isExpanded && hasData && (
+                    <div className="bg-slate-50/80 border-b border-dashed border-slate-200/80 px-4 md:px-6 py-3">
+                      <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider mb-2.5 ml-5">Expenses by Category</p>
+                      <div className="space-y-2 ml-5">
+                        {categoryBreakdown.map((cat, catIdx) => {
+                          const percentage = row.expense > 0 ? ((cat.amount / row.expense) * 100).toFixed(0) : '0';
+                          const catKey = `${idx}-${cat.id}`;
+                          const isCatExpanded = expandedCategories.has(catKey);
+                          const hasSubcategories = cat.subcategories.length > 1 || (cat.subcategories.length === 1 && cat.subcategories[0].name !== 'Other');
 
-                                {/* Subcategory Breakdown */}
-                                {isCatExpanded && hasSubcategories && (
-                                  <div className="ml-5 mt-2 space-y-1.5">
-                                    {cat.subcategories.map((sub, subIdx) => {
-                                      const subPercentage = cat.amount > 0 ? ((sub.amount / cat.amount) * 100).toFixed(0) : '0';
-                                      return (
-                                        <div key={subIdx} className="flex items-center justify-between bg-slate-100 rounded-md px-3 py-2">
-                                          <div className="flex items-center gap-1.5 min-w-0">
-                                            <span className="text-[11px] text-slate-600 truncate">{sub.name}</span>
-                                            <span className="text-[8px] text-slate-400">({sub.count})</span>
-                                          </div>
-                                          <div className="flex items-center gap-2 shrink-0">
-                                            <span className="text-[11px] font-medium text-slate-700">£{sub.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</span>
-                                            <span className="text-[9px] text-slate-400 w-7 text-right">{subPercentage}%</span>
-                                          </div>
+                          return (
+                            <div key={catIdx}>
+                              <button
+                                onClick={() => hasSubcategories && toggleCategory(catKey)}
+                                className={`w-full flex items-center justify-between bg-white rounded-xl px-3 py-2.5 border border-slate-100 shadow-sm ${hasSubcategories ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default'} transition-colors`}
+                              >
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <ChevronRight
+                                    size={10}
+                                    className={`text-slate-400 transition-transform shrink-0 ${isCatExpanded ? 'rotate-90' : ''} ${!hasSubcategories ? 'opacity-0' : ''}`}
+                                  />
+                                  <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }}></div>
+                                  <span className="text-[11px] font-medium text-slate-700 truncate">{cat.name}</span>
+                                  <span className="text-[9px] text-slate-400">({cat.count})</span>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className="text-[11px] font-semibold text-slate-900">£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</span>
+                                  <span className="text-[10px] text-slate-400 w-8 text-right">{percentage}%</span>
+                                </div>
+                              </button>
+
+                              {isCatExpanded && hasSubcategories && (
+                                <div className="ml-5 mt-2 space-y-1.5">
+                                  {cat.subcategories.map((sub, subIdx) => {
+                                    const subPercentage = cat.amount > 0 ? ((sub.amount / cat.amount) * 100).toFixed(0) : '0';
+                                    return (
+                                      <div key={subIdx} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-slate-100">
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                          <span className="text-[10px] text-slate-600 truncate">{sub.name}</span>
+                                          <span className="text-[8px] text-slate-400">({sub.count})</span>
                                         </div>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                          {categoryBreakdown.length === 0 && (
-                            <p className="text-xs text-slate-400 py-2">No expenses this month</p>
-                          )}
-                        </div>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                          <span className="text-[10px] font-semibold text-slate-700">£{sub.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</span>
+                                          <span className="text-[9px] text-slate-400 w-7 text-right">{subPercentage}%</span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {categoryBreakdown.length === 0 && (
+                          <p className="text-xs text-slate-400 py-2">No expenses this month</p>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Top Categories — Donut + List */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100">
+            <h3 className="text-sm font-bold text-slate-900">Top Categories</h3>
           </div>
 
-          {/* Top Categories - Donut Chart Style */}
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div className="p-4 md:p-5 border-b border-slate-100">
-              <h3 className="font-semibold text-slate-900">Top Categories</h3>
-            </div>
+          {/* Donut Visual */}
+          <div className="p-6 flex justify-center">
+            <div className="relative w-44 h-44 md:w-48 md:h-48">
+              <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                <circle cx="50" cy="50" r="38" fill="none" stroke="#f1f5f9" strokeWidth="14" />
+                {donutData.length > 0 && (() => {
+                  const circumference = 2 * Math.PI * 38;
+                  const gapSize = 4;
+                  const totalGaps = donutData.length * gapSize;
+                  const availableLength = circumference - totalGaps;
+                  let currentOffset = 0;
 
-            {/* Donut Visual */}
-            <div className="p-6 md:p-8 flex justify-center">
-              <div className="relative w-44 h-44 md:w-56 md:h-56">
-                <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                  {/* Background circle */}
-                  <circle cx="50" cy="50" r="38" fill="none" stroke="#f1f5f9" strokeWidth="14" />
-                  {donutData.length > 0 && (() => {
-                    const circumference = 2 * Math.PI * 38; // ~238.76
-                    const gapSize = 4; // Gap in pixels
-                    const totalGaps = donutData.length * gapSize;
-                    const availableLength = circumference - totalGaps;
-                    let currentOffset = 0;
+                  return donutData.map((cat, idx) => {
+                    const percentage = cat.amount / donutTotal;
+                    const segmentLength = percentage * availableLength;
+                    const dashOffset = -currentOffset;
+                    currentOffset += segmentLength + gapSize;
 
-                    return donutData.map((cat, idx) => {
-                      const percentage = cat.amount / donutTotal;
-                      const segmentLength = percentage * availableLength;
-                      const dashOffset = -currentOffset;
-                      currentOffset += segmentLength + gapSize;
-
-                      return (
-                        <circle
-                          key={idx}
-                          cx="50"
-                          cy="50"
-                          r="38"
-                          fill="none"
-                          stroke={cat.color}
-                          strokeWidth="14"
-                          strokeDasharray={`${segmentLength} ${circumference - segmentLength}`}
-                          strokeDashoffset={dashOffset}
-                          className="transition-all duration-500"
-                        />
-                      );
-                    });
-                  })()}
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center">
-                    <p className="text-lg md:text-2xl font-semibold text-slate-900">{formatAmount(totalExpense)}</p>
-                    <p className="text-[10px] md:text-xs text-slate-400">Total Expenses</p>
-                  </div>
+                    return (
+                      <circle
+                        key={idx}
+                        cx="50"
+                        cy="50"
+                        r="38"
+                        fill="none"
+                        stroke={cat.color}
+                        strokeWidth="14"
+                        strokeDasharray={`${segmentLength} ${circumference - segmentLength}`}
+                        strokeDashoffset={dashOffset}
+                        className="transition-all duration-500"
+                      />
+                    );
+                  });
+                })()}
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-lg font-bold text-slate-900">{formatAmount(totalExpense)}</p>
+                  <p className="text-[10px] text-slate-400">Total Expenses</p>
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Category List */}
-            <div className="px-4 md:px-5 pb-4 md:pb-5 space-y-3">
-              {topExpenseCategories.slice(0, 5).map((cat, idx) => {
-                const percentage = totalExpense > 0 ? ((cat.amount / totalExpense) * 100).toFixed(0) : '0';
-                return (
-                  <div key={idx} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 min-w-0">
+          {/* Category List */}
+          <div className="px-5 pb-5 space-y-4">
+            {topExpenseCategories.slice(0, 5).map((cat, idx) => {
+              const percentage = totalExpense > 0 ? ((cat.amount / totalExpense) * 100) : 0;
+              return (
+                <div key={idx} className="py-1">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
                       <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }}></div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-slate-700 truncate">{cat.name}</p>
-                        <p className="text-[10px] text-slate-400">{percentage}% of expenses</p>
-                      </div>
+                      <span className="text-xs font-medium text-slate-700 truncate">{cat.name}</span>
                     </div>
-                    <div className="text-right shrink-0 ml-2">
-                      <p className="text-sm font-semibold text-slate-900">£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</p>
-                      <p className="text-[10px] text-slate-400">{cat.count} {cat.count === 1 ? 'transaction' : 'transactions'}</p>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] text-slate-400">{percentage.toFixed(1)}%</span>
+                      <span className="text-xs font-semibold text-slate-900">£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</span>
                     </div>
                   </div>
-                );
-              })}
-              {topExpenseCategories.length === 0 && (
-                <p className="text-sm text-slate-400 text-center py-4">No expenses recorded</p>
-              )}
-            </div>
+                  <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-500 ease-out" style={{ width: `${percentage}%`, backgroundColor: cat.color }} />
+                  </div>
+                </div>
+              );
+            })}
+            {topExpenseCategories.length === 0 && (
+              <p className="text-xs text-slate-400 text-center py-4">No expenses recorded</p>
+            )}
           </div>
         </div>
       </div>
 
       {/* Bottom Cards: Top Expenses & Top Income */}
-      <div className="px-4 md:px-8 pb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
-          {/* Highest Expenses */}
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div className="p-3 md:p-4 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-semibold text-slate-900 text-sm">Highest Expenses</h3>
-              <span className="text-[9px] font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">TOP 5</span>
-            </div>
-
-            {/* Header */}
-            <div className="grid grid-cols-3 gap-3 px-3 md:px-4 py-1.5 bg-slate-50 text-[9px] md:text-[10px] font-medium text-slate-500 uppercase tracking-wide border-b border-slate-100">
-              <div>Category</div>
-              <div className="text-right">Amount</div>
-              <div className="text-right">Share</div>
-            </div>
-
-            <div className="divide-y divide-slate-100">
-              {topExpenseCategories.map((cat, idx) => {
-                const percentage = totalExpense > 0 ? ((cat.amount / totalExpense) * 100).toFixed(1) : '0';
-                return (
-                  <div key={idx} className="grid grid-cols-3 gap-3 px-3 md:px-4 py-2 md:py-2.5 hover:bg-slate-50 transition-colors">
-                    <div className="min-w-0">
-                      <p className="font-medium text-slate-900 text-xs truncate">{cat.name}</p>
-                      <p className="text-[9px] text-slate-400">{cat.count} transactions</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs font-semibold text-slate-900">£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs font-medium text-rose-600">{percentage}%</p>
-                    </div>
-                  </div>
-                );
-              })}
-              {topExpenseCategories.length === 0 && (
-                <div className="px-4 py-6 text-center text-slate-400 text-xs">No expenses recorded</div>
-              )}
-            </div>
+        {/* Highest Expenses */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-900">Highest Expenses</h3>
+            <span className="text-[9px] font-semibold text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md">TOP 5</span>
           </div>
 
-          {/* Top Income Sources */}
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div className="p-4 md:p-5 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-semibold text-slate-900">Income Sources</h3>
-              <span className="text-[10px] font-medium text-slate-400 bg-slate-100 px-2 py-1 rounded">TOP 5</span>
-            </div>
-
-            {/* Header */}
-            <div className="grid grid-cols-3 gap-4 px-4 md:px-5 py-2 bg-slate-50 text-[10px] md:text-xs font-medium text-slate-500 uppercase tracking-wide border-b border-slate-100">
-              <div>Category</div>
-              <div className="text-right">Amount</div>
-              <div className="text-right">Share</div>
-            </div>
-
-            <div className="divide-y divide-slate-100">
-              {topIncomeCategories.map((cat, idx) => {
-                const percentage = totalIncome > 0 ? ((cat.amount / totalIncome) * 100).toFixed(1) : '0';
-                return (
-                  <div key={idx} className="grid grid-cols-3 gap-4 px-4 md:px-5 py-3 md:py-4 hover:bg-slate-50 transition-colors">
-                    <div className="min-w-0">
-                      <p className="font-medium text-slate-900 text-sm truncate">{cat.name}</p>
-                      <p className="text-[10px] text-slate-400">{cat.count} transactions</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-emerald-600">+£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-emerald-600">{percentage}%</p>
-                    </div>
-                  </div>
-                );
-              })}
-              {topIncomeCategories.length === 0 && (
-                <div className="px-5 py-8 text-center text-slate-400 text-sm">No income recorded</div>
-              )}
-            </div>
+          <div className="hidden md:grid grid-cols-3 bg-slate-50/80 border-b border-dashed border-slate-200/80">
+            <div className="px-4 py-2 text-[9px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Category</div>
+            <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right border-r border-dashed border-slate-200/80">Amount</div>
+            <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right">Share</div>
           </div>
 
+          <div>
+            {topExpenseCategories.map((cat, idx) => {
+              const percentage = totalExpense > 0 ? ((cat.amount / totalExpense) * 100).toFixed(1) : '0';
+              return (
+                <div key={idx} className={`grid grid-cols-3 border-b border-dashed border-slate-200/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}`}>
+                  <div className="px-4 py-3.5 min-w-0 border-r border-dashed border-slate-200/80">
+                    <p className="font-medium text-slate-900 text-[11px] truncate">{cat.name}</p>
+                    <p className="text-[9px] text-slate-400">{cat.count} trans</p>
+                  </div>
+                  <div className="px-3 py-3.5 text-right border-r border-dashed border-slate-200/80">
+                    <p className="text-[11px] font-semibold text-slate-900">£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</p>
+                  </div>
+                  <div className="px-3 py-3.5 text-right">
+                    <p className="text-[11px] font-semibold text-rose-600">{percentage}%</p>
+                  </div>
+                </div>
+              );
+            })}
+            {topExpenseCategories.length === 0 && (
+              <div className="px-4 py-6 text-center text-slate-400 text-xs">No expenses recorded</div>
+            )}
+          </div>
         </div>
-      </div>
 
+        {/* Top Income Sources */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-900">Income Sources</h3>
+            <span className="text-[9px] font-semibold text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md">TOP 5</span>
+          </div>
+
+          <div className="hidden md:grid grid-cols-3 bg-slate-50/80 border-b border-dashed border-slate-200/80">
+            <div className="px-4 py-2 text-[9px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Category</div>
+            <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right border-r border-dashed border-slate-200/80">Amount</div>
+            <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right">Share</div>
+          </div>
+
+          <div>
+            {topIncomeCategories.map((cat, idx) => {
+              const percentage = totalIncome > 0 ? ((cat.amount / totalIncome) * 100).toFixed(1) : '0';
+              return (
+                <div key={idx} className={`grid grid-cols-3 border-b border-dashed border-slate-200/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}`}>
+                  <div className="px-4 py-3.5 min-w-0 border-r border-dashed border-slate-200/80">
+                    <p className="font-medium text-slate-900 text-[11px] truncate">{cat.name}</p>
+                    <p className="text-[9px] text-slate-400">{cat.count} trans</p>
+                  </div>
+                  <div className="px-3 py-3.5 text-right border-r border-dashed border-slate-200/80">
+                    <p className="text-[11px] font-semibold text-emerald-600">+£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</p>
+                  </div>
+                  <div className="px-3 py-3.5 text-right">
+                    <p className="text-[11px] font-semibold text-emerald-600">{percentage}%</p>
+                  </div>
+                </div>
+              );
+            })}
+            {topIncomeCategories.length === 0 && (
+              <div className="px-4 py-6 text-center text-slate-400 text-xs">No income recorded</div>
+            )}
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 };
