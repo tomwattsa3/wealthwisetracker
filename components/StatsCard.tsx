@@ -44,6 +44,9 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
 
   // --- KPI Expense variant ---
   if (variant === 'kpi-expense') {
+    const rev = revenueAmount ?? 0;
+    const spendPct = rev > 0 ? (amount / rev) * 100 : 0;
+
     return (
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col justify-between h-full">
         <div className="flex items-center gap-2 mb-3">
@@ -51,11 +54,18 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
           <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Expenses</span>
         </div>
         <p className="text-3xl font-bold text-slate-900 mb-2">{currencyDisplay}</p>
-        {percentChange !== undefined && (
-          <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full w-fit ${percentChange >= 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-            {percentChange >= 0 ? '+' : ''}{percentChange.toFixed(1)}%
-          </span>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {percentChange !== undefined && (
+            <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full w-fit ${percentChange >= 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+              {percentChange >= 0 ? '+' : ''}{percentChange.toFixed(1)}%
+            </span>
+          )}
+          {rev > 0 && (
+            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full w-fit ${spendPct > 100 ? 'bg-rose-50 text-rose-600' : spendPct > 80 ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+              {spendPct.toFixed(1)}% of income
+            </span>
+          )}
+        </div>
       </div>
     );
   }

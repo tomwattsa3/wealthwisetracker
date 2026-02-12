@@ -1730,6 +1730,7 @@ const App: React.FC = () => {
                     type="EXPENSE"
                     currency={currency}
                     variant="kpi-expense"
+                    revenueAmount={summary.totalIncome}
                     percentChange={(() => {
                       const start = new Date(dateRange.start);
                       const end = new Date(dateRange.end);
