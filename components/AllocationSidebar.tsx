@@ -68,8 +68,8 @@ const AllocationSidebar: React.FC<AllocationSidebarProps> = ({
   return (
     <div className="flex flex-col gap-5 h-full">
 
-      {/* Income Card — expense-sheet style */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden" style={{ maxHeight: 420 }}>
+      {/* Income Card — expense-sheet style, fixed height to match expense cards */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden h-[420px]">
         {/* Header */}
         <div className="px-4 py-3 border-b border-slate-100">
           <div className="flex items-center justify-between">
@@ -120,12 +120,12 @@ const AllocationSidebar: React.FC<AllocationSidebarProps> = ({
       {/* Spend by Category */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex-1 overflow-y-auto custom-scrollbar">
         <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Spend by Category</h3>
-        <div className="space-y-3">
+        <div className="space-y-4">
           {expenseData.map(item => {
             const percentage = totalExpenses > 0 ? (item.total / totalExpenses) * 100 : 0;
             return (
-              <div key={item.category.id}>
-                <div className="flex items-center justify-between mb-1">
+              <div key={item.category.id} className="py-1">
+                <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm">{getCategoryEmoji(item.category.id)}</span>
                     <span className="text-xs font-medium text-slate-700">{item.category.name}</span>
