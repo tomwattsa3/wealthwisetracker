@@ -5,6 +5,7 @@ import { Category, Transaction } from '../types';
 interface CategoryBreakdownItem {
   category: Category;
   total: number;
+  transactions?: any[];
 }
 
 interface AllocationSidebarProps {
@@ -167,6 +168,9 @@ const AllocationSidebar: React.FC<AllocationSidebarProps> = ({
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm">{getCategoryEmoji(item.category.id)}</span>
                     <span className="text-xs font-medium text-slate-700">{item.category.name}</span>
+                    {item.transactions && item.transactions.length > 0 && (
+                      <span className="text-[9px] text-slate-400 font-medium">{item.transactions.length}</span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-slate-400">{percentage.toFixed(1)}%</span>

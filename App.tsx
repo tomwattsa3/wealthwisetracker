@@ -1675,12 +1675,14 @@ const App: React.FC = () => {
                               const label = listType === 'category' ? item.category.name : item.name;
                               const color = listType === 'category' ? item.category.color : item.color;
                               const catId = listType === 'category' ? item.category.id : item.parentId;
+                              const txCount = item.transactions ? item.transactions.length : 0;
                               return (
                                   <div key={label} className="py-1">
                                     <div className="flex items-center justify-between mb-1.5">
                                       <div className="flex items-center gap-1.5">
                                         <span className="text-sm">{getCategoryEmoji(catId || '')}</span>
                                         <span className="text-xs font-medium text-slate-700">{label}</span>
+                                        {txCount > 0 && <span className="text-[9px] text-slate-400 font-medium">{txCount}</span>}
                                       </div>
                                       <div className="flex items-center gap-2">
                                         <span className="text-[10px] text-slate-400">{percentage.toFixed(1)}%</span>
