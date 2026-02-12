@@ -1805,6 +1805,7 @@ const App: React.FC = () => {
                       formatCurrency={formatCurrency}
                       getCategoryEmoji={getCategoryEmoji}
                       incomeTransactions={activeTransactions.filter(t => t.type === 'INCOME')}
+                      excludedTransactions={dateFilteredTransactions.filter(t => t.excluded || t.categoryId === 'excluded')}
                       currency={currency}
                     />
                   </div>
