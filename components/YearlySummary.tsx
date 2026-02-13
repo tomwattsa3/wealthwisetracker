@@ -463,9 +463,9 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
                   {/* Expanded Category Breakdown */}
                   {isExpanded && hasData && (
-                    <div className="bg-slate-50/80 border-b border-dashed border-slate-200/80 px-4 md:px-6 py-3">
-                      <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider mb-2.5 ml-5">Expenses by Category</p>
-                      <div className="space-y-2 ml-5">
+                    <div className="bg-slate-50/80 border-b border-dashed border-slate-200/80 px-2 md:px-6 py-3">
+                      <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider mb-2.5 ml-1 md:ml-5">Expenses by Category</p>
+                      <div className="space-y-2 ml-1 md:ml-5">
                         {categoryBreakdown.map((cat, catIdx) => {
                           const percentage = row.expense > 0 ? ((cat.amount / row.expense) * 100).toFixed(0) : '0';
                           const catKey = `${idx}-${cat.id}`;
