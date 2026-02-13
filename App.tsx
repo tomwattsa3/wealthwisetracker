@@ -112,6 +112,11 @@ const App: React.FC = () => {
   // Currency State
   const [currency, setCurrency] = useState<'GBP' | 'AED'>('GBP');
 
+  // Mobile custom date picker state
+  const [showMobileCustomDates, setShowMobileCustomDates] = useState(false);
+  const [mobileCustomStart, setMobileCustomStart] = useState('');
+  const [mobileCustomEnd, setMobileCustomEnd] = useState('');
+
   // Get transaction amount based on selected currency
   const getAmount = (t: Transaction) => {
     return currency === 'GBP' ? t.amountGBP : t.amountAED;
@@ -1422,23 +1427,102 @@ const App: React.FC = () => {
 
               {/* ===== MOBILE DASHBOARD (fintech SaaS style) ===== */}
               <div className="md:hidden space-y-4 px-2 sm:px-0">
-                {/* Currency Switcher */}
-                <div className="flex items-center justify-end gap-2">
-                  <div className="flex bg-slate-100 p-0.5 rounded-lg">
+                {/* Timeframe & Currency Switchers */}
+                <div className="flex items-center justify-between gap-2">
+                  {/* Timeframe Selector */}
+                  <div className="flex bg-slate-100 p-0.5 rounded-lg overflow-x-auto hide-scrollbar">
+                    {[
+                      { label: 'Month', fullLabel: 'This Month', getValue: () => {
+                        const now = new Date();
+                        return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: new Date(now.getFullYear(), now.getMonth() + 1, 0) };
+                      }},
+                      { label: 'Last Wk', fullLabel: 'Last Week', getValue: () => {
+                        const now = new Date();
+                        const dayOfWeek = now.getDay();
+                        const lastMonday = new Date(now);
+                        lastMonday.setDate(now.getDate() - dayOfWeek - 6);
+                        const lastSunday = new Date(lastMonday);
+                        lastSunday.setDate(lastMonday.getDate() + 6);
+                        return { start: lastMonday, end: lastSunday };
+                      }},
+                      { label: 'Last Mo', fullLabel: 'Last Month', getValue: () => {
+                        const now = new Date();
+                        return { start: new Date(now.getFullYear(), now.getMonth() - 1, 1), end: new Date(now.getFullYear(), now.getMonth(), 0) };
+                      }},
+                      { label: 'Year', fullLabel: 'This Year', getValue: () => {
+                        const now = new Date();
+                        return { start: new Date(now.getFullYear(), 0, 1), end: new Date(now.getFullYear(), 11, 31) };
+                      }},
+                    ].map((preset) => {
+                      const isActive = dateRange.label === preset.fullLabel;
+                      return (
+                        <button
+                          key={preset.fullLabel}
+                          onClick={() => {
+                            const { start, end } = preset.getValue();
+                            setDateRange({ start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0], label: preset.fullLabel });
+                            setShowMobileCustomDates(false);
+                          }}
+                          className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${isActive && !showMobileCustomDates ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                          {preset.label}
+                        </button>
+                      );
+                    })}
+                    <button
+                      onClick={() => setShowMobileCustomDates(!showMobileCustomDates)}
+                      className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${showMobileCustomDates || dateRange.label === 'Custom Range' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                      Custom
+                    </button>
+                  </div>
+                  {/* Currency Switcher */}
+                  <div className="flex bg-slate-100 p-0.5 rounded-lg shrink-0">
                     <button
                       onClick={() => setCurrency('GBP')}
-                      className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all ${currency === 'GBP' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                      className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all ${currency === 'GBP' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
-                      £ GBP
+                      £
                     </button>
                     <button
                       onClick={() => setCurrency('AED')}
-                      className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all ${currency === 'AED' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                      className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all ${currency === 'AED' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                       AED
                     </button>
                   </div>
                 </div>
+
+                {/* Custom Date Range Picker */}
+                {showMobileCustomDates && (
+                  <div className="flex items-center gap-2 bg-white rounded-xl border border-slate-200 p-2.5">
+                    <input
+                      type="date"
+                      value={mobileCustomStart}
+                      onChange={(e) => setMobileCustomStart(e.target.value)}
+                      className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] font-semibold text-slate-700 outline-none focus:border-[#635bff]"
+                    />
+                    <span className="text-slate-300 text-xs font-bold">–</span>
+                    <input
+                      type="date"
+                      value={mobileCustomEnd}
+                      onChange={(e) => setMobileCustomEnd(e.target.value)}
+                      className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] font-semibold text-slate-700 outline-none focus:border-[#635bff]"
+                    />
+                    <button
+                      onClick={() => {
+                        if (mobileCustomStart && mobileCustomEnd) {
+                          setDateRange({ start: mobileCustomStart, end: mobileCustomEnd, label: 'Custom Range' });
+                          setShowMobileCustomDates(false);
+                        }
+                      }}
+                      disabled={!mobileCustomStart || !mobileCustomEnd}
+                      className="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-[10px] font-bold disabled:opacity-40 shrink-0"
+                    >
+                      Go
+                    </button>
+                  </div>
+                )}
 
                 {/* Mobile KPI Cards */}
                 <div className="grid grid-cols-3 gap-2">
