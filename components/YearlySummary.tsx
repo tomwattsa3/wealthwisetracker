@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Transaction, Category } from '../types';
-import { TrendingUp, TrendingDown, PieChart, ChevronRight, Calendar, RefreshCw } from 'lucide-react';
+import { TrendingUp, TrendingDown, PieChart, ChevronRight, RefreshCw } from 'lucide-react';
 
 interface YearlySummaryProps {
   transactions: Transaction[];
@@ -29,7 +29,23 @@ const formatDateLocal = (date: Date) => {
 
 const getDatePresets = () => {
   const now = new Date();
+  const dayOfWeek = now.getDay();
+  const lastMonday = new Date(now);
+  lastMonday.setDate(now.getDate() - dayOfWeek - 6);
+  const lastSunday = new Date(lastMonday);
+  lastSunday.setDate(lastMonday.getDate() + 6);
+
   return {
+    thisMonth: {
+      start: formatDateLocal(new Date(now.getFullYear(), now.getMonth(), 1)),
+      end: formatDateLocal(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+      label: 'This Month'
+    },
+    lastWeek: {
+      start: formatDateLocal(lastMonday),
+      end: formatDateLocal(lastSunday),
+      label: 'Last Week'
+    },
     lastMonth: {
       start: formatDateLocal(new Date(now.getFullYear(), now.getMonth() - 1, 1)),
       end: formatDateLocal(new Date(now.getFullYear(), now.getMonth(), 0)),
@@ -275,40 +291,52 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
       {/* Date Filter */}
       <div className="flex items-center gap-2">
-        <div className="flex bg-slate-100 p-0.5 rounded-lg">
-          <button
-            onClick={() => setDateRange(presets.lastMonth)}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${dateRange.label === 'Last Month' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            Last Month
-          </button>
-          <button
-            onClick={() => setDateRange(presets.thisYear)}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${dateRange.label === 'This Year' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            This Year
-          </button>
+        <div className="flex bg-slate-100 p-0.5 rounded-lg overflow-x-auto hide-scrollbar">
+          {[
+            { label: 'MTD', preset: presets.thisMonth },
+            { label: 'Last Wk', preset: presets.lastWeek },
+            { label: 'Last Mo', preset: presets.lastMonth },
+            { label: 'Year', preset: presets.thisYear },
+          ].map((item) => (
+            <button
+              key={item.preset.label}
+              onClick={() => { setDateRange(item.preset); setShowCustom(false); }}
+              className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${dateRange.label === item.preset.label && !showCustom ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              {item.label}
+            </button>
+          ))}
           <button
             onClick={() => setShowCustom(!showCustom)}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1 ${dateRange.label === 'Custom' || showCustom ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${showCustom || dateRange.label === 'Custom' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
           >
-            <Calendar size={12} />
             Custom
           </button>
         </div>
       </div>
 
       {showCustom && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-slate-400">From:</label>
-            <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 outline-none" />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-slate-400">To:</label>
-            <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 outline-none" />
-          </div>
-          <button onClick={applyCustomRange} disabled={!customStart || !customEnd} className="px-4 py-1.5 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50">Apply</button>
+        <div className="flex items-center gap-2 bg-white rounded-xl border border-slate-200 p-2.5">
+          <input
+            type="date"
+            value={customStart}
+            onChange={(e) => setCustomStart(e.target.value)}
+            className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] font-semibold text-slate-700 outline-none focus:border-[#635bff]"
+          />
+          <span className="text-slate-300 text-xs font-bold">–</span>
+          <input
+            type="date"
+            value={customEnd}
+            onChange={(e) => setCustomEnd(e.target.value)}
+            className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] font-semibold text-slate-700 outline-none focus:border-[#635bff]"
+          />
+          <button
+            onClick={applyCustomRange}
+            disabled={!customStart || !customEnd}
+            className="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-[10px] font-bold disabled:opacity-40 shrink-0"
+          >
+            Go
+          </button>
         </div>
       )}
 
