@@ -237,6 +237,9 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
   const totalIncome = filteredTransactions.filter(t => t.type === 'INCOME').reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = filteredTransactions.filter(t => t.type === 'EXPENSE').reduce((sum, t) => sum + t.amount, 0);
   const netBalance = totalIncome - totalExpense;
+  const totalIncomeAED = filteredTransactions.filter(t => t.type === 'INCOME').reduce((sum, t) => sum + (t.amountAED || 0), 0);
+  const totalExpenseAED = filteredTransactions.filter(t => t.type === 'EXPENSE').reduce((sum, t) => sum + (t.amountAED || 0), 0);
+  const netBalanceAED = totalIncomeAED - totalExpenseAED;
   const totalTransactions = filteredTransactions.length;
   const avgMonthlySpend = totalExpense / completedMonthsInRange;
   const avgMonthlyIncome = totalIncome / completedMonthsInRange;
@@ -246,6 +249,9 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
   const formatAmount = (amount: number) => {
     return `£${amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+  const formatAED = (amount: number) => {
+    return `AED ${amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   return (
@@ -307,30 +313,33 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-base">↗</span>
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Income</span>
+      <div className="grid grid-cols-3 gap-2.5 md:gap-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-3 md:p-5">
+          <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
+            <span className="text-sm md:text-base">↗</span>
+            <span className="text-[8px] md:text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Income</span>
           </div>
-          <p className="text-2xl md:text-3xl font-bold text-emerald-600">{formatAmount(totalIncome)}</p>
-          <p className="text-[10px] text-slate-400 mt-1">Avg {formatAmount(avgMonthlyIncome)}/mo</p>
+          <p className="text-base md:text-3xl font-bold text-emerald-600">{formatAmount(totalIncome)}</p>
+          <p className="text-[9px] md:text-[10px] font-medium text-slate-400 mt-0.5">{formatAED(totalIncomeAED)}</p>
+          <p className="text-[9px] md:text-[10px] text-slate-400 mt-0.5 md:mt-1">Avg {formatAmount(avgMonthlyIncome)}/mo</p>
         </div>
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-base">↘</span>
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Expenses</span>
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-3 md:p-5">
+          <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
+            <span className="text-sm md:text-base">↘</span>
+            <span className="text-[8px] md:text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Expenses</span>
           </div>
-          <p className="text-2xl md:text-3xl font-bold text-slate-900">{formatAmount(totalExpense)}</p>
-          <p className="text-[10px] text-slate-400 mt-1">Avg {formatAmount(avgMonthlySpend)}/mo</p>
+          <p className="text-base md:text-3xl font-bold text-slate-900">{formatAmount(totalExpense)}</p>
+          <p className="text-[9px] md:text-[10px] font-medium text-slate-400 mt-0.5">{formatAED(totalExpenseAED)}</p>
+          <p className="text-[9px] md:text-[10px] text-slate-400 mt-0.5 md:mt-1">Avg {formatAmount(avgMonthlySpend)}/mo</p>
         </div>
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-base">💰</span>
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Net Saved</span>
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-3 md:p-5">
+          <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
+            <span className="text-sm md:text-base">💰</span>
+            <span className="text-[8px] md:text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Net Saved</span>
           </div>
-          <p className={`text-2xl md:text-3xl font-bold ${netBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatAmount(netBalance)}</p>
-          <p className="text-[10px] text-slate-400 mt-1">{totalTransactions} transactions</p>
+          <p className={`text-base md:text-3xl font-bold ${netBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatAmount(netBalance)}</p>
+          <p className="text-[9px] md:text-[10px] font-medium text-slate-400 mt-0.5">{formatAED(netBalanceAED)}</p>
+          <p className="text-[9px] md:text-[10px] text-slate-400 mt-0.5 md:mt-1">{totalTransactions} transactions</p>
         </div>
       </div>
 
