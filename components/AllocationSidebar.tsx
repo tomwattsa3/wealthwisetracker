@@ -157,10 +157,10 @@ const AllocationSidebar: React.FC<AllocationSidebarProps> = ({
       </div>
 
       {/* Spend by Category */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 overflow-y-auto custom-scrollbar">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 overflow-hidden">
         <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Spend by Category</h3>
-        <div className="space-y-4">
-          {expenseData.map(item => {
+        <div className="space-y-4 max-h-[320px] overflow-y-auto custom-scrollbar">
+          {expenseData.slice(0, 6).map(item => {
             const percentage = totalExpenses > 0 ? (item.total / totalExpenses) * 100 : 0;
             return (
               <div key={item.category.id} className="py-1">
