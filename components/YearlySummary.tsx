@@ -348,8 +348,11 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
             <span className="text-[8px] md:text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Income</span>
           </div>
           <p className="text-base md:text-3xl font-bold text-emerald-600">{formatAmount(totalIncome)}</p>
-          <p className="text-[8px] md:text-[10px] font-medium text-slate-400 mt-0.5">{formatAED(totalIncomeAED)}</p>
-          <p className="text-[7px] md:text-[10px] text-slate-300 mt-0.5 md:mt-1">Avg {formatAmount(avgMonthlyIncome)}/mo</p>
+          <div className="flex flex-col md:flex-row md:items-center md:gap-2 mt-0.5 md:mt-1.5">
+            <p className="text-[8px] md:text-xs font-medium text-slate-400 md:text-slate-500">{formatAED(totalIncomeAED)}</p>
+            <span className="hidden md:inline text-slate-300">·</span>
+            <p className="text-[7px] md:text-xs text-slate-300 md:text-slate-500 mt-0.5 md:mt-0">Avg {formatAmount(avgMonthlyIncome)}/mo</p>
+          </div>
         </div>
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-3 md:p-5">
           <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
@@ -357,8 +360,11 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
             <span className="text-[8px] md:text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Expenses</span>
           </div>
           <p className="text-base md:text-3xl font-bold text-slate-900">{formatAmount(totalExpense)}</p>
-          <p className="text-[8px] md:text-[10px] font-medium text-slate-400 mt-0.5">{formatAED(totalExpenseAED)}</p>
-          <p className="text-[7px] md:text-[10px] text-slate-300 mt-0.5 md:mt-1">Avg {formatAmount(avgMonthlySpend)}/mo</p>
+          <div className="flex flex-col md:flex-row md:items-center md:gap-2 mt-0.5 md:mt-1.5">
+            <p className="text-[8px] md:text-xs font-medium text-slate-400 md:text-slate-500">{formatAED(totalExpenseAED)}</p>
+            <span className="hidden md:inline text-slate-300">·</span>
+            <p className="text-[7px] md:text-xs text-slate-300 md:text-slate-500 mt-0.5 md:mt-0">Avg {formatAmount(avgMonthlySpend)}/mo</p>
+          </div>
         </div>
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-3 md:p-5">
           <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
@@ -366,8 +372,11 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
             <span className="text-[8px] md:text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Net Saved</span>
           </div>
           <p className={`text-base md:text-3xl font-bold ${netBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatAmount(netBalance)}</p>
-          <p className="text-[8px] md:text-[10px] font-medium text-slate-400 mt-0.5">{formatAED(netBalanceAED)}</p>
-          <p className="text-[7px] md:text-[10px] text-slate-300 mt-0.5 md:mt-1">{totalTransactions} transactions</p>
+          <div className="flex flex-col md:flex-row md:items-center md:gap-2 mt-0.5 md:mt-1.5">
+            <p className="text-[8px] md:text-xs font-medium text-slate-400 md:text-slate-500">{formatAED(netBalanceAED)}</p>
+            <span className="hidden md:inline text-slate-300">·</span>
+            <p className="text-[7px] md:text-xs text-slate-300 md:text-slate-500 mt-0.5 md:mt-0">{totalTransactions} transactions</p>
+          </div>
         </div>
       </div>
 
