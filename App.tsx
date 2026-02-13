@@ -1463,8 +1463,82 @@ const App: React.FC = () => {
                     )}
                     
                     {/* Desktop Date Filter */}
-                    <div className="hidden md:block">
-                        <DashboardDateFilter range={dateRange} onRangeChange={setDateRange} />
+                    <div className="hidden md:flex items-center gap-2">
+                      <div className="flex bg-slate-100 p-0.5 rounded-lg">
+                        {[
+                          { label: 'MTD', fullLabel: 'This Month', getValue: () => {
+                            const now = new Date();
+                            return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: new Date(now.getFullYear(), now.getMonth() + 1, 0) };
+                          }},
+                          { label: 'Last Week', fullLabel: 'Last Week', getValue: () => {
+                            const now = new Date();
+                            const dayOfWeek = now.getDay();
+                            const lastMonday = new Date(now);
+                            lastMonday.setDate(now.getDate() - dayOfWeek - 6);
+                            const lastSunday = new Date(lastMonday);
+                            lastSunday.setDate(lastMonday.getDate() + 6);
+                            return { start: lastMonday, end: lastSunday };
+                          }},
+                          { label: 'Last Month', fullLabel: 'Last Month', getValue: () => {
+                            const now = new Date();
+                            return { start: new Date(now.getFullYear(), now.getMonth() - 1, 1), end: new Date(now.getFullYear(), now.getMonth(), 0) };
+                          }},
+                          { label: 'This Year', fullLabel: 'This Year', getValue: () => {
+                            const now = new Date();
+                            return { start: new Date(now.getFullYear(), 0, 1), end: new Date(now.getFullYear(), 11, 31) };
+                          }},
+                        ].map((preset) => {
+                          const isActive = dateRange.label === preset.fullLabel;
+                          return (
+                            <button
+                              key={preset.fullLabel}
+                              onClick={() => {
+                                const { start, end } = preset.getValue();
+                                setDateRange({ start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0], label: preset.fullLabel });
+                                setShowMobileCustomDates(false);
+                              }}
+                              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${isActive && !showMobileCustomDates ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                              {preset.label}
+                            </button>
+                          );
+                        })}
+                        <button
+                          onClick={() => setShowMobileCustomDates(!showMobileCustomDates)}
+                          className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${showMobileCustomDates || dateRange.label === 'Custom Range' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                          Custom
+                        </button>
+                      </div>
+                      {showMobileCustomDates && (
+                        <div className="flex items-center gap-2 bg-white rounded-lg border border-slate-200 px-2.5 py-1.5">
+                          <input
+                            type="date"
+                            value={mobileCustomStart}
+                            onChange={(e) => setMobileCustomStart(e.target.value)}
+                            className="bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs font-semibold text-slate-700 outline-none focus:border-[#635bff]"
+                          />
+                          <span className="text-slate-300 text-xs font-bold">–</span>
+                          <input
+                            type="date"
+                            value={mobileCustomEnd}
+                            onChange={(e) => setMobileCustomEnd(e.target.value)}
+                            className="bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs font-semibold text-slate-700 outline-none focus:border-[#635bff]"
+                          />
+                          <button
+                            onClick={() => {
+                              if (mobileCustomStart && mobileCustomEnd) {
+                                setDateRange({ start: mobileCustomStart, end: mobileCustomEnd, label: 'Custom Range' });
+                                setShowMobileCustomDates(false);
+                              }
+                            }}
+                            disabled={!mobileCustomStart || !mobileCustomEnd}
+                            className="px-3 py-1 bg-slate-900 text-white rounded-md text-xs font-bold disabled:opacity-40"
+                          >
+                            Go
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Refresh Button */}
