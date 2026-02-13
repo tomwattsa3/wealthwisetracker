@@ -1333,24 +1333,92 @@ const App: React.FC = () => {
 
                 {/* Mobile Header - Hidden on home tab */}
                 {activeTab !== 'home' && (
-                <div className="flex md:hidden items-center gap-3 w-full px-1">
-                    {activeTab === 'history' && (
-                        <div className="relative flex-1 group">
-                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors">
-                                <Search size={16} />
-                            </div>
-                            <input
-                                type="text"
-                                placeholder="Search..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all shadow-sm placeholder:text-slate-400"
-                            />
+                <div className="flex flex-col md:hidden gap-2 w-full px-1">
+                    {activeTab === 'history' ? (
+                      <>
+                        {/* Timeframe Selector - same style as dashboard */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex bg-slate-100 p-0.5 rounded-lg overflow-x-auto hide-scrollbar">
+                            {[
+                              { label: 'MTD', fullLabel: 'This Month', getValue: () => {
+                                const now = new Date();
+                                return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: new Date(now.getFullYear(), now.getMonth() + 1, 0) };
+                              }},
+                              { label: 'Last Wk', fullLabel: 'Last Week', getValue: () => {
+                                const now = new Date();
+                                const dayOfWeek = now.getDay();
+                                const lastMonday = new Date(now);
+                                lastMonday.setDate(now.getDate() - dayOfWeek - 6);
+                                const lastSunday = new Date(lastMonday);
+                                lastSunday.setDate(lastMonday.getDate() + 6);
+                                return { start: lastMonday, end: lastSunday };
+                              }},
+                              { label: 'Last Mo', fullLabel: 'Last Month', getValue: () => {
+                                const now = new Date();
+                                return { start: new Date(now.getFullYear(), now.getMonth() - 1, 1), end: new Date(now.getFullYear(), now.getMonth(), 0) };
+                              }},
+                              { label: 'Year', fullLabel: 'This Year', getValue: () => {
+                                const now = new Date();
+                                return { start: new Date(now.getFullYear(), 0, 1), end: new Date(now.getFullYear(), 11, 31) };
+                              }},
+                            ].map((preset) => {
+                              const isActive = dateRange.label === preset.fullLabel;
+                              return (
+                                <button
+                                  key={preset.fullLabel}
+                                  onClick={() => {
+                                    const { start, end } = preset.getValue();
+                                    setDateRange({ start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0], label: preset.fullLabel });
+                                    setShowMobileCustomDates(false);
+                                  }}
+                                  className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${isActive && !showMobileCustomDates ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                  {preset.label}
+                                </button>
+                              );
+                            })}
+                            <button
+                              onClick={() => setShowMobileCustomDates(!showMobileCustomDates)}
+                              className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${showMobileCustomDates || dateRange.label === 'Custom Range' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                              Custom
+                            </button>
+                          </div>
                         </div>
+                        {/* Custom Date Range Picker */}
+                        {showMobileCustomDates && (
+                          <div className="flex items-center gap-2 bg-white rounded-xl border border-slate-200 p-2.5">
+                            <input
+                              type="date"
+                              value={mobileCustomStart}
+                              onChange={(e) => setMobileCustomStart(e.target.value)}
+                              className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] font-semibold text-slate-700 outline-none focus:border-[#635bff]"
+                            />
+                            <span className="text-slate-300 text-xs font-bold">–</span>
+                            <input
+                              type="date"
+                              value={mobileCustomEnd}
+                              onChange={(e) => setMobileCustomEnd(e.target.value)}
+                              className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] font-semibold text-slate-700 outline-none focus:border-[#635bff]"
+                            />
+                            <button
+                              onClick={() => {
+                                if (mobileCustomStart && mobileCustomEnd) {
+                                  setDateRange({ start: mobileCustomStart, end: mobileCustomEnd, label: 'Custom Range' });
+                                  setShowMobileCustomDates(false);
+                                }
+                              }}
+                              disabled={!mobileCustomStart || !mobileCustomEnd}
+                              className="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-[10px] font-bold disabled:opacity-40 shrink-0"
+                            >
+                              Go
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <DashboardDateFilter range={dateRange} onRangeChange={setDateRange} />
                     )}
-                    <div className={activeTab === 'history' ? "w-[45%]" : "w-full"}>
-                        <DashboardDateFilter range={dateRange} onRangeChange={setDateRange} />
-                    </div>
                 </div>
                 )}
 
@@ -2172,6 +2240,22 @@ const App: React.FC = () => {
                               Reset
                           </button>
                       )}
+                  </div>
+
+                  {/* Mobile Search Bar */}
+                  <div className="md:hidden mt-2">
+                    <div className="relative group">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors">
+                        <Search size={14} />
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Search transactions..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all placeholder:text-slate-400"
+                      />
+                    </div>
                   </div>
                 </div>
 
