@@ -2175,74 +2175,6 @@ const App: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Desktop Loan Card */}
-                  {(() => {
-                    const loanTransactions = dateFilteredTransactions.filter(t => (t.excluded || t.categoryId === 'excluded') && t.subcategoryName?.toLowerCase() === 'loan');
-                    if (loanTransactions.length === 0) return null;
-
-                    const loanTotal = loanTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
-                    const loanTotalAlt = loanTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountAED : t.amountGBP), 0);
-
-                    const groupedLoans = new Map<string, { description: string; amount: number; count: number }>();
-                    loanTransactions.forEach(t => {
-                      const key = t.description || 'Unknown';
-                      const txAmount = currency === 'GBP' ? t.amountGBP : t.amountAED;
-                      const existing = groupedLoans.get(key);
-                      if (existing) {
-                        existing.amount += txAmount;
-                        existing.count += 1;
-                      } else {
-                        groupedLoans.set(key, { description: key, amount: txAmount, count: 1 });
-                      }
-                    });
-                    const topLoanGrouped = Array.from(groupedLoans.values())
-                      .sort((a, b) => b.amount - a.amount);
-
-                    return (
-                      <div className="col-span-12 xl:col-span-9">
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                          <div className="px-5 py-4 border-b border-slate-100">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="text-lg">🏦</span>
-                                <span className="text-sm font-bold text-slate-900">Loans</span>
-                              </div>
-                              <div className="text-right">
-                                <span className="text-sm font-bold text-slate-900">{formatCurrency(loanTotal)}</span>
-                                <p className="text-xs font-medium text-slate-400">{currency === 'GBP' ? `AED ${loanTotalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${loanTotalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1.5 mt-1">
-                              <span className="text-[10px] text-slate-400">📋 LOAN SHEET</span>
-                            </div>
-                          </div>
-                          <div>
-                            <div className="grid grid-cols-[1fr_40px_100px] bg-slate-100 border-b border-dashed border-slate-200/80">
-                              <div className="px-5 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Merchant</div>
-                              <div className="px-2 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80">Qty</div>
-                              <div className="px-4 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
-                            </div>
-                            <div className="max-h-[320px] overflow-y-auto">
-                              {topLoanGrouped.map((g, idx) => (
-                                <div key={g.description} className={`grid grid-cols-[1fr_40px_100px] items-center border-b border-dashed border-slate-200/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}`}>
-                                  <div className="px-5 py-3 border-r border-dashed border-slate-200/80">
-                                    <span className="text-sm font-medium text-slate-700">{g.description}</span>
-                                  </div>
-                                  <div className="px-2 py-3 text-center border-r border-dashed border-slate-200/80">
-                                    <span className="text-xs text-slate-400">{g.count > 1 ? g.count : ''}</span>
-                                  </div>
-                                  <div className="px-4 py-3 text-right">
-                                    <span className="text-sm font-semibold text-rose-700">{formatCurrency(g.amount)}</span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
                   {/* Right: Allocation Sidebar */}
                   <div className="col-span-12 xl:col-span-3">
                     <AllocationSidebar
@@ -2257,6 +2189,72 @@ const App: React.FC = () => {
                   </div>
 
                 </div>
+
+                {/* Desktop Loan Card */}
+                {(() => {
+                  const loanTransactions = dateFilteredTransactions.filter(t => (t.excluded || t.categoryId === 'excluded') && t.subcategoryName?.toLowerCase() === 'loan');
+                  if (loanTransactions.length === 0) return null;
+
+                  const loanTotal = loanTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
+                  const loanTotalAlt = loanTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountAED : t.amountGBP), 0);
+
+                  const groupedLoans = new Map<string, { description: string; amount: number; count: number }>();
+                  loanTransactions.forEach(t => {
+                    const key = t.description || 'Unknown';
+                    const txAmount = currency === 'GBP' ? t.amountGBP : t.amountAED;
+                    const existing = groupedLoans.get(key);
+                    if (existing) {
+                      existing.amount += txAmount;
+                      existing.count += 1;
+                    } else {
+                      groupedLoans.set(key, { description: key, amount: txAmount, count: 1 });
+                    }
+                  });
+                  const topLoanGrouped = Array.from(groupedLoans.values())
+                    .sort((a, b) => b.amount - a.amount);
+
+                  return (
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                      <div className="px-5 py-4 border-b border-slate-100">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">🏦</span>
+                            <span className="text-sm font-bold text-slate-900">Loans</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-sm font-bold text-slate-900">{formatCurrency(loanTotal)}</span>
+                            <p className="text-xs font-medium text-slate-400">{currency === 'GBP' ? `AED ${loanTotalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${loanTotalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <span className="text-[10px] text-slate-400">📋 LOAN SHEET</span>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="grid grid-cols-[1fr_40px_100px] bg-slate-100 border-b border-dashed border-slate-200/80">
+                          <div className="px-5 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Merchant</div>
+                          <div className="px-2 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80">Qty</div>
+                          <div className="px-4 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
+                        </div>
+                        <div className="max-h-[320px] overflow-y-auto">
+                          {topLoanGrouped.map((g, idx) => (
+                            <div key={g.description} className={`grid grid-cols-[1fr_40px_100px] items-center border-b border-dashed border-slate-200/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}`}>
+                              <div className="px-5 py-3 border-r border-dashed border-slate-200/80">
+                                <span className="text-sm font-medium text-slate-700">{g.description}</span>
+                              </div>
+                              <div className="px-2 py-3 text-center border-r border-dashed border-slate-200/80">
+                                <span className="text-xs text-slate-400">{g.count > 1 ? g.count : ''}</span>
+                              </div>
+                              <div className="px-4 py-3 text-right">
+                                <span className="text-sm font-semibold text-rose-700">{formatCurrency(g.amount)}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
             </div>
