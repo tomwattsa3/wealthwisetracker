@@ -1531,7 +1531,7 @@ const App: React.FC = () => {
                       <span className="text-sm">↗</span>
                       <span className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider">Income</span>
                     </div>
-                    <p className="text-sm font-bold text-emerald-600">{formatCurrency(summary.totalIncome)}</p>
+                    <p className="text-base font-bold text-emerald-600">{formatCurrency(summary.totalIncome)}</p>
                     <p className="text-[9px] font-medium text-slate-400 mt-0.5">
                       {currency === 'GBP' ? `AED ${summaryAlt.totalIncome.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${summaryAlt.totalIncome.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     </p>
@@ -1541,7 +1541,7 @@ const App: React.FC = () => {
                       <span className="text-sm">↘</span>
                       <span className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider">Expenses</span>
                     </div>
-                    <p className="text-sm font-bold text-slate-900">{formatCurrency(summary.totalExpense)}</p>
+                    <p className="text-base font-bold text-slate-900">{formatCurrency(summary.totalExpense)}</p>
                     <p className="text-[9px] font-medium text-slate-400 mt-0.5">
                       {currency === 'GBP' ? `AED ${summaryAlt.totalExpense.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${summaryAlt.totalExpense.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     </p>
@@ -1551,7 +1551,7 @@ const App: React.FC = () => {
                       <span className="text-sm">💰</span>
                       <span className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider">Saved</span>
                     </div>
-                    <p className={`text-sm font-bold ${summary.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(summary.balance)}</p>
+                    <p className={`text-base font-bold ${summary.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(summary.balance)}</p>
                     <p className="text-[9px] font-medium text-slate-400 mt-0.5">
                       {currency === 'GBP' ? `AED ${summaryAlt.balance.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${summaryAlt.balance.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     </p>
