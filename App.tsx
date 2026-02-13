@@ -1869,44 +1869,46 @@ const App: React.FC = () => {
                   );
                 })}
 
-                {/* Loan Card */}
+                {/* Loan Cards - Income & Repayment */}
                 {(() => {
-                  const loanTransactions = dateFilteredTransactions.filter(t => (t.excluded || t.categoryId === 'excluded') && t.subcategoryName?.toLowerCase() === 'loan');
-                  if (loanTransactions.length === 0) return null;
+                  const loanInTx = dateFilteredTransactions.filter(t => (t.excluded || t.categoryId === 'excluded') && t.subcategoryName?.toLowerCase() === 'loan');
+                  const loanOutTx = dateFilteredTransactions.filter(t => (t.excluded || t.categoryId === 'excluded') && t.subcategoryName?.toLowerCase() === 'loan repayment');
+                  if (loanInTx.length === 0 && loanOutTx.length === 0) return null;
 
-                  const loanTotal = loanTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
-                  const loanTotalAlt = loanTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountAED : t.amountGBP), 0);
+                  const buildGrouped = (txs: typeof loanInTx) => {
+                    const grouped = new Map<string, { description: string; amount: number; count: number }>();
+                    txs.forEach(t => {
+                      const key = t.description || 'Unknown';
+                      const txAmount = currency === 'GBP' ? t.amountGBP : t.amountAED;
+                      const existing = grouped.get(key);
+                      if (existing) { existing.amount += txAmount; existing.count += 1; }
+                      else { grouped.set(key, { description: key, amount: txAmount, count: 1 }); }
+                    });
+                    return Array.from(grouped.values()).sort((a, b) => b.amount - a.amount);
+                  };
 
-                  const groupedLoans = new Map<string, { description: string; subcategoryName: string; amount: number; count: number }>();
-                  loanTransactions.forEach(t => {
-                    const key = t.description || 'Unknown';
-                    const txAmount = currency === 'GBP' ? t.amountGBP : t.amountAED;
-                    const existing = groupedLoans.get(key);
-                    if (existing) {
-                      existing.amount += txAmount;
-                      existing.count += 1;
-                    } else {
-                      groupedLoans.set(key, { description: key, subcategoryName: t.subcategoryName, amount: txAmount, count: 1 });
-                    }
-                  });
-                  const topLoanGrouped = Array.from(groupedLoans.values())
-                    .sort((a, b) => b.amount - a.amount);
+                  const loanInTotal = loanInTx.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
+                  const loanInTotalAlt = loanInTx.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountAED : t.amountGBP), 0);
+                  const loanOutTotal = loanOutTx.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
+                  const loanOutTotalAlt = loanOutTx.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountAED : t.amountGBP), 0);
+                  const loanInGrouped = buildGrouped(loanInTx);
+                  const loanOutGrouped = buildGrouped(loanOutTx);
 
-                  return (
+                  const renderCard = (title: string, emoji: string, sheetLabel: string, total: number, totalAlt: number, grouped: { description: string; amount: number; count: number }[], amountColor: string) => (
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                       <div className="px-3 py-2.5 border-b border-slate-100">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5">
-                            <span className="text-base">🏦</span>
-                            <span className="text-xs font-bold text-slate-900">Loans</span>
+                            <span className="text-base">{emoji}</span>
+                            <span className="text-xs font-bold text-slate-900">{title}</span>
                           </div>
                           <div className="text-right">
-                            <span className="text-xs font-bold text-slate-900">{formatCurrency(loanTotal)}</span>
-                            <p className="text-[9px] font-medium text-slate-400">{currency === 'GBP' ? `AED ${loanTotalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${loanTotalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</p>
+                            <span className="text-xs font-bold text-slate-900">{formatCurrency(total)}</span>
+                            <p className="text-[9px] font-medium text-slate-400">{currency === 'GBP' ? `AED ${totalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${totalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[9px] text-slate-400">📋 LOAN SHEET</span>
+                          <span className="text-[9px] text-slate-400">📋 {sheetLabel}</span>
                         </div>
                       </div>
                       <div>
@@ -1916,7 +1918,7 @@ const App: React.FC = () => {
                           <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
                         </div>
                         <div className="max-h-[420px] overflow-y-auto">
-                          {topLoanGrouped.map((g, idx) => (
+                          {grouped.map((g, idx) => (
                             <div key={g.description} className={`grid grid-cols-[1fr_28px_72px] items-center border-b border-dashed border-slate-200/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}`}>
                               <div className="px-3 py-2.5 border-r border-dashed border-slate-200/80 flex items-center justify-between gap-1 min-w-0">
                                 <span className="text-[11px] font-medium text-slate-700 truncate">{g.description}</span>
@@ -1925,12 +1927,22 @@ const App: React.FC = () => {
                                 <span className="text-[10px] text-slate-400">{g.count > 1 ? g.count : ''}</span>
                               </div>
                               <div className="px-2 py-2.5 text-right">
-                                <span className="text-[11px] font-semibold text-rose-700">{formatCurrency(g.amount)}</span>
+                                <span className={`text-[11px] font-semibold ${amountColor}`}>{formatCurrency(g.amount)}</span>
                               </div>
                             </div>
                           ))}
+                          {grouped.length === 0 && (
+                            <div className="py-4 text-center text-slate-400 text-xs">No transactions</div>
+                          )}
                         </div>
                       </div>
+                    </div>
+                  );
+
+                  return (
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {renderCard('Loans In', '🏦', 'LOAN INCOME', loanInTotal, loanInTotalAlt, loanInGrouped, 'text-emerald-700')}
+                      {renderCard('Repayments', '💸', 'LOAN REPAYMENT', loanOutTotal, loanOutTotalAlt, loanOutGrouped, 'text-rose-700')}
                     </div>
                   );
                 })()}
@@ -2190,44 +2202,46 @@ const App: React.FC = () => {
 
                 </div>
 
-                {/* Desktop Loan Card */}
+                {/* Desktop Loan Cards - Income & Repayment */}
                 {(() => {
-                  const loanTransactions = dateFilteredTransactions.filter(t => (t.excluded || t.categoryId === 'excluded') && t.subcategoryName?.toLowerCase() === 'loan');
-                  if (loanTransactions.length === 0) return null;
+                  const loanInTx = dateFilteredTransactions.filter(t => (t.excluded || t.categoryId === 'excluded') && t.subcategoryName?.toLowerCase() === 'loan');
+                  const loanOutTx = dateFilteredTransactions.filter(t => (t.excluded || t.categoryId === 'excluded') && t.subcategoryName?.toLowerCase() === 'loan repayment');
+                  if (loanInTx.length === 0 && loanOutTx.length === 0) return null;
 
-                  const loanTotal = loanTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
-                  const loanTotalAlt = loanTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountAED : t.amountGBP), 0);
+                  const buildGrouped = (txs: typeof loanInTx) => {
+                    const grouped = new Map<string, { description: string; amount: number; count: number }>();
+                    txs.forEach(t => {
+                      const key = t.description || 'Unknown';
+                      const txAmount = currency === 'GBP' ? t.amountGBP : t.amountAED;
+                      const existing = grouped.get(key);
+                      if (existing) { existing.amount += txAmount; existing.count += 1; }
+                      else { grouped.set(key, { description: key, amount: txAmount, count: 1 }); }
+                    });
+                    return Array.from(grouped.values()).sort((a, b) => b.amount - a.amount);
+                  };
 
-                  const groupedLoans = new Map<string, { description: string; amount: number; count: number }>();
-                  loanTransactions.forEach(t => {
-                    const key = t.description || 'Unknown';
-                    const txAmount = currency === 'GBP' ? t.amountGBP : t.amountAED;
-                    const existing = groupedLoans.get(key);
-                    if (existing) {
-                      existing.amount += txAmount;
-                      existing.count += 1;
-                    } else {
-                      groupedLoans.set(key, { description: key, amount: txAmount, count: 1 });
-                    }
-                  });
-                  const topLoanGrouped = Array.from(groupedLoans.values())
-                    .sort((a, b) => b.amount - a.amount);
+                  const loanInTotal = loanInTx.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
+                  const loanInTotalAlt = loanInTx.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountAED : t.amountGBP), 0);
+                  const loanOutTotal = loanOutTx.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
+                  const loanOutTotalAlt = loanOutTx.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountAED : t.amountGBP), 0);
+                  const loanInGrouped = buildGrouped(loanInTx);
+                  const loanOutGrouped = buildGrouped(loanOutTx);
 
-                  return (
+                  const renderCard = (title: string, emoji: string, sheetLabel: string, total: number, totalAlt: number, grouped: { description: string; amount: number; count: number }[], amountColor: string) => (
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                       <div className="px-5 py-4 border-b border-slate-100">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className="text-lg">🏦</span>
-                            <span className="text-sm font-bold text-slate-900">Loans</span>
+                            <span className="text-lg">{emoji}</span>
+                            <span className="text-sm font-bold text-slate-900">{title}</span>
                           </div>
                           <div className="text-right">
-                            <span className="text-sm font-bold text-slate-900">{formatCurrency(loanTotal)}</span>
-                            <p className="text-xs font-medium text-slate-400">{currency === 'GBP' ? `AED ${loanTotalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${loanTotalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</p>
+                            <span className="text-sm font-bold text-slate-900">{formatCurrency(total)}</span>
+                            <p className="text-xs font-medium text-slate-400">{currency === 'GBP' ? `AED ${totalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${totalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5 mt-1">
-                          <span className="text-[10px] text-slate-400">📋 LOAN SHEET</span>
+                          <span className="text-[10px] text-slate-400">📋 {sheetLabel}</span>
                         </div>
                       </div>
                       <div>
@@ -2237,7 +2251,7 @@ const App: React.FC = () => {
                           <div className="px-4 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
                         </div>
                         <div className="max-h-[320px] overflow-y-auto">
-                          {topLoanGrouped.map((g, idx) => (
+                          {grouped.map((g, idx) => (
                             <div key={g.description} className={`grid grid-cols-[1fr_40px_100px] items-center border-b border-dashed border-slate-200/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}`}>
                               <div className="px-5 py-3 border-r border-dashed border-slate-200/80">
                                 <span className="text-sm font-medium text-slate-700">{g.description}</span>
@@ -2246,12 +2260,22 @@ const App: React.FC = () => {
                                 <span className="text-xs text-slate-400">{g.count > 1 ? g.count : ''}</span>
                               </div>
                               <div className="px-4 py-3 text-right">
-                                <span className="text-sm font-semibold text-rose-700">{formatCurrency(g.amount)}</span>
+                                <span className={`text-sm font-semibold ${amountColor}`}>{formatCurrency(g.amount)}</span>
                               </div>
                             </div>
                           ))}
+                          {grouped.length === 0 && (
+                            <div className="py-4 text-center text-slate-400 text-xs">No transactions</div>
+                          )}
                         </div>
                       </div>
+                    </div>
+                  );
+
+                  return (
+                    <div className="grid grid-cols-2 gap-5">
+                      {renderCard('Loans In', '🏦', 'LOAN INCOME', loanInTotal, loanInTotalAlt, loanInGrouped, 'text-emerald-700')}
+                      {renderCard('Repayments', '💸', 'LOAN REPAYMENT', loanOutTotal, loanOutTotalAlt, loanOutGrouped, 'text-rose-700')}
                     </div>
                   );
                 })()}
