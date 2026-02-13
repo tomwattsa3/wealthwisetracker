@@ -1565,6 +1565,7 @@ const App: React.FC = () => {
 
                   const incomeTransactions = activeTransactions.filter(t => t.type === 'INCOME');
                   const incomeTotal = incomeTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
+                  const incomeTotalAlt = incomeTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountAED : t.amountGBP), 0);
 
                   const groupedIncome = new Map<string, { description: string; subcategoryName: string; amount: number; count: number }>();
                   incomeTransactions.forEach(t => {
@@ -1590,7 +1591,10 @@ const App: React.FC = () => {
                             <span className="text-base">💰</span>
                             <span className="text-xs font-bold text-slate-900">Income</span>
                           </div>
-                          <span className="text-xs font-bold text-slate-900">{formatCurrency(incomeTotal)}</span>
+                          <div className="text-right">
+                            <span className="text-xs font-bold text-slate-900">{formatCurrency(incomeTotal)}</span>
+                            <p className="text-[9px] font-medium text-slate-400">{currency === 'GBP' ? `AED ${incomeTotalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${incomeTotalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</p>
+                          </div>
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span className="text-[9px] text-slate-400">📋 INCOME SHEET</span>
@@ -1635,6 +1639,7 @@ const App: React.FC = () => {
 
                   const catTransactions = activeTransactions.filter(t => t.categoryId === cat.id);
                   const catTotal = catTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
+                  const catTotalAlt = catTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountAED : t.amountGBP), 0);
 
                   const groupedTransactions = new Map<string, { description: string; subcategoryName: string; amount: number; count: number }>();
                   catTransactions.forEach(t => {
@@ -1671,7 +1676,10 @@ const App: React.FC = () => {
                             </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
-                            <span className="text-xs font-bold text-slate-900">{formatCurrency(catTotal)}</span>
+                            <div className="text-right">
+                              <span className="text-xs font-bold text-slate-900">{formatCurrency(catTotal)}</span>
+                              <p className="text-[9px] font-medium text-slate-400">{currency === 'GBP' ? `AED ${catTotalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${catTotalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</p>
+                            </div>
                             {mobileCategoryIds.length > 1 && (
                               <button
                                 onClick={() => handleRemoveMobileCardWithConfirm(index)}

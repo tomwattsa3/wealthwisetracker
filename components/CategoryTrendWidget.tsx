@@ -107,6 +107,12 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
   }
 
   const totalAmount = filteredTransactions.reduce((sum, t) => sum + getAmount(t), 0);
+  const getAmountAlt = (t: Transaction) => currency === 'GBP' ? t.amountAED : t.amountGBP;
+  const totalAmountAlt = filteredTransactions.reduce((sum, t) => sum + getAmountAlt(t), 0);
+  const formatAlt = (val: number) => {
+    const f = val.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return currency === 'GBP' ? `AED ${f}` : `£${f}`;
+  };
 
   // --- Expense Sheet variant (desktop dashboard) ---
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
@@ -161,7 +167,10 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
                 </select>
               </div>
             </div>
-            <span className="text-sm font-bold text-slate-900">{formatCurrency(totalAmount)}</span>
+            <div className="text-right">
+              <span className="text-sm font-bold text-slate-900">{formatCurrency(totalAmount)}</span>
+              <p className="text-[10px] font-medium text-slate-400">{formatAlt(totalAmountAlt)}</p>
+            </div>
           </div>
           <div className="flex items-center gap-1.5 mt-1">
             <span className="text-[10px] text-slate-400">📋 EXPENSE SHEET</span>
@@ -250,9 +259,12 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
           </div>
 
           {/* Total Amount */}
-          <span className="text-sm font-semibold text-slate-900 font-mono">
-            {formatCurrency(totalAmount)}
-          </span>
+          <div className="text-right">
+            <span className="text-sm font-semibold text-slate-900 font-mono">
+              {formatCurrency(totalAmount)}
+            </span>
+            <p className="text-[10px] font-medium text-slate-400">{formatAlt(totalAmountAlt)}</p>
+          </div>
       </div>
 
       {/* Subfilter */}
