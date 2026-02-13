@@ -2242,30 +2242,28 @@ const App: React.FC = () => {
                       )}
                   </div>
 
-                  {/* Mobile Search Bar */}
-                  <div className="md:hidden mt-2">
-                    <div className="relative group">
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors">
-                        <Search size={14} />
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="Search transactions..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-base text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all placeholder:text-slate-400"
-                      />
-                    </div>
-                  </div>
                 </div>
 
                 <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                  {/* Total Amount Header Row */}
+                  {/* Total Amount Header Row + Mobile Search */}
                   {filteredTransactions.length > 0 && (
-                    <div className="flex items-center justify-end px-2 py-2 mb-1 bg-slate-50 border border-slate-200 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-500 uppercase">Total:</span>
-                        <span className={`text-lg font-bold font-mono ${filteredTotal >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    <div className="flex items-center justify-between px-2 py-1.5 mb-1 bg-slate-50 border border-slate-200 rounded-lg gap-2">
+                      {/* Mobile Search */}
+                      <div className="md:hidden relative group flex-1 min-w-0">
+                        <div className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors">
+                          <Search size={12} />
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Search..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full pl-7 pr-2 py-1 bg-white border border-slate-200 rounded-md text-base text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all placeholder:text-slate-400"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase">Total:</span>
+                        <span className={`text-sm font-bold font-mono ${filteredTotal >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                           {filteredTotal >= 0 ? '+' : ''}£{Math.abs(filteredTotal).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
