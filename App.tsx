@@ -1432,7 +1432,7 @@ const App: React.FC = () => {
                   {/* Timeframe Selector */}
                   <div className="flex bg-slate-100 p-0.5 rounded-lg overflow-x-auto hide-scrollbar">
                     {[
-                      { label: 'Month', fullLabel: 'This Month', getValue: () => {
+                      { label: 'MTD', fullLabel: 'This Month', getValue: () => {
                         const now = new Date();
                         return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: new Date(now.getFullYear(), now.getMonth() + 1, 0) };
                       }},
