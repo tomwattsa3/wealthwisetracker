@@ -117,6 +117,10 @@ const App: React.FC = () => {
   const [mobileCustomStart, setMobileCustomStart] = useState('');
   const [mobileCustomEnd, setMobileCustomEnd] = useState('');
 
+  // Loan repayment card filter state
+  const [repaymentCatId, setRepaymentCatId] = useState<string>('');
+  const [repaymentSubcat, setRepaymentSubcat] = useState<string>('all');
+
   // Get transaction amount based on selected currency
   const getAmount = (t: Transaction) => {
     return currency === 'GBP' ? t.amountGBP : t.amountAED;
@@ -1872,8 +1876,15 @@ const App: React.FC = () => {
                 {/* Loan Cards - Income & Repayment */}
                 {(() => {
                   const loanInTx = dateFilteredTransactions.filter(t => (t.excluded || t.categoryId === 'excluded') && t.subcategoryName?.toLowerCase() === 'loan');
-                  const loanOutTx = dateFilteredTransactions.filter(t => (t.excluded || t.categoryId === 'excluded') && t.subcategoryName?.toLowerCase() === 'loan repayment');
-                  if (loanInTx.length === 0 && loanOutTx.length === 0) return null;
+
+                  // Repayment card: filter by selected category + subcategory
+                  const repaymentCat = categories.find(c => c.id === repaymentCatId);
+                  const repaymentSubs = repaymentCat?.subcategories || [];
+                  let loanOutTx = repaymentCatId
+                    ? dateFilteredTransactions.filter(t => t.categoryId === repaymentCatId && (repaymentSubcat === 'all' || t.subcategoryName === repaymentSubcat))
+                    : [];
+
+                  if (loanInTx.length === 0 && loanOutTx.length === 0 && !repaymentCatId) return null;
 
                   const buildGrouped = (txs: typeof loanInTx) => {
                     const grouped = new Map<string, { description: string; amount: number; count: number }>();
@@ -1894,55 +1905,96 @@ const App: React.FC = () => {
                   const loanInGrouped = buildGrouped(loanInTx);
                   const loanOutGrouped = buildGrouped(loanOutTx);
 
-                  const renderCard = (title: string, emoji: string, sheetLabel: string, total: number, totalAlt: number, grouped: { description: string; amount: number; count: number }[], amountColor: string) => (
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                      <div className="px-3 py-2.5 border-b border-slate-100">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-base">{emoji}</span>
-                            <span className="text-xs font-bold text-slate-900">{title}</span>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-xs font-bold text-slate-900">{formatCurrency(total)}</span>
-                            <p className="text-[9px] font-medium text-slate-400">{currency === 'GBP' ? `AED ${totalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${totalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[9px] text-slate-400">📋 {sheetLabel}</span>
-                        </div>
+                  const renderRows = (grouped: { description: string; amount: number; count: number }[], amountColor: string) => (
+                    <div>
+                      <div className="grid grid-cols-[1fr_28px_72px] bg-slate-100 border-b border-dashed border-slate-200/80 sticky top-0 z-10">
+                        <div className="px-3 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Merchant</div>
+                        <div className="px-1 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80">Qty</div>
+                        <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
                       </div>
-                      <div>
-                        <div className="grid grid-cols-[1fr_28px_72px] bg-slate-100 border-b border-dashed border-slate-200/80 sticky top-0 z-10">
-                          <div className="px-3 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Merchant</div>
-                          <div className="px-1 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80">Qty</div>
-                          <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
-                        </div>
-                        <div className="max-h-[420px] overflow-y-auto">
-                          {grouped.map((g, idx) => (
-                            <div key={g.description} className={`grid grid-cols-[1fr_28px_72px] items-center border-b border-dashed border-slate-200/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}`}>
-                              <div className="px-3 py-2.5 border-r border-dashed border-slate-200/80 flex items-center justify-between gap-1 min-w-0">
-                                <span className="text-[11px] font-medium text-slate-700 truncate">{g.description}</span>
-                              </div>
-                              <div className="px-1 py-2.5 text-center border-r border-dashed border-slate-200/80">
-                                <span className="text-[10px] text-slate-400">{g.count > 1 ? g.count : ''}</span>
-                              </div>
-                              <div className="px-2 py-2.5 text-right">
-                                <span className={`text-[11px] font-semibold ${amountColor}`}>{formatCurrency(g.amount)}</span>
-                              </div>
+                      <div className="max-h-[420px] overflow-y-auto">
+                        {grouped.map((g, idx) => (
+                          <div key={g.description} className={`grid grid-cols-[1fr_28px_72px] items-center border-b border-dashed border-slate-200/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}`}>
+                            <div className="px-3 py-2.5 border-r border-dashed border-slate-200/80 flex items-center justify-between gap-1 min-w-0">
+                              <span className="text-[11px] font-medium text-slate-700 truncate">{g.description}</span>
                             </div>
-                          ))}
-                          {grouped.length === 0 && (
-                            <div className="py-4 text-center text-slate-400 text-xs">No transactions</div>
-                          )}
-                        </div>
+                            <div className="px-1 py-2.5 text-center border-r border-dashed border-slate-200/80">
+                              <span className="text-[10px] text-slate-400">{g.count > 1 ? g.count : ''}</span>
+                            </div>
+                            <div className="px-2 py-2.5 text-right">
+                              <span className={`text-[11px] font-semibold ${amountColor}`}>{formatCurrency(g.amount)}</span>
+                            </div>
+                          </div>
+                        ))}
+                        {grouped.length === 0 && (
+                          <div className="py-4 text-center text-slate-400 text-xs">No transactions</div>
+                        )}
                       </div>
                     </div>
                   );
 
                   return (
                     <div className="grid grid-cols-2 gap-2.5">
-                      {renderCard('Loans In', '🏦', 'LOAN INCOME', loanInTotal, loanInTotalAlt, loanInGrouped, 'text-emerald-700')}
-                      {renderCard('Repayments', '💸', 'LOAN REPAYMENT', loanOutTotal, loanOutTotalAlt, loanOutGrouped, 'text-rose-700')}
+                      {/* Loans In card */}
+                      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div className="px-3 py-2.5 border-b border-slate-100">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-base">🏦</span>
+                              <span className="text-xs font-bold text-slate-900">Loans In</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-xs font-bold text-slate-900">{formatCurrency(loanInTotal)}</span>
+                              <p className="text-[9px] font-medium text-slate-400">{currency === 'GBP' ? `AED ${loanInTotalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${loanInTotalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[9px] text-slate-400">📋 LOAN INCOME</span>
+                          </div>
+                        </div>
+                        {renderRows(loanInGrouped, 'text-emerald-700')}
+                      </div>
+
+                      {/* Repayments card */}
+                      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div className="px-3 py-2.5 border-b border-slate-100">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-base">💸</span>
+                              <span className="text-xs font-bold text-slate-900">Repayments</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-xs font-bold text-slate-900">{formatCurrency(loanOutTotal)}</span>
+                              <p className="text-[9px] font-medium text-slate-400">{currency === 'GBP' ? `AED ${loanOutTotalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${loanOutTotalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-1.5 mt-1">
+                            <select
+                              value={repaymentCatId}
+                              onChange={(e) => { setRepaymentCatId(e.target.value); setRepaymentSubcat('all'); }}
+                              className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-md px-1.5 py-1 text-[8px] font-semibold text-slate-600 outline-none"
+                            >
+                              <option value="">Category...</option>
+                              {categories.filter(c => c.type === 'EXPENSE').map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                              ))}
+                            </select>
+                            {repaymentSubs.length > 0 && (
+                              <select
+                                value={repaymentSubcat}
+                                onChange={(e) => setRepaymentSubcat(e.target.value)}
+                                className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-md px-1.5 py-1 text-[8px] font-semibold text-slate-600 outline-none"
+                              >
+                                <option value="all">All Subs</option>
+                                {repaymentSubs.map(s => (
+                                  <option key={s} value={s}>{s}</option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                        </div>
+                        {renderRows(loanOutGrouped, 'text-rose-700')}
+                      </div>
                     </div>
                   );
                 })()}
@@ -2205,8 +2257,14 @@ const App: React.FC = () => {
                 {/* Desktop Loan Cards - Income & Repayment */}
                 {(() => {
                   const loanInTx = dateFilteredTransactions.filter(t => (t.excluded || t.categoryId === 'excluded') && t.subcategoryName?.toLowerCase() === 'loan');
-                  const loanOutTx = dateFilteredTransactions.filter(t => (t.excluded || t.categoryId === 'excluded') && t.subcategoryName?.toLowerCase() === 'loan repayment');
-                  if (loanInTx.length === 0 && loanOutTx.length === 0) return null;
+
+                  const repaymentCat = categories.find(c => c.id === repaymentCatId);
+                  const repaymentSubs = repaymentCat?.subcategories || [];
+                  let loanOutTx = repaymentCatId
+                    ? dateFilteredTransactions.filter(t => t.categoryId === repaymentCatId && (repaymentSubcat === 'all' || t.subcategoryName === repaymentSubcat))
+                    : [];
+
+                  if (loanInTx.length === 0 && loanOutTx.length === 0 && !repaymentCatId) return null;
 
                   const buildGrouped = (txs: typeof loanInTx) => {
                     const grouped = new Map<string, { description: string; amount: number; count: number }>();
@@ -2227,55 +2285,96 @@ const App: React.FC = () => {
                   const loanInGrouped = buildGrouped(loanInTx);
                   const loanOutGrouped = buildGrouped(loanOutTx);
 
-                  const renderCard = (title: string, emoji: string, sheetLabel: string, total: number, totalAlt: number, grouped: { description: string; amount: number; count: number }[], amountColor: string) => (
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                      <div className="px-5 py-4 border-b border-slate-100">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg">{emoji}</span>
-                            <span className="text-sm font-bold text-slate-900">{title}</span>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-sm font-bold text-slate-900">{formatCurrency(total)}</span>
-                            <p className="text-xs font-medium text-slate-400">{currency === 'GBP' ? `AED ${totalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${totalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <span className="text-[10px] text-slate-400">📋 {sheetLabel}</span>
-                        </div>
+                  const renderRows = (grouped: { description: string; amount: number; count: number }[], amountColor: string) => (
+                    <div>
+                      <div className="grid grid-cols-[1fr_40px_100px] bg-slate-100 border-b border-dashed border-slate-200/80">
+                        <div className="px-5 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Merchant</div>
+                        <div className="px-2 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80">Qty</div>
+                        <div className="px-4 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
                       </div>
-                      <div>
-                        <div className="grid grid-cols-[1fr_40px_100px] bg-slate-100 border-b border-dashed border-slate-200/80">
-                          <div className="px-5 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Merchant</div>
-                          <div className="px-2 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80">Qty</div>
-                          <div className="px-4 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
-                        </div>
-                        <div className="max-h-[320px] overflow-y-auto">
-                          {grouped.map((g, idx) => (
-                            <div key={g.description} className={`grid grid-cols-[1fr_40px_100px] items-center border-b border-dashed border-slate-200/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}`}>
-                              <div className="px-5 py-3 border-r border-dashed border-slate-200/80">
-                                <span className="text-sm font-medium text-slate-700">{g.description}</span>
-                              </div>
-                              <div className="px-2 py-3 text-center border-r border-dashed border-slate-200/80">
-                                <span className="text-xs text-slate-400">{g.count > 1 ? g.count : ''}</span>
-                              </div>
-                              <div className="px-4 py-3 text-right">
-                                <span className={`text-sm font-semibold ${amountColor}`}>{formatCurrency(g.amount)}</span>
-                              </div>
+                      <div className="max-h-[320px] overflow-y-auto">
+                        {grouped.map((g, idx) => (
+                          <div key={g.description} className={`grid grid-cols-[1fr_40px_100px] items-center border-b border-dashed border-slate-200/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}`}>
+                            <div className="px-5 py-3 border-r border-dashed border-slate-200/80">
+                              <span className="text-sm font-medium text-slate-700">{g.description}</span>
                             </div>
-                          ))}
-                          {grouped.length === 0 && (
-                            <div className="py-4 text-center text-slate-400 text-xs">No transactions</div>
-                          )}
-                        </div>
+                            <div className="px-2 py-3 text-center border-r border-dashed border-slate-200/80">
+                              <span className="text-xs text-slate-400">{g.count > 1 ? g.count : ''}</span>
+                            </div>
+                            <div className="px-4 py-3 text-right">
+                              <span className={`text-sm font-semibold ${amountColor}`}>{formatCurrency(g.amount)}</span>
+                            </div>
+                          </div>
+                        ))}
+                        {grouped.length === 0 && (
+                          <div className="py-4 text-center text-slate-400 text-xs">No transactions</div>
+                        )}
                       </div>
                     </div>
                   );
 
                   return (
                     <div className="grid grid-cols-2 gap-5">
-                      {renderCard('Loans In', '🏦', 'LOAN INCOME', loanInTotal, loanInTotalAlt, loanInGrouped, 'text-emerald-700')}
-                      {renderCard('Repayments', '💸', 'LOAN REPAYMENT', loanOutTotal, loanOutTotalAlt, loanOutGrouped, 'text-rose-700')}
+                      {/* Loans In card */}
+                      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div className="px-5 py-4 border-b border-slate-100">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">🏦</span>
+                              <span className="text-sm font-bold text-slate-900">Loans In</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-sm font-bold text-slate-900">{formatCurrency(loanInTotal)}</span>
+                              <p className="text-xs font-medium text-slate-400">{currency === 'GBP' ? `AED ${loanInTotalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${loanInTotalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className="text-[10px] text-slate-400">📋 LOAN INCOME</span>
+                          </div>
+                        </div>
+                        {renderRows(loanInGrouped, 'text-emerald-700')}
+                      </div>
+
+                      {/* Repayments card */}
+                      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div className="px-5 py-4 border-b border-slate-100">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">💸</span>
+                              <span className="text-sm font-bold text-slate-900">Repayments</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-sm font-bold text-slate-900">{formatCurrency(loanOutTotal)}</span>
+                              <p className="text-xs font-medium text-slate-400">{currency === 'GBP' ? `AED ${loanOutTotalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${loanOutTotalAlt.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 mt-2">
+                            <select
+                              value={repaymentCatId}
+                              onChange={(e) => { setRepaymentCatId(e.target.value); setRepaymentSubcat('all'); }}
+                              className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-600 outline-none cursor-pointer"
+                            >
+                              <option value="">Select Category...</option>
+                              {categories.filter(c => c.type === 'EXPENSE').map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                              ))}
+                            </select>
+                            {repaymentSubs.length > 0 && (
+                              <select
+                                value={repaymentSubcat}
+                                onChange={(e) => setRepaymentSubcat(e.target.value)}
+                                className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-600 outline-none cursor-pointer"
+                              >
+                                <option value="all">All Subcategories</option>
+                                {repaymentSubs.map(s => (
+                                  <option key={s} value={s}>{s}</option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                        </div>
+                        {renderRows(loanOutGrouped, 'text-rose-700')}
+                      </div>
                     </div>
                   );
                 })()}
