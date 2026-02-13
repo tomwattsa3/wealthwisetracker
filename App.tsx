@@ -2054,14 +2054,14 @@ const App: React.FC = () => {
                         </select>
                      </div>
                   </div>
-                  <div className="space-y-4">
+                  <div className="max-h-[320px] overflow-y-auto space-y-4">
                       {(() => {
                           let displayData: { name?: string; category?: Category; total: number; color?: string; parentId?: string }[] = [];
                           let listType: 'category' | 'subcategory' = 'category';
                           if (filterCategory !== 'all') { displayData = subcategoryBreakdown; listType = 'subcategory'; }
                           else if (filterSubcategory !== 'all') { displayData = allSubcategoryBreakdown.filter(i => i.name === filterSubcategory); listType = 'subcategory'; }
-                          else if (breakdownViewMode === 'subcategory') { displayData = allSubcategoryBreakdown; listType = 'subcategory'; }
-                          else { displayData = categoryBreakdown.filter(c => c.category.type === 'EXPENSE'); listType = 'category'; }
+                          else if (breakdownViewMode === 'subcategory') { displayData = allSubcategoryBreakdown.slice(0, 6); listType = 'subcategory'; }
+                          else { displayData = categoryBreakdown.filter(c => c.category.type === 'EXPENSE').slice(0, 6); listType = 'category'; }
 
                           if (displayData.length === 0) return <div className="flex items-center justify-center h-20 text-slate-400 text-xs">No expenses found</div>;
 
