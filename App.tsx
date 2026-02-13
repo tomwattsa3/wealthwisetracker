@@ -124,34 +124,50 @@ const App: React.FC = () => {
   // Pull-to-refresh state
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSnappingBack, setIsSnappingBack] = useState(false);
   const touchStartY = useRef(0);
+  const isPulling = useRef(false);
   const mainRef = useRef<HTMLElement>(null);
-  const PULL_THRESHOLD = 80;
+  const PULL_THRESHOLD = 70;
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (mainRef.current && mainRef.current.scrollTop === 0) {
+    if (isRefreshing) return;
+    if (mainRef.current && mainRef.current.scrollTop <= 0) {
       touchStartY.current = e.touches[0].clientY;
+      isPulling.current = true;
+      setIsSnappingBack(false);
     }
-  }, []);
+  }, [isRefreshing]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (isRefreshing) return;
-    if (!mainRef.current || mainRef.current.scrollTop > 0) return;
+    if (isRefreshing || !isPulling.current) return;
+    if (!mainRef.current || mainRef.current.scrollTop > 0) {
+      isPulling.current = false;
+      setPullDistance(0);
+      return;
+    }
     const diff = e.touches[0].clientY - touchStartY.current;
     if (diff > 0) {
-      setPullDistance(Math.min(diff * 0.5, 120));
+      // Elastic damping: diminishing returns as you pull further
+      const dampened = Math.pow(diff, 0.7);
+      setPullDistance(Math.min(dampened, 130));
+    } else {
+      setPullDistance(0);
     }
   }, [isRefreshing]);
 
   const handleTouchEnd = useCallback(async () => {
-    if (isRefreshing) return;
+    if (isRefreshing || !isPulling.current) return;
+    isPulling.current = false;
     if (pullDistance >= PULL_THRESHOLD) {
       setIsRefreshing(true);
-      setPullDistance(PULL_THRESHOLD);
+      setPullDistance(60);
       await fetchData();
       setIsRefreshing(false);
     }
+    setIsSnappingBack(true);
     setPullDistance(0);
+    setTimeout(() => setIsSnappingBack(false), 300);
   }, [pullDistance, isRefreshing]);
 
   // Get transaction amount based on selected currency
@@ -1348,19 +1364,28 @@ const App: React.FC = () => {
           className={`flex-1 h-full bg-slate-100 p-2 pb-24 md:px-8 md:py-6 max-w-[100vw] ${activeTab === 'history' ? 'overflow-hidden' : 'overflow-y-auto'}`}
         >
           {/* Pull-to-refresh indicator */}
-          {(pullDistance > 0 || isRefreshing) && (
+          <div
+            className="flex items-center justify-center overflow-hidden md:hidden"
+            style={{
+              height: pullDistance > 0 || isRefreshing ? (isRefreshing ? 60 : pullDistance) : 0,
+              transition: (isSnappingBack || isRefreshing) ? 'height 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
+            }}
+          >
             <div
-              className="flex items-center justify-center transition-all duration-200 overflow-hidden"
-              style={{ height: isRefreshing ? PULL_THRESHOLD : pullDistance }}
+              className="flex items-center justify-center"
+              style={{
+                transform: `rotate(${isRefreshing ? 0 : Math.min(pullDistance / PULL_THRESHOLD, 1) * 180}deg)`,
+                transition: isSnappingBack ? 'transform 0.3s ease-out, opacity 0.2s ease' : 'none',
+                opacity: pullDistance > 10 || isRefreshing ? 1 : 0,
+              }}
             >
-              <div className={`flex items-center gap-2 text-slate-400 ${isRefreshing ? 'animate-spin' : ''}`}>
-                <RotateCcw size={18} className={pullDistance >= PULL_THRESHOLD ? 'text-slate-600' : ''} />
-              </div>
-              {!isRefreshing && pullDistance >= PULL_THRESHOLD && (
-                <span className="text-[10px] font-semibold text-slate-500 ml-2">Release to refresh</span>
+              {isRefreshing ? (
+                <Loader2 size={20} className="text-slate-500 animate-spin" />
+              ) : (
+                <RotateCcw size={18} className={pullDistance >= PULL_THRESHOLD ? 'text-slate-600' : 'text-slate-300'} style={{ transition: 'color 0.15s ease' }} />
               )}
             </div>
-          )}
+          </div>
 
           {/* Top Bar with Filter & Search (Hidden in Cat/Yearly View) */}
           {activeTab !== 'categories' && activeTab !== 'yearly' && activeTab !== 'settings' && (
