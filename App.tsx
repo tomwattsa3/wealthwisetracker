@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { Transaction, FinancialSummary, Category, Bank, MerchantMapping } from './types';
 import { INITIAL_CATEGORIES, INITIAL_BANKS } from './constants';
@@ -120,6 +120,39 @@ const App: React.FC = () => {
   // Loan repayment card filter state
   const [repaymentCatId, setRepaymentCatId] = useState<string>('');
   const [repaymentSubcat, setRepaymentSubcat] = useState<string>('all');
+
+  // Pull-to-refresh state
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const touchStartY = useRef(0);
+  const mainRef = useRef<HTMLElement>(null);
+  const PULL_THRESHOLD = 80;
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (mainRef.current && mainRef.current.scrollTop === 0) {
+      touchStartY.current = e.touches[0].clientY;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (isRefreshing) return;
+    if (!mainRef.current || mainRef.current.scrollTop > 0) return;
+    const diff = e.touches[0].clientY - touchStartY.current;
+    if (diff > 0) {
+      setPullDistance(Math.min(diff * 0.5, 120));
+    }
+  }, [isRefreshing]);
+
+  const handleTouchEnd = useCallback(async () => {
+    if (isRefreshing) return;
+    if (pullDistance >= PULL_THRESHOLD) {
+      setIsRefreshing(true);
+      setPullDistance(PULL_THRESHOLD);
+      await fetchData();
+      setIsRefreshing(false);
+    }
+    setPullDistance(0);
+  }, [pullDistance, isRefreshing]);
 
   // Get transaction amount based on selected currency
   const getAmount = (t: Transaction) => {
@@ -1307,8 +1340,28 @@ const App: React.FC = () => {
         </nav>
 
         {/* Main Content Area - Updated padding */}
-        <main className={`flex-1 h-full bg-slate-100 p-2 pb-24 md:px-8 md:py-6 max-w-[100vw] ${activeTab === 'history' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
-          
+        <main
+          ref={mainRef}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          className={`flex-1 h-full bg-slate-100 p-2 pb-24 md:px-8 md:py-6 max-w-[100vw] ${activeTab === 'history' ? 'overflow-hidden' : 'overflow-y-auto'}`}
+        >
+          {/* Pull-to-refresh indicator */}
+          {(pullDistance > 0 || isRefreshing) && (
+            <div
+              className="flex items-center justify-center transition-all duration-200 overflow-hidden"
+              style={{ height: isRefreshing ? PULL_THRESHOLD : pullDistance }}
+            >
+              <div className={`flex items-center gap-2 text-slate-400 ${isRefreshing ? 'animate-spin' : ''}`}>
+                <RotateCcw size={18} className={pullDistance >= PULL_THRESHOLD ? 'text-slate-600' : ''} />
+              </div>
+              {!isRefreshing && pullDistance >= PULL_THRESHOLD && (
+                <span className="text-[10px] font-semibold text-slate-500 ml-2">Release to refresh</span>
+              )}
+            </div>
+          )}
+
           {/* Top Bar with Filter & Search (Hidden in Cat/Yearly View) */}
           {activeTab !== 'categories' && activeTab !== 'yearly' && activeTab !== 'settings' && (
             <div className="flex flex-col gap-4 mb-2 md:mb-8">
