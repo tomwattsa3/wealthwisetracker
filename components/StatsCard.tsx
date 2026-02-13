@@ -39,7 +39,7 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col justify-between h-full">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <span className="text-base">↗</span>
+            <span className="text-base">📈</span>
             <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Income</span>
           </div>
           {percentChange !== undefined && (
@@ -65,7 +65,7 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col justify-between h-full">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <span className="text-base">↘</span>
+            <span className="text-base">📉</span>
             <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Expenses</span>
           </div>
           <div className="flex items-center gap-1.5">

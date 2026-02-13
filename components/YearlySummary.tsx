@@ -344,7 +344,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
       <div className="grid grid-cols-3 gap-2.5 md:gap-4">
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-3 md:p-5">
           <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
-            <span className="text-sm md:text-base">↗</span>
+            <span className="text-sm md:text-base">📈</span>
             <span className="text-[8px] md:text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Income</span>
           </div>
           <p className="text-base md:text-3xl font-bold text-emerald-600">{formatAmount(totalIncome)}</p>
@@ -356,7 +356,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         </div>
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-3 md:p-5">
           <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
-            <span className="text-sm md:text-base">↘</span>
+            <span className="text-sm md:text-base">📉</span>
             <span className="text-[8px] md:text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Expenses</span>
           </div>
           <p className="text-base md:text-3xl font-bold text-slate-900">{formatAmount(totalExpense)}</p>

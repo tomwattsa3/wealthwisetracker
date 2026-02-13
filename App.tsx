@@ -1670,7 +1670,7 @@ const App: React.FC = () => {
                 <div className="grid grid-cols-3 gap-2.5">
                   <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-3">
                     <div className="flex items-center gap-1.5 mb-2">
-                      <span className="text-sm">↗</span>
+                      <span className="text-sm">📈</span>
                       <span className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider">Income</span>
                     </div>
                     <p className="text-base font-bold text-emerald-600">{formatCurrency(summary.totalIncome)}</p>
@@ -1680,7 +1680,7 @@ const App: React.FC = () => {
                   </div>
                   <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-3">
                     <div className="flex items-center gap-1.5 mb-2">
-                      <span className="text-sm">↘</span>
+                      <span className="text-sm">📉</span>
                       <span className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider">Expenses</span>
                     </div>
                     <p className="text-base font-bold text-slate-900">{formatCurrency(summary.totalExpense)}</p>
