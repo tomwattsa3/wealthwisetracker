@@ -2181,17 +2181,26 @@ const App: React.FC = () => {
               {/* Summary Cards - Desktop */}
               <div className="hidden md:grid md:grid-cols-3 gap-3">
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex flex-col items-center">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Total</span>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className="text-base">💰</span>
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Total</span>
+                  </div>
                   <span className="text-base font-bold text-slate-900">£{dailyAverageData.totalGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   <span className="text-[11px] font-medium text-slate-400 mt-0.5">AED {dailyAverageData.totalAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex flex-col items-center">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Avg/Trans</span>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className="text-base">📊</span>
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Avg/Trans</span>
+                  </div>
                   <span className="text-base font-bold text-slate-900">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalGBP / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</span>
                   <span className="text-[11px] font-medium text-slate-400 mt-0.5">AED {dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalAED / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</span>
                 </div>
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex flex-col items-center">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Trans</span>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className="text-base">✏️</span>
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Trans</span>
+                  </div>
                   <span className="text-base font-bold text-slate-900">{dailyAverageData.transactionCount}</span>
                 </div>
               </div>
@@ -2199,17 +2208,26 @@ const App: React.FC = () => {
               {/* Summary Cards - Mobile */}
               <div className="md:hidden grid grid-cols-3 gap-2">
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-2.5 flex flex-col items-center">
-                  <span className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Total</span>
+                  <div className="flex items-center gap-1 mb-1">
+                    <span className="text-sm">💰</span>
+                    <span className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider">Total</span>
+                  </div>
                   <span className="text-sm font-bold text-slate-900">£{dailyAverageData.totalGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   <span className="text-[10px] font-medium text-slate-400 mt-0.5">AED {dailyAverageData.totalAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-2.5 flex flex-col items-center">
-                  <span className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Avg/Trans</span>
+                  <div className="flex items-center gap-1 mb-1">
+                    <span className="text-sm">📊</span>
+                    <span className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider">Avg/Trans</span>
+                  </div>
                   <span className="text-sm font-bold text-slate-900">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalGBP / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</span>
                   <span className="text-[10px] font-medium text-slate-400 mt-0.5">AED {dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalAED / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</span>
                 </div>
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-2.5 flex flex-col items-center">
-                  <span className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Trans</span>
+                  <div className="flex items-center gap-1 mb-1">
+                    <span className="text-sm">✏️</span>
+                    <span className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider">Trans</span>
+                  </div>
                   <span className="text-sm font-bold text-slate-900">{dailyAverageData.transactionCount}</span>
                 </div>
               </div>
