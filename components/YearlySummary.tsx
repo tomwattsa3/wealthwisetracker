@@ -286,8 +286,8 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
     }
 
     if (chartGranularity === 'weekly') {
-      // Weekly aggregation (Mon-Sun)
-      const weekMap = new Map<string, { label: string; amount: number }>();
+      // Weekly aggregation (Mon-Sun), sorted/labelled by week end (Sunday)
+      const weekMap = new Map<string, { sortKey: string; label: string; amount: number }>();
       const start = new Date(dateRange.start);
       const end = new Date(dateRange.end);
       // Find the Monday on or before the start date
@@ -297,8 +297,13 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
       for (let mon = new Date(firstMonday); mon <= end; mon.setDate(mon.getDate() + 7)) {
         const weekKey = formatDateLocal(mon);
-        const weekNum = Math.floor((mon.getTime() - firstMonday.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
-        weekMap.set(weekKey, { label: `W${weekNum} ${MONTHS[mon.getMonth()]}`, amount: 0 });
+        const sun = new Date(mon);
+        sun.setDate(mon.getDate() + 6);
+        weekMap.set(weekKey, {
+          sortKey: formatDateLocal(sun),
+          label: `${sun.getDate()} ${MONTHS[sun.getMonth()]}`,
+          amount: 0,
+        });
       }
 
       expenses.forEach(t => {
@@ -311,10 +316,12 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         if (entry) entry.amount += t.amount;
       });
 
-      return Array.from(weekMap.values()).map(w => ({
-        label: w.label,
-        amount: Math.round(w.amount * 100) / 100,
-      }));
+      return Array.from(weekMap.values())
+        .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+        .map(w => ({
+          label: w.label,
+          amount: Math.round(w.amount * 100) / 100,
+        }));
     }
 
     // Monthly aggregation
