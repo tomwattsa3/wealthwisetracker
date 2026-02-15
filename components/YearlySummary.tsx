@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Transaction, Category } from '../types';
 import { TrendingUp, TrendingDown, PieChart, ChevronRight, RefreshCw } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
 
 interface YearlySummaryProps {
   transactions: Transaction[];
@@ -482,14 +482,8 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         </div>
         <div className="px-2 md:px-5 py-4">
           {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={240}>
-              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="spendGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#635bff" stopOpacity={0.15} />
-                    <stop offset="100%" stopColor="#635bff" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={chartData} margin={{ top: 25, right: 15, left: -10, bottom: 5 }}>
                 <CartesianGrid vertical={false} stroke="#f1f5f9" />
                 <XAxis
                   dataKey="label"
@@ -524,19 +518,28 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                     return null;
                   }}
                 />
-                <Area
+                <Line
                   type="linear"
                   dataKey="amount"
                   stroke="#635bff"
                   strokeWidth={2}
-                  fill="url(#spendGradient)"
-                  dot={{ r: chartData.length > 20 ? 0 : 3, fill: '#fff', stroke: '#635bff', strokeWidth: 2 }}
-                  activeDot={{ r: 5, fill: '#635bff', stroke: '#fff', strokeWidth: 2 }}
-                />
-              </AreaChart>
+                  dot={{ r: 4, fill: '#635bff', stroke: '#fff', strokeWidth: 2 }}
+                  activeDot={{ r: 6, fill: '#635bff', stroke: '#fff', strokeWidth: 2 }}
+                >
+                  {chartData.length <= 20 && (
+                    <LabelList
+                      dataKey="amount"
+                      position="top"
+                      offset={10}
+                      style={{ fontSize: 8, fill: '#64748b', fontWeight: 600 }}
+                      formatter={(v: number) => `£${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0)}`}
+                    />
+                  )}
+                </Line>
+              </LineChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex items-center justify-center h-[240px] text-xs text-slate-400">No spending data</div>
+            <div className="flex items-center justify-center h-[260px] text-xs text-slate-400">No spending data</div>
           )}
         </div>
       </div>
