@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Transaction, Category } from '../types';
 import { TrendingUp, TrendingDown, PieChart, ChevronRight, RefreshCw } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
@@ -69,7 +69,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
   const [showCustom, setShowCustom] = useState(false);
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
-  const [chartGranularity, setChartGranularity] = useState<'monthly' | 'weekly'>('monthly');
+  const [chartGranularity, setChartGranularity] = useState<'daily' | 'weekly' | 'monthly'>('daily');
 
   const toggleCategory = (key: string) => {
     const newSet = new Set(expandedCategories);
@@ -260,10 +260,21 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
   const isLongRange = rangeDays > 45;
 
+  // Determine which granularity options to show
+  const granularityOptions = useMemo(() => {
+    if (isLongRange) return ['monthly', 'weekly'] as const;
+    return ['daily', 'weekly'] as const;
+  }, [isLongRange]);
+
+  // Reset granularity to default when range type changes
+  useEffect(() => {
+    setChartGranularity(isLongRange ? 'monthly' : 'daily');
+  }, [isLongRange]);
+
   const chartData = useMemo(() => {
     const expenses = filteredTransactions.filter(t => t.type === 'EXPENSE');
 
-    if (!isLongRange) {
+    if (chartGranularity === 'daily') {
       // Daily aggregation
       const dayMap = new Map<string, { amount: number; amountAED: number }>();
       const start = new Date(dateRange.start);
@@ -294,7 +305,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
       const weekMap = new Map<string, { sortKey: string; label: string; amount: number; amountAED: number }>();
       const start = new Date(dateRange.start);
       const end = new Date(dateRange.end);
-      // Find the Monday on or before the start date
       const dow = (start.getDay() + 6) % 7;
       const firstMonday = new Date(start);
       firstMonday.setDate(start.getDate() - dow);
@@ -344,7 +354,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         amountAED: Math.round(monthExpensesAED * 100) / 100,
       };
     });
-  }, [filteredTransactions, dateRange, isLongRange, chartGranularity, monthlyData]);
+  }, [filteredTransactions, dateRange, chartGranularity, monthlyData]);
 
   // KPI calculations
   const totalIncome = filteredTransactions.filter(t => t.type === 'INCOME').reduce((sum, t) => sum + t.amount, 0);
@@ -481,19 +491,17 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
           <h3 className="text-sm font-bold text-slate-900">Spending Trend</h3>
-          {isLongRange && (
-            <div className="flex bg-slate-100 p-0.5 rounded-lg">
-              {(['monthly', 'weekly'] as const).map(g => (
-                <button
-                  key={g}
-                  onClick={() => setChartGranularity(g)}
-                  className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all capitalize ${chartGranularity === g ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                  {g}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="flex bg-slate-100 p-0.5 rounded-lg">
+            {granularityOptions.map(g => (
+              <button
+                key={g}
+                onClick={() => setChartGranularity(g)}
+                className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all capitalize ${chartGranularity === g ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                {g}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="px-2 md:px-5 py-4">
           {chartData.length > 0 ? (
