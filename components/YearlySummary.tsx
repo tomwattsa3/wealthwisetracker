@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Transaction, Category } from '../types';
 import { TrendingUp, TrendingDown, PieChart, ChevronRight, RefreshCw } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 interface YearlySummaryProps {
   transactions: Transaction[];
@@ -29,9 +30,11 @@ const formatDateLocal = (date: Date) => {
 
 const getDatePresets = () => {
   const now = new Date();
-  const dayOfWeek = now.getDay();
-  const lastMonday = new Date(now);
-  lastMonday.setDate(now.getDate() - dayOfWeek - 6);
+  const dow = (now.getDay() + 6) % 7; // Mon=0, Tue=1, ..., Sun=6
+  const thisMonday = new Date(now);
+  thisMonday.setDate(now.getDate() - dow);
+  const lastMonday = new Date(thisMonday);
+  lastMonday.setDate(thisMonday.getDate() - 7);
   const lastSunday = new Date(lastMonday);
   lastSunday.setDate(lastMonday.getDate() + 6);
 
@@ -68,6 +71,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
   const [showCustom, setShowCustom] = useState(false);
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  const [chartGranularity, setChartGranularity] = useState<'monthly' | 'weekly'>('monthly');
 
   const toggleCategory = (key: string) => {
     const newSet = new Set(expandedCategories);
@@ -249,6 +253,78 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
     return Object.values(byCategory).sort((a, b) => b.amount - a.amount).slice(0, 5);
   }, [filteredTransactions, categories]);
 
+  // Spending trend chart data
+  const rangeDays = useMemo(() => {
+    const start = new Date(dateRange.start);
+    const end = new Date(dateRange.end);
+    return Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  }, [dateRange]);
+
+  const isLongRange = rangeDays > 45;
+
+  const chartData = useMemo(() => {
+    const expenses = filteredTransactions.filter(t => t.type === 'EXPENSE');
+
+    if (!isLongRange) {
+      // Daily aggregation
+      const dayMap = new Map<string, number>();
+      const start = new Date(dateRange.start);
+      const end = new Date(dateRange.end);
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        dayMap.set(formatDateLocal(d), 0);
+      }
+      expenses.forEach(t => {
+        const existing = dayMap.get(t.date);
+        if (existing !== undefined) dayMap.set(t.date, existing + t.amount);
+      });
+      return Array.from(dayMap.entries()).map(([date, amount]) => {
+        const d = new Date(date);
+        return {
+          label: `${d.getDate()} ${MONTHS[d.getMonth()]}`,
+          amount: Math.round(amount * 100) / 100,
+        };
+      });
+    }
+
+    if (chartGranularity === 'weekly') {
+      // Weekly aggregation (Mon-Sun)
+      const weekMap = new Map<string, { label: string; amount: number }>();
+      const start = new Date(dateRange.start);
+      const end = new Date(dateRange.end);
+      // Find the Monday on or before the start date
+      const dow = (start.getDay() + 6) % 7;
+      const firstMonday = new Date(start);
+      firstMonday.setDate(start.getDate() - dow);
+
+      for (let mon = new Date(firstMonday); mon <= end; mon.setDate(mon.getDate() + 7)) {
+        const weekKey = formatDateLocal(mon);
+        const weekNum = Math.floor((mon.getTime() - firstMonday.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+        weekMap.set(weekKey, { label: `W${weekNum} ${MONTHS[mon.getMonth()]}`, amount: 0 });
+      }
+
+      expenses.forEach(t => {
+        const d = new Date(t.date);
+        const dDow = (d.getDay() + 6) % 7;
+        const monday = new Date(d);
+        monday.setDate(d.getDate() - dDow);
+        const key = formatDateLocal(monday);
+        const entry = weekMap.get(key);
+        if (entry) entry.amount += t.amount;
+      });
+
+      return Array.from(weekMap.values()).map(w => ({
+        label: w.label,
+        amount: Math.round(w.amount * 100) / 100,
+      }));
+    }
+
+    // Monthly aggregation
+    return monthlyData.map(m => ({
+      label: m.month,
+      amount: Math.round(m.expense * 100) / 100,
+    }));
+  }, [filteredTransactions, dateRange, isLongRange, chartGranularity, monthlyData]);
+
   // KPI calculations
   const totalIncome = filteredTransactions.filter(t => t.type === 'INCOME').reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = filteredTransactions.filter(t => t.type === 'EXPENSE').reduce((sum, t) => sum + t.amount, 0);
@@ -377,6 +453,76 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
             <span className="hidden md:inline text-slate-300">·</span>
             <p className="text-[7px] md:text-xs text-slate-300 md:text-slate-500 mt-0.5 md:mt-0">{totalTransactions} transactions</p>
           </div>
+        </div>
+      </div>
+
+      {/* Spending Trend Chart */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h3 className="text-sm font-bold text-slate-900">Spending Trend</h3>
+          {isLongRange && (
+            <div className="flex bg-slate-100 p-0.5 rounded-lg">
+              {(['monthly', 'weekly'] as const).map(g => (
+                <button
+                  key={g}
+                  onClick={() => setChartGranularity(g)}
+                  className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all capitalize ${chartGranularity === g ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  {g}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="px-2 md:px-5 py-4">
+          {chartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 9, fill: '#94a3b8' }}
+                  tickLine={false}
+                  axisLine={{ stroke: '#e2e8f0' }}
+                  interval={chartData.length > 15 ? Math.floor(chartData.length / 8) : 0}
+                  angle={chartData.length > 10 ? -45 : 0}
+                  textAnchor={chartData.length > 10 ? 'end' : 'middle'}
+                  height={chartData.length > 10 ? 50 : 30}
+                />
+                <YAxis
+                  tick={{ fontSize: 9, fill: '#94a3b8' }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => `£${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
+                />
+                <Tooltip
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-white text-slate-900 p-3 rounded-lg shadow-lg border border-slate-100 text-xs z-50">
+                          <p className="font-semibold mb-1 text-slate-600">{label}</p>
+                          <p className="text-slate-800 font-mono text-sm font-bold">
+                            £{(payload[0].value as number)?.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="amount"
+                  stroke="#1e293b"
+                  strokeWidth={2}
+                  dot={{ r: chartData.length > 20 ? 0 : 3, fill: '#1e293b' }}
+                  activeDot={{ r: 5, fill: '#1e293b' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-[220px] text-xs text-slate-400">No spending data</div>
+          )}
         </div>
       </div>
 
