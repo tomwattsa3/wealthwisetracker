@@ -1429,12 +1429,10 @@ const App: React.FC = () => {
                               { label: 'Last Wk', fullLabel: 'Last Week', getValue: () => {
                                 const now = new Date();
                                 const dow = (now.getDay() + 6) % 7; // Mon=0, Sun=6
-                                const thisMonday = new Date(now);
-                                thisMonday.setDate(now.getDate() - dow);
-                                const lastMonday = new Date(thisMonday);
-                                lastMonday.setDate(thisMonday.getDate() - 7);
-                                const lastSunday = new Date(lastMonday);
-                                lastSunday.setDate(lastMonday.getDate() + 6);
+                                const lastSunday = new Date(now);
+                                lastSunday.setDate(now.getDate() - ((dow + 1) % 7));
+                                const lastMonday = new Date(lastSunday);
+                                lastMonday.setDate(lastSunday.getDate() - 6);
                                 return { start: lastMonday, end: lastSunday };
                               }},
                               { label: 'Last Mo', fullLabel: 'Last Month', getValue: () => {
@@ -1557,12 +1555,10 @@ const App: React.FC = () => {
                           { label: 'Last Week', fullLabel: 'Last Week', getValue: () => {
                             const now = new Date();
                             const dow = (now.getDay() + 6) % 7; // Mon=0, Sun=6
-                            const thisMonday = new Date(now);
-                            thisMonday.setDate(now.getDate() - dow);
-                            const lastMonday = new Date(thisMonday);
-                            lastMonday.setDate(thisMonday.getDate() - 7);
-                            const lastSunday = new Date(lastMonday);
-                            lastSunday.setDate(lastMonday.getDate() + 6);
+                            const lastSunday = new Date(now);
+                            lastSunday.setDate(now.getDate() - ((dow + 1) % 7));
+                            const lastMonday = new Date(lastSunday);
+                            lastMonday.setDate(lastSunday.getDate() - 6);
                             return { start: lastMonday, end: lastSunday };
                           }},
                           { label: 'Last Month', fullLabel: 'Last Month', getValue: () => {
@@ -1667,12 +1663,10 @@ const App: React.FC = () => {
                       { label: 'Last Wk', fullLabel: 'Last Week', getValue: () => {
                         const now = new Date();
                         const dow = (now.getDay() + 6) % 7; // Mon=0, Sun=6
-                        const thisMonday = new Date(now);
-                        thisMonday.setDate(now.getDate() - dow);
-                        const lastMonday = new Date(thisMonday);
-                        lastMonday.setDate(thisMonday.getDate() - 7);
-                        const lastSunday = new Date(lastMonday);
-                        lastSunday.setDate(lastMonday.getDate() + 6);
+                        const lastSunday = new Date(now);
+                        lastSunday.setDate(now.getDate() - ((dow + 1) % 7));
+                        const lastMonday = new Date(lastSunday);
+                        lastMonday.setDate(lastSunday.getDate() - 6);
                         return { start: lastMonday, end: lastSunday };
                       }},
                       { label: 'Last Mo', fullLabel: 'Last Month', getValue: () => {

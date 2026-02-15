@@ -31,12 +31,10 @@ const formatDateLocal = (date: Date) => {
 const getDatePresets = () => {
   const now = new Date();
   const dow = (now.getDay() + 6) % 7; // Mon=0, Tue=1, ..., Sun=6
-  const thisMonday = new Date(now);
-  thisMonday.setDate(now.getDate() - dow);
-  const lastMonday = new Date(thisMonday);
-  lastMonday.setDate(thisMonday.getDate() - 7);
-  const lastSunday = new Date(lastMonday);
-  lastSunday.setDate(lastMonday.getDate() + 6);
+  const lastSunday = new Date(now);
+  lastSunday.setDate(now.getDate() - ((dow + 1) % 7)); // Most recent Sunday (today if Sunday)
+  const lastMonday = new Date(lastSunday);
+  lastMonday.setDate(lastSunday.getDate() - 6);
 
   return {
     thisMonth: {
