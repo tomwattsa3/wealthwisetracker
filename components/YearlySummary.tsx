@@ -265,29 +265,33 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
     if (!isLongRange) {
       // Daily aggregation
-      const dayMap = new Map<string, number>();
+      const dayMap = new Map<string, { amount: number; amountAED: number }>();
       const start = new Date(dateRange.start);
       const end = new Date(dateRange.end);
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        dayMap.set(formatDateLocal(d), 0);
+        dayMap.set(formatDateLocal(d), { amount: 0, amountAED: 0 });
       }
       expenses.forEach(t => {
         const existing = dayMap.get(t.date);
-        if (existing !== undefined) dayMap.set(t.date, existing + t.amount);
+        if (existing) {
+          existing.amount += t.amount;
+          existing.amountAED += (t.amountAED || 0);
+        }
       });
       const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      return Array.from(dayMap.entries()).map(([date, amount]) => {
+      return Array.from(dayMap.entries()).map(([date, data]) => {
         const d = new Date(date);
         return {
           label: `${DAYS[d.getDay()]} ${d.getDate()}`,
-          amount: Math.round(amount * 100) / 100,
+          amount: Math.round(data.amount * 100) / 100,
+          amountAED: Math.round(data.amountAED * 100) / 100,
         };
       });
     }
 
     if (chartGranularity === 'weekly') {
       // Weekly aggregation (Mon-Sun), sorted/labelled by week end (Sunday)
-      const weekMap = new Map<string, { sortKey: string; label: string; amount: number }>();
+      const weekMap = new Map<string, { sortKey: string; label: string; amount: number; amountAED: number }>();
       const start = new Date(dateRange.start);
       const end = new Date(dateRange.end);
       // Find the Monday on or before the start date
@@ -303,6 +307,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
           sortKey: formatDateLocal(sun),
           label: `${sun.getDate()} ${MONTHS[sun.getMonth()]}`,
           amount: 0,
+          amountAED: 0,
         });
       }
 
@@ -313,7 +318,10 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         monday.setDate(d.getDate() - dDow);
         const key = formatDateLocal(monday);
         const entry = weekMap.get(key);
-        if (entry) entry.amount += t.amount;
+        if (entry) {
+          entry.amount += t.amount;
+          entry.amountAED += (t.amountAED || 0);
+        }
       });
 
       return Array.from(weekMap.values())
@@ -321,14 +329,21 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         .map(w => ({
           label: w.label,
           amount: Math.round(w.amount * 100) / 100,
+          amountAED: Math.round(w.amountAED * 100) / 100,
         }));
     }
 
     // Monthly aggregation
-    return monthlyData.map(m => ({
-      label: m.month,
-      amount: Math.round(m.expense * 100) / 100,
-    }));
+    return monthlyData.map(m => {
+      const monthExpensesAED = filteredTransactions
+        .filter(t => t.type === 'EXPENSE' && (() => { const d = new Date(t.date); return d.getFullYear() === m.year && d.getMonth() === m.monthIndex; })())
+        .reduce((sum, t) => sum + (t.amountAED || 0), 0);
+      return {
+        label: m.month,
+        amount: Math.round(m.expense * 100) / 100,
+        amountAED: Math.round(monthExpensesAED * 100) / 100,
+      };
+    });
   }, [filteredTransactions, dateRange, isLongRange, chartGranularity, monthlyData]);
 
   // KPI calculations
@@ -506,11 +521,15 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                   cursor={{ stroke: '#635bff', strokeWidth: 1, strokeDasharray: '4 4' }}
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
+                      const data = payload[0].payload as { amount: number; amountAED: number };
                       return (
                         <div className="bg-slate-900 text-white px-3 py-2 rounded-lg shadow-xl text-xs">
-                          <p className="font-medium text-slate-300 text-[10px] mb-0.5">{label}</p>
+                          <p className="font-medium text-slate-300 text-[10px] mb-1">{label}</p>
                           <p className="font-mono text-sm font-bold">
-                            £{(payload[0].value as number)?.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                            £{data.amount.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                          </p>
+                          <p className="font-mono text-[10px] text-slate-400 mt-0.5">
+                            AED {data.amountAED.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
                           </p>
                         </div>
                       );
