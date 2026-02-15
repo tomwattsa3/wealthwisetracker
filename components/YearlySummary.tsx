@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Transaction, Category } from '../types';
 import { TrendingUp, TrendingDown, PieChart, ChevronRight, RefreshCw } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 interface YearlySummaryProps {
   transactions: Transaction[];
@@ -275,10 +275,11 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         const existing = dayMap.get(t.date);
         if (existing !== undefined) dayMap.set(t.date, existing + t.amount);
       });
+      const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       return Array.from(dayMap.entries()).map(([date, amount]) => {
         const d = new Date(date);
         return {
-          label: `${d.getDate()} ${MONTHS[d.getMonth()]}`,
+          label: `${DAYS[d.getDay()]} ${d.getDate()}`,
           amount: Math.round(amount * 100) / 100,
         };
       });
@@ -474,32 +475,40 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         </div>
         <div className="px-2 md:px-5 py-4">
           {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+            <ResponsiveContainer width="100%" height={240}>
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="spendGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#635bff" stopOpacity={0.15} />
+                    <stop offset="100%" stopColor="#635bff" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} stroke="#f1f5f9" />
                 <XAxis
                   dataKey="label"
-                  tick={{ fontSize: 9, fill: '#94a3b8' }}
+                  tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 500 }}
                   tickLine={false}
                   axisLine={{ stroke: '#e2e8f0' }}
                   interval={chartData.length > 15 ? Math.floor(chartData.length / 8) : 0}
-                  angle={chartData.length > 10 ? -45 : 0}
-                  textAnchor={chartData.length > 10 ? 'end' : 'middle'}
-                  height={chartData.length > 10 ? 50 : 30}
+                  angle={chartData.length > 12 ? -45 : 0}
+                  textAnchor={chartData.length > 12 ? 'end' : 'middle'}
+                  height={chartData.length > 12 ? 50 : 30}
                 />
                 <YAxis
                   tick={{ fontSize: 9, fill: '#94a3b8' }}
                   tickLine={false}
                   axisLine={false}
                   tickFormatter={(v) => `£${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
+                  width={45}
                 />
                 <Tooltip
+                  cursor={{ stroke: '#635bff', strokeWidth: 1, strokeDasharray: '4 4' }}
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
                       return (
-                        <div className="bg-white text-slate-900 p-3 rounded-lg shadow-lg border border-slate-100 text-xs z-50">
-                          <p className="font-semibold mb-1 text-slate-600">{label}</p>
-                          <p className="text-slate-800 font-mono text-sm font-bold">
+                        <div className="bg-slate-900 text-white px-3 py-2 rounded-lg shadow-xl text-xs">
+                          <p className="font-medium text-slate-300 text-[10px] mb-0.5">{label}</p>
+                          <p className="font-mono text-sm font-bold">
                             £{(payload[0].value as number)?.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
                           </p>
                         </div>
@@ -508,18 +517,19 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                     return null;
                   }}
                 />
-                <Line
-                  type="monotone"
+                <Area
+                  type="linear"
                   dataKey="amount"
-                  stroke="#1e293b"
+                  stroke="#635bff"
                   strokeWidth={2}
-                  dot={{ r: chartData.length > 20 ? 0 : 3, fill: '#1e293b' }}
-                  activeDot={{ r: 5, fill: '#1e293b' }}
+                  fill="url(#spendGradient)"
+                  dot={{ r: chartData.length > 20 ? 0 : 3, fill: '#fff', stroke: '#635bff', strokeWidth: 2 }}
+                  activeDot={{ r: 5, fill: '#635bff', stroke: '#fff', strokeWidth: 2 }}
                 />
-              </LineChart>
+              </AreaChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex items-center justify-center h-[220px] text-xs text-slate-400">No spending data</div>
+            <div className="flex items-center justify-center h-[240px] text-xs text-slate-400">No spending data</div>
           )}
         </div>
       </div>
