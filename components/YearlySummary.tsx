@@ -487,95 +487,176 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         </div>
       </div>
 
-      {/* Spending Trend Chart */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-slate-900">Spending Trend</h3>
-          <div className="flex bg-slate-100 p-0.5 rounded-lg">
-            {granularityOptions.map(g => (
-              <button
-                key={g}
-                onClick={() => setChartGranularity(g)}
-                className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all capitalize ${chartGranularity === g ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                {g}
-              </button>
-            ))}
+      {/* Spending Trend + Top Categories Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+
+        {/* Spending Trend Chart */}
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-900">Spending Trend</h3>
+            <div className="flex bg-slate-100 p-0.5 rounded-lg">
+              {granularityOptions.map(g => (
+                <button
+                  key={g}
+                  onClick={() => setChartGranularity(g)}
+                  className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all capitalize ${chartGranularity === g ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  {g}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="px-2 md:px-5 py-4">
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <LineChart data={chartData} margin={{ top: 25, right: 15, left: -10, bottom: 5 }}>
+                  <CartesianGrid vertical={false} stroke="#f1f5f9" />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 500 }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#e2e8f0' }}
+                    interval={chartData.length > 15 ? Math.floor(chartData.length / 8) : 0}
+                    angle={chartData.length > 12 ? -45 : 0}
+                    textAnchor={chartData.length > 12 ? 'end' : 'middle'}
+                    height={chartData.length > 12 ? 50 : 30}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 9, fill: '#94a3b8' }}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(v) => `£${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
+                    width={45}
+                  />
+                  <Tooltip
+                    cursor={{ stroke: '#635bff', strokeWidth: 1, strokeDasharray: '4 4' }}
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload as { amount: number; amountAED: number };
+                        return (
+                          <div className="bg-slate-900 text-white px-3 py-2 rounded-lg shadow-xl text-xs">
+                            <p className="font-medium text-slate-300 text-[10px] mb-1">{label}</p>
+                            <p className="font-mono text-sm font-bold">
+                              £{data.amount.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                            </p>
+                            <p className="font-mono text-[10px] text-slate-400 mt-0.5">
+                              AED {data.amountAED.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Line
+                    type="linear"
+                    dataKey="amount"
+                    stroke="#635bff"
+                    strokeWidth={2}
+                    dot={{ r: 4, fill: '#635bff', stroke: '#fff', strokeWidth: 2 }}
+                    activeDot={{ r: 6, fill: '#635bff', stroke: '#fff', strokeWidth: 2 }}
+                  >
+                    {chartData.length <= 20 && (
+                      <LabelList
+                        dataKey="amount"
+                        position="top"
+                        offset={10}
+                        style={{ fontSize: 8, fill: '#64748b', fontWeight: 600 }}
+                        formatter={(v: number) => `£${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0)}`}
+                      />
+                    )}
+                  </Line>
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[260px] text-xs text-slate-400">No spending data</div>
+            )}
           </div>
         </div>
-        <div className="px-2 md:px-5 py-4">
-          {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={chartData} margin={{ top: 25, right: 15, left: -10, bottom: 5 }}>
-                <CartesianGrid vertical={false} stroke="#f1f5f9" />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 500 }}
-                  tickLine={false}
-                  axisLine={{ stroke: '#e2e8f0' }}
-                  interval={chartData.length > 15 ? Math.floor(chartData.length / 8) : 0}
-                  angle={chartData.length > 12 ? -45 : 0}
-                  textAnchor={chartData.length > 12 ? 'end' : 'middle'}
-                  height={chartData.length > 12 ? 50 : 30}
-                />
-                <YAxis
-                  tick={{ fontSize: 9, fill: '#94a3b8' }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) => `£${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
-                  width={45}
-                />
-                <Tooltip
-                  cursor={{ stroke: '#635bff', strokeWidth: 1, strokeDasharray: '4 4' }}
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0].payload as { amount: number; amountAED: number };
-                      return (
-                        <div className="bg-slate-900 text-white px-3 py-2 rounded-lg shadow-xl text-xs">
-                          <p className="font-medium text-slate-300 text-[10px] mb-1">{label}</p>
-                          <p className="font-mono text-sm font-bold">
-                            £{data.amount.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
-                          </p>
-                          <p className="font-mono text-[10px] text-slate-400 mt-0.5">
-                            AED {data.amountAED.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
-                          </p>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                <Line
-                  type="linear"
-                  dataKey="amount"
-                  stroke="#635bff"
-                  strokeWidth={2}
-                  dot={{ r: 4, fill: '#635bff', stroke: '#fff', strokeWidth: 2 }}
-                  activeDot={{ r: 6, fill: '#635bff', stroke: '#fff', strokeWidth: 2 }}
-                >
-                  {chartData.length <= 20 && (
-                    <LabelList
-                      dataKey="amount"
-                      position="top"
-                      offset={10}
-                      style={{ fontSize: 8, fill: '#64748b', fontWeight: 600 }}
-                      formatter={(v: number) => `£${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0)}`}
-                    />
-                  )}
-                </Line>
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-[260px] text-xs text-slate-400">No spending data</div>
-          )}
+
+        {/* Top Categories — Donut + List */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
+          <div className="px-5 py-4 border-b border-slate-100">
+            <h3 className="text-sm font-bold text-slate-900">Top Categories</h3>
+          </div>
+
+          {/* Donut Visual */}
+          <div className="p-8 flex justify-center">
+            <div className="relative w-52 h-52 md:w-44 md:h-44 lg:w-48 lg:h-48">
+              <svg viewBox="0 0 200 200" className="w-full h-full -rotate-90">
+                <circle cx="100" cy="100" r="76" fill="none" stroke="#f1f5f9" strokeWidth="26" />
+                {donutData.length > 0 && (() => {
+                  const radius = 76;
+                  const circumference = 2 * Math.PI * radius;
+                  const gapSize = 8;
+                  const totalGaps = donutData.length * gapSize;
+                  const availableLength = circumference - totalGaps;
+                  let currentOffset = 0;
+
+                  return donutData.map((cat, idx) => {
+                    const percentage = cat.amount / donutTotal;
+                    const segmentLength = percentage * availableLength;
+                    const dashOffset = -currentOffset;
+                    currentOffset += segmentLength + gapSize;
+
+                    return (
+                      <circle
+                        key={idx}
+                        cx="100"
+                        cy="100"
+                        r={radius}
+                        fill="none"
+                        stroke={cat.color}
+                        strokeWidth="26"
+                        strokeLinecap="round"
+                        strokeDasharray={`${segmentLength} ${circumference - segmentLength}`}
+                        strokeDashoffset={dashOffset}
+                        className="transition-all duration-500"
+                      />
+                    );
+                  });
+                })()}
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Total</p>
+                  <p className="text-lg font-bold text-slate-800">{formatAmount(totalExpense)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Category List */}
+          <div className="px-5 pb-5 space-y-3 flex-1">
+            {topExpenseCategories.slice(0, 5).map((cat, idx) => {
+              const percentage = totalExpense > 0 ? ((cat.amount / totalExpense) * 100) : 0;
+              return (
+                <div key={idx} className="py-0.5">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-sm shrink-0">{getCategoryEmoji ? getCategoryEmoji(cat.id) : '📊'}</span>
+                      <span className="text-xs font-medium text-slate-700 truncate">{cat.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] text-slate-400">{percentage.toFixed(1)}%</span>
+                      <span className="text-xs font-semibold text-slate-900">£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</span>
+                    </div>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-500 ease-out" style={{ width: `${percentage}%`, backgroundColor: cat.color }} />
+                  </div>
+                </div>
+              );
+            })}
+            {topExpenseCategories.length === 0 && (
+              <p className="text-xs text-slate-400 text-center py-4">No expenses recorded</p>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Main Content: Monthly Table + Top Categories + Bottom Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
-
-        {/* Monthly Breakdown Table */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+      {/* Monthly Breakdown Table */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100">
             <h3 className="text-sm font-bold text-slate-900">Monthly Breakdown</h3>
           </div>
@@ -718,88 +799,11 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
           </div>
         </div>
 
-        {/* Top Categories — Donut + List (spans both rows) */}
-        <div className="lg:row-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
-          <div className="px-5 py-4 border-b border-slate-100">
-            <h3 className="text-sm font-bold text-slate-900">Top Categories</h3>
-          </div>
-
-          {/* Donut Visual */}
-          <div className="p-8 flex justify-center">
-            <div className="relative w-52 h-52 md:w-56 md:h-56">
-              <svg viewBox="0 0 200 200" className="w-full h-full -rotate-90">
-                <circle cx="100" cy="100" r="76" fill="none" stroke="#f1f5f9" strokeWidth="26" />
-                {donutData.length > 0 && (() => {
-                  const radius = 76;
-                  const circumference = 2 * Math.PI * radius;
-                  const gapSize = 8;
-                  const totalGaps = donutData.length * gapSize;
-                  const availableLength = circumference - totalGaps;
-                  let currentOffset = 0;
-
-                  return donutData.map((cat, idx) => {
-                    const percentage = cat.amount / donutTotal;
-                    const segmentLength = percentage * availableLength;
-                    const dashOffset = -currentOffset;
-                    currentOffset += segmentLength + gapSize;
-
-                    return (
-                      <circle
-                        key={idx}
-                        cx="100"
-                        cy="100"
-                        r={radius}
-                        fill="none"
-                        stroke={cat.color}
-                        strokeWidth="26"
-                        strokeLinecap="round"
-                        strokeDasharray={`${segmentLength} ${circumference - segmentLength}`}
-                        strokeDashoffset={dashOffset}
-                        className="transition-all duration-500"
-                      />
-                    );
-                  });
-                })()}
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Total</p>
-                  <p className="text-xl font-bold text-slate-800">{formatAmount(totalExpense)}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Category List */}
-          <div className="px-5 pb-5 space-y-4 flex-1">
-            {topExpenseCategories.slice(0, 5).map((cat, idx) => {
-              const percentage = totalExpense > 0 ? ((cat.amount / totalExpense) * 100) : 0;
-              return (
-                <div key={idx} className="py-1">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-sm shrink-0">{getCategoryEmoji ? getCategoryEmoji(cat.id) : '📊'}</span>
-                      <span className="text-xs font-medium text-slate-700 truncate">{cat.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] text-slate-400">{percentage.toFixed(1)}%</span>
-                      <span className="text-xs font-semibold text-slate-900">£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</span>
-                    </div>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-500 ease-out" style={{ width: `${percentage}%`, backgroundColor: cat.color }} />
-                  </div>
-                </div>
-              );
-            })}
-            {topExpenseCategories.length === 0 && (
-              <p className="text-xs text-slate-400 text-center py-4">No expenses recorded</p>
-            )}
-          </div>
-        </div>
+      {/* Highest Expenses + Income Sources */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
 
         {/* Highest Expenses */}
-        <div className="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-900">Highest Expenses</h3>
             <span className="text-[9px] font-semibold text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md">TOP 5</span>
@@ -839,7 +843,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         </div>
 
         {/* Top Income Sources */}
-        <div className="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-900">Income Sources</h3>
             <span className="text-[9px] font-semibold text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md">TOP 5</span>
