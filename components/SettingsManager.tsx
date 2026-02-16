@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Save, Trash2, Webhook, CheckCircle2, Building, Plus, CreditCard, ChevronRight, LogOut } from 'lucide-react';
+import { Save, Trash2, Webhook, CheckCircle2, Building, Plus, CreditCard, ChevronRight, LogOut, Sparkles } from 'lucide-react';
 import { Bank } from '../types';
 
 interface SettingsManagerProps {
@@ -10,6 +10,11 @@ interface SettingsManagerProps {
   onAddBank: (bank: Bank) => void;
   onDeleteBank: (id: string) => void;
   onLogout?: () => void;
+  merchantMemory?: {
+    totalCount: number;
+    readyCount: number;
+    onBackfill: () => void;
+  };
 }
 
 const SettingsManager: React.FC<SettingsManagerProps> = ({
@@ -18,7 +23,8 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
   banks,
   onAddBank,
   onDeleteBank,
-  onLogout
+  onLogout,
+  merchantMemory
 }) => {
   const [activeTab, setActiveTab] = useState<'general' | 'banks'>('general');
   const [urlInput, setUrlInput] = useState(webhookUrl);
@@ -147,6 +153,47 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
                                 </button>
                             )}
                         </div>
+                    </div>
+                </div>
+            </div>
+          )}
+
+          {/* Merchant Memory Section - visible on General tab */}
+          {activeTab === 'general' && merchantMemory && (
+            <div className="bg-white rounded-[10px] border border-slate-200 shadow-sm overflow-hidden mt-6">
+                <div className="p-3 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
+                    <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
+                        <Sparkles size={20} />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Merchant Memory</h3>
+                        <p className="text-xs text-slate-500 font-medium">Auto-categorize transactions based on past history.</p>
+                    </div>
+                </div>
+
+                <div className="p-6">
+                    <div className="max-w-2xl">
+                        <div className="flex items-center gap-6 mb-4">
+                            <div>
+                                <p className="text-2xl font-bold text-slate-900">{merchantMemory.totalCount}</p>
+                                <p className="text-xs text-slate-500 font-medium">Total Patterns</p>
+                            </div>
+                            <div>
+                                <p className="text-2xl font-bold text-emerald-600">{merchantMemory.readyCount}</p>
+                                <p className="text-xs text-slate-500 font-medium">Ready to Auto-Apply</p>
+                            </div>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mb-4 leading-relaxed">
+                            Merchants seen 3+ times will be auto-categorized on future uploads.
+                            Use "Backfill" to scan your existing transactions and build memory from past data.
+                        </p>
+                        <button
+                            onClick={merchantMemory.onBackfill}
+                            className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold rounded-[10px] shadow-md transition-all active:scale-95 flex items-center gap-2"
+                        >
+                            <Sparkles size={16} />
+                            Backfill from Transactions
+                        </button>
                     </div>
                 </div>
             </div>

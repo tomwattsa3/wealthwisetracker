@@ -2563,7 +2563,7 @@ const App: React.FC = () => {
 
            {/* SETTINGS VIEW */}
            {activeTab === 'settings' && (
-             <div className="h-full space-y-4">
+             <div className="h-full">
                  <SettingsManager
                     webhookUrl={webhookUrl}
                     onWebhookChange={setWebhookUrl}
@@ -2571,21 +2571,12 @@ const App: React.FC = () => {
                     onAddBank={handleAddBank}
                     onDeleteBank={handleDeleteBank}
                     onLogout={handleLogout}
+                    merchantMemory={{
+                      totalCount: merchantMappings.length,
+                      readyCount: merchantMappings.filter(m => (m.count || 0) >= MAPPING_THRESHOLD).length,
+                      onBackfill: backfillMerchantMappings,
+                    }}
                  />
-                 {/* Merchant Memory */}
-                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-                   <h3 className="text-sm font-bold text-slate-900 mb-1">Merchant Memory</h3>
-                   <p className="text-xs text-slate-500 mb-3">
-                     {merchantMappings.length} merchants learned · {merchantMappings.filter(m => (m.count || 0) >= MAPPING_THRESHOLD).length} ready for auto-categorize
-                   </p>
-                   <button
-                     onClick={backfillMerchantMappings}
-                     className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-xs font-bold hover:bg-violet-700 transition-colors"
-                   >
-                     <Sparkles size={14} />
-                     Backfill from Existing Transactions
-                   </button>
-                 </div>
              </div>
           )}
 
