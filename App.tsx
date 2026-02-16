@@ -891,6 +891,83 @@ const App: React.FC = () => {
     }
   };
 
+  // Backfill merchant mappings from existing categorized transactions
+  const backfillMerchantMappings = async () => {
+    const categorized = transactions.filter(t => t.categoryId && t.categoryId !== '' && t.categoryId !== 'excluded' && t.description);
+
+    // Group by description (case-insensitive) and find the most common category for each
+    const descMap = new Map<string, { categoryId: string; categoryName: string; subcategoryName: string; count: number }[]>();
+
+    categorized.forEach(t => {
+      const key = t.description.toLowerCase();
+      if (!descMap.has(key)) descMap.set(key, []);
+      const entries = descMap.get(key)!;
+      const existing = entries.find(e => e.categoryId === t.categoryId && e.subcategoryName === (t.subcategoryName || ''));
+      if (existing) {
+        existing.count++;
+      } else {
+        entries.push({ categoryId: t.categoryId, categoryName: t.categoryName, subcategoryName: t.subcategoryName || '', count: 1 });
+      }
+    });
+
+    // For each description, pick the most common categorization
+    const mappingsToSave: { merchant_pattern: string; category_id: string; category_name: string; subcategory_name: string; count: number }[] = [];
+
+    descMap.forEach((entries, key) => {
+      const best = entries.sort((a, b) => b.count - a.count)[0];
+      // Use the original-case description from the first matching transaction
+      const originalDesc = categorized.find(t => t.description.toLowerCase() === key)?.description || key;
+      mappingsToSave.push({
+        merchant_pattern: originalDesc,
+        category_id: best.categoryId,
+        category_name: best.categoryName,
+        subcategory_name: best.subcategoryName,
+        count: best.count,
+      });
+    });
+
+    if (mappingsToSave.length === 0) {
+      alert('No categorized transactions found to learn from.');
+      return;
+    }
+
+    const confirmed = confirm(`Found ${mappingsToSave.length} unique merchants from your existing transactions. Backfill merchant memory?\n\n${mappingsToSave.filter(m => m.count >= MAPPING_THRESHOLD).length} will be ready for auto-categorize (3+ occurrences).`);
+    if (!confirmed) return;
+
+    let saved = 0;
+    let errors = 0;
+
+    for (const mapping of mappingsToSave) {
+      const { error } = await supabase
+        .from('merchant_mappings')
+        .upsert(
+          { ...mapping, updated_at: new Date().toISOString() },
+          { onConflict: 'merchant_pattern' }
+        );
+      if (error) {
+        errors++;
+        console.error('Failed to save mapping:', mapping.merchant_pattern, error);
+      } else {
+        saved++;
+      }
+    }
+
+    // Reload mappings
+    const { data: mappingData } = await supabase.from('merchant_mappings').select('*');
+    if (mappingData) {
+      setMerchantMappings(mappingData.map(m => ({
+        id: m.id,
+        merchant_pattern: m.merchant_pattern,
+        category_id: m.category_id,
+        category_name: m.category_name,
+        subcategory_name: m.subcategory_name,
+        count: m.count || 1,
+      })));
+    }
+
+    alert(`Backfill complete! Saved ${saved} merchant mappings${errors > 0 ? ` (${errors} errors)` : ''}.\n\n${mappingsToSave.filter(m => m.count >= MAPPING_THRESHOLD).length} are ready for auto-categorize.`);
+  };
+
   // Apply merchant memory to uncategorized transactions
   const [applyingMemory, setApplyingMemory] = useState(false);
 
@@ -2486,7 +2563,7 @@ const App: React.FC = () => {
 
            {/* SETTINGS VIEW */}
            {activeTab === 'settings' && (
-             <div className="h-full">
+             <div className="h-full space-y-4">
                  <SettingsManager
                     webhookUrl={webhookUrl}
                     onWebhookChange={setWebhookUrl}
@@ -2495,6 +2572,20 @@ const App: React.FC = () => {
                     onDeleteBank={handleDeleteBank}
                     onLogout={handleLogout}
                  />
+                 {/* Merchant Memory */}
+                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+                   <h3 className="text-sm font-bold text-slate-900 mb-1">Merchant Memory</h3>
+                   <p className="text-xs text-slate-500 mb-3">
+                     {merchantMappings.length} merchants learned · {merchantMappings.filter(m => (m.count || 0) >= MAPPING_THRESHOLD).length} ready for auto-categorize
+                   </p>
+                   <button
+                     onClick={backfillMerchantMappings}
+                     className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-xs font-bold hover:bg-violet-700 transition-colors"
+                   >
+                     <Sparkles size={14} />
+                     Backfill from Existing Transactions
+                   </button>
+                 </div>
              </div>
           )}
 
