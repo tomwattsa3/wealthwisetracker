@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Save, Trash2, Webhook, CheckCircle2, Building, Plus, CreditCard, ChevronRight, LogOut, Sparkles } from 'lucide-react';
-import { Bank } from '../types';
+import { Save, Trash2, Webhook, CheckCircle2, Building, Plus, CreditCard, ChevronRight, LogOut, Sparkles, X, Loader2 } from 'lucide-react';
+import { Bank, MerchantMapping } from '../types';
 
 interface SettingsManagerProps {
   webhookUrl: string;
@@ -13,8 +13,19 @@ interface SettingsManagerProps {
   merchantMemory?: {
     totalCount: number;
     readyCount: number;
-    onBackfill: () => void;
+    mappings: MerchantMapping[];
+    onPreviewBackfill: () => BackfillItem[];
+    onExecuteBackfill: (items: BackfillItem[]) => Promise<void>;
+    onDeleteMapping: (pattern: string) => void;
   };
+}
+
+export interface BackfillItem {
+  merchant_pattern: string;
+  category_id: string;
+  category_name: string;
+  subcategory_name: string;
+  count: number;
 }
 
 const SettingsManager: React.FC<SettingsManagerProps> = ({
@@ -29,6 +40,10 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
   const [activeTab, setActiveTab] = useState<'general' | 'banks'>('general');
   const [urlInput, setUrlInput] = useState(webhookUrl);
   const [status, setStatus] = useState<'idle' | 'saved' | 'deleted'>('idle');
+
+  // Backfill State
+  const [backfillPreview, setBackfillPreview] = useState<BackfillItem[] | null>(null);
+  const [isBackfilling, setIsBackfilling] = useState(false);
 
   // Bank Form State
   const [newBankName, setNewBankName] = useState('');
@@ -172,29 +187,116 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
                 </div>
 
                 <div className="p-6">
-                    <div className="max-w-2xl">
-                        <div className="flex items-center gap-6 mb-4">
-                            <div>
-                                <p className="text-2xl font-bold text-slate-900">{merchantMemory.totalCount}</p>
-                                <p className="text-xs text-slate-500 font-medium">Total Patterns</p>
-                            </div>
-                            <div>
-                                <p className="text-2xl font-bold text-emerald-600">{merchantMemory.readyCount}</p>
-                                <p className="text-xs text-slate-500 font-medium">Ready to Auto-Apply</p>
-                            </div>
+                    {/* Stats */}
+                    <div className="flex items-center gap-6 mb-4">
+                        <div>
+                            <p className="text-2xl font-bold text-slate-900">{merchantMemory.totalCount}</p>
+                            <p className="text-xs text-slate-500 font-medium">Total Patterns</p>
                         </div>
-                        <p className="text-[11px] text-slate-400 mb-4 leading-relaxed">
-                            Merchants seen 3+ times will be auto-categorized on future uploads.
-                            Use "Backfill" to scan your existing transactions and build memory from past data.
-                        </p>
+                        <div>
+                            <p className="text-2xl font-bold text-emerald-600">{merchantMemory.readyCount}</p>
+                            <p className="text-xs text-slate-500 font-medium">Ready to Auto-Apply</p>
+                        </div>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mb-4 leading-relaxed">
+                        Merchants seen 3+ times will be auto-categorized on future uploads.
+                        Use "Backfill" to scan your existing transactions and build memory from past data.
+                    </p>
+
+                    {/* Backfill Button / Preview */}
+                    {!backfillPreview ? (
                         <button
-                            onClick={merchantMemory.onBackfill}
+                            onClick={() => {
+                              const items = merchantMemory.onPreviewBackfill();
+                              if (items.length === 0) return;
+                              setBackfillPreview(items);
+                            }}
                             className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold rounded-[10px] shadow-md transition-all active:scale-95 flex items-center gap-2"
                         >
                             <Sparkles size={16} />
                             Backfill from Transactions
                         </button>
-                    </div>
+                    ) : (
+                        <div className="border border-amber-200 bg-amber-50/50 rounded-lg p-4 space-y-3">
+                            <p className="text-sm font-bold text-slate-800">
+                              Preview: {backfillPreview.length} merchants found
+                              <span className="text-slate-500 font-medium ml-1">
+                                ({backfillPreview.filter(m => m.count >= 3).length} ready for auto-apply)
+                              </span>
+                            </p>
+                            <div className="max-h-60 overflow-y-auto space-y-1.5 custom-scrollbar">
+                              {backfillPreview.sort((a, b) => b.count - a.count).map((item) => (
+                                <div key={item.merchant_pattern} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-slate-100 text-sm">
+                                    <div className="flex-1 min-w-0">
+                                        <span className="font-semibold text-slate-800 truncate block">{item.merchant_pattern}</span>
+                                        <span className="text-xs text-slate-400">{item.category_name}{item.subcategory_name ? ` > ${item.subcategory_name}` : ''}</span>
+                                    </div>
+                                    <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${item.count >= 3 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                                      {item.count}x
+                                    </span>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex gap-2 pt-1">
+                                <button
+                                    onClick={async () => {
+                                      setIsBackfilling(true);
+                                      await merchantMemory.onExecuteBackfill(backfillPreview);
+                                      setIsBackfilling(false);
+                                      setBackfillPreview(null);
+                                    }}
+                                    disabled={isBackfilling}
+                                    className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold rounded-lg transition-all flex items-center gap-2 disabled:opacity-60"
+                                >
+                                    {isBackfilling ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                                    Confirm Backfill ({backfillPreview.length})
+                                </button>
+                                <button
+                                    onClick={() => setBackfillPreview(null)}
+                                    disabled={isBackfilling}
+                                    className="px-5 py-2 bg-white border border-slate-200 text-slate-600 text-sm font-bold rounded-lg hover:bg-slate-50 transition-all"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Existing Mappings List */}
+                    {merchantMemory.mappings.length > 0 && (
+                      <div className="mt-6">
+                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Logged Merchants ({merchantMemory.mappings.length})</h4>
+                        <div className="max-h-80 overflow-y-auto space-y-1.5 custom-scrollbar">
+                          {merchantMemory.mappings
+                            .slice()
+                            .sort((a, b) => (b.count || 0) - (a.count || 0))
+                            .map((m) => (
+                              <div key={m.merchant_pattern} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2.5 group">
+                                  <div className="flex-1 min-w-0">
+                                      <span className="font-semibold text-sm text-slate-800 truncate block">{m.merchant_pattern}</span>
+                                      <span className="text-xs text-slate-400">{m.category_name}{m.subcategory_name ? ` > ${m.subcategory_name}` : ''}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(m.count || 0) >= 3 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
+                                        {m.count || 1}x
+                                      </span>
+                                      <button
+                                          onClick={() => merchantMemory.onDeleteMapping(m.merchant_pattern)}
+                                          className="p-1 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors opacity-0 group-hover:opacity-100"
+                                          title="Remove mapping"
+                                      >
+                                          <X size={14} />
+                                      </button>
+                                  </div>
+                              </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {merchantMemory.mappings.length === 0 && !backfillPreview && (
+                      <p className="mt-4 text-sm text-slate-400 italic">No merchant mappings yet. Use backfill or categorize transactions to build memory.</p>
+                    )}
                 </div>
             </div>
           )}

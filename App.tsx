@@ -892,10 +892,9 @@ const App: React.FC = () => {
   };
 
   // Backfill merchant mappings from existing categorized transactions
-  const backfillMerchantMappings = async () => {
+  const previewBackfill = () => {
     const categorized = transactions.filter(t => t.categoryId && t.categoryId !== '' && t.categoryId !== 'excluded' && t.description);
 
-    // Group by description (case-insensitive) and find the most common category for each
     const descMap = new Map<string, { categoryId: string; categoryName: string; subcategoryName: string; count: number }[]>();
 
     categorized.forEach(t => {
@@ -910,14 +909,12 @@ const App: React.FC = () => {
       }
     });
 
-    // For each description, pick the most common categorization
-    const mappingsToSave: { merchant_pattern: string; category_id: string; category_name: string; subcategory_name: string; count: number }[] = [];
+    const mappings: { merchant_pattern: string; category_id: string; category_name: string; subcategory_name: string; count: number }[] = [];
 
     descMap.forEach((entries, key) => {
       const best = entries.sort((a, b) => b.count - a.count)[0];
-      // Use the original-case description from the first matching transaction
       const originalDesc = categorized.find(t => t.description.toLowerCase() === key)?.description || key;
-      mappingsToSave.push({
+      mappings.push({
         merchant_pattern: originalDesc,
         category_id: best.categoryId,
         category_name: best.categoryName,
@@ -926,17 +923,10 @@ const App: React.FC = () => {
       });
     });
 
-    if (mappingsToSave.length === 0) {
-      alert('No categorized transactions found to learn from.');
-      return;
-    }
+    return mappings;
+  };
 
-    const confirmed = confirm(`Found ${mappingsToSave.length} unique merchants from your existing transactions. Backfill merchant memory?\n\n${mappingsToSave.filter(m => m.count >= MAPPING_THRESHOLD).length} will be ready for auto-categorize (3+ occurrences).`);
-    if (!confirmed) return;
-
-    let saved = 0;
-    let errors = 0;
-
+  const executeBackfill = async (mappingsToSave: { merchant_pattern: string; category_id: string; category_name: string; subcategory_name: string; count: number }[]) => {
     for (const mapping of mappingsToSave) {
       const { error } = await supabase
         .from('merchant_mappings')
@@ -945,10 +935,7 @@ const App: React.FC = () => {
           { onConflict: 'merchant_pattern' }
         );
       if (error) {
-        errors++;
         console.error('Failed to save mapping:', mapping.merchant_pattern, error);
-      } else {
-        saved++;
       }
     }
 
@@ -964,8 +951,11 @@ const App: React.FC = () => {
         count: m.count || 1,
       })));
     }
+  };
 
-    alert(`Backfill complete! Saved ${saved} merchant mappings${errors > 0 ? ` (${errors} errors)` : ''}.\n\n${mappingsToSave.filter(m => m.count >= MAPPING_THRESHOLD).length} are ready for auto-categorize.`);
+  const deleteMerchantMapping = async (pattern: string) => {
+    await supabase.from('merchant_mappings').delete().eq('merchant_pattern', pattern);
+    setMerchantMappings(prev => prev.filter(m => m.merchant_pattern !== pattern));
   };
 
   // Apply merchant memory to uncategorized transactions
@@ -2574,7 +2564,10 @@ const App: React.FC = () => {
                     merchantMemory={{
                       totalCount: merchantMappings.length,
                       readyCount: merchantMappings.filter(m => (m.count || 0) >= MAPPING_THRESHOLD).length,
-                      onBackfill: backfillMerchantMappings,
+                      mappings: merchantMappings,
+                      onPreviewBackfill: previewBackfill,
+                      onExecuteBackfill: executeBackfill,
+                      onDeleteMapping: deleteMerchantMapping,
                     }}
                  />
              </div>
