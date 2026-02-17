@@ -506,7 +506,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
               ))}
             </div>
           </div>
-          <div className="px-2 md:px-5 py-4">
+          <div className="px-2 md:px-5 pt-4 pb-1">
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={chartData} margin={{ top: 25, right: 15, left: -10, bottom: 5 }}>
