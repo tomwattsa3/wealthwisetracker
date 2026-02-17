@@ -487,11 +487,14 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         </div>
       </div>
 
-      {/* Spending Trend + Top Categories Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+      {/* Spending Trend + Top Categories + Monthly Breakdown */}
+      <div className="flex flex-col lg:flex-row gap-5 items-start">
+
+        {/* Left Column: Chart + Monthly Breakdown */}
+        <div className="w-full lg:w-2/3 flex flex-col gap-5">
 
         {/* Spending Trend Chart */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-900">Spending Trend</h3>
             <div className="flex bg-slate-100 p-0.5 rounded-lg">
@@ -574,88 +577,8 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
           </div>
         </div>
 
-        {/* Top Categories — Donut + List */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
-          <div className="px-5 py-4 border-b border-slate-100">
-            <h3 className="text-sm font-bold text-slate-900">Top Categories</h3>
-          </div>
-
-          {/* Donut Visual */}
-          <div className="p-8 flex justify-center">
-            <div className="relative w-52 h-52 md:w-44 md:h-44 lg:w-48 lg:h-48">
-              <svg viewBox="0 0 200 200" className="w-full h-full -rotate-90">
-                <circle cx="100" cy="100" r="76" fill="none" stroke="#f1f5f9" strokeWidth="26" />
-                {donutData.length > 0 && (() => {
-                  const radius = 76;
-                  const circumference = 2 * Math.PI * radius;
-                  const gapSize = 8;
-                  const totalGaps = donutData.length * gapSize;
-                  const availableLength = circumference - totalGaps;
-                  let currentOffset = 0;
-
-                  return donutData.map((cat, idx) => {
-                    const percentage = cat.amount / donutTotal;
-                    const segmentLength = percentage * availableLength;
-                    const dashOffset = -currentOffset;
-                    currentOffset += segmentLength + gapSize;
-
-                    return (
-                      <circle
-                        key={idx}
-                        cx="100"
-                        cy="100"
-                        r={radius}
-                        fill="none"
-                        stroke={cat.color}
-                        strokeWidth="26"
-                        strokeLinecap="round"
-                        strokeDasharray={`${segmentLength} ${circumference - segmentLength}`}
-                        strokeDashoffset={dashOffset}
-                        className="transition-all duration-500"
-                      />
-                    );
-                  });
-                })()}
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Total</p>
-                  <p className="text-lg font-bold text-slate-800">{formatAmount(totalExpense)}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Category List */}
-          <div className="px-5 pb-5 space-y-3 flex-1">
-            {topExpenseCategories.slice(0, 5).map((cat, idx) => {
-              const percentage = totalExpense > 0 ? ((cat.amount / totalExpense) * 100) : 0;
-              return (
-                <div key={idx} className="py-0.5">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-sm shrink-0">{getCategoryEmoji ? getCategoryEmoji(cat.id) : '📊'}</span>
-                      <span className="text-xs font-medium text-slate-700 truncate">{cat.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] text-slate-400">{percentage.toFixed(1)}%</span>
-                      <span className="text-xs font-semibold text-slate-900">£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</span>
-                    </div>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-500 ease-out" style={{ width: `${percentage}%`, backgroundColor: cat.color }} />
-                  </div>
-                </div>
-              );
-            })}
-            {topExpenseCategories.length === 0 && (
-              <p className="text-xs text-slate-400 text-center py-4">No expenses recorded</p>
-            )}
-          </div>
-        </div>
-
       {/* Monthly Breakdown Table */}
-      <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100">
             <h3 className="text-sm font-bold text-slate-900">Monthly Breakdown</h3>
           </div>
@@ -797,7 +720,91 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
             })}
           </div>
         </div>
-      </div>
+        </div>{/* end left column */}
+
+        {/* Right Column: Top Categories */}
+        <div className="w-full lg:w-1/3">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
+          <div className="px-5 py-4 border-b border-slate-100">
+            <h3 className="text-sm font-bold text-slate-900">Top Categories</h3>
+          </div>
+
+          {/* Donut Visual */}
+          <div className="p-8 flex justify-center">
+            <div className="relative w-52 h-52 md:w-44 md:h-44 lg:w-48 lg:h-48">
+              <svg viewBox="0 0 200 200" className="w-full h-full -rotate-90">
+                <circle cx="100" cy="100" r="76" fill="none" stroke="#f1f5f9" strokeWidth="26" />
+                {donutData.length > 0 && (() => {
+                  const radius = 76;
+                  const circumference = 2 * Math.PI * radius;
+                  const gapSize = 8;
+                  const totalGaps = donutData.length * gapSize;
+                  const availableLength = circumference - totalGaps;
+                  let currentOffset = 0;
+
+                  return donutData.map((cat, idx) => {
+                    const percentage = cat.amount / donutTotal;
+                    const segmentLength = percentage * availableLength;
+                    const dashOffset = -currentOffset;
+                    currentOffset += segmentLength + gapSize;
+
+                    return (
+                      <circle
+                        key={idx}
+                        cx="100"
+                        cy="100"
+                        r={radius}
+                        fill="none"
+                        stroke={cat.color}
+                        strokeWidth="26"
+                        strokeLinecap="round"
+                        strokeDasharray={`${segmentLength} ${circumference - segmentLength}`}
+                        strokeDashoffset={dashOffset}
+                        className="transition-all duration-500"
+                      />
+                    );
+                  });
+                })()}
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Total</p>
+                  <p className="text-lg font-bold text-slate-800">{formatAmount(totalExpense)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Category List */}
+          <div className="px-5 pb-5 space-y-3 flex-1">
+            {topExpenseCategories.slice(0, 5).map((cat, idx) => {
+              const percentage = totalExpense > 0 ? ((cat.amount / totalExpense) * 100) : 0;
+              return (
+                <div key={idx} className="py-0.5">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-sm shrink-0">{getCategoryEmoji ? getCategoryEmoji(cat.id) : '📊'}</span>
+                      <span className="text-xs font-medium text-slate-700 truncate">{cat.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] text-slate-400">{percentage.toFixed(1)}%</span>
+                      <span className="text-xs font-semibold text-slate-900">£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</span>
+                    </div>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-500 ease-out" style={{ width: `${percentage}%`, backgroundColor: cat.color }} />
+                  </div>
+                </div>
+              );
+            })}
+            {topExpenseCategories.length === 0 && (
+              <p className="text-xs text-slate-400 text-center py-4">No expenses recorded</p>
+            )}
+          </div>
+        </div>
+        </div>{/* end right column */}
+
+      </div>{/* end flex container */}
 
       {/* Highest Expenses + Income Sources */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
