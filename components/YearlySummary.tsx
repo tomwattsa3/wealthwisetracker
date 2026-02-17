@@ -653,10 +653,8 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
             )}
           </div>
         </div>
-      </div>
 
       {/* Monthly Breakdown Table */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
       <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100">
             <h3 className="text-sm font-bold text-slate-900">Monthly Breakdown</h3>
