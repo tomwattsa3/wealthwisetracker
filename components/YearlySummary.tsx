@@ -54,8 +54,8 @@ const getDatePresets = () => {
     },
     thisYear: {
       start: formatDateLocal(new Date(now.getFullYear(), 0, 1)),
-      end: formatDateLocal(new Date(now.getFullYear(), 11, 31)),
-      label: 'This Year'
+      end: formatDateLocal(now),
+      label: 'YTD'
     }
   };
 };
@@ -403,7 +403,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
             { label: 'MTD', preset: presets.thisMonth },
             { label: 'Last Wk', preset: presets.lastWeek },
             { label: 'Last Mo', preset: presets.lastMonth },
-            { label: 'Year', preset: presets.thisYear },
+            { label: 'YTD', preset: presets.thisYear },
           ].map((item) => (
             <button
               key={item.preset.label}

@@ -98,14 +98,13 @@ const App: React.FC = () => {
 
   // Date Filter State
   const [dateRange, setDateRange] = useState<DateRange>(() => {
-      // Default to "This Year"
+      // Default to "YTD"
       const now = new Date();
       const start = new Date(now.getFullYear(), 0, 1);
-      const end = new Date(now.getFullYear(), 11, 31);
       return {
           start: start.toISOString().split('T')[0],
-          end: end.toISOString().split('T')[0],
-          label: 'This Year'
+          end: now.toISOString().split('T')[0],
+          label: 'YTD'
       };
   });
 
@@ -1506,9 +1505,9 @@ const App: React.FC = () => {
                                 const now = new Date();
                                 return { start: new Date(now.getFullYear(), now.getMonth() - 1, 1), end: new Date(now.getFullYear(), now.getMonth(), 0) };
                               }},
-                              { label: 'Year', fullLabel: 'This Year', getValue: () => {
+                              { label: 'YTD', fullLabel: 'YTD', getValue: () => {
                                 const now = new Date();
-                                return { start: new Date(now.getFullYear(), 0, 1), end: new Date(now.getFullYear(), 11, 31) };
+                                return { start: new Date(now.getFullYear(), 0, 1), end: now };
                               }},
                             ].map((preset) => {
                               const isActive = dateRange.label === preset.fullLabel;
@@ -1632,9 +1631,9 @@ const App: React.FC = () => {
                             const now = new Date();
                             return { start: new Date(now.getFullYear(), now.getMonth() - 1, 1), end: new Date(now.getFullYear(), now.getMonth(), 0) };
                           }},
-                          { label: 'This Year', fullLabel: 'This Year', getValue: () => {
+                          { label: 'YTD', fullLabel: 'YTD', getValue: () => {
                             const now = new Date();
-                            return { start: new Date(now.getFullYear(), 0, 1), end: new Date(now.getFullYear(), 11, 31) };
+                            return { start: new Date(now.getFullYear(), 0, 1), end: now };
                           }},
                         ].map((preset) => {
                           const isActive = dateRange.label === preset.fullLabel;
@@ -1740,9 +1739,9 @@ const App: React.FC = () => {
                         const now = new Date();
                         return { start: new Date(now.getFullYear(), now.getMonth() - 1, 1), end: new Date(now.getFullYear(), now.getMonth(), 0) };
                       }},
-                      { label: 'Year', fullLabel: 'This Year', getValue: () => {
+                      { label: 'YTD', fullLabel: 'YTD', getValue: () => {
                         const now = new Date();
-                        return { start: new Date(now.getFullYear(), 0, 1), end: new Date(now.getFullYear(), 11, 31) };
+                        return { start: new Date(now.getFullYear(), 0, 1), end: now };
                       }},
                     ].map((preset) => {
                       const isActive = dateRange.label === preset.fullLabel;

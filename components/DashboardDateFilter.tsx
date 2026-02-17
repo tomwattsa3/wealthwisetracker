@@ -31,11 +31,10 @@ const PRESETS = [
       start.setDate(end.getDate() - 30);
       return { start, end };
   }},
-  { label: 'This Year', getValue: () => {
+  { label: 'YTD', getValue: () => {
       const now = new Date();
       const start = new Date(now.getFullYear(), 0, 1);
-      const end = new Date(now.getFullYear(), 11, 31);
-      return { start, end };
+      return { start, end: now };
   }},
 ];
 
