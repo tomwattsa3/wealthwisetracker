@@ -521,7 +521,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
       </div>
 
       {/* Spending Trend + Top Categories + Monthly Breakdown */}
-      <div className="flex flex-col lg:flex-row gap-5 lg:items-stretch items-start">
+      <div className="flex flex-col lg:flex-row gap-5 items-start">
 
         {/* Left Column: Chart + Monthly Breakdown */}
         <div className="w-full lg:w-2/3 flex flex-col gap-5">
@@ -789,8 +789,8 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         </div>{/* end left column */}
 
         {/* Right Column: Top Categories */}
-        <div className="w-full lg:w-1/3 flex flex-col">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col flex-1">
+        <div className="w-full lg:w-1/3 lg:sticky lg:top-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
           <div className="px-5 py-4 border-b border-slate-100">
             <h3 className="text-sm font-bold text-slate-900">Top Categories</h3>
           </div>
