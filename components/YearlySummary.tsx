@@ -71,6 +71,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
   const [customEnd, setCustomEnd] = useState('');
   const [chartGranularity, setChartGranularity] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [chartCategoryFilter, setChartCategoryFilter] = useState<string>('all');
+  const [chartSubcategoryFilter, setChartSubcategoryFilter] = useState<string>('all');
 
   const toggleCategory = (key: string) => {
     const newSet = new Set(expandedCategories);
@@ -301,11 +302,9 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
       if (chartCategoryFilter === 'all') return true;
       const cat = categories.find(c => c.id === t.categoryId || c.name === t.categoryName);
       const catId = cat?.id || t.categoryId;
-      if (chartCategoryFilter.startsWith('sub:')) {
-        const [, filterCatId, filterSub] = chartCategoryFilter.split(':');
-        return catId === filterCatId && t.subcategoryName === filterSub;
-      }
-      return catId === chartCategoryFilter;
+      if (catId !== chartCategoryFilter) return false;
+      if (chartSubcategoryFilter !== 'all' && t.subcategoryName !== chartSubcategoryFilter) return false;
+      return true;
     });
 
     if (chartGranularity === 'daily') {
@@ -391,7 +390,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         amountAED: Math.round(monthAmountAED * 100) / 100,
       };
     });
-  }, [filteredTransactions, dateRange, chartGranularity, monthlyData, chartCategoryFilter, categories]);
+  }, [filteredTransactions, dateRange, chartGranularity, monthlyData, chartCategoryFilter, chartSubcategoryFilter, categories]);
 
   // KPI calculations
   const totalIncome = filteredTransactions.filter(t => t.type === 'INCOME').reduce((sum, t) => sum + t.amount, 0);
@@ -535,21 +534,34 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
               <div className="relative">
                 <select
                   value={chartCategoryFilter}
-                  onChange={(e) => setChartCategoryFilter(e.target.value)}
-                  className="appearance-none bg-slate-50 border border-slate-200 rounded-lg pl-2.5 pr-7 py-1 text-[10px] font-semibold text-slate-600 outline-none focus:border-[#635bff] cursor-pointer max-w-[160px] truncate"
+                  onChange={(e) => { setChartCategoryFilter(e.target.value); setChartSubcategoryFilter('all'); }}
+                  className="appearance-none bg-slate-50 border border-slate-200 rounded-lg pl-2.5 pr-7 py-1 text-[10px] font-semibold text-slate-600 outline-none focus:border-[#635bff] cursor-pointer max-w-[140px] truncate"
                 >
                   <option value="all">All Categories</option>
                   {expenseCategoryOptions.map(cat => (
-                    <optgroup key={cat.id} label={cat.name}>
-                      <option value={cat.id}>All {cat.name}</option>
-                      {cat.subcategories.map(sub => (
-                        <option key={`${cat.id}:${sub}`} value={`sub:${cat.id}:${sub}`}>{sub}</option>
-                      ))}
-                    </optgroup>
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
                 </select>
                 <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>
+              {chartCategoryFilter !== 'all' && (() => {
+                const selectedCat = expenseCategoryOptions.find(c => c.id === chartCategoryFilter);
+                return selectedCat && selectedCat.subcategories.length > 0 ? (
+                  <div className="relative">
+                    <select
+                      value={chartSubcategoryFilter}
+                      onChange={(e) => setChartSubcategoryFilter(e.target.value)}
+                      className="appearance-none bg-slate-50 border border-slate-200 rounded-lg pl-2.5 pr-7 py-1 text-[10px] font-semibold text-slate-600 outline-none focus:border-[#635bff] cursor-pointer max-w-[140px] truncate"
+                    >
+                      <option value="all">All Subcategories</option>
+                      {selectedCat.subcategories.map(sub => (
+                        <option key={sub} value={sub}>{sub}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                ) : null;
+              })()}
             <div className="flex bg-slate-100 p-0.5 rounded-lg">
               {granularityOptions.map(g => (
                 <button
