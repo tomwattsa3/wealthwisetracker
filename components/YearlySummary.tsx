@@ -252,18 +252,27 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
     return Object.values(byCategory).sort((a, b) => b.amount - a.amount).slice(0, 5);
   }, [filteredTransactions, categories]);
 
-  // Category options for chart filter
+  // Category + subcategory options for chart filter
   const expenseCategoryOptions = useMemo(() => {
-    const seen = new Map<string, { id: string; name: string }>();
+    const catMap = new Map<string, { id: string; name: string; subs: Map<string, string> }>();
     filteredTransactions
       .filter(t => t.type === 'EXPENSE')
       .forEach(t => {
         const cat = categories.find(c => c.id === t.categoryId || c.name === t.categoryName);
         const id = cat?.id || t.categoryId || 'uncategorized';
         const name = cat?.name || t.categoryName || 'Uncategorized';
-        if (!seen.has(id)) seen.set(id, { id, name });
+        if (!catMap.has(id)) catMap.set(id, { id, name, subs: new Map() });
+        if (t.subcategoryName) {
+          catMap.get(id)!.subs.set(t.subcategoryName, t.subcategoryName);
+        }
       });
-    return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
+    return Array.from(catMap.values())
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(c => ({
+        id: c.id,
+        name: c.name,
+        subcategories: Array.from(c.subs.values()).sort(),
+      }));
   }, [filteredTransactions, categories]);
 
   // Spending trend chart data
@@ -291,7 +300,12 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
       if (t.type !== 'EXPENSE') return false;
       if (chartCategoryFilter === 'all') return true;
       const cat = categories.find(c => c.id === t.categoryId || c.name === t.categoryName);
-      return (cat?.id || t.categoryId) === chartCategoryFilter;
+      const catId = cat?.id || t.categoryId;
+      if (chartCategoryFilter.startsWith('sub:')) {
+        const [, filterCatId, filterSub] = chartCategoryFilter.split(':');
+        return catId === filterCatId && t.subcategoryName === filterSub;
+      }
+      return catId === chartCategoryFilter;
     });
 
     if (chartGranularity === 'daily') {
@@ -525,11 +539,16 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                 <select
                   value={chartCategoryFilter}
                   onChange={(e) => setChartCategoryFilter(e.target.value)}
-                  className="appearance-none bg-slate-50 border border-slate-200 rounded-lg pl-2.5 pr-7 py-1 text-[10px] font-semibold text-slate-600 outline-none focus:border-[#635bff] cursor-pointer max-w-[140px] truncate"
+                  className="appearance-none bg-slate-50 border border-slate-200 rounded-lg pl-2.5 pr-7 py-1 text-[10px] font-semibold text-slate-600 outline-none focus:border-[#635bff] cursor-pointer max-w-[160px] truncate"
                 >
                   <option value="all">All Categories</option>
                   {expenseCategoryOptions.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    <optgroup key={cat.id} label={cat.name}>
+                      <option value={cat.id}>All {cat.name}</option>
+                      {cat.subcategories.map(sub => (
+                        <option key={`${cat.id}:${sub}`} value={`sub:${cat.id}:${sub}`}>{sub}</option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
                 <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
