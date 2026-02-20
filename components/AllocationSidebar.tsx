@@ -192,45 +192,6 @@ const AllocationSidebar: React.FC<AllocationSidebarProps> = ({
         </div>
       </div>
 
-      {/* Excluded Transactions */}
-      {groupedExcluded.length > 0 && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-100">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">🚫</span>
-                <span className="text-sm font-bold text-slate-900">Excluded</span>
-              </div>
-              <span className="text-sm font-bold text-slate-400">{formatCurrency(excludedTotal)}</span>
-            </div>
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className="text-[10px] text-slate-400">{excludedTransactions.length} transactions</span>
-            </div>
-          </div>
-
-          <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
-            <div className="grid grid-cols-[1fr_32px_80px] bg-slate-100 border-b border-dashed border-slate-200/80 sticky top-0 z-10">
-              <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Merchant</div>
-              <div className="px-1 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80">Qty</div>
-              <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
-            </div>
-
-            {groupedExcluded.map((t, idx) => (
-              <div key={t.id} className={`grid grid-cols-[1fr_32px_80px] items-center border-b border-dashed border-slate-200/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}`}>
-                <div className="px-3 py-3 min-w-0 border-r border-dashed border-slate-200/80">
-                  <span className="text-[11px] font-medium text-slate-500 truncate block" title={t.description}>{t.description || "Unknown"}</span>
-                </div>
-                <div className="px-1 py-3 text-center border-r border-dashed border-slate-200/80">
-                  <span className="text-[10px] text-slate-400">{t.count > 1 ? t.count : ''}</span>
-                </div>
-                <div className="px-3 py-3 text-right">
-                  <span className="text-[11px] font-semibold text-slate-400">{formatCurrency(t.amount)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
