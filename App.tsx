@@ -494,7 +494,8 @@ const App: React.FC = () => {
       name: newCat.name,
       subcategories: newCat.subcategories,
       type: newCat.type,
-      color: newCat.color
+      color: newCat.color,
+      user_id: session?.user?.id
     }).select();
     console.log('Category insert result:', { data, error });
   };
@@ -586,7 +587,8 @@ const App: React.FC = () => {
           'Money Out - AED': isIncome ? null : (newTx.originalAmount || null),
           'Money In - AED': isIncome ? (newTx.originalAmount || null) : null,
           'Bank Account': newTx.bankName,
-          'Note': newTx.notes || null
+          'Note': newTx.notes || null,
+          user_id: session?.user?.id
       };
 
       console.log('Adding transaction to Supabase:', dbPayload);
@@ -672,7 +674,8 @@ const App: React.FC = () => {
         'Money Out - AED': isIncome ? null : t.amountAED,
         'Money In - AED': isIncome ? t.amountAED : null,
         'Bank Account': t.bankName,
-        'Note': t.notes || null
+        'Note': t.notes || null,
+        user_id: session?.user?.id
       };
     });
 
@@ -852,7 +855,8 @@ const App: React.FC = () => {
             category_name: categoryName,
             subcategory_name: subcategoryName,
             count: newCount,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            user_id: session?.user?.id
           },
           { onConflict: 'merchant_pattern' }
         )
@@ -930,7 +934,7 @@ const App: React.FC = () => {
       const { error } = await supabase
         .from('merchant_mappings')
         .upsert(
-          { ...mapping, updated_at: new Date().toISOString() },
+          { ...mapping, updated_at: new Date().toISOString(), user_id: session?.user?.id },
           { onConflict: 'merchant_pattern' }
         );
       if (error) {
