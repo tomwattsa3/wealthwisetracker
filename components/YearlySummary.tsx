@@ -230,7 +230,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
       byCategory[catId].count += 1;
     });
 
-    return Object.values(byCategory).sort((a, b) => b.amount - a.amount).slice(0, 5);
+    return Object.values(byCategory).sort((a, b) => b.amount - a.amount);
   }, [filteredTransactions, categories]);
 
   const topIncomeCategories = useMemo(() => {
@@ -521,7 +521,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
       </div>
 
       {/* Spending Trend + Top Categories + Monthly Breakdown */}
-      <div className="flex flex-col lg:flex-row gap-5 items-start">
+      <div className="flex flex-col lg:flex-row gap-5 lg:items-stretch items-start">
 
         {/* Left Column: Chart + Monthly Breakdown */}
         <div className="w-full lg:w-2/3 flex flex-col gap-5">
@@ -789,22 +789,22 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         </div>{/* end left column */}
 
         {/* Right Column: Top Categories */}
-        <div className="w-full lg:w-1/3">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
+        <div className="w-full lg:w-1/3 flex flex-col">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col flex-1">
           <div className="px-5 py-4 border-b border-slate-100">
             <h3 className="text-sm font-bold text-slate-900">Top Categories</h3>
           </div>
 
           {/* Total */}
-          <div className="px-5 pt-4 pb-2">
+          <div className="px-5 pt-4 pb-4 border-b border-slate-100">
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Total Spend</p>
             <p className="text-xl font-bold text-slate-900">{formatAmount(totalExpense)}</p>
             <p className="text-xs text-slate-400 font-medium">{formatAED(totalExpenseAED)}</p>
           </div>
 
           {/* Category List */}
-          <div className="px-5 pb-5 space-y-3 flex-1">
-            {topExpenseCategories.slice(0, 5).map((cat, idx) => {
+          <div className="px-5 py-4 space-y-3 flex-1">
+            {topExpenseCategories.map((cat, idx) => {
               const percentage = totalExpense > 0 ? ((cat.amount / totalExpense) * 100) : 0;
               return (
                 <div key={idx} className="py-0.5">
