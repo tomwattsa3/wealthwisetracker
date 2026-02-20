@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Transaction, Category } from '../types';
-import { TrendingUp, TrendingDown, PieChart, ChevronRight, RefreshCw } from 'lucide-react';
+import { TrendingUp, TrendingDown, PieChart, ChevronRight, ChevronDown, RefreshCw } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
 
 interface YearlySummaryProps {
@@ -70,6 +70,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [chartGranularity, setChartGranularity] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [chartCategoryFilter, setChartCategoryFilter] = useState<string>('all');
 
   const toggleCategory = (key: string) => {
     const newSet = new Set(expandedCategories);
@@ -251,6 +252,20 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
     return Object.values(byCategory).sort((a, b) => b.amount - a.amount).slice(0, 5);
   }, [filteredTransactions, categories]);
 
+  // Category options for chart filter
+  const expenseCategoryOptions = useMemo(() => {
+    const seen = new Map<string, { id: string; name: string }>();
+    filteredTransactions
+      .filter(t => t.type === 'EXPENSE')
+      .forEach(t => {
+        const cat = categories.find(c => c.id === t.categoryId || c.name === t.categoryName);
+        const id = cat?.id || t.categoryId || 'uncategorized';
+        const name = cat?.name || t.categoryName || 'Uncategorized';
+        if (!seen.has(id)) seen.set(id, { id, name });
+      });
+    return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [filteredTransactions, categories]);
+
   // Spending trend chart data
   const rangeDays = useMemo(() => {
     const start = new Date(dateRange.start);
@@ -272,7 +287,12 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
   }, [isLongRange]);
 
   const chartData = useMemo(() => {
-    const expenses = filteredTransactions.filter(t => t.type === 'EXPENSE');
+    const expenses = filteredTransactions.filter(t => {
+      if (t.type !== 'EXPENSE') return false;
+      if (chartCategoryFilter === 'all') return true;
+      const cat = categories.find(c => c.id === t.categoryId || c.name === t.categoryName);
+      return (cat?.id || t.categoryId) === chartCategoryFilter;
+    });
 
     if (chartGranularity === 'daily') {
       // Daily aggregation
@@ -345,16 +365,19 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
     // Monthly aggregation
     return monthlyData.map(m => {
-      const monthExpensesAED = filteredTransactions
-        .filter(t => t.type === 'EXPENSE' && (() => { const d = new Date(t.date); return d.getFullYear() === m.year && d.getMonth() === m.monthIndex; })())
-        .reduce((sum, t) => sum + (t.amountAED || 0), 0);
+      const monthExpenses = expenses.filter(t => {
+        const d = new Date(t.date);
+        return d.getFullYear() === m.year && d.getMonth() === m.monthIndex;
+      });
+      const monthAmount = monthExpenses.reduce((sum, t) => sum + t.amount, 0);
+      const monthAmountAED = monthExpenses.reduce((sum, t) => sum + (t.amountAED || 0), 0);
       return {
         label: m.month,
-        amount: Math.round(m.expense * 100) / 100,
-        amountAED: Math.round(monthExpensesAED * 100) / 100,
+        amount: Math.round(monthAmount * 100) / 100,
+        amountAED: Math.round(monthAmountAED * 100) / 100,
       };
     });
-  }, [filteredTransactions, dateRange, chartGranularity, monthlyData]);
+  }, [filteredTransactions, dateRange, chartGranularity, monthlyData, chartCategoryFilter, categories]);
 
   // KPI calculations
   const totalIncome = filteredTransactions.filter(t => t.type === 'INCOME').reduce((sum, t) => sum + t.amount, 0);
@@ -495,8 +518,22 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
         {/* Spending Trend Chart */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-900">Spending Trend</h3>
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+            <h3 className="text-sm font-bold text-slate-900 shrink-0">Spending Trend</h3>
+            <div className="flex items-center gap-2 flex-1 justify-end">
+              <div className="relative">
+                <select
+                  value={chartCategoryFilter}
+                  onChange={(e) => setChartCategoryFilter(e.target.value)}
+                  className="appearance-none bg-slate-50 border border-slate-200 rounded-lg pl-2.5 pr-7 py-1 text-[10px] font-semibold text-slate-600 outline-none focus:border-[#635bff] cursor-pointer max-w-[140px] truncate"
+                >
+                  <option value="all">All Categories</option>
+                  {expenseCategoryOptions.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+                <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              </div>
             <div className="flex bg-slate-100 p-0.5 rounded-lg">
               {granularityOptions.map(g => (
                 <button
@@ -508,6 +545,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                 </button>
               ))}
             </div>
+            </div>{/* end flex controls wrapper */}
           </div>
           <div className="px-2 md:px-5 pt-4 pb-1">
             {chartData.length > 0 ? (
