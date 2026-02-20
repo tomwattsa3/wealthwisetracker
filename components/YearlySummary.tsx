@@ -804,7 +804,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
           {/* Category List */}
           <div className="px-5 py-4 space-y-3 flex-1">
-            {topExpenseCategories.map((cat, idx) => {
+            {topExpenseCategories.slice(0, 8).map((cat, idx) => {
               const percentage = totalExpense > 0 ? ((cat.amount / totalExpense) * 100) : 0;
               return (
                 <div key={idx} className="py-0.5">
