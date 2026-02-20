@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Transaction, Category } from '../types';
-import { TrendingUp, TrendingDown, PieChart, ChevronRight, ChevronDown, RefreshCw } from 'lucide-react';
+import { TrendingUp, TrendingDown, ChevronRight, ChevronDown, RefreshCw } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
 
 interface YearlySummaryProps {
@@ -404,9 +404,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
   const avgMonthlySpend = totalExpense / completedMonthsInRange;
   const avgMonthlyIncome = totalIncome / completedMonthsInRange;
 
-  const donutData = topExpenseCategories.slice(0, 5);
-  const donutTotal = donutData.reduce((sum, c) => sum + c.amount, 0);
-
   const formatAmount = (amount: number) => {
     return `£${amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
@@ -786,50 +783,11 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
             <h3 className="text-sm font-bold text-slate-900">Top Categories</h3>
           </div>
 
-          {/* Donut Visual */}
-          <div className="p-8 flex justify-center">
-            <div className="relative w-52 h-52 md:w-44 md:h-44 lg:w-48 lg:h-48">
-              <svg viewBox="0 0 200 200" className="w-full h-full -rotate-90">
-                <circle cx="100" cy="100" r="76" fill="none" stroke="#f1f5f9" strokeWidth="26" />
-                {donutData.length > 0 && (() => {
-                  const radius = 76;
-                  const circumference = 2 * Math.PI * radius;
-                  const gapSize = 8;
-                  const totalGaps = donutData.length * gapSize;
-                  const availableLength = circumference - totalGaps;
-                  let currentOffset = 0;
-
-                  return donutData.map((cat, idx) => {
-                    const percentage = cat.amount / donutTotal;
-                    const segmentLength = percentage * availableLength;
-                    const dashOffset = -currentOffset;
-                    currentOffset += segmentLength + gapSize;
-
-                    return (
-                      <circle
-                        key={idx}
-                        cx="100"
-                        cy="100"
-                        r={radius}
-                        fill="none"
-                        stroke={cat.color}
-                        strokeWidth="26"
-                        strokeLinecap="round"
-                        strokeDasharray={`${segmentLength} ${circumference - segmentLength}`}
-                        strokeDashoffset={dashOffset}
-                        className="transition-all duration-500"
-                      />
-                    );
-                  });
-                })()}
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Total</p>
-                  <p className="text-lg font-bold text-slate-800">{formatAmount(totalExpense)}</p>
-                </div>
-              </div>
-            </div>
+          {/* Total */}
+          <div className="px-5 pt-4 pb-2">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Total Spend</p>
+            <p className="text-xl font-bold text-slate-900">{formatAmount(totalExpense)}</p>
+            <p className="text-xs text-slate-400 font-medium">{formatAED(totalExpenseAED)}</p>
           </div>
 
           {/* Category List */}
