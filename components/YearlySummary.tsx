@@ -528,9 +528,9 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
         {/* Spending Trend Chart */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
-            <h3 className="text-sm font-bold text-slate-900 shrink-0">Spending Trend</h3>
-            <div className="flex items-center gap-2 flex-1 justify-end">
+          <div className="px-4 md:px-5 py-3 md:py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 md:gap-3">
+            <h3 className="text-xs md:text-sm font-bold text-slate-900 shrink-0">Spending Trend</h3>
+            <div className="flex items-center gap-1.5 md:gap-2 flex-1 justify-end flex-wrap">
               <div className="relative">
                 <select
                   value={chartCategoryFilter}
