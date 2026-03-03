@@ -1408,8 +1408,17 @@ const App: React.FC = () => {
                </button>
              ))}
 
+             {/* Mobile Dark Mode Toggle */}
+             <button
+               onClick={() => setDarkMode(!darkMode)}
+               className="flex flex-col md:hidden p-1.5 items-center justify-center rounded-lg transition-all duration-200 flex-shrink-0 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+             >
+               {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+               <span className="text-[9px] mt-0.5">{darkMode ? 'Light' : 'Dark'}</span>
+             </button>
+
            </div>
-           
+
            {/* Desktop Add Button */}
            <div className="hidden md:block mt-8">
              <button
