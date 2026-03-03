@@ -271,20 +271,22 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
       new Date(t.date).getMonth() === monthIndex
     );
 
-    const grouped = new Map<string, { description: string; amount: number; count: number }>();
+    const grouped = new Map<string, { description: string; amount: number; amountAED: number; count: number }>();
     txs.forEach(t => {
       const existing = grouped.get(t.description);
       if (existing) {
         existing.amount += t.amount;
+        existing.amountAED += (t.amountAED || 0);
         existing.count += 1;
       } else {
-        grouped.set(t.description, { description: t.description, amount: t.amount, count: 1 });
+        grouped.set(t.description, { description: t.description, amount: t.amount, amountAED: t.amountAED || 0, count: 1 });
       }
     });
 
     const merchants = Array.from(grouped.values()).sort((a, b) => b.amount - a.amount);
     const total = txs.reduce((sum, t) => sum + t.amount, 0);
-    return { merchants, total, count: txs.length };
+    const totalAED = txs.reduce((sum, t) => sum + (t.amountAED || 0), 0);
+    return { merchants, total, totalAED, count: txs.length };
   }, [transactions, compareCat, compareMonthA]);
 
   const compareSideB = useMemo(() => {
@@ -301,20 +303,22 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
       new Date(t.date).getMonth() === monthIndex
     );
 
-    const grouped = new Map<string, { description: string; amount: number; count: number }>();
+    const grouped = new Map<string, { description: string; amount: number; amountAED: number; count: number }>();
     txs.forEach(t => {
       const existing = grouped.get(t.description);
       if (existing) {
         existing.amount += t.amount;
+        existing.amountAED += (t.amountAED || 0);
         existing.count += 1;
       } else {
-        grouped.set(t.description, { description: t.description, amount: t.amount, count: 1 });
+        grouped.set(t.description, { description: t.description, amount: t.amount, amountAED: t.amountAED || 0, count: 1 });
       }
     });
 
     const merchants = Array.from(grouped.values()).sort((a, b) => b.amount - a.amount);
     const total = txs.reduce((sum, t) => sum + t.amount, 0);
-    return { merchants, total, count: txs.length };
+    const totalAED = txs.reduce((sum, t) => sum + (t.amountAED || 0), 0);
+    return { merchants, total, totalAED, count: txs.length };
   }, [transactions, compareCat, compareMonthB]);
 
   const compareDiff = useMemo(() => {
@@ -990,8 +994,11 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                     <p className="text-xs font-bold text-slate-900 dark:text-neutral-200">
                       {(() => { const [y, m] = compareMonthA.split('-'); return `${FULL_MONTHS[parseInt(m)]} ${y}`; })()}
                     </p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-neutral-200 mt-1">
+                      £{compareSideA.total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
                     <p className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">
-                      {compareSideA.count} transactions · £{compareSideA.total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      AED {compareSideA.totalAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · {compareSideA.count} transactions
                     </p>
                   </div>
                   <div className="divide-y divide-slate-100 dark:divide-neutral-600">
@@ -1001,9 +1008,14 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                           <span className="text-[11px] text-slate-700 dark:text-neutral-400 truncate">{m.description || 'Unknown'}</span>
                           {m.count > 1 && <span className="text-[9px] text-slate-400 dark:text-neutral-500">x{m.count}</span>}
                         </div>
-                        <span className="text-[11px] font-semibold text-slate-900 dark:text-neutral-200 shrink-0 ml-2">
-                          £{m.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
+                        <div className="text-right shrink-0 ml-2">
+                          <span className="text-xs font-bold text-slate-900 dark:text-neutral-200 block">
+                            £{m.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                          <span className="text-[9px] text-slate-400 dark:text-neutral-500 block">
+                            AED {m.amountAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
                       </div>
                     ))}
                     {compareSideA.merchants.length === 0 && (
@@ -1018,8 +1030,11 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                     <p className="text-xs font-bold text-slate-900 dark:text-neutral-200">
                       {(() => { const [y, m] = compareMonthB.split('-'); return `${FULL_MONTHS[parseInt(m)]} ${y}`; })()}
                     </p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-neutral-200 mt-1">
+                      £{compareSideB.total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
                     <p className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">
-                      {compareSideB.count} transactions · £{compareSideB.total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      AED {compareSideB.totalAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · {compareSideB.count} transactions
                     </p>
                   </div>
                   <div className="divide-y divide-slate-100 dark:divide-neutral-600">
@@ -1029,9 +1044,14 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                           <span className="text-[11px] text-slate-700 dark:text-neutral-400 truncate">{m.description || 'Unknown'}</span>
                           {m.count > 1 && <span className="text-[9px] text-slate-400 dark:text-neutral-500">x{m.count}</span>}
                         </div>
-                        <span className="text-[11px] font-semibold text-slate-900 dark:text-neutral-200 shrink-0 ml-2">
-                          £{m.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
+                        <div className="text-right shrink-0 ml-2">
+                          <span className="text-xs font-bold text-slate-900 dark:text-neutral-200 block">
+                            £{m.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                          <span className="text-[9px] text-slate-400 dark:text-neutral-500 block">
+                            AED {m.amountAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
                       </div>
                     ))}
                     {compareSideB.merchants.length === 0 && (
