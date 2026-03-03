@@ -17,8 +17,8 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ summaryData, totalExpenses 
   const sortedData = [...summaryData].sort((a, b) => b.total - a.total);
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-      <div className="bg-slate-900 dark:bg-slate-700 px-4 py-3 flex justify-between items-center">
+    <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-sm border border-slate-200 dark:border-neutral-600 overflow-hidden">
+      <div className="bg-slate-900 dark:bg-neutral-600 px-4 py-3 flex justify-between items-center">
         <h3 className="text-white font-semibold text-sm">Total Monthly Summary</h3>
       </div>
       
@@ -32,30 +32,30 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ summaryData, totalExpenses 
 
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <thead className="bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase">
+          <thead className="bg-slate-100 dark:bg-neutral-700 text-xs font-bold text-slate-600 dark:text-neutral-500 uppercase">
             <tr>
               <th className="px-4 py-2">Category</th>
               <th className="px-4 py-2 text-center">Count</th>
               <th className="px-4 py-2 text-right">GBP (Est)</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          <tbody className="divide-y divide-slate-100 dark:divide-neutral-700">
             {sortedData.map((row) => (
-              <tr key={row.category.id} className="hover:bg-slate-50 dark:hover:bg-slate-800">
-                <td className="px-4 py-2 text-slate-700 dark:text-slate-300 font-medium">
+              <tr key={row.category.id} className="hover:bg-slate-50 dark:hover:bg-neutral-700">
+                <td className="px-4 py-2 text-slate-700 dark:text-neutral-400 font-medium">
                   {row.category.name}
                 </td>
-                <td className="px-4 py-2 text-center text-slate-500 dark:text-slate-400">
+                <td className="px-4 py-2 text-center text-slate-500 dark:text-neutral-500">
                   {row.count}
                 </td>
-                <td className="px-4 py-2 text-right text-slate-900 dark:text-slate-100 font-medium">
+                <td className="px-4 py-2 text-right text-slate-900 dark:text-neutral-200 font-medium">
                   {new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(row.total)}
                 </td>
               </tr>
             ))}
             {sortedData.length === 0 && (
               <tr>
-                <td colSpan={3} className="px-4 py-4 text-center text-slate-400 dark:text-slate-500 text-xs">
+                <td colSpan={3} className="px-4 py-4 text-center text-slate-400 dark:text-neutral-500 text-xs">
                   No expenses recorded
                 </td>
               </tr>

@@ -96,21 +96,21 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in h-full flex flex-col">
         <div className="flex flex-col gap-1 mb-2 flex-shrink-0">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Settings</h2>
-            <p className="text-slate-500 dark:text-slate-400 text-sm">Manage your application preferences and integrations.</p>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-neutral-200 tracking-tight">Settings</h2>
+            <p className="text-slate-500 dark:text-neutral-500 text-sm">Manage your application preferences and integrations.</p>
         </div>
 
         {/* Settings Tabs */}
-        <div className="flex gap-2 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+        <div className="flex gap-2 border-b border-slate-200 dark:border-neutral-600 flex-shrink-0">
            <button
              onClick={() => setActiveTab('general')}
-             className={`px-4 py-2.5 text-sm font-bold border-b-2 transition-colors ${activeTab === 'general' ? 'border-[#635bff] text-[#635bff]' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+             className={`px-4 py-2.5 text-sm font-bold border-b-2 transition-colors ${activeTab === 'general' ? 'border-[#635bff] text-[#635bff]' : 'border-transparent text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
            >
              General & Webhooks
            </button>
            <button
              onClick={() => setActiveTab('banks')}
-             className={`px-4 py-2.5 text-sm font-bold border-b-2 transition-colors ${activeTab === 'banks' ? 'border-[#635bff] text-[#635bff]' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+             className={`px-4 py-2.5 text-sm font-bold border-b-2 transition-colors ${activeTab === 'banks' ? 'border-[#635bff] text-[#635bff]' : 'border-transparent text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
            >
              Bank Accounts
            </button>
@@ -122,13 +122,13 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
           {activeTab === 'general' && (
             <>
             {/* Dark Mode Toggle */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 p-5 mb-6">
+            <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 p-5 mb-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   {darkMode ? <Moon size={18} className="text-indigo-400" /> : <Sun size={18} className="text-amber-500" />}
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Appearance</h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{darkMode ? 'Dark mode' : 'Light mode'}</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-neutral-200">Appearance</h3>
+                    <p className="text-xs text-slate-500 dark:text-neutral-500">{darkMode ? 'Dark mode' : 'Light mode'}</p>
                   </div>
                 </div>
                 <button
@@ -140,27 +140,27 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
               </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-900 rounded-[10px] border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex items-center gap-3">
+            <div className="bg-white dark:bg-neutral-800 rounded-[10px] border border-slate-200 dark:border-neutral-600 shadow-sm overflow-hidden">
+                <div className="p-3 border-b border-slate-100 dark:border-neutral-700 bg-slate-50/50 dark:bg-neutral-700/50 flex items-center gap-3">
                     <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
                         <Webhook size={20} />
                     </div>
                     <div>
-                        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wide">Bank Feed Webhook</h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Configure where your bank upload data is sent.</p>
+                        <h3 className="text-sm font-bold text-slate-800 dark:text-neutral-200 uppercase tracking-wide">Bank Feed Webhook</h3>
+                        <p className="text-xs text-slate-500 dark:text-neutral-500 font-medium">Configure where your bank upload data is sent.</p>
                     </div>
                 </div>
                 
                 <div className="p-6">
                     <div className="max-w-2xl">
-                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Webhook URL</label>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-neutral-500 uppercase mb-2">Webhook URL</label>
                         <div className="relative">
                             <input 
                                 type="text" 
                                 value={urlInput}
                                 onChange={(e) => setUrlInput(e.target.value)}
                                 placeholder="https://api.example.com/webhooks/bank-feed"
-                                className="w-full pl-4 pr-12 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[10px] text-sm font-semibold text-slate-700 dark:text-slate-300 outline-none focus:border-[#635bff] focus:ring-4 focus:ring-[#635bff]/10 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-500"
+                                className="w-full pl-4 pr-12 py-3 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 rounded-[10px] text-sm font-semibold text-slate-700 dark:text-neutral-400 outline-none focus:border-[#635bff] focus:ring-4 focus:ring-[#635bff]/10 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-500"
                             />
                             {status === 'saved' && (
                                 <div className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-500 animate-in fade-in zoom-in">
@@ -168,7 +168,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
                                 </div>
                             )}
                         </div>
-                        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2 leading-relaxed">
+                        <p className="text-[11px] text-slate-400 dark:text-neutral-500 mt-2 leading-relaxed">
                             When configured, uploading a CSV in the "Transactions" tab will also POST the parsed data to this URL.
                             Leave blank to process locally only.
                         </p>
@@ -185,7 +185,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
                             {webhookUrl && (
                                 <button 
                                     onClick={handleDeleteWebhook}
-                                    className="px-6 py-2.5 bg-white dark:bg-slate-900 border border-rose-200 hover:bg-rose-50 text-rose-600 text-sm font-bold rounded-[10px] transition-all flex items-center gap-2"
+                                    className="px-6 py-2.5 bg-white dark:bg-neutral-800 border border-rose-200 hover:bg-rose-50 text-rose-600 text-sm font-bold rounded-[10px] transition-all flex items-center gap-2"
                                 >
                                     <Trash2 size={16} />
                                     Delete
@@ -200,14 +200,14 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
 
           {/* Merchant Memory Section - visible on General tab */}
           {activeTab === 'general' && merchantMemory && (
-            <div className="bg-white dark:bg-slate-900 rounded-[10px] border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden mt-6">
-                <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex items-center gap-3">
+            <div className="bg-white dark:bg-neutral-800 rounded-[10px] border border-slate-200 dark:border-neutral-600 shadow-sm overflow-hidden mt-6">
+                <div className="p-3 border-b border-slate-100 dark:border-neutral-700 bg-slate-50/50 dark:bg-neutral-700/50 flex items-center gap-3">
                     <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
                         <Sparkles size={20} />
                     </div>
                     <div>
-                        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wide">Merchant Memory</h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Auto-categorize transactions based on past history.</p>
+                        <h3 className="text-sm font-bold text-slate-800 dark:text-neutral-200 uppercase tracking-wide">Merchant Memory</h3>
+                        <p className="text-xs text-slate-500 dark:text-neutral-500 font-medium">Auto-categorize transactions based on past history.</p>
                     </div>
                 </div>
 
@@ -215,15 +215,15 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
                     {/* Stats */}
                     <div className="flex items-center gap-6 mb-4">
                         <div>
-                            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{merchantMemory.totalCount}</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Patterns</p>
+                            <p className="text-2xl font-bold text-slate-900 dark:text-neutral-200">{merchantMemory.totalCount}</p>
+                            <p className="text-xs text-slate-500 dark:text-neutral-500 font-medium">Total Patterns</p>
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-emerald-600">{merchantMemory.readyCount}</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Ready to Auto-Apply</p>
+                            <p className="text-xs text-slate-500 dark:text-neutral-500 font-medium">Ready to Auto-Apply</p>
                         </div>
                     </div>
-                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-4 leading-relaxed">
+                    <p className="text-[11px] text-slate-400 dark:text-neutral-500 mb-4 leading-relaxed">
                         Merchants seen 3+ times will be auto-categorized on future uploads.
                         Use "Backfill" to scan your existing transactions and build memory from past data.
                     </p>
@@ -236,25 +236,25 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
                               if (items.length === 0) return;
                               setBackfillPreview(items);
                             }}
-                            className="px-6 py-2.5 bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 text-white text-sm font-bold rounded-[10px] shadow-md transition-all active:scale-95 flex items-center gap-2"
+                            className="px-6 py-2.5 bg-slate-900 dark:bg-neutral-600 hover:bg-slate-800 text-white text-sm font-bold rounded-[10px] shadow-md transition-all active:scale-95 flex items-center gap-2"
                         >
                             <Sparkles size={16} />
                             Backfill from Transactions
                         </button>
                     ) : (
                         <div className="border border-amber-200 bg-amber-50/50 rounded-lg p-4 space-y-3">
-                            <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                            <p className="text-sm font-bold text-slate-800 dark:text-neutral-200">
                               Preview: {backfillPreview.length} merchants found
-                              <span className="text-slate-500 dark:text-slate-400 font-medium ml-1">
+                              <span className="text-slate-500 dark:text-neutral-500 font-medium ml-1">
                                 ({backfillPreview.filter(m => m.count >= 3).length} ready for auto-apply)
                               </span>
                             </p>
                             <div className="max-h-60 overflow-y-auto space-y-1.5 custom-scrollbar">
                               {backfillPreview.sort((a, b) => b.count - a.count).map((item) => (
-                                <div key={item.merchant_pattern} className="flex items-center justify-between bg-white dark:bg-slate-900 rounded-lg px-3 py-2 border border-slate-100 dark:border-slate-800 text-sm">
+                                <div key={item.merchant_pattern} className="flex items-center justify-between bg-white dark:bg-neutral-800 rounded-lg px-3 py-2 border border-slate-100 dark:border-neutral-700 text-sm">
                                     <div className="flex-1 min-w-0">
-                                        <span className="font-semibold text-slate-800 dark:text-slate-100 truncate block">{item.merchant_pattern}</span>
-                                        <span className="text-xs text-slate-400 dark:text-slate-500">{item.category_name}{item.subcategory_name ? ` > ${item.subcategory_name}` : ''}</span>
+                                        <span className="font-semibold text-slate-800 dark:text-neutral-200 truncate block">{item.merchant_pattern}</span>
+                                        <span className="text-xs text-slate-400 dark:text-neutral-500">{item.category_name}{item.subcategory_name ? ` > ${item.subcategory_name}` : ''}</span>
                                     </div>
                                     <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${item.count >= 3 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                                       {item.count}x
@@ -271,7 +271,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
                                       setBackfillPreview(null);
                                     }}
                                     disabled={isBackfilling}
-                                    className="px-5 py-2 bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 text-white text-sm font-bold rounded-lg transition-all flex items-center gap-2 disabled:opacity-60"
+                                    className="px-5 py-2 bg-slate-900 dark:bg-neutral-600 hover:bg-slate-800 text-white text-sm font-bold rounded-lg transition-all flex items-center gap-2 disabled:opacity-60"
                                 >
                                     {isBackfilling ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                                     Confirm Backfill ({backfillPreview.length})
@@ -279,7 +279,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
                                 <button
                                     onClick={() => setBackfillPreview(null)}
                                     disabled={isBackfilling}
-                                    className="px-5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-sm font-bold rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                                    className="px-5 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 text-slate-600 dark:text-neutral-400 text-sm font-bold rounded-lg hover:bg-slate-50 dark:hover:bg-neutral-700 transition-all"
                                 >
                                     Cancel
                                 </button>
@@ -290,19 +290,19 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
                     {/* Existing Mappings List */}
                     {merchantMemory.mappings.length > 0 && (
                       <div className="mt-6">
-                        <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">Logged Merchants ({merchantMemory.mappings.length})</h4>
+                        <h4 className="text-xs font-bold text-slate-500 dark:text-neutral-500 uppercase tracking-wide mb-3">Logged Merchants ({merchantMemory.mappings.length})</h4>
                         <div className="max-h-80 overflow-y-auto space-y-1.5 custom-scrollbar">
                           {merchantMemory.mappings
                             .slice()
                             .sort((a, b) => (b.count || 0) - (a.count || 0))
                             .map((m) => (
-                              <div key={m.merchant_pattern} className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 rounded-lg px-3 py-2.5 group">
+                              <div key={m.merchant_pattern} className="flex items-center justify-between bg-slate-50 dark:bg-neutral-700 rounded-lg px-3 py-2.5 group">
                                   <div className="flex-1 min-w-0">
-                                      <span className="font-semibold text-sm text-slate-800 dark:text-slate-100 truncate block">{m.merchant_pattern}</span>
-                                      <span className="text-xs text-slate-400 dark:text-slate-500">{m.category_name}{m.subcategory_name ? ` > ${m.subcategory_name}` : ''}</span>
+                                      <span className="font-semibold text-sm text-slate-800 dark:text-neutral-200 truncate block">{m.merchant_pattern}</span>
+                                      <span className="text-xs text-slate-400 dark:text-neutral-500">{m.category_name}{m.subcategory_name ? ` > ${m.subcategory_name}` : ''}</span>
                                   </div>
                                   <div className="flex items-center gap-2 shrink-0 ml-2">
-                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(m.count || 0) >= 3 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}`}>
+                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(m.count || 0) >= 3 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 dark:bg-neutral-600 text-slate-500 dark:text-neutral-500'}`}>
                                         {m.count || 1}x
                                       </span>
                                       <button
@@ -320,7 +320,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
                     )}
 
                     {merchantMemory.mappings.length === 0 && !backfillPreview && (
-                      <p className="mt-4 text-sm text-slate-400 dark:text-slate-500 italic">No merchant mappings yet. Use backfill or categorize transactions to build memory.</p>
+                      <p className="mt-4 text-sm text-slate-400 dark:text-neutral-500 italic">No merchant mappings yet. Use backfill or categorize transactions to build memory.</p>
                     )}
                 </div>
             </div>
@@ -331,17 +331,17 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                {/* Bank List */}
                <div className="lg:col-span-2 space-y-4">
-                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Your Accounts</h3>
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-neutral-200">Your Accounts</h3>
                   <div className="grid grid-cols-1 gap-3">
                      {banks.map(bank => (
-                       <div key={bank.id} className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between group">
+                       <div key={bank.id} className="bg-white dark:bg-neutral-800 p-4 rounded-xl border border-slate-200 dark:border-neutral-600 shadow-sm flex items-center justify-between group">
                           <div className="flex items-center gap-4">
-                             <div className="w-12 h-12 bg-slate-900 dark:bg-slate-700 text-white rounded-lg flex items-center justify-center font-bold text-lg shadow-md">
+                             <div className="w-12 h-12 bg-slate-900 dark:bg-neutral-600 text-white rounded-lg flex items-center justify-center font-bold text-lg shadow-md">
                                 {bank.icon}
                              </div>
                              <div>
-                                <h4 className="font-bold text-slate-900 dark:text-slate-100">{bank.name}</h4>
-                                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">{bank.currency}</span>
+                                <h4 className="font-bold text-slate-900 dark:text-neutral-200">{bank.name}</h4>
+                                <span className="text-xs font-bold text-slate-500 dark:text-neutral-500 bg-slate-100 dark:bg-neutral-700 px-2 py-0.5 rounded-md">{bank.currency}</span>
                              </div>
                           </div>
 
@@ -359,44 +359,44 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
 
                {/* Add Bank Form */}
                <div>
-                  <div className="bg-white dark:bg-slate-900 rounded-[10px] border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden sticky top-6">
-                     <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex items-center gap-2">
-                        <Building size={16} className="text-slate-500 dark:text-slate-400" />
-                        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Add Bank Account</h3>
+                  <div className="bg-white dark:bg-neutral-800 rounded-[10px] border border-slate-200 dark:border-neutral-600 shadow-sm overflow-hidden sticky top-6">
+                     <div className="p-3 border-b border-slate-100 dark:border-neutral-700 bg-slate-50/50 dark:bg-neutral-700/50 flex items-center gap-2">
+                        <Building size={16} className="text-slate-500 dark:text-neutral-500" />
+                        <h3 className="text-sm font-bold text-slate-800 dark:text-neutral-200">Add Bank Account</h3>
                      </div>
                      <form onSubmit={handleAddBankSubmit} className="p-5 space-y-4">
                         <div>
-                           <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1.5">Bank Name</label>
+                           <label className="block text-xs font-bold text-slate-500 dark:text-neutral-500 uppercase mb-1.5">Bank Name</label>
                            <input
                              type="text"
                              required
                              value={newBankName}
                              onChange={(e) => setNewBankName(e.target.value)}
                              placeholder="e.g. HSBC"
-                             className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-300 focus:border-[#635bff] focus:ring-2 focus:ring-[#635bff]/10 outline-none"
+                             className="w-full px-3 py-2.5 bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg text-sm font-semibold text-slate-700 dark:text-neutral-400 focus:border-[#635bff] focus:ring-2 focus:ring-[#635bff]/10 outline-none"
                            />
                         </div>
 
                         <div>
-                           <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1.5">Currency</label>
+                           <label className="block text-xs font-bold text-slate-500 dark:text-neutral-500 uppercase mb-1.5">Currency</label>
                            <div className="relative">
                               <select
                                 value={newBankCurrency}
                                 onChange={(e) => setNewBankCurrency(e.target.value)}
-                                className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-300 focus:border-[#635bff] focus:ring-2 focus:ring-[#635bff]/10 outline-none appearance-none cursor-pointer"
+                                className="w-full px-3 py-2.5 bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg text-sm font-semibold text-slate-700 dark:text-neutral-400 focus:border-[#635bff] focus:ring-2 focus:ring-[#635bff]/10 outline-none appearance-none cursor-pointer"
                               >
                                  <option value="GBP">GBP (£)</option>
                                  <option value="USD">USD ($)</option>
                                  <option value="EUR">EUR (€)</option>
                                  <option value="AED">AED (Dh)</option>
                               </select>
-                              <ChevronRight size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 rotate-90 pointer-events-none" />
+                              <ChevronRight size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 rotate-90 pointer-events-none" />
                            </div>
                         </div>
 
                         <button
                           type="submit"
-                          className="w-full py-2.5 bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 text-white font-bold rounded-lg shadow-md transition-all flex items-center justify-center gap-2"
+                          className="w-full py-2.5 bg-slate-900 dark:bg-neutral-600 hover:bg-slate-800 text-white font-bold rounded-lg shadow-md transition-all flex items-center justify-center gap-2"
                         >
                            <Plus size={16} />
                            Add Account
@@ -409,12 +409,12 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
 
           {/* Logout Section */}
           {onLogout && (
-            <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
-              <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+            <div className="mt-8 pt-6 border-t border-slate-200 dark:border-neutral-600">
+              <div className="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-600 p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-bold text-slate-800 dark:text-slate-100">Sign Out</h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">Log out of your account</p>
+                    <h3 className="font-bold text-slate-800 dark:text-neutral-200">Sign Out</h3>
+                    <p className="text-sm text-slate-500 dark:text-neutral-500">Log out of your account</p>
                   </div>
                   <button
                     onClick={onLogout}

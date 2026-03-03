@@ -253,7 +253,7 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
             onDragLeave={handleDragLeave}
             className={`
                 w-full rounded-xl sm:rounded-2xl p-3 sm:p-6 flex flex-col md:flex-row items-center justify-between gap-3 sm:gap-6 transition-all border-2 border-dashed relative overflow-hidden
-                ${isDragging ? 'border-[#635bff] bg-indigo-50/50 scale-[1.01] shadow-lg' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-indigo-300 hover:bg-slate-50 dark:hover:bg-slate-800'}
+                ${isDragging ? 'border-[#635bff] bg-indigo-50/50 scale-[1.01] shadow-lg' : 'border-slate-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 hover:border-indigo-300 hover:bg-slate-50 dark:hover:bg-neutral-700'}
             `}
           >
               <div className="flex items-center gap-3 sm:gap-5 flex-1 relative z-10 w-full">
@@ -261,7 +261,7 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
                       <Upload size={20} className="sm:w-7 sm:h-7" />
                   </div>
                   <div className="min-w-0 flex-1">
-                      <h3 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-slate-100 mb-0.5 sm:mb-1 flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-neutral-200 mb-0.5 sm:mb-1 flex items-center gap-2 flex-wrap">
                         <span>Upload Bank Feed</span>
                         {/* Hide badges on mobile */}
                         {merchantMappings.length > 0 && (() => {
@@ -283,7 +283,7 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
                           </span>
                         )}
                       </h3>
-                      <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate">
+                      <p className="text-xs sm:text-sm text-slate-500 dark:text-neutral-500 truncate">
                           {selectedBank.currency === 'AED'
                             ? `CSV from ${selectedBank.name}. AED → GBP.`
                             : `CSV from ${selectedBank.name}. GBP.`
@@ -298,13 +298,13 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
                     <select
                         value={selectedBankId}
                         onChange={(e) => setSelectedBankId(e.target.value)}
-                        className="w-full appearance-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 py-2 sm:py-2.5 pl-2 sm:pl-3 pr-6 sm:pr-8 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold focus:outline-none focus:border-[#635bff] focus:ring-4 focus:ring-[#635bff]/10 cursor-pointer"
+                        className="w-full appearance-none bg-white dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 text-slate-700 dark:text-neutral-300 py-2 sm:py-2.5 pl-2 sm:pl-3 pr-6 sm:pr-8 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold focus:outline-none focus:border-[#635bff] focus:ring-4 focus:ring-[#635bff]/10 cursor-pointer"
                     >
                         {banks.map(bank => (
                             <option key={bank.id} value={bank.id}>{bank.name}</option>
                         ))}
                     </select>
-                    <ChevronDown size={12} className="sm:w-3.5 sm:h-3.5 absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+                    <ChevronDown size={12} className="sm:w-3.5 sm:h-3.5 absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
                  </div>
 
                  <label className="relative shrink-0">

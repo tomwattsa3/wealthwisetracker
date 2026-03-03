@@ -85,24 +85,24 @@ const DashboardDateFilter: React.FC<DashboardDateFilterProps> = ({ range, onRang
       {/* Trigger Button - Bubble Style */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-[#635bff] hover:ring-1 hover:ring-[#635bff]/10 rounded-lg px-3 py-2.5 shadow-sm transition-all group"
+        className="w-full flex items-center justify-center gap-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 hover:border-[#635bff] hover:ring-1 hover:ring-[#635bff]/10 rounded-lg px-3 py-2.5 shadow-sm transition-all group"
       >
-        <Calendar size={14} className="text-slate-400 dark:text-slate-500 group-hover:text-[#635bff] transition-colors shrink-0" />
-        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap truncate max-w-[100px] md:max-w-none">
+        <Calendar size={14} className="text-slate-400 dark:text-neutral-500 group-hover:text-[#635bff] transition-colors shrink-0" />
+        <span className="text-xs font-bold text-slate-700 dark:text-neutral-400 whitespace-nowrap truncate max-w-[100px] md:max-w-none">
             {range.label}
         </span>
-        <ChevronDown size={14} className={`text-slate-400 dark:text-slate-500 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={14} className={`text-slate-400 dark:text-neutral-500 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="fixed md:absolute left-4 right-4 md:left-auto md:right-0 top-20 md:top-full mt-2 w-auto md:w-72 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-100 dark:border-slate-800 z-[100] animate-in fade-in slide-in-from-top-2 overflow-hidden">
-           <div className="p-3 grid grid-cols-2 gap-2 border-b border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
+        <div className="fixed md:absolute left-4 right-4 md:left-auto md:right-0 top-20 md:top-full mt-2 w-auto md:w-72 bg-white dark:bg-neutral-800 rounded-xl shadow-xl border border-slate-100 dark:border-neutral-700 z-[100] animate-in fade-in slide-in-from-top-2 overflow-hidden">
+           <div className="p-3 grid grid-cols-2 gap-2 border-b border-slate-50 dark:border-neutral-700 bg-slate-50/50 dark:bg-neutral-700/50">
               {PRESETS.map((preset) => (
                   <button
                     key={preset.label}
                     onClick={() => handlePresetClick(preset)}
-                    className={`px-3 py-2 text-xs font-bold rounded-lg text-left transition-colors ${range.label === preset.label ? 'bg-[#635bff] text-white shadow-md' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-100 dark:border-slate-700'}`}
+                    className={`px-3 py-2 text-xs font-bold rounded-lg text-left transition-colors ${range.label === preset.label ? 'bg-[#635bff] text-white shadow-md' : 'bg-white dark:bg-neutral-700 text-slate-600 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-600 border border-slate-100 dark:border-neutral-600'}`}
                   >
                     {preset.label}
                   </button>
@@ -110,26 +110,26 @@ const DashboardDateFilter: React.FC<DashboardDateFilterProps> = ({ range, onRang
            </div>
            
            <div className="p-4">
-              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Custom Range</p>
+              <p className="text-[10px] font-bold text-slate-400 dark:text-neutral-500 uppercase tracking-wider mb-2">Custom Range</p>
               <div className="flex items-center gap-2 mb-3">
                  <input 
                    type="date" 
                    value={customStart}
                    onChange={(e) => setCustomStart(e.target.value)}
-                   className="flex-1 min-w-0 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-[#635bff]"
+                   className="flex-1 min-w-0 bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-700 dark:text-neutral-300 outline-none focus:border-[#635bff]"
                  />
-                 <span className="text-slate-300 dark:text-slate-600 font-bold">-</span>
+                 <span className="text-slate-300 dark:text-neutral-600 font-bold">-</span>
                  <input
                    type="date"
                    value={customEnd}
                    onChange={(e) => setCustomEnd(e.target.value)}
-                   className="flex-1 min-w-0 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-[#635bff]"
+                   className="flex-1 min-w-0 bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-700 dark:text-neutral-300 outline-none focus:border-[#635bff]"
                  />
               </div>
               <button 
                 onClick={handleCustomApply}
                 disabled={!customStart || !customEnd}
-                className="w-full bg-slate-900 dark:bg-slate-700 text-white py-2 rounded-lg text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors"
+                className="w-full bg-slate-900 dark:bg-neutral-600 text-white py-2 rounded-lg text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-800 dark:hover:bg-neutral-500 transition-colors"
               >
                 Apply Range
               </button>

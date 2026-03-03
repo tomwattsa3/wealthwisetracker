@@ -25,15 +25,15 @@ const FinancialAdvisor: React.FC<FinancialAdvisorProps> = ({ transactions }) => 
   };
 
   return (
-    <div className="bg-gradient-to-br from-violet-50 via-white to-indigo-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 rounded-2xl p-6 shadow-sm border border-violet-100 dark:border-slate-700 h-full flex flex-col">
+    <div className="bg-gradient-to-br from-violet-50 via-white to-indigo-50 dark:from-neutral-900 dark:via-neutral-900 dark:to-neutral-800 rounded-2xl p-6 shadow-sm border border-violet-100 dark:border-neutral-600 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-violet-100 dark:border-slate-700">
+          <div className="p-2 bg-white dark:bg-neutral-700 rounded-lg shadow-sm border border-violet-100 dark:border-neutral-600">
             <Sparkles className="text-violet-600" size={18} />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">AI Advisor</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Powered by Gemini</p>
+            <h2 className="text-base font-bold text-slate-900 dark:text-neutral-200">AI Advisor</h2>
+            <p className="text-xs text-slate-500 dark:text-neutral-500 font-medium">Powered by Gemini</p>
           </div>
         </div>
         
@@ -49,17 +49,17 @@ const FinancialAdvisor: React.FC<FinancialAdvisorProps> = ({ transactions }) => 
 
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
         {advice ? (
-          <div className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-800 text-sm leading-relaxed animate-in fade-in slide-in-from-bottom-2 text-slate-700 dark:text-slate-300 shadow-sm">
-            <div className="prose prose-sm max-w-none prose-p:my-2 prose-headings:text-slate-900 dark:prose-headings:text-slate-100 prose-strong:text-slate-900 dark:prose-strong:text-slate-100 prose-ul:list-disc prose-ul:pl-4">
+          <div className="p-4 bg-white dark:bg-neutral-700 rounded-xl border border-slate-100 dark:border-neutral-700 text-sm leading-relaxed animate-in fade-in slide-in-from-bottom-2 text-slate-700 dark:text-neutral-400 shadow-sm">
+            <div className="prose prose-sm max-w-none prose-p:my-2 prose-headings:text-slate-900 dark:prose-headings:text-neutral-200 prose-strong:text-slate-900 dark:prose-strong:text-neutral-200 prose-ul:list-disc prose-ul:pl-4">
               <ReactMarkdown>{advice}</ReactMarkdown>
             </div>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center p-4">
-             <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center mb-3 shadow-sm border border-slate-100 dark:border-slate-800">
+             <div className="w-12 h-12 bg-white dark:bg-neutral-700 rounded-full flex items-center justify-center mb-3 shadow-sm border border-slate-100 dark:border-neutral-700">
                <Sparkles className="text-slate-300" size={20} />
              </div>
-             <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+             <p className="text-sm text-slate-500 dark:text-neutral-500 leading-relaxed font-medium">
                Ready to analyze your spending habits. Click "Insights" to generate personalized financial tips.
              </p>
           </div>
