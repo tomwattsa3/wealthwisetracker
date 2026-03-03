@@ -240,26 +240,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
     return Object.values(byCategory).sort((a, b) => b.amount - a.amount);
   }, [filteredTransactions, categories]);
 
-  const topIncomeCategories = useMemo(() => {
-    const incomeTx = filteredTransactions.filter(t => t.type === 'INCOME');
-    const byCategory: { [key: string]: { id: string; name: string; color: string; amount: number; count: number } } = {};
-
-    incomeTx.forEach(t => {
-      const cat = categories.find(c => c.id === t.categoryId || c.name === t.categoryName);
-      const catName = cat?.name || t.categoryName || 'Uncategorized';
-      const catColor = cat?.color || '#10b981';
-      const catId = cat?.id || catName;
-
-      if (!byCategory[catId]) {
-        byCategory[catId] = { id: catId, name: catName, color: catColor, amount: 0, count: 0 };
-      }
-      byCategory[catId].amount += t.amount;
-      byCategory[catId].count += 1;
-    });
-
-    return Object.values(byCategory).sort((a, b) => b.amount - a.amount).slice(0, 5);
-  }, [filteredTransactions, categories]);
-
   // Compare card: available months per category
   const compareMonthsA = useMemo(() => {
     if (!compareCatA) return [];
@@ -942,91 +922,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         </div>{/* end right column */}
 
       </div>{/* end flex container */}
-
-      {/* Highest Expenses + Income Sources */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-
-        {/* Highest Expenses */}
-        <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 dark:border-neutral-700 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-neutral-200">Highest Expenses</h3>
-            <span className="text-[9px] font-semibold text-slate-400 dark:text-neutral-500 bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 px-2 py-0.5 rounded-md">TOP 5</span>
-          </div>
-
-          <div className="hidden md:grid grid-cols-3 bg-slate-50/80 dark:bg-neutral-700/80 border-b border-dashed border-slate-200/80 dark:border-neutral-600/80">
-            <div className="px-4 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Category</div>
-            <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Amount</div>
-            <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Share</div>
-          </div>
-
-          <div>
-            {topExpenseCategories.map((cat, idx) => {
-              const percentage = totalExpense > 0 ? ((cat.amount / totalExpense) * 100).toFixed(1) : '0';
-              return (
-                <div key={idx} className={`grid grid-cols-3 border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60 dark:bg-neutral-700/60' : 'bg-white dark:bg-neutral-800'}`}>
-                  <div className="px-4 py-3.5 min-w-0 border-r border-dashed border-slate-200/80 dark:border-neutral-600/80 flex items-center gap-2">
-                    <span className="text-sm shrink-0">{getCategoryEmoji ? getCategoryEmoji(cat.id) : '📊'}</span>
-                    <div className="min-w-0">
-                      <p className="font-medium text-slate-900 dark:text-neutral-200 text-[11px] truncate">{cat.name}</p>
-                      <p className="text-[9px] text-slate-400 dark:text-neutral-500">{cat.count} trans</p>
-                    </div>
-                  </div>
-                  <div className="px-3 py-3.5 text-right border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
-                    <p className="text-[11px] font-semibold text-slate-900 dark:text-neutral-200">£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</p>
-                  </div>
-                  <div className="px-3 py-3.5 text-right">
-                    <p className="text-[11px] font-semibold text-rose-600">{percentage}%</p>
-                  </div>
-                </div>
-              );
-            })}
-            {topExpenseCategories.length === 0 && (
-              <div className="px-4 py-6 text-center text-slate-400 dark:text-neutral-500 text-xs">No expenses recorded</div>
-            )}
-          </div>
-        </div>
-
-        {/* Top Income Sources */}
-        <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 dark:border-neutral-700 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-neutral-200">Income Sources</h3>
-            <span className="text-[9px] font-semibold text-slate-400 dark:text-neutral-500 bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 px-2 py-0.5 rounded-md">TOP 5</span>
-          </div>
-
-          <div className="hidden md:grid grid-cols-3 bg-slate-50/80 dark:bg-neutral-700/80 border-b border-dashed border-slate-200/80 dark:border-neutral-600/80">
-            <div className="px-4 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Category</div>
-            <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Amount</div>
-            <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Share</div>
-          </div>
-
-          <div>
-            {topIncomeCategories.map((cat, idx) => {
-              const percentage = totalIncome > 0 ? ((cat.amount / totalIncome) * 100).toFixed(1) : '0';
-              return (
-                <div key={idx} className={`grid grid-cols-3 border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60 dark:bg-neutral-700/60' : 'bg-white dark:bg-neutral-800'}`}>
-                  <div className="px-4 py-3.5 min-w-0 border-r border-dashed border-slate-200/80 dark:border-neutral-600/80 flex items-center gap-2">
-                    <span className="text-sm shrink-0">{getCategoryEmoji ? getCategoryEmoji(cat.id) : '💰'}</span>
-                    <div className="min-w-0">
-                      <p className="font-medium text-slate-900 dark:text-neutral-200 text-[11px] truncate">{cat.name}</p>
-                      <p className="text-[9px] text-slate-400 dark:text-neutral-500">{cat.count} trans</p>
-                    </div>
-                  </div>
-                  <div className="px-3 py-3.5 text-right border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
-                    <p className="text-[11px] font-semibold text-emerald-600">+£{cat.amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</p>
-                  </div>
-                  <div className="px-3 py-3.5 text-right">
-                    <p className="text-[11px] font-semibold text-emerald-600">{percentage}%</p>
-                  </div>
-                </div>
-              );
-            })}
-            {topIncomeCategories.length === 0 && (
-              <div className="px-4 py-6 text-center text-slate-400 dark:text-neutral-500 text-xs">No income recorded</div>
-            )}
-          </div>
-        </div>
-
-      </div>
 
       {/* Category Comparison Card */}
       <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 overflow-hidden">
