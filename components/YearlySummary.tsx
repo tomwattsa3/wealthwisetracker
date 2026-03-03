@@ -74,9 +74,8 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
   const [chartSubcategoryFilter, setChartSubcategoryFilter] = useState<string>('all');
 
   // Compare card state
-  const [compareCatA, setCompareCatA] = useState<string>('');
+  const [compareCat, setCompareCat] = useState<string>('');
   const [compareMonthA, setCompareMonthA] = useState<string>('');
-  const [compareCatB, setCompareCatB] = useState<string>('');
   const [compareMonthB, setCompareMonthB] = useState<string>('');
 
 
@@ -240,14 +239,14 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
     return Object.values(byCategory).sort((a, b) => b.amount - a.amount);
   }, [filteredTransactions, categories]);
 
-  // Compare card: available months per category
-  const compareMonthsA = useMemo(() => {
-    if (!compareCatA) return [];
+  // Compare card: available months for selected category
+  const compareAvailableMonths = useMemo(() => {
+    if (!compareCat) return [];
     const monthSet = new Map<string, { key: string; year: number; monthIndex: number }>();
     transactions.forEach(t => {
       if (t.excluded || t.categoryId === 'excluded') return;
       if (t.type !== 'EXPENSE') return;
-      if (t.categoryId !== compareCatA) return;
+      if (t.categoryId !== compareCat) return;
       const d = new Date(t.date);
       const key = `${d.getFullYear()}-${d.getMonth()}`;
       if (!monthSet.has(key)) {
@@ -255,27 +254,11 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
       }
     });
     return Array.from(monthSet.values()).sort((a, b) => a.year - b.year || a.monthIndex - b.monthIndex);
-  }, [transactions, compareCatA]);
-
-  const compareMonthsB = useMemo(() => {
-    if (!compareCatB) return [];
-    const monthSet = new Map<string, { key: string; year: number; monthIndex: number }>();
-    transactions.forEach(t => {
-      if (t.excluded || t.categoryId === 'excluded') return;
-      if (t.type !== 'EXPENSE') return;
-      if (t.categoryId !== compareCatB) return;
-      const d = new Date(t.date);
-      const key = `${d.getFullYear()}-${d.getMonth()}`;
-      if (!monthSet.has(key)) {
-        monthSet.set(key, { key, year: d.getFullYear(), monthIndex: d.getMonth() });
-      }
-    });
-    return Array.from(monthSet.values()).sort((a, b) => a.year - b.year || a.monthIndex - b.monthIndex);
-  }, [transactions, compareCatB]);
+  }, [transactions, compareCat]);
 
   // Compare card: transaction data for each side
   const compareSideA = useMemo(() => {
-    if (!compareCatA || !compareMonthA) return null;
+    if (!compareCat || !compareMonthA) return null;
     const [yearStr, monthStr] = compareMonthA.split('-');
     const year = parseInt(yearStr);
     const monthIndex = parseInt(monthStr);
@@ -283,7 +266,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
     const txs = transactions.filter(t =>
       !t.excluded && t.categoryId !== 'excluded' &&
       t.type === 'EXPENSE' &&
-      t.categoryId === compareCatA &&
+      t.categoryId === compareCat &&
       new Date(t.date).getFullYear() === year &&
       new Date(t.date).getMonth() === monthIndex
     );
@@ -302,10 +285,10 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
     const merchants = Array.from(grouped.values()).sort((a, b) => b.amount - a.amount);
     const total = txs.reduce((sum, t) => sum + t.amount, 0);
     return { merchants, total, count: txs.length };
-  }, [transactions, compareCatA, compareMonthA]);
+  }, [transactions, compareCat, compareMonthA]);
 
   const compareSideB = useMemo(() => {
-    if (!compareCatB || !compareMonthB) return null;
+    if (!compareCat || !compareMonthB) return null;
     const [yearStr, monthStr] = compareMonthB.split('-');
     const year = parseInt(yearStr);
     const monthIndex = parseInt(monthStr);
@@ -313,7 +296,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
     const txs = transactions.filter(t =>
       !t.excluded && t.categoryId !== 'excluded' &&
       t.type === 'EXPENSE' &&
-      t.categoryId === compareCatB &&
+      t.categoryId === compareCat &&
       new Date(t.date).getFullYear() === year &&
       new Date(t.date).getMonth() === monthIndex
     );
@@ -332,7 +315,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
     const merchants = Array.from(grouped.values()).sort((a, b) => b.amount - a.amount);
     const total = txs.reduce((sum, t) => sum + t.amount, 0);
     return { merchants, total, count: txs.length };
-  }, [transactions, compareCatB, compareMonthB]);
+  }, [transactions, compareCat, compareMonthB]);
 
   const compareDiff = useMemo(() => {
     if (!compareSideA || !compareSideB) return null;
@@ -931,70 +914,52 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         </div>
 
         {/* Controls */}
-        <div className="px-5 py-4 border-b border-slate-100 dark:border-neutral-700">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Side A Controls */}
-            <div className="space-y-2">
-              <p className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Side A</p>
-              <div className="relative">
-                <select
-                  value={compareCatA}
-                  onChange={(e) => { setCompareCatA(e.target.value); setCompareMonthA(''); }}
-                  className="w-full appearance-none bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer"
-                >
-                  <option value="">Select category...</option>
-                  {expenseCategories.map(c => (
-                    <option key={c.id} value={c.id}>{getCategoryEmoji ? getCategoryEmoji(c.id) : ''} {c.name}</option>
-                  ))}
-                </select>
-                <ChevronDown size={10} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
-              </div>
-              <div className="relative">
-                <select
-                  value={compareMonthA}
-                  onChange={(e) => setCompareMonthA(e.target.value)}
-                  disabled={!compareCatA}
-                  className="w-full appearance-none bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer disabled:opacity-50"
-                >
-                  <option value="">Select month...</option>
-                  {compareMonthsA.map(m => (
-                    <option key={m.key} value={m.key}>{FULL_MONTHS[m.monthIndex]} {m.year}</option>
-                  ))}
-                </select>
-                <ChevronDown size={10} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
-              </div>
-            </div>
+        <div className="px-5 py-4 border-b border-slate-100 dark:border-neutral-700 space-y-3">
+          {/* Category Selector */}
+          <div className="relative">
+            <select
+              value={compareCat}
+              onChange={(e) => { setCompareCat(e.target.value); setCompareMonthA(''); setCompareMonthB(''); }}
+              className="w-full appearance-none bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer"
+            >
+              <option value="">Select category...</option>
+              {expenseCategories.map(c => (
+                <option key={c.id} value={c.id}>{getCategoryEmoji ? getCategoryEmoji(c.id) : ''} {c.name}</option>
+              ))}
+            </select>
+            <ChevronDown size={10} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
+          </div>
 
-            {/* Side B Controls */}
-            <div className="space-y-2">
-              <p className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Side B</p>
-              <div className="relative">
-                <select
-                  value={compareCatB}
-                  onChange={(e) => { setCompareCatB(e.target.value); setCompareMonthB(''); }}
-                  className="w-full appearance-none bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer"
-                >
-                  <option value="">Select category...</option>
-                  {expenseCategories.map(c => (
-                    <option key={c.id} value={c.id}>{getCategoryEmoji ? getCategoryEmoji(c.id) : ''} {c.name}</option>
-                  ))}
-                </select>
-                <ChevronDown size={10} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
-              </div>
-              <div className="relative">
-                <select
-                  value={compareMonthB}
-                  onChange={(e) => setCompareMonthB(e.target.value)}
-                  disabled={!compareCatB}
-                  className="w-full appearance-none bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer disabled:opacity-50"
-                >
-                  <option value="">Select month...</option>
-                  {compareMonthsB.map(m => (
-                    <option key={m.key} value={m.key}>{FULL_MONTHS[m.monthIndex]} {m.year}</option>
-                  ))}
-                </select>
-                <ChevronDown size={10} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
-              </div>
+          {/* Month Selectors */}
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <select
+                value={compareMonthA}
+                onChange={(e) => setCompareMonthA(e.target.value)}
+                disabled={!compareCat}
+                className="w-full appearance-none bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer disabled:opacity-50"
+              >
+                <option value="">Month A...</option>
+                {compareAvailableMonths.map(m => (
+                  <option key={m.key} value={m.key}>{FULL_MONTHS[m.monthIndex]} {m.year}</option>
+                ))}
+              </select>
+              <ChevronDown size={10} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
+            </div>
+            <span className="text-xs font-bold text-slate-300 dark:text-neutral-600">vs</span>
+            <div className="relative flex-1">
+              <select
+                value={compareMonthB}
+                onChange={(e) => setCompareMonthB(e.target.value)}
+                disabled={!compareCat}
+                className="w-full appearance-none bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer disabled:opacity-50"
+              >
+                <option value="">Month B...</option>
+                {compareAvailableMonths.map(m => (
+                  <option key={m.key} value={m.key}>{FULL_MONTHS[m.monthIndex]} {m.year}</option>
+                ))}
+              </select>
+              <ChevronDown size={10} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
             </div>
           </div>
         </div>
@@ -1019,17 +984,14 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
               {/* Side by Side */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Side A */}
+                {/* Month A */}
                 <div className="bg-white dark:bg-neutral-700/50 rounded-xl border border-slate-100 dark:border-neutral-600 overflow-hidden">
                   <div className="px-4 py-3 border-b border-slate-100 dark:border-neutral-600 bg-slate-50/50 dark:bg-neutral-700">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm">{getCategoryEmoji ? getCategoryEmoji(compareCatA) : '📊'}</span>
-                      <p className="text-xs font-bold text-slate-900 dark:text-neutral-200">
-                        {categories.find(c => c.id === compareCatA)?.name || 'Unknown'}
-                      </p>
-                    </div>
+                    <p className="text-xs font-bold text-slate-900 dark:text-neutral-200">
+                      {(() => { const [y, m] = compareMonthA.split('-'); return `${FULL_MONTHS[parseInt(m)]} ${y}`; })()}
+                    </p>
                     <p className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">
-                      {(() => { const [y, m] = compareMonthA.split('-'); return `${FULL_MONTHS[parseInt(m)]} ${y}`; })()} · {compareSideA.count} transactions · £{compareSideA.total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {compareSideA.count} transactions · £{compareSideA.total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                   </div>
                   <div className="divide-y divide-slate-100 dark:divide-neutral-600">
@@ -1050,17 +1012,14 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                   </div>
                 </div>
 
-                {/* Side B */}
+                {/* Month B */}
                 <div className="bg-white dark:bg-neutral-700/50 rounded-xl border border-slate-100 dark:border-neutral-600 overflow-hidden">
                   <div className="px-4 py-3 border-b border-slate-100 dark:border-neutral-600 bg-slate-50/50 dark:bg-neutral-700">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm">{getCategoryEmoji ? getCategoryEmoji(compareCatB) : '📊'}</span>
-                      <p className="text-xs font-bold text-slate-900 dark:text-neutral-200">
-                        {categories.find(c => c.id === compareCatB)?.name || 'Unknown'}
-                      </p>
-                    </div>
+                    <p className="text-xs font-bold text-slate-900 dark:text-neutral-200">
+                      {(() => { const [y, m] = compareMonthB.split('-'); return `${FULL_MONTHS[parseInt(m)]} ${y}`; })()}
+                    </p>
                     <p className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">
-                      {(() => { const [y, m] = compareMonthB.split('-'); return `${FULL_MONTHS[parseInt(m)]} ${y}`; })()} · {compareSideB.count} transactions · £{compareSideB.total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {compareSideB.count} transactions · £{compareSideB.total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                   </div>
                   <div className="divide-y divide-slate-100 dark:divide-neutral-600">
