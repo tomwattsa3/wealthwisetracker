@@ -261,13 +261,13 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
   }, [filteredTransactions, categories]);
 
   // Compare card: available months per category
-  const getMonthsForCategory = (catId: string) => {
-    if (!catId) return [];
+  const compareMonthsA = useMemo(() => {
+    if (!compareCatA) return [];
     const monthSet = new Map<string, { key: string; year: number; monthIndex: number }>();
     transactions.forEach(t => {
       if (t.excluded || t.categoryId === 'excluded') return;
       if (t.type !== 'EXPENSE') return;
-      if (t.categoryId !== catId) return;
+      if (t.categoryId !== compareCatA) return;
       const d = new Date(t.date);
       const key = `${d.getFullYear()}-${d.getMonth()}`;
       if (!monthSet.has(key)) {
@@ -275,22 +275,35 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
       }
     });
     return Array.from(monthSet.values()).sort((a, b) => a.year - b.year || a.monthIndex - b.monthIndex);
-  };
+  }, [transactions, compareCatA]);
 
-  const compareMonthsA = useMemo(() => getMonthsForCategory(compareCatA), [transactions, compareCatA]);
-  const compareMonthsB = useMemo(() => getMonthsForCategory(compareCatB), [transactions, compareCatB]);
+  const compareMonthsB = useMemo(() => {
+    if (!compareCatB) return [];
+    const monthSet = new Map<string, { key: string; year: number; monthIndex: number }>();
+    transactions.forEach(t => {
+      if (t.excluded || t.categoryId === 'excluded') return;
+      if (t.type !== 'EXPENSE') return;
+      if (t.categoryId !== compareCatB) return;
+      const d = new Date(t.date);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      if (!monthSet.has(key)) {
+        monthSet.set(key, { key, year: d.getFullYear(), monthIndex: d.getMonth() });
+      }
+    });
+    return Array.from(monthSet.values()).sort((a, b) => a.year - b.year || a.monthIndex - b.monthIndex);
+  }, [transactions, compareCatB]);
 
-  // Compare card: get transaction data for a side
-  const getCompareData = (catId: string, monthKey: string) => {
-    if (!catId || !monthKey) return null;
-    const [yearStr, monthStr] = monthKey.split('-');
+  // Compare card: transaction data for each side
+  const compareSideA = useMemo(() => {
+    if (!compareCatA || !compareMonthA) return null;
+    const [yearStr, monthStr] = compareMonthA.split('-');
     const year = parseInt(yearStr);
     const monthIndex = parseInt(monthStr);
 
     const txs = transactions.filter(t =>
       !t.excluded && t.categoryId !== 'excluded' &&
       t.type === 'EXPENSE' &&
-      t.categoryId === catId &&
+      t.categoryId === compareCatA &&
       new Date(t.date).getFullYear() === year &&
       new Date(t.date).getMonth() === monthIndex
     );
@@ -309,10 +322,37 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
     const merchants = Array.from(grouped.values()).sort((a, b) => b.amount - a.amount);
     const total = txs.reduce((sum, t) => sum + t.amount, 0);
     return { merchants, total, count: txs.length };
-  };
+  }, [transactions, compareCatA, compareMonthA]);
 
-  const compareSideA = useMemo(() => getCompareData(compareCatA, compareMonthA), [transactions, compareCatA, compareMonthA]);
-  const compareSideB = useMemo(() => getCompareData(compareCatB, compareMonthB), [transactions, compareCatB, compareMonthB]);
+  const compareSideB = useMemo(() => {
+    if (!compareCatB || !compareMonthB) return null;
+    const [yearStr, monthStr] = compareMonthB.split('-');
+    const year = parseInt(yearStr);
+    const monthIndex = parseInt(monthStr);
+
+    const txs = transactions.filter(t =>
+      !t.excluded && t.categoryId !== 'excluded' &&
+      t.type === 'EXPENSE' &&
+      t.categoryId === compareCatB &&
+      new Date(t.date).getFullYear() === year &&
+      new Date(t.date).getMonth() === monthIndex
+    );
+
+    const grouped = new Map<string, { description: string; amount: number; count: number }>();
+    txs.forEach(t => {
+      const existing = grouped.get(t.description);
+      if (existing) {
+        existing.amount += t.amount;
+        existing.count += 1;
+      } else {
+        grouped.set(t.description, { description: t.description, amount: t.amount, count: 1 });
+      }
+    });
+
+    const merchants = Array.from(grouped.values()).sort((a, b) => b.amount - a.amount);
+    const total = txs.reduce((sum, t) => sum + t.amount, 0);
+    return { merchants, total, count: txs.length };
+  }, [transactions, compareCatB, compareMonthB]);
 
   const compareDiff = useMemo(() => {
     if (!compareSideA || !compareSideB) return null;
