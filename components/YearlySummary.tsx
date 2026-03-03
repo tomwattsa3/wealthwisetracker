@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Transaction, Category } from '../types';
-import { TrendingUp, TrendingDown, ChevronRight, ChevronDown, RefreshCw, X, ArrowLeftRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, ChevronRight, ChevronDown, RefreshCw, ArrowLeftRight } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
 
 interface YearlySummaryProps {
@@ -73,10 +73,12 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
   const [chartCategoryFilter, setChartCategoryFilter] = useState<string>('all');
   const [chartSubcategoryFilter, setChartSubcategoryFilter] = useState<string>('all');
 
-  // Compare modal state
-  const [compareCategory, setCompareCategory] = useState<string | null>(null);
-  const [compareMonthA, setCompareMonthA] = useState<{ year: number; monthIndex: number } | null>(null);
-  const [compareMonthB, setCompareMonthB] = useState<{ year: number; monthIndex: number } | null>(null);
+  // Compare card state
+  const [compareCatA, setCompareCatA] = useState<string>('');
+  const [compareMonthA, setCompareMonthA] = useState<string>('');
+  const [compareCatB, setCompareCatB] = useState<string>('');
+  const [compareMonthB, setCompareMonthB] = useState<string>('');
+
 
   const toggleCategory = (key: string) => {
     const newSet = new Set(expandedCategories);
@@ -258,66 +260,70 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
     return Object.values(byCategory).sort((a, b) => b.amount - a.amount).slice(0, 5);
   }, [filteredTransactions, categories]);
 
-  // Compare modal: available months for selected category
-  const compareAvailableMonths = useMemo(() => {
-    if (!compareCategory) return [];
-    const monthSet = new Map<string, { year: number; monthIndex: number }>();
+  // Compare card: available months per category
+  const getMonthsForCategory = (catId: string) => {
+    if (!catId) return [];
+    const monthSet = new Map<string, { key: string; year: number; monthIndex: number }>();
     transactions.forEach(t => {
       if (t.excluded || t.categoryId === 'excluded') return;
       if (t.type !== 'EXPENSE') return;
-      if (t.categoryId !== compareCategory) return;
+      if (t.categoryId !== catId) return;
       const d = new Date(t.date);
       const key = `${d.getFullYear()}-${d.getMonth()}`;
       if (!monthSet.has(key)) {
-        monthSet.set(key, { year: d.getFullYear(), monthIndex: d.getMonth() });
+        monthSet.set(key, { key, year: d.getFullYear(), monthIndex: d.getMonth() });
       }
     });
     return Array.from(monthSet.values()).sort((a, b) => a.year - b.year || a.monthIndex - b.monthIndex);
-  }, [transactions, compareCategory]);
+  };
 
-  // Compare modal: transaction data for each month
-  const compareData = useMemo(() => {
-    if (!compareCategory || !compareMonthA || !compareMonthB) return null;
+  const compareMonthsA = useMemo(() => getMonthsForCategory(compareCatA), [transactions, compareCatA]);
+  const compareMonthsB = useMemo(() => getMonthsForCategory(compareCatB), [transactions, compareCatB]);
 
-    const getMonthTransactions = (month: { year: number; monthIndex: number }) => {
-      const txs = transactions.filter(t =>
-        !t.excluded && t.categoryId !== 'excluded' &&
-        t.type === 'EXPENSE' &&
-        t.categoryId === compareCategory &&
-        new Date(t.date).getFullYear() === month.year &&
-        new Date(t.date).getMonth() === month.monthIndex
-      );
+  // Compare card: get transaction data for a side
+  const getCompareData = (catId: string, monthKey: string) => {
+    if (!catId || !monthKey) return null;
+    const [yearStr, monthStr] = monthKey.split('-');
+    const year = parseInt(yearStr);
+    const monthIndex = parseInt(monthStr);
 
-      // Group by merchant
-      const grouped = new Map<string, { description: string; amount: number; count: number }>();
-      txs.forEach(t => {
-        const existing = grouped.get(t.description);
-        if (existing) {
-          existing.amount += t.amount;
-          existing.count += 1;
-        } else {
-          grouped.set(t.description, { description: t.description, amount: t.amount, count: 1 });
-        }
-      });
+    const txs = transactions.filter(t =>
+      !t.excluded && t.categoryId !== 'excluded' &&
+      t.type === 'EXPENSE' &&
+      t.categoryId === catId &&
+      new Date(t.date).getFullYear() === year &&
+      new Date(t.date).getMonth() === monthIndex
+    );
 
-      const merchants = Array.from(grouped.values()).sort((a, b) => b.amount - a.amount);
-      const total = txs.reduce((sum, t) => sum + t.amount, 0);
-      return { merchants, total, count: txs.length };
-    };
+    const grouped = new Map<string, { description: string; amount: number; count: number }>();
+    txs.forEach(t => {
+      const existing = grouped.get(t.description);
+      if (existing) {
+        existing.amount += t.amount;
+        existing.count += 1;
+      } else {
+        grouped.set(t.description, { description: t.description, amount: t.amount, count: 1 });
+      }
+    });
 
-    const a = getMonthTransactions(compareMonthA);
-    const b = getMonthTransactions(compareMonthB);
-    const diff = b.total - a.total;
-    const pctChange = a.total > 0 ? ((diff / a.total) * 100) : 0;
+    const merchants = Array.from(grouped.values()).sort((a, b) => b.amount - a.amount);
+    const total = txs.reduce((sum, t) => sum + t.amount, 0);
+    return { merchants, total, count: txs.length };
+  };
 
-    return { a, b, diff, pctChange };
-  }, [transactions, compareCategory, compareMonthA, compareMonthB]);
+  const compareSideA = useMemo(() => getCompareData(compareCatA, compareMonthA), [transactions, compareCatA, compareMonthA]);
+  const compareSideB = useMemo(() => getCompareData(compareCatB, compareMonthB), [transactions, compareCatB, compareMonthB]);
 
-  const compareCategoryName = useMemo(() => {
-    if (!compareCategory) return '';
-    const cat = categories.find(c => c.id === compareCategory);
-    return cat?.name || 'Unknown';
-  }, [compareCategory, categories]);
+  const compareDiff = useMemo(() => {
+    if (!compareSideA || !compareSideB) return null;
+    const diff = compareSideB.total - compareSideA.total;
+    const pctChange = compareSideA.total > 0 ? ((diff / compareSideA.total) * 100) : 0;
+    return { diff, pctChange };
+  }, [compareSideA, compareSideB]);
+
+  const expenseCategories = useMemo(() => {
+    return categories.filter(c => c.type === 'EXPENSE').sort((a, b) => a.name.localeCompare(b.name));
+  }, [categories]);
 
   // Category + subcategory options for chart filter
   const expenseCategoryOptions = useMemo(() => {
@@ -816,19 +822,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                                   <span className="text-[10px] text-slate-400 dark:text-neutral-500 w-8 text-right">{percentage}%</span>
                                 </div>
                               </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setCompareCategory(cat.id);
-                                  setCompareMonthA({ year: row.year, monthIndex: row.monthIndex });
-                                  setCompareMonthB(null);
-                                }}
-                                className="mt-1 flex items-center gap-1 px-2 py-1 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 hover:text-[#635bff] dark:hover:text-[#635bff] hover:bg-white dark:hover:bg-slate-900 rounded-lg transition-colors"
-                                title="Compare this category across months"
-                              >
-                                <ArrowLeftRight size={10} />
-                                <span>Compare</span>
-                              </button>
 
                               {isCatExpanded && hasSubcategories && (
                                 <div className="ml-5 mt-2 space-y-1.5">
@@ -995,145 +988,174 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
       </div>
 
-      {/* Compare Category Modal */}
-      {compareCategory && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 sm:p-6">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setCompareCategory(null)} />
-          <div className="relative w-full max-w-3xl bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl overflow-hidden border border-slate-100 dark:border-neutral-700 animate-in zoom-in-95 duration-200 max-h-[85vh] flex flex-col">
-            {/* Header */}
-            <div className="px-5 py-4 border-b border-slate-100 dark:border-neutral-700 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2">
-                <ArrowLeftRight size={16} className="text-[#635bff]" />
-                <h3 className="text-sm font-bold text-slate-900 dark:text-neutral-200">Compare: {compareCategoryName}</h3>
+      {/* Category Comparison Card */}
+      <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 dark:border-neutral-700 flex items-center gap-2">
+          <ArrowLeftRight size={16} className="text-[#635bff]" />
+          <h3 className="text-sm font-bold text-slate-900 dark:text-neutral-200">Category Comparison</h3>
+        </div>
+
+        {/* Controls */}
+        <div className="px-5 py-4 border-b border-slate-100 dark:border-neutral-700">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Side A Controls */}
+            <div className="space-y-2">
+              <p className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Side A</p>
+              <div className="relative">
+                <select
+                  value={compareCatA}
+                  onChange={(e) => { setCompareCatA(e.target.value); setCompareMonthA(''); }}
+                  className="w-full appearance-none bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer"
+                >
+                  <option value="">Select category...</option>
+                  {expenseCategories.map(c => (
+                    <option key={c.id} value={c.id}>{getCategoryEmoji ? getCategoryEmoji(c.id) : ''} {c.name}</option>
+                  ))}
+                </select>
+                <ChevronDown size={10} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
               </div>
-              <button onClick={() => setCompareCategory(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-700 transition-colors">
-                <X size={16} className="text-slate-400 dark:text-neutral-500" />
-              </button>
+              <div className="relative">
+                <select
+                  value={compareMonthA}
+                  onChange={(e) => setCompareMonthA(e.target.value)}
+                  disabled={!compareCatA}
+                  className="w-full appearance-none bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer disabled:opacity-50"
+                >
+                  <option value="">Select month...</option>
+                  {compareMonthsA.map(m => (
+                    <option key={m.key} value={m.key}>{FULL_MONTHS[m.monthIndex]} {m.year}</option>
+                  ))}
+                </select>
+                <ChevronDown size={10} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
+              </div>
             </div>
 
-            {/* Month Selectors */}
-            <div className="px-5 py-3 border-b border-slate-100 dark:border-neutral-700 flex items-center gap-3 shrink-0 flex-wrap">
-              <select
-                value={compareMonthA ? `${compareMonthA.year}-${compareMonthA.monthIndex}` : ''}
-                onChange={(e) => {
-                  const [y, m] = e.target.value.split('-').map(Number);
-                  setCompareMonthA({ year: y, monthIndex: m });
-                }}
-                className="flex-1 min-w-[140px] bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 dark:text-neutral-300 outline-none focus:border-[#635bff]"
-              >
-                <option value="">Select month...</option>
-                {compareAvailableMonths.map(m => (
-                  <option key={`${m.year}-${m.monthIndex}`} value={`${m.year}-${m.monthIndex}`}>
-                    {FULL_MONTHS[m.monthIndex]} {m.year}
-                  </option>
-                ))}
-              </select>
-              <span className="text-xs font-bold text-slate-300 dark:text-neutral-600">vs</span>
-              <select
-                value={compareMonthB ? `${compareMonthB.year}-${compareMonthB.monthIndex}` : ''}
-                onChange={(e) => {
-                  const [y, m] = e.target.value.split('-').map(Number);
-                  setCompareMonthB({ year: y, monthIndex: m });
-                }}
-                className="flex-1 min-w-[140px] bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 dark:text-neutral-300 outline-none focus:border-[#635bff]"
-              >
-                <option value="">Select month...</option>
-                {compareAvailableMonths.map(m => (
-                  <option key={`${m.year}-${m.monthIndex}`} value={`${m.year}-${m.monthIndex}`}>
-                    {FULL_MONTHS[m.monthIndex]} {m.year}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Comparison Content */}
-            <div className="flex-1 overflow-y-auto p-5">
-              {compareData ? (
-                <>
-                  {/* Difference Summary */}
-                  <div className="mb-5 bg-slate-50 dark:bg-neutral-700 rounded-xl p-4 flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Difference</p>
-                      <p className={`text-lg font-bold ${compareData.diff > 0 ? 'text-rose-600' : compareData.diff < 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
-                        {compareData.diff > 0 ? '+' : ''}£{compareData.diff.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                    <div className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold ${compareData.diff > 0 ? 'bg-rose-50 dark:bg-rose-950 text-rose-600' : compareData.diff < 0 ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-600' : 'bg-slate-100 dark:bg-neutral-600 text-slate-500'}`}>
-                      {compareData.diff > 0 ? <TrendingUp size={14} /> : compareData.diff < 0 ? <TrendingDown size={14} /> : null}
-                      <span>{compareData.pctChange > 0 ? '+' : ''}{compareData.pctChange.toFixed(1)}%</span>
-                    </div>
-                  </div>
-
-                  {/* Side by Side Columns */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Month A */}
-                    <div className="bg-white dark:bg-neutral-700/50 rounded-xl border border-slate-100 dark:border-neutral-600 overflow-hidden">
-                      <div className="px-4 py-3 border-b border-slate-100 dark:border-neutral-600 bg-slate-50/50 dark:bg-neutral-700">
-                        <p className="text-xs font-bold text-slate-900 dark:text-neutral-200">
-                          {compareMonthA ? `${FULL_MONTHS[compareMonthA.monthIndex]} ${compareMonthA.year}` : ''}
-                        </p>
-                        <p className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">
-                          {compareData.a.count} transactions · £{compareData.a.total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </p>
-                      </div>
-                      <div className="divide-y divide-slate-100 dark:divide-neutral-600">
-                        {compareData.a.merchants.map((m, i) => (
-                          <div key={i} className="flex items-center justify-between px-4 py-2.5">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="text-[11px] text-slate-700 dark:text-neutral-400 truncate">{m.description || 'Unknown'}</span>
-                              {m.count > 1 && <span className="text-[9px] text-slate-400 dark:text-neutral-500">x{m.count}</span>}
-                            </div>
-                            <span className="text-[11px] font-semibold text-slate-900 dark:text-neutral-200 shrink-0 ml-2">
-                              £{m.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                        ))}
-                        {compareData.a.merchants.length === 0 && (
-                          <div className="px-4 py-6 text-center text-slate-400 dark:text-neutral-500 text-xs">No transactions</div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Month B */}
-                    <div className="bg-white dark:bg-neutral-700/50 rounded-xl border border-slate-100 dark:border-neutral-600 overflow-hidden">
-                      <div className="px-4 py-3 border-b border-slate-100 dark:border-neutral-600 bg-slate-50/50 dark:bg-neutral-700">
-                        <p className="text-xs font-bold text-slate-900 dark:text-neutral-200">
-                          {compareMonthB ? `${FULL_MONTHS[compareMonthB.monthIndex]} ${compareMonthB.year}` : ''}
-                        </p>
-                        <p className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">
-                          {compareData.b.count} transactions · £{compareData.b.total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </p>
-                      </div>
-                      <div className="divide-y divide-slate-100 dark:divide-neutral-600">
-                        {compareData.b.merchants.map((m, i) => (
-                          <div key={i} className="flex items-center justify-between px-4 py-2.5">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="text-[11px] text-slate-700 dark:text-neutral-400 truncate">{m.description || 'Unknown'}</span>
-                              {m.count > 1 && <span className="text-[9px] text-slate-400 dark:text-neutral-500">x{m.count}</span>}
-                            </div>
-                            <span className="text-[11px] font-semibold text-slate-900 dark:text-neutral-200 shrink-0 ml-2">
-                              £{m.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                        ))}
-                        {compareData.b.merchants.length === 0 && (
-                          <div className="px-4 py-6 text-center text-slate-400 dark:text-neutral-500 text-xs">No transactions</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <ArrowLeftRight size={32} className="text-slate-300 dark:text-neutral-600 mb-3" />
-                  <p className="text-sm font-medium text-slate-500 dark:text-neutral-500">Select two months to compare</p>
-                  <p className="text-xs text-slate-400 dark:text-neutral-500 mt-1">Choose months from the dropdowns above</p>
-                </div>
-              )}
+            {/* Side B Controls */}
+            <div className="space-y-2">
+              <p className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Side B</p>
+              <div className="relative">
+                <select
+                  value={compareCatB}
+                  onChange={(e) => { setCompareCatB(e.target.value); setCompareMonthB(''); }}
+                  className="w-full appearance-none bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer"
+                >
+                  <option value="">Select category...</option>
+                  {expenseCategories.map(c => (
+                    <option key={c.id} value={c.id}>{getCategoryEmoji ? getCategoryEmoji(c.id) : ''} {c.name}</option>
+                  ))}
+                </select>
+                <ChevronDown size={10} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
+              </div>
+              <div className="relative">
+                <select
+                  value={compareMonthB}
+                  onChange={(e) => setCompareMonthB(e.target.value)}
+                  disabled={!compareCatB}
+                  className="w-full appearance-none bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer disabled:opacity-50"
+                >
+                  <option value="">Select month...</option>
+                  {compareMonthsB.map(m => (
+                    <option key={m.key} value={m.key}>{FULL_MONTHS[m.monthIndex]} {m.year}</option>
+                  ))}
+                </select>
+                <ChevronDown size={10} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
+              </div>
             </div>
           </div>
         </div>
-      )}
+
+        {/* Results */}
+        <div className="p-5">
+          {compareSideA && compareSideB && compareDiff ? (
+            <>
+              {/* Difference Summary */}
+              <div className="mb-5 bg-slate-50 dark:bg-neutral-700 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Difference (B vs A)</p>
+                  <p className={`text-lg font-bold ${compareDiff.diff > 0 ? 'text-rose-600' : compareDiff.diff < 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
+                    {compareDiff.diff > 0 ? '+' : ''}£{compareDiff.diff.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold ${compareDiff.diff > 0 ? 'bg-rose-50 dark:bg-rose-950 text-rose-600' : compareDiff.diff < 0 ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-600' : 'bg-slate-100 dark:bg-neutral-600 text-slate-500'}`}>
+                  {compareDiff.diff > 0 ? <TrendingUp size={14} /> : compareDiff.diff < 0 ? <TrendingDown size={14} /> : null}
+                  <span>{compareDiff.pctChange > 0 ? '+' : ''}{compareDiff.pctChange.toFixed(1)}%</span>
+                </div>
+              </div>
+
+              {/* Side by Side */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Side A */}
+                <div className="bg-white dark:bg-neutral-700/50 rounded-xl border border-slate-100 dark:border-neutral-600 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-100 dark:border-neutral-600 bg-slate-50/50 dark:bg-neutral-700">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm">{getCategoryEmoji ? getCategoryEmoji(compareCatA) : '📊'}</span>
+                      <p className="text-xs font-bold text-slate-900 dark:text-neutral-200">
+                        {categories.find(c => c.id === compareCatA)?.name || 'Unknown'}
+                      </p>
+                    </div>
+                    <p className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">
+                      {(() => { const [y, m] = compareMonthA.split('-'); return `${FULL_MONTHS[parseInt(m)]} ${y}`; })()} · {compareSideA.count} transactions · £{compareSideA.total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <div className="divide-y divide-slate-100 dark:divide-neutral-600">
+                    {compareSideA.merchants.map((m, i) => (
+                      <div key={i} className="flex items-center justify-between px-4 py-2.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-[11px] text-slate-700 dark:text-neutral-400 truncate">{m.description || 'Unknown'}</span>
+                          {m.count > 1 && <span className="text-[9px] text-slate-400 dark:text-neutral-500">x{m.count}</span>}
+                        </div>
+                        <span className="text-[11px] font-semibold text-slate-900 dark:text-neutral-200 shrink-0 ml-2">
+                          £{m.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    ))}
+                    {compareSideA.merchants.length === 0 && (
+                      <div className="px-4 py-6 text-center text-slate-400 dark:text-neutral-500 text-xs">No transactions</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Side B */}
+                <div className="bg-white dark:bg-neutral-700/50 rounded-xl border border-slate-100 dark:border-neutral-600 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-100 dark:border-neutral-600 bg-slate-50/50 dark:bg-neutral-700">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm">{getCategoryEmoji ? getCategoryEmoji(compareCatB) : '📊'}</span>
+                      <p className="text-xs font-bold text-slate-900 dark:text-neutral-200">
+                        {categories.find(c => c.id === compareCatB)?.name || 'Unknown'}
+                      </p>
+                    </div>
+                    <p className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">
+                      {(() => { const [y, m] = compareMonthB.split('-'); return `${FULL_MONTHS[parseInt(m)]} ${y}`; })()} · {compareSideB.count} transactions · £{compareSideB.total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <div className="divide-y divide-slate-100 dark:divide-neutral-600">
+                    {compareSideB.merchants.map((m, i) => (
+                      <div key={i} className="flex items-center justify-between px-4 py-2.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-[11px] text-slate-700 dark:text-neutral-400 truncate">{m.description || 'Unknown'}</span>
+                          {m.count > 1 && <span className="text-[9px] text-slate-400 dark:text-neutral-500">x{m.count}</span>}
+                        </div>
+                        <span className="text-[11px] font-semibold text-slate-900 dark:text-neutral-200 shrink-0 ml-2">
+                          £{m.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    ))}
+                    {compareSideB.merchants.length === 0 && (
+                      <div className="px-4 py-6 text-center text-slate-400 dark:text-neutral-500 text-xs">No transactions</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <ArrowLeftRight size={28} className="text-slate-300 dark:text-neutral-600 mb-3" />
+              <p className="text-sm font-medium text-slate-500 dark:text-neutral-500">Compare categories side by side</p>
+              <p className="text-xs text-slate-400 dark:text-neutral-500 mt-1">Select a category and month on each side to compare spending</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
