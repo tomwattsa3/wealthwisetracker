@@ -36,11 +36,11 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
   // --- KPI Revenue variant ---
   if (variant === 'kpi-revenue') {
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col justify-between h-full">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 p-5 flex flex-col justify-between h-full">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <span className="text-base">📈</span>
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Income</span>
+            <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Income</span>
           </div>
           {percentChange !== undefined && (
             <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${percentChange >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
@@ -48,9 +48,9 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
             </span>
           )}
         </div>
-        <p className="text-3xl font-bold text-slate-900">{currencyDisplay}</p>
+        <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">{currencyDisplay}</p>
         {amountAlt !== undefined && (
-          <p className="text-[11px] font-medium text-slate-400 mt-1">{formatAlt(amountAlt)}</p>
+          <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-1">{formatAlt(amountAlt)}</p>
         )}
       </div>
     );
@@ -62,11 +62,11 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
     const spendPct = rev > 0 ? (amount / rev) * 100 : 0;
 
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col justify-between h-full">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 p-5 flex flex-col justify-between h-full">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <span className="text-base">📉</span>
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Expenses</span>
+            <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Expenses</span>
           </div>
           <div className="flex items-center gap-1.5">
             {rev > 0 && (
@@ -81,9 +81,9 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
             )}
           </div>
         </div>
-        <p className="text-3xl font-bold text-slate-900">{currencyDisplay}</p>
+        <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">{currencyDisplay}</p>
         {amountAlt !== undefined && (
-          <p className="text-[11px] font-medium text-slate-400 mt-1">{formatAlt(amountAlt)}</p>
+          <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-1">{formatAlt(amountAlt)}</p>
         )}
       </div>
     );
@@ -99,11 +99,11 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
     const netSavedAlt = revAlt - expAlt;
 
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col justify-between h-full">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 p-5 flex flex-col justify-between h-full">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <span className="text-base">💰</span>
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Net Saved</span>
+            <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Net Saved</span>
           </div>
           {rev > 0 && (
             <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${netSaved >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
@@ -113,7 +113,7 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
         </div>
         <p className={`text-3xl font-bold ${netSaved >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatVal(netSaved)}</p>
         {(revenueAmountAlt !== undefined || expenseAmountAlt !== undefined) && (
-          <p className="text-[11px] font-medium text-slate-400 mt-1">{formatAlt(netSavedAlt)}</p>
+          <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-1">{formatAlt(netSavedAlt)}</p>
         )}
       </div>
     );
@@ -121,7 +121,7 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
 
   // --- Default variant (mobile uses this) ---
   const getIcon = () => {
-    const iconClass = "text-slate-400";
+    const iconClass = "text-slate-400 dark:text-slate-500";
     switch(type) {
       case 'INCOME': return <TrendingUp size={16} className={iconClass} />;
       case 'EXPENSE': return <TrendingDown size={16} className={iconClass} />;
@@ -141,20 +141,20 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
   };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-2.5 md:p-5 h-full flex flex-col justify-between">
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 md:p-5 h-full flex flex-col justify-between">
       {/* Header with icon and label */}
       <div className="flex items-center gap-1.5 mb-1 md:mb-3">
         {getIcon()}
-        <span className="text-[9px] md:text-xs font-medium text-slate-400 uppercase tracking-wide">{label}</span>
+        <span className="text-[9px] md:text-xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide">{label}</span>
       </div>
 
       {/* Amount */}
-      <p className={`${currency === 'AED' ? 'text-sm md:text-lg' : 'text-base md:text-xl'} font-semibold text-slate-900 mb-0.5 md:mb-1`}>
+      <p className={`${currency === 'AED' ? 'text-sm md:text-lg' : 'text-base md:text-xl'} font-semibold text-slate-900 dark:text-slate-100 mb-0.5 md:mb-1`}>
         {currencyDisplay}
       </p>
 
       {/* Subtitle */}
-      <p className="text-[9px] md:text-xs text-slate-400">{getSubtitle()}</p>
+      <p className="text-[9px] md:text-xs text-slate-400 dark:text-slate-500">{getSubtitle()}</p>
     </div>
   );
 };

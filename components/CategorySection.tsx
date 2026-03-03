@@ -31,35 +31,35 @@ const CategorySection: React.FC<CategorySectionProps> = ({
   }).format(total);
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden transition-all hover:border-slate-300 shadow-sm">
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden transition-all hover:border-slate-300 shadow-sm">
       <button 
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors"
+        className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
       >
         <div className="flex items-center gap-4">
           <div className="w-1.5 h-10 rounded-full" style={{ backgroundColor: color }}></div>
           <div className="text-left">
-            <h3 className="font-bold text-slate-800 text-sm">{title}</h3>
-            <p className="text-xs text-slate-500 mt-0.5 font-medium">{transactions.length} transactions</p>
+            <h3 className="font-bold text-slate-800 dark:text-slate-200 text-sm">{title}</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">{transactions.length} transactions</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <span className="font-bold text-slate-900 font-mono">{formattedTotal}</span>
-          {isExpanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+          <span className="font-bold text-slate-900 dark:text-slate-100 font-mono">{formattedTotal}</span>
+          {isExpanded ? <ChevronUp size={16} className="text-slate-400 dark:text-slate-500" /> : <ChevronDown size={16} className="text-slate-400 dark:text-slate-500" />}
         </div>
       </button>
 
       {isExpanded && (
-        <div className="px-4 pb-4 pt-0 bg-slate-50/50">
-          <div className="h-px bg-slate-100 w-full mb-4"></div>
+        <div className="px-4 pb-4 pt-0 bg-slate-50/50 dark:bg-slate-800/50">
+          <div className="h-px bg-slate-100 dark:bg-slate-800 w-full mb-4"></div>
           <div className="space-y-2">
             {Object.entries(subcategories).map(([subName, subTotal]) => (
               <div key={subName} className="flex justify-between items-center text-sm group">
-                <span className="text-slate-600 font-medium flex items-center gap-2">
+                <span className="text-slate-600 dark:text-slate-400 font-medium flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-slate-300"></div>
                   {subName}
                 </span>
-                <span className="text-slate-900 font-bold font-mono text-xs">
+                <span className="text-slate-900 dark:text-slate-100 font-bold font-mono text-xs">
                   £{(subTotal as number).toFixed(2)}
                 </span>
               </div>

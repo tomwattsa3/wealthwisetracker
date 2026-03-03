@@ -100,8 +100,8 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
   // Handle case where no categories exist yet
   if (!category) {
     return (
-      <div className="bg-white rounded-[10px] border border-slate-200 shadow-sm flex flex-col h-[420px] items-center justify-center p-6 text-center">
-         <p className="text-slate-400 text-sm font-medium">Category not found</p>
+      <div className="bg-white dark:bg-slate-900 rounded-[10px] border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col h-[420px] items-center justify-center p-6 text-center">
+         <p className="text-slate-400 dark:text-slate-500 text-sm font-medium">Category not found</p>
       </div>
     );
   }
@@ -121,9 +121,9 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
     const emoji = getCategoryEmoji ? getCategoryEmoji(categoryId) : '📊';
 
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col h-[420px] overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col h-[420px] overflow-hidden">
         {/* Expense Sheet Header */}
-        <div className="px-4 py-3 border-b border-slate-100">
+        <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {/* Clickable emoji with picker */}
@@ -136,7 +136,7 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
                   {emoji}
                 </button>
                 {emojiPickerOpen && (
-                  <div className="absolute top-8 left-0 z-50 bg-white rounded-xl shadow-lg border border-slate-200 p-2 w-[220px]">
+                  <div className="absolute top-8 left-0 z-50 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 p-2 w-[220px]">
                     <div className="grid grid-cols-6 gap-1">
                       {EMOJI_OPTIONS.map(e => (
                         <button
@@ -145,7 +145,7 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
                             onEmojiChange?.(categoryId, e);
                             setEmojiPickerOpen(false);
                           }}
-                          className={`w-8 h-8 flex items-center justify-center rounded-lg text-base hover:bg-slate-100 transition-colors ${e === emoji ? 'bg-slate-100 ring-1 ring-slate-300' : ''}`}
+                          className={`w-8 h-8 flex items-center justify-center rounded-lg text-base hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${e === emoji ? 'bg-slate-100 dark:bg-slate-800 ring-1 ring-slate-300' : ''}`}
                         >
                           {e}
                         </button>
@@ -155,7 +155,7 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
                 )}
               </div>
               <div className="relative">
-                <span className="text-sm font-bold text-slate-900">{category.name}</span>
+                <span className="text-sm font-bold text-slate-900 dark:text-slate-100">{category.name}</span>
                 <select
                   value={categoryId}
                   onChange={(e) => onCategoryChange(e.target.value)}
@@ -168,8 +168,8 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
               </div>
             </div>
             <div className="text-right">
-              <span className="text-sm font-bold text-slate-900">{formatCurrency(totalAmount)}</span>
-              <p className="text-[10px] font-medium text-slate-400">{formatAlt(totalAmountAlt)}</p>
+              <span className="text-sm font-bold text-slate-900 dark:text-slate-100">{formatCurrency(totalAmount)}</span>
+              <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500">{formatAlt(totalAmountAlt)}</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5 mt-1">
@@ -178,7 +178,7 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
               <select
                 value={subFilter}
                 onChange={(e) => setSubFilter(e.target.value)}
-                className="bg-transparent text-[10px] font-medium text-slate-400 outline-none cursor-pointer hover:text-slate-600 transition-colors ml-auto"
+                className="bg-transparent text-[10px] font-medium text-slate-400 dark:text-slate-500 outline-none cursor-pointer hover:text-slate-600 transition-colors ml-auto"
               >
                 <option value="all">All</option>
                 {category.subcategories.map(s => (
@@ -194,25 +194,25 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
           {groupedTransactions.length > 0 ? (
             <div>
               {/* Column Headers */}
-              <div className="grid grid-cols-[1fr_32px_80px] bg-slate-100 border-b border-dashed border-slate-200/80 sticky top-0 z-10">
+              <div className="grid grid-cols-[1fr_32px_80px] bg-slate-100 dark:bg-slate-800 border-b border-dashed border-slate-200/80 sticky top-0 z-10">
                 <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Merchant</div>
                 <div className="px-1 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80">Qty</div>
                 <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
               </div>
 
               {groupedTransactions.map((t, idx) => (
-                <div key={t.id} className={`grid grid-cols-[1fr_32px_80px] items-center border-b border-dashed border-slate-200/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}`}>
+                <div key={t.id} className={`grid grid-cols-[1fr_32px_80px] items-center border-b border-dashed border-slate-200/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60 dark:bg-slate-800/60' : 'bg-white dark:bg-slate-900'}`}>
                   <div className="px-3 py-3 min-w-0 flex items-center justify-between gap-1.5 border-r border-dashed border-slate-200/80">
-                    <span className="text-[11px] font-medium text-slate-700 truncate" title={t.description}>{t.description || "Unknown"}</span>
+                    <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300 truncate" title={t.description}>{t.description || "Unknown"}</span>
                     {t.subcategoryName && (
-                      <span className="px-1.5 py-px bg-slate-50 border border-slate-200 rounded-md text-[8px] font-medium text-slate-500 shrink-0 leading-tight">{t.subcategoryName}</span>
+                      <span className="px-1.5 py-px bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-[8px] font-medium text-slate-500 dark:text-slate-400 shrink-0 leading-tight">{t.subcategoryName}</span>
                     )}
                   </div>
                   <div className="px-1 py-3 text-center border-r border-dashed border-slate-200/80">
                     <span className="text-[10px] text-slate-400">{t.count > 1 ? t.count : ''}</span>
                   </div>
                   <div className="px-3 py-3 text-right">
-                    <span className="text-[11px] font-semibold text-slate-800">{formatCurrency(t.amount)}</span>
+                    <span className="text-[11px] font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(t.amount)}</span>
                   </div>
                 </div>
               ))}
@@ -220,7 +220,7 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-2 py-8">
               <ShoppingBag size={20} className="opacity-30" />
-              <p className="text-xs text-slate-400">No transactions</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">No transactions</p>
             </div>
           )}
         </div>
@@ -230,10 +230,10 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
 
   // --- Default variant ---
   return (
-    <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-[520px] overflow-hidden">
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col h-[520px] overflow-hidden">
 
       {/* Mercury Style Header */}
-      <div className="px-4 py-3 border-b border-slate-100 flex justify-between items-center">
+      <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
           <div className="flex items-center gap-2">
              {/* Category color indicator */}
              <div
@@ -243,7 +243,7 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
              {/* Category Selector */}
              <div className="relative">
                   <div className="flex items-center gap-1.5 cursor-pointer">
-                    <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">{category.name}</span>
+                    <span className="text-xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide">{category.name}</span>
                     <ChevronDown size={12} className="text-slate-400" />
                   </div>
                   <select
@@ -260,20 +260,21 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
 
           {/* Total Amount */}
           <div className="text-right">
-            <span className="text-sm font-semibold text-slate-900 font-mono">
+            <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 font-mono">
               {formatCurrency(totalAmount)}
             </span>
-            <p className="text-[10px] font-medium text-slate-400">{formatAlt(totalAmountAlt)}</p>
+            <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500">{formatAlt(totalAmountAlt)}</p>
           </div>
       </div>
 
       {/* Subfilter */}
-      <div className="px-4 py-2 border-b border-slate-50 flex items-center justify-between">
-            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Transactions</span>
+      <div className="px-4 py-2 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
+            <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide">Transactions</span>
+
              <select
                  value={subFilter}
                  onChange={(e) => setSubFilter(e.target.value)}
-                 className="bg-transparent text-[10px] font-medium text-slate-500 outline-none cursor-pointer hover:text-slate-700 transition-colors"
+                 className="bg-transparent text-[10px] font-medium text-slate-500 dark:text-slate-400 outline-none cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
              >
                  <option value="all">All</option>
                  {category.subcategories.map(s => (
@@ -287,14 +288,14 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
         {groupedTransactions.length > 0 ? (
           <div className="md:block">
             {/* Mobile Spreadsheet Header */}
-            <div className="md:hidden grid grid-cols-[1fr_auto_auto] bg-slate-50/80 border-b border-slate-200">
+            <div className="md:hidden grid grid-cols-[1fr_auto_auto] bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
               <div className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-r border-slate-200">Merchant</div>
               <div className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-slate-200 w-12">Qty</div>
               <div className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-right w-24">Amount</div>
             </div>
 
             {/* Desktop Spreadsheet Header */}
-            <div className="hidden md:grid grid-cols-[1fr_24px_80px] bg-slate-100 border-b border-dashed border-slate-200/80 sticky top-0 z-10">
+            <div className="hidden md:grid grid-cols-[1fr_24px_80px] bg-slate-100 dark:bg-slate-800 border-b border-dashed border-slate-200/80 sticky top-0 z-10">
               <div className="px-2.5 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider border-r border-dashed border-slate-200/80">Merchant</div>
               <div className="px-1 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80">Qty</div>
               <div className="px-2.5 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>
@@ -303,30 +304,30 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
             {groupedTransactions.map((t, idx) => (
               <div key={t.id}>
                 {/* Mobile Spreadsheet Row */}
-                <div className="md:hidden grid grid-cols-[1fr_auto_auto] items-center bg-white border-b border-dashed border-slate-200/80 last:border-b-0">
+                <div className="md:hidden grid grid-cols-[1fr_auto_auto] items-center bg-white dark:bg-slate-900 border-b border-dashed border-slate-200/80 last:border-b-0">
                   <div className="px-3 py-3 border-r border-dashed border-slate-200/80">
-                    <span className="text-sm font-medium text-slate-700 block truncate" title={t.description}>{t.description || "Unknown"}</span>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 block truncate" title={t.description}>{t.description || "Unknown"}</span>
                     <span className="text-[10px] text-slate-400">{t.subcategoryName}</span>
                   </div>
                   <div className="px-3 py-3 text-center border-r border-dashed border-slate-200/80 w-12">
-                    <span className="text-sm text-slate-500">{t.count > 1 ? t.count : '-'}</span>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">{t.count > 1 ? t.count : '-'}</span>
                   </div>
                   <div className="px-3 py-3 text-right w-24">
-                    <span className="text-sm font-semibold text-slate-800">{formatCurrency(t.amount)}</span>
+                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(t.amount)}</span>
                   </div>
                 </div>
 
                 {/* Desktop Spreadsheet Row */}
-                <div className={`hidden md:grid grid-cols-[1fr_24px_80px] items-center bg-white border-b border-dashed border-slate-200/80 last:border-b-0`}>
+                <div className={`hidden md:grid grid-cols-[1fr_24px_80px] items-center bg-white dark:bg-slate-900 border-b border-dashed border-slate-200/80 last:border-b-0`}>
                   <div className="px-2.5 py-2 border-r border-dashed border-slate-200/80 min-w-0 flex items-center justify-between gap-1">
-                    <span className="text-[11px] font-medium text-slate-700 truncate" title={t.description}>{t.description || "Unknown"}</span>
-                    <span className="px-1 py-0.5 bg-slate-100 rounded text-[7px] text-slate-600 shrink-0 leading-none">{t.subcategoryName}</span>
+                    <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300 truncate" title={t.description}>{t.description || "Unknown"}</span>
+                    <span className="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[7px] text-slate-600 dark:text-slate-400 shrink-0 leading-none">{t.subcategoryName}</span>
                   </div>
                   <div className="px-1 py-2 text-center border-r border-dashed border-slate-200/80">
                     <span className="text-[9px] text-slate-400">{t.count > 1 ? t.count : ''}</span>
                   </div>
                   <div className="px-2.5 py-2 text-right">
-                    <span className="text-[11px] font-semibold text-slate-800">{formatCurrency(t.amount)}</span>
+                    <span className="text-[11px] font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(t.amount)}</span>
                   </div>
                 </div>
               </div>

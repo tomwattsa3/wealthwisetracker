@@ -99,17 +99,17 @@ const WealthManager: React.FC<WealthManagerProps> = ({
       </div>
 
       {/* Tabs */}
-      <div className="flex bg-white p-1 rounded-xl border border-slate-200 w-full sm:w-fit">
+      <div className="flex bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700 w-full sm:w-fit">
         <button
           onClick={() => setActiveTab('debts')}
-          className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'debts' ? 'bg-orange-50 text-orange-700 shadow-sm ring-1 ring-orange-200' : 'text-slate-500 hover:text-slate-700'}`}
+          className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'debts' ? 'bg-orange-50 text-orange-700 shadow-sm ring-1 ring-orange-200' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
         >
           <Landmark size={16} />
           Debt Tracker
         </button>
         <button
           onClick={() => setActiveTab('assets')}
-          className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'assets' ? 'bg-emerald-50 text-emerald-700 shadow-sm ring-1 ring-emerald-200' : 'text-slate-500 hover:text-slate-700'}`}
+          className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'assets' ? 'bg-emerald-50 text-emerald-700 shadow-sm ring-1 ring-emerald-200' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
         >
           <Wallet size={16} />
           Assets
@@ -120,8 +120,8 @@ const WealthManager: React.FC<WealthManagerProps> = ({
         
         {/* Form Column */}
         <div className="lg:col-span-1">
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-6">
-             <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm sticky top-6">
+             <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
                {activeTab === 'debts' ? <Plus size={18} className="text-orange-600" /> : <Plus size={18} className="text-emerald-600" />}
                {activeTab === 'debts' ? 'Add New Debt' : 'Add New Asset'}
              </h3>
@@ -129,37 +129,37 @@ const WealthManager: React.FC<WealthManagerProps> = ({
              {activeTab === 'debts' ? (
                 <form onSubmit={handleAddDebt} className="space-y-4">
                    <div>
-                     <label className="text-[11px] font-bold text-slate-500 uppercase ml-1">Creditor Name</label>
+                     <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase ml-1">Creditor Name</label>
                      <input 
                        required
                        type="text" 
                        placeholder="e.g. Amex Gold"
                        value={debtName}
                        onChange={e => setDebtName(e.target.value)}
-                       className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"
+                       className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium dark:text-slate-200 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"
                      />
                    </div>
                    <div>
-                     <label className="text-[11px] font-bold text-slate-500 uppercase ml-1">Amount Owed</label>
+                     <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase ml-1">Amount Owed</label>
                      <div className="relative mt-1">
-                        <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input 
+                        <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                        <input
                           required
-                          type="number" 
+                          type="number"
                           placeholder="0.00"
                           value={debtAmount}
                           onChange={e => setDebtAmount(e.target.value)}
-                          className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"
+                          className="w-full pl-8 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium dark:text-slate-200 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"
                         />
                      </div>
                    </div>
                    <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[11px] font-bold text-slate-500 uppercase ml-1">Type</label>
+                        <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase ml-1">Type</label>
                         <select 
                           value={debtType} 
                           onChange={e => setDebtType(e.target.value as any)}
-                          className="w-full mt-1 px-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"
+                          className="w-full mt-1 px-2 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium dark:text-slate-200 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"
                         >
                            <option value="credit">Credit Card</option>
                            <option value="loan">Loan</option>
@@ -168,13 +168,13 @@ const WealthManager: React.FC<WealthManagerProps> = ({
                         </select>
                       </div>
                       <div>
-                        <label className="text-[11px] font-bold text-slate-500 uppercase ml-1">APR % (Opt)</label>
-                        <input 
-                          type="number" 
+                        <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase ml-1">APR % (Opt)</label>
+                        <input
+                          type="number"
                           placeholder="0%"
                           value={debtRate}
                           onChange={e => setDebtRate(e.target.value)}
-                          className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"
+                          className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium dark:text-slate-200 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"
                         />
                       </div>
                    </div>
@@ -185,36 +185,36 @@ const WealthManager: React.FC<WealthManagerProps> = ({
              ) : (
                 <form onSubmit={handleAddAsset} className="space-y-4">
                    <div>
-                     <label className="text-[11px] font-bold text-slate-500 uppercase ml-1">Asset Name</label>
+                     <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase ml-1">Asset Name</label>
                      <input 
                        required
                        type="text" 
                        placeholder="e.g. Chase Savings"
                        value={assetName}
                        onChange={e => setAssetName(e.target.value)}
-                       className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                       className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium dark:text-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
                      />
                    </div>
                    <div>
-                     <label className="text-[11px] font-bold text-slate-500 uppercase ml-1">Current Value</label>
+                     <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase ml-1">Current Value</label>
                      <div className="relative mt-1">
-                        <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input 
+                        <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                        <input
                           required
-                          type="number" 
+                          type="number"
                           placeholder="0.00"
                           value={assetAmount}
                           onChange={e => setAssetAmount(e.target.value)}
-                          className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                          className="w-full pl-8 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium dark:text-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
                         />
                      </div>
                    </div>
                    <div>
-                        <label className="text-[11px] font-bold text-slate-500 uppercase ml-1">Type</label>
+                        <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase ml-1">Type</label>
                         <select 
                           value={assetType} 
                           onChange={e => setAssetType(e.target.value as any)}
-                          className="w-full mt-1 px-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                          className="w-full mt-1 px-2 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium dark:text-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
                         >
                            <option value="cash">Cash / Savings</option>
                            <option value="investment">Investments</option>
@@ -235,20 +235,20 @@ const WealthManager: React.FC<WealthManagerProps> = ({
         <div className="lg:col-span-2 space-y-4">
             {activeTab === 'debts' ? (
               <>
-                 <h3 className="text-lg font-bold text-slate-800 flex items-center justify-between">
+                 <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
                     Your Debts
                     <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full">{debts.length} items</span>
                  </h3>
                  
                  {debts.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center p-12 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-slate-400">
+                    <div className="flex flex-col items-center justify-center p-12 bg-slate-50 dark:bg-slate-800 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-slate-400 dark:text-slate-500">
                         <Landmark size={32} className="mb-2 opacity-50" />
                         <p className="text-sm font-medium">You are debt free! Or haven't added any yet.</p>
                     </div>
                  ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {debts.map(item => (
-                            <div key={item.id} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between group hover:border-orange-200 transition-all">
+                            <div key={item.id} className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between group hover:border-orange-200 transition-all">
                                 <div>
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="p-2 bg-orange-50 text-orange-600 rounded-lg">
@@ -258,14 +258,14 @@ const WealthManager: React.FC<WealthManagerProps> = ({
                                             <Trash2 size={16} />
                                         </button>
                                     </div>
-                                    <h4 className="font-bold text-slate-800">{item.name}</h4>
-                                    <p className="text-xs text-slate-500 font-medium capitalize">{item.type} {item.interestRate ? `• ${item.interestRate}% APR` : ''}</p>
+                                    <h4 className="font-bold text-slate-800 dark:text-slate-200">{item.name}</h4>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium capitalize">{item.type} {item.interestRate ? `• ${item.interestRate}% APR` : ''}</p>
                                 </div>
-                                <div className="mt-4 pt-4 border-t border-slate-50">
-                                    <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Owed Amount</p>
+                                <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-800">
+                                    <p className="text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mb-1">Owed Amount</p>
                                     <div className="flex justify-between items-center">
-                                       <span className="text-slate-400 font-medium select-none">£</span>
-                                       <p className="text-xl font-bold text-slate-900 font-mono">
+                                       <span className="text-slate-400 dark:text-slate-500 font-medium select-none">£</span>
+                                       <p className="text-xl font-bold text-slate-900 dark:text-slate-100 font-mono">
                                           {item.amount.toLocaleString()}
                                        </p>
                                     </div>
@@ -277,20 +277,20 @@ const WealthManager: React.FC<WealthManagerProps> = ({
               </>
             ) : (
               <>
-                 <h3 className="text-lg font-bold text-slate-800 flex items-center justify-between">
+                 <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
                     Your Assets
                     <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">{assets.length} items</span>
                  </h3>
 
                  {assets.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center p-12 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-slate-400">
+                    <div className="flex flex-col items-center justify-center p-12 bg-slate-50 dark:bg-slate-800 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-slate-400 dark:text-slate-500">
                         <Wallet size={32} className="mb-2 opacity-50" />
                         <p className="text-sm font-medium">Track your savings and investments here.</p>
                     </div>
                  ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {assets.map(item => (
-                            <div key={item.id} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between group hover:border-emerald-200 transition-all">
+                            <div key={item.id} className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between group hover:border-emerald-200 transition-all">
                                 <div>
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
@@ -300,14 +300,14 @@ const WealthManager: React.FC<WealthManagerProps> = ({
                                             <Trash2 size={16} />
                                         </button>
                                     </div>
-                                    <h4 className="font-bold text-slate-800">{item.name}</h4>
-                                    <p className="text-xs text-slate-500 font-medium capitalize">{item.type}</p>
+                                    <h4 className="font-bold text-slate-800 dark:text-slate-200">{item.name}</h4>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium capitalize">{item.type}</p>
                                 </div>
-                                <div className="mt-4 pt-4 border-t border-slate-50">
-                                    <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Value</p>
+                                <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-800">
+                                    <p className="text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mb-1">Value</p>
                                     <div className="flex justify-between items-center">
-                                       <span className="text-slate-400 font-medium select-none">£</span>
-                                       <p className="text-xl font-bold text-slate-900 font-mono">
+                                       <span className="text-slate-400 dark:text-slate-500 font-medium select-none">£</span>
+                                       <p className="text-xl font-bold text-slate-900 dark:text-slate-100 font-mono">
                                           {item.amount.toLocaleString()}
                                        </p>
                                     </div>

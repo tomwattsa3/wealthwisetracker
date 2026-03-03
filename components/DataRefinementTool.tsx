@@ -53,10 +53,10 @@ const EditableTransactionRow: React.FC<EditableTransactionRowProps> = ({
   };
 
   return (
-    <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row items-start lg:items-center gap-3 hover:shadow-md transition-shadow group">
+    <div className="bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col lg:flex-row items-start lg:items-center gap-3 hover:shadow-md transition-shadow group">
       
       {/* Date Block */}
-      <div className="bg-slate-100 p-2 rounded-lg text-slate-500 font-mono text-[10px] font-bold text-center leading-tight min-w-[50px] shrink-0">
+      <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-slate-500 dark:text-slate-400 font-mono text-[10px] font-bold text-center leading-tight min-w-[50px] shrink-0">
          <div>{new Date(t.date).getDate()}</div>
          <div className="text-[8px] uppercase">{new Date(t.date).toLocaleDateString('en-US', { month: 'short' })}</div>
       </div>
@@ -69,7 +69,7 @@ const EditableTransactionRow: React.FC<EditableTransactionRowProps> = ({
            onChange={(e) => setDescription(e.target.value)}
            onBlur={handleBlur}
            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-           className="text-sm font-bold text-slate-700 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 outline-none w-full transition-colors truncate placeholder:text-slate-300"
+           className="text-sm font-bold text-slate-700 dark:text-slate-300 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 outline-none w-full transition-colors truncate placeholder:text-slate-300"
            placeholder="Statement Descriptor"
          />
          <input 
@@ -78,7 +78,7 @@ const EditableTransactionRow: React.FC<EditableTransactionRowProps> = ({
            onChange={(e) => setNotes(e.target.value)}
            onBlur={handleBlur}
            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-           className="text-[11px] text-slate-500 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 outline-none w-full transition-colors truncate placeholder:text-slate-300 placeholder:italic"
+           className="text-[11px] text-slate-500 dark:text-slate-400 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 outline-none w-full transition-colors truncate placeholder:text-slate-300 placeholder:italic"
            placeholder="Add notes..."
          />
       </div>
@@ -106,7 +106,7 @@ const EditableTransactionRow: React.FC<EditableTransactionRowProps> = ({
               <select
                   value={t.subcategoryName}
                   onChange={(e) => handleSubcategoryChange(e.target.value)}
-                  className="w-full pl-2 pr-6 py-1.5 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-md text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/20 cursor-pointer appearance-none transition-colors"
+                  className="w-full pl-2 pr-6 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-slate-300 rounded-md text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-slate-500/20 cursor-pointer appearance-none transition-colors"
               >
                   {activeCategoryObj?.subcategories.map(sub => (
                       <option key={sub} value={sub}>{sub}</option>
@@ -117,7 +117,7 @@ const EditableTransactionRow: React.FC<EditableTransactionRowProps> = ({
 
           {/* Amount */}
           <div className="w-24 text-right pr-2 shrink-0">
-              <span className={`text-sm font-bold font-mono ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-900'}`}>
+              <span className={`text-sm font-bold font-mono ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-900 dark:text-slate-100'}`}>
                   {t.type === 'INCOME' ? '+' : '-'}£{t.amount.toLocaleString()}
               </span>
           </div>
@@ -178,17 +178,17 @@ const DataRefinementTool: React.FC<DataRefinementToolProps> = ({
     : [];
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col h-full animate-in fade-in">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col h-full animate-in fade-in">
       
       {/* 1. Control Panel */}
-      <div className="p-4 border-b border-slate-200 space-y-4">
+      <div className="p-4 border-b border-slate-200 dark:border-slate-700 space-y-4">
         <div className="flex items-center gap-2 mb-2">
             <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
                 <Filter size={20} />
             </div>
             <div>
-                <h2 className="text-lg font-bold text-slate-900">Data Refinement</h2>
-                <p className="text-xs text-slate-500">Edit transaction details, categorize, and add notes.</p>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Data Refinement</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Edit transaction details, categorize, and add notes.</p>
             </div>
         </div>
 
@@ -203,7 +203,7 @@ const DataRefinementTool: React.FC<DataRefinementToolProps> = ({
                         type="date" 
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
-                        className="w-full pl-8 pr-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                        className="w-full pl-8 pr-2 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                     />
                 </div>
                 <div className="flex items-center text-slate-400 font-bold">-</div>
@@ -215,7 +215,7 @@ const DataRefinementTool: React.FC<DataRefinementToolProps> = ({
                         type="date" 
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
-                        className="w-full pl-8 pr-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                        className="w-full pl-8 pr-2 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                     />
                 </div>
             </div>
@@ -225,7 +225,7 @@ const DataRefinementTool: React.FC<DataRefinementToolProps> = ({
                 <select
                     value={selectedCategory}
                     onChange={(e) => { setSelectedCategory(e.target.value); setSelectedSubcategory('all'); }}
-                    className="w-full pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 appearance-none cursor-pointer"
+                    className="w-full pl-3 pr-8 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 appearance-none cursor-pointer"
                 >
                     <option value="all">Filter: All Categories</option>
                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -239,7 +239,7 @@ const DataRefinementTool: React.FC<DataRefinementToolProps> = ({
                     value={selectedSubcategory}
                     onChange={(e) => setSelectedSubcategory(e.target.value)}
                     disabled={selectedCategory === 'all'}
-                    className={`w-full pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 appearance-none cursor-pointer ${selectedCategory === 'all' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`w-full pl-3 pr-8 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 appearance-none cursor-pointer ${selectedCategory === 'all' ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                     <option value="all">Filter: All Subcats</option>
                     {availableSubcategoriesForFilter.map(s => <option key={s} value={s}>{s}</option>)}
@@ -257,16 +257,16 @@ const DataRefinementTool: React.FC<DataRefinementToolProps> = ({
                     placeholder="Search desc or notes..." 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-8 pr-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder:text-slate-400"
+                    className="w-full pl-8 pr-2 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder:text-slate-400"
                 />
             </div>
         </div>
       </div>
 
       {/* 2. Editable List */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/50 p-4">
+      <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/50 dark:bg-slate-800/50 p-4">
         {filteredData.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-slate-400">
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
                 <AlertCircle size={32} className="mb-2 opacity-50" />
                 <p className="text-sm font-medium">No transactions found in this range.</p>
             </div>
