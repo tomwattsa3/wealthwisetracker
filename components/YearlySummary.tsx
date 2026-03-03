@@ -923,7 +923,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
           <div className="relative">
             <select
               value={compareCat}
-              onChange={(e) => { setCompareCat(e.target.value); setCompareMonthA(''); setCompareMonthB(''); }}
+              onChange={(e) => setCompareCat(e.target.value)}
               className="w-full appearance-none bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer"
             >
               <option value="">Select category...</option>
