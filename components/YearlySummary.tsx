@@ -1009,12 +1009,12 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                           <span className="text-[11px] text-slate-700 dark:text-neutral-400 truncate">{m.description || 'Unknown'}</span>
                           {m.count > 1 && <span className="text-[9px] text-slate-400 dark:text-neutral-500">x{m.count}</span>}
                         </div>
-                        <div className="text-right shrink-0 ml-2">
-                          <span className="text-xs font-bold text-slate-900 dark:text-neutral-200 block">
-                            £{m.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                          <span className="text-[10px] font-bold text-slate-600 dark:text-neutral-400 block">
+                        <div className="flex items-baseline gap-2 shrink-0 ml-2">
+                          <span className="text-[9px] italic text-slate-400 dark:text-neutral-500">
                             AED {m.amountAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                          <span className="text-xs font-bold text-slate-900 dark:text-neutral-200">
+                            £{m.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                         </div>
                       </div>
@@ -1046,12 +1046,12 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                           <span className="text-[11px] text-slate-700 dark:text-neutral-400 truncate">{m.description || 'Unknown'}</span>
                           {m.count > 1 && <span className="text-[9px] text-slate-400 dark:text-neutral-500">x{m.count}</span>}
                         </div>
-                        <div className="text-right shrink-0 ml-2">
-                          <span className="text-xs font-bold text-slate-900 dark:text-neutral-200 block">
-                            £{m.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                          <span className="text-[10px] font-bold text-slate-600 dark:text-neutral-400 block">
+                        <div className="flex items-baseline gap-2 shrink-0 ml-2">
+                          <span className="text-[9px] italic text-slate-400 dark:text-neutral-500">
                             AED {m.amountAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                          <span className="text-xs font-bold text-slate-900 dark:text-neutral-200">
+                            £{m.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                         </div>
                       </div>
