@@ -997,9 +997,10 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                     <p className="text-sm font-bold text-slate-900 dark:text-neutral-200 mt-1">
                       £{compareSideA.total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
-                    <p className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">
-                      AED {compareSideA.totalAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · {compareSideA.count} transactions
+                    <p className="text-xs font-bold text-slate-700 dark:text-neutral-300 mt-0.5">
+                      AED {compareSideA.totalAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
+                    <p className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">{compareSideA.count} transactions</p>
                   </div>
                   <div className="divide-y divide-slate-100 dark:divide-neutral-600">
                     {compareSideA.merchants.map((m, i) => (
@@ -1012,7 +1013,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                           <span className="text-xs font-bold text-slate-900 dark:text-neutral-200 block">
                             £{m.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
-                          <span className="text-[9px] text-slate-400 dark:text-neutral-500 block">
+                          <span className="text-[10px] font-bold text-slate-600 dark:text-neutral-400 block">
                             AED {m.amountAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                         </div>
@@ -1033,9 +1034,10 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                     <p className="text-sm font-bold text-slate-900 dark:text-neutral-200 mt-1">
                       £{compareSideB.total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
-                    <p className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">
-                      AED {compareSideB.totalAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · {compareSideB.count} transactions
+                    <p className="text-xs font-bold text-slate-700 dark:text-neutral-300 mt-0.5">
+                      AED {compareSideB.totalAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
+                    <p className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">{compareSideB.count} transactions</p>
                   </div>
                   <div className="divide-y divide-slate-100 dark:divide-neutral-600">
                     {compareSideB.merchants.map((m, i) => (
@@ -1048,7 +1050,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                           <span className="text-xs font-bold text-slate-900 dark:text-neutral-200 block">
                             £{m.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
-                          <span className="text-[9px] text-slate-400 dark:text-neutral-500 block">
+                          <span className="text-[10px] font-bold text-slate-600 dark:text-neutral-400 block">
                             AED {m.amountAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                         </div>
