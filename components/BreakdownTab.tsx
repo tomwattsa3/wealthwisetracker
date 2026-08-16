@@ -42,6 +42,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
   const [detailModal, setDetailModal] = useState<{
     categoryId: string;
     categoryName: string;
+    subcategoryName?: string;
     year: number;
     monthIndex: number;
     isExpense: boolean;
@@ -193,6 +194,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     return activeTransactions
       .filter(t => {
         if (t.categoryId !== detailModal.categoryId) return false;
+        if (detailModal.subcategoryName && (t.subcategoryName || 'Other') !== detailModal.subcategoryName) return false;
         const d = new Date(t.date);
         return d.getFullYear() === detailModal.year && d.getMonth() === detailModal.monthIndex;
       })
@@ -354,7 +356,11 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
             {monthCols.map(m => {
               const amt = getSubCell(cat.id, subName, m.key);
               return (
-                <td key={m.key} className="px-1.5 md:px-3 py-[7.5px] md:py-2.5 text-center tabular-nums border-l border-slate-100 dark:border-neutral-700/60 text-slate-500 dark:text-neutral-500">
+                <td
+                  key={m.key}
+                  onClick={() => amt !== 0 && setDetailModal({ categoryId: cat.id, categoryName: cat.name, subcategoryName: subName, year: m.year, monthIndex: m.monthIndex, isExpense })}
+                  className={`px-1.5 md:px-3 py-[7.5px] md:py-2.5 text-center tabular-nums border-l border-slate-100 dark:border-neutral-700/60 text-slate-500 dark:text-neutral-500 ${amt !== 0 ? 'cursor-pointer hover:underline' : ''}`}
+                >
                   {amt !== 0 ? formatAmount(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
                 </td>
               );
@@ -563,22 +569,21 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
         </div>
       )}
 
-      {/* Transaction detail modal — opened by tapping a category's month cell */}
+      {/* Transaction detail modal — opened by tapping a category's month cell. Slides down from
+          the top of the screen, covering ~75% of it, with the close button at the bottom. */}
       {detailModal && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-[100]">
+          <style>{`@keyframes breakdownModalSlideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }`}</style>
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setDetailModal(null)} />
-          <div className="relative bg-white dark:bg-neutral-800 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md max-h-[85vh] sm:max-h-[80vh] flex flex-col border border-slate-100 dark:border-neutral-700 animate-in zoom-in-95 duration-200">
-            <div className="px-5 py-4 border-b border-slate-100 dark:border-neutral-700 flex items-center justify-between shrink-0">
-              <div className="min-w-0">
-                <h3 className="text-sm font-bold text-slate-900 dark:text-neutral-200 truncate">{detailModal.categoryName}</h3>
-                <p className="text-xs text-slate-400 dark:text-neutral-500 mt-0.5">{MONTHS[detailModal.monthIndex]} {detailModal.year}</p>
-              </div>
-              <button
-                onClick={() => setDetailModal(null)}
-                className="p-1.5 rounded-lg text-slate-400 dark:text-neutral-500 hover:bg-slate-100 dark:hover:bg-neutral-700 shrink-0 ml-3"
-              >
-                <X size={16} />
-              </button>
+          <div
+            className="relative bg-white dark:bg-neutral-800 rounded-b-2xl shadow-2xl w-full sm:max-w-md sm:mx-auto h-[75vh] flex flex-col border-b border-x border-slate-100 dark:border-neutral-700"
+            style={{ animation: 'breakdownModalSlideDown 0.28s ease-out' }}
+          >
+            <div className="px-5 py-4 border-b border-slate-100 dark:border-neutral-700 shrink-0">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-neutral-200 truncate">
+                {detailModal.categoryName}{detailModal.subcategoryName ? ` · ${detailModal.subcategoryName}` : ''}
+              </h3>
+              <p className="text-xs text-slate-400 dark:text-neutral-500 mt-0.5">{MONTHS[detailModal.monthIndex]} {detailModal.year}</p>
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               {detailModalTransactions.length > 0 ? (
@@ -602,6 +607,16 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
               <span className="text-sm font-bold text-slate-900 dark:text-neutral-200">
                 {formatAmount((detailModal.isExpense ? -1 : 1) * detailModalTotal)}
               </span>
+            </div>
+            {/* Close button at the bottom */}
+            <div className="px-5 py-3 border-t border-slate-100 dark:border-neutral-700 flex justify-center shrink-0">
+              <button
+                onClick={() => setDetailModal(null)}
+                className="w-10 h-10 rounded-full bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-slate-500 dark:text-neutral-400 hover:bg-slate-200 dark:hover:bg-neutral-600 transition-colors"
+                title="Close"
+              >
+                <X size={18} />
+              </button>
             </div>
           </div>
         </div>
