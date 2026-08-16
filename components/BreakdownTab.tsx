@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { ChevronRight, GripVertical } from 'lucide-react';
+import { ChevronRight, GripVertical, X } from 'lucide-react';
 import { Transaction, Category } from '../types';
 
 interface BreakdownTabProps {
@@ -37,6 +37,15 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  // Tapping a category's month cell opens a modal listing the transactions behind that number
+  const [detailModal, setDetailModal] = useState<{
+    categoryId: string;
+    categoryName: string;
+    year: number;
+    monthIndex: number;
+    isExpense: boolean;
+  } | null>(null);
 
   const [categoryColWidth, setCategoryColWidth] = useState<number>(() => {
     try {
@@ -164,9 +173,35 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     return `${amount < 0 ? '-' : ''}${symbol}${formatted}`;
   };
 
+  // Native <input type="month"> always renders the full month name (browser-controlled, not
+  // stylable), so this formats a compact "Jan '26" label shown on top of a transparent input —
+  // clicking/tapping still opens the native month picker underneath.
+  const formatMonthShort = (value: string) => {
+    if (!value) return '';
+    const [y, m] = value.split('-').map(Number);
+    if (!y || !m) return '';
+    return `${MONTHS[m - 1]} '${String(y).slice(2)}`;
+  };
+
   const activeTransactions = useMemo(
     () => transactions.filter(t => !t.excluded && t.categoryId !== 'excluded'),
     [transactions]
+  );
+
+  const detailModalTransactions = useMemo(() => {
+    if (!detailModal) return [];
+    return activeTransactions
+      .filter(t => {
+        if (t.categoryId !== detailModal.categoryId) return false;
+        const d = new Date(t.date);
+        return d.getFullYear() === detailModal.year && d.getMonth() === detailModal.monthIndex;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [detailModal, activeTransactions]);
+
+  const detailModalTotal = useMemo(
+    () => detailModalTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0),
+    [detailModalTransactions, currency]
   );
 
   // Every month in the selected range, oldest first (Jan on the left) — includes months with no data
@@ -296,7 +331,11 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
         {monthCols.map(m => {
           const amt = getCell(cat.id, m.key);
           return (
-            <td key={m.key} className={`px-1.5 md:px-3 py-2.5 md:py-[12.5px] text-center tabular-nums border-l border-slate-100 dark:border-neutral-700/60 ${amountClass}`}>
+            <td
+              key={m.key}
+              onClick={() => amt !== 0 && setDetailModal({ categoryId: cat.id, categoryName: cat.name, year: m.year, monthIndex: m.monthIndex, isExpense })}
+              className={`px-1.5 md:px-3 py-2.5 md:py-[12.5px] text-center tabular-nums border-l border-slate-100 dark:border-neutral-700/60 ${amountClass} ${amt !== 0 ? 'cursor-pointer hover:underline' : ''}`}
+            >
               {amt !== 0 ? formatAmount(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
             </td>
           );
@@ -332,29 +371,35 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
   const expenseZebra = { i: 0 };
 
   return (
-    <div className="pb-20 md:pb-4 space-y-4">
+    <div className="pb-8 md:pb-4 space-y-2 md:space-y-4">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-1.5 md:gap-3">
         <div className="flex items-center justify-between gap-2 md:block">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-neutral-200">Breakdown</h1>
+            <h1 className="text-sm md:text-2xl font-bold text-slate-900 dark:text-neutral-200">Breakdown</h1>
             <p className="hidden md:block text-xs text-slate-400 dark:text-neutral-500 mt-1">Every category, month by month · drag the grip to reorder</p>
           </div>
           {/* Mobile-only: date selector next to the headline */}
           <div className="md:hidden flex items-center gap-1.5 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 rounded-lg px-2 py-1 shrink-0">
-            <input
-              type="month"
-              value={rangeStart}
-              onChange={(e) => { setRangeStart(e.target.value); setRangeLabel('Custom'); }}
-              className="bg-transparent text-[10px] font-semibold text-slate-700 dark:text-neutral-300 outline-none w-[64px]"
-            />
+            <div className="relative">
+              <span className="pointer-events-none text-[10px] font-semibold text-slate-700 dark:text-neutral-300 whitespace-nowrap">{formatMonthShort(rangeStart)}</span>
+              <input
+                type="month"
+                value={rangeStart}
+                onChange={(e) => { setRangeStart(e.target.value); setRangeLabel('Custom'); }}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full"
+              />
+            </div>
             <span className="text-slate-300 dark:text-neutral-600 text-xs">–</span>
-            <input
-              type="month"
-              value={rangeEnd}
-              onChange={(e) => { setRangeEnd(e.target.value); setRangeLabel('Custom'); }}
-              className="bg-transparent text-[10px] font-semibold text-slate-700 dark:text-neutral-300 outline-none w-[64px]"
-            />
+            <div className="relative">
+              <span className="pointer-events-none text-[10px] font-semibold text-slate-700 dark:text-neutral-300 whitespace-nowrap">{formatMonthShort(rangeEnd)}</span>
+              <input
+                type="month"
+                value={rangeEnd}
+                onChange={(e) => { setRangeEnd(e.target.value); setRangeLabel('Custom'); }}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full"
+              />
+            </div>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -371,19 +416,25 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
           </div>
           {/* Desktop-only: date selector in its original spot */}
           <div className="hidden md:flex items-center gap-1.5 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 rounded-lg px-2 py-1">
-            <input
-              type="month"
-              value={rangeStart}
-              onChange={(e) => { setRangeStart(e.target.value); setRangeLabel('Custom'); }}
-              className="bg-transparent text-[11px] font-semibold text-slate-700 dark:text-neutral-300 outline-none"
-            />
+            <div className="relative">
+              <span className="pointer-events-none text-[11px] font-semibold text-slate-700 dark:text-neutral-300 whitespace-nowrap">{formatMonthShort(rangeStart)}</span>
+              <input
+                type="month"
+                value={rangeStart}
+                onChange={(e) => { setRangeStart(e.target.value); setRangeLabel('Custom'); }}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full"
+              />
+            </div>
             <span className="text-slate-300 dark:text-neutral-600 text-xs">–</span>
-            <input
-              type="month"
-              value={rangeEnd}
-              onChange={(e) => { setRangeEnd(e.target.value); setRangeLabel('Custom'); }}
-              className="bg-transparent text-[11px] font-semibold text-slate-700 dark:text-neutral-300 outline-none"
-            />
+            <div className="relative">
+              <span className="pointer-events-none text-[11px] font-semibold text-slate-700 dark:text-neutral-300 whitespace-nowrap">{formatMonthShort(rangeEnd)}</span>
+              <input
+                type="month"
+                value={rangeEnd}
+                onChange={(e) => { setRangeEnd(e.target.value); setRangeLabel('Custom'); }}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full"
+              />
+            </div>
           </div>
           <div className="hidden md:flex bg-slate-100 dark:bg-neutral-700 p-0.5 rounded-lg shrink-0">
             <button
@@ -508,6 +559,50 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Transaction detail modal — opened by tapping a category's month cell */}
+      {detailModal && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setDetailModal(null)} />
+          <div className="relative bg-white dark:bg-neutral-800 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md max-h-[85vh] sm:max-h-[80vh] flex flex-col border border-slate-100 dark:border-neutral-700 animate-in zoom-in-95 duration-200">
+            <div className="px-5 py-4 border-b border-slate-100 dark:border-neutral-700 flex items-center justify-between shrink-0">
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-neutral-200 truncate">{detailModal.categoryName}</h3>
+                <p className="text-xs text-slate-400 dark:text-neutral-500 mt-0.5">{MONTHS[detailModal.monthIndex]} {detailModal.year}</p>
+              </div>
+              <button
+                onClick={() => setDetailModal(null)}
+                className="p-1.5 rounded-lg text-slate-400 dark:text-neutral-500 hover:bg-slate-100 dark:hover:bg-neutral-700 shrink-0 ml-3"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+              {detailModalTransactions.length > 0 ? (
+                detailModalTransactions.map(t => (
+                  <div key={t.id} className="flex items-center justify-between gap-3 px-5 py-3 border-b border-slate-100 dark:border-neutral-700 last:border-b-0">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-slate-700 dark:text-neutral-300 truncate">{t.description || 'Unknown'}</p>
+                      <p className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">{t.date}{t.subcategoryName ? ` · ${t.subcategoryName}` : ''}</p>
+                    </div>
+                    <span className={`text-xs font-bold tabular-nums shrink-0 ${detailModal.isExpense ? 'text-slate-800 dark:text-neutral-300' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                      {formatAmount((detailModal.isExpense ? -1 : 1) * (currency === 'GBP' ? t.amountGBP : t.amountAED))}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="py-10 text-center text-slate-400 dark:text-neutral-500 text-xs">No transactions</div>
+              )}
+            </div>
+            <div className="px-5 py-3 border-t border-slate-100 dark:border-neutral-700 flex items-center justify-between bg-slate-50 dark:bg-neutral-900/40 shrink-0">
+              <span className="text-xs font-semibold text-slate-500 dark:text-neutral-400">Total</span>
+              <span className="text-sm font-bold text-slate-900 dark:text-neutral-200">
+                {formatAmount((detailModal.isExpense ? -1 : 1) * detailModalTotal)}
+              </span>
+            </div>
           </div>
         </div>
       )}
