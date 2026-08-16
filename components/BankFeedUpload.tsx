@@ -13,21 +13,56 @@ interface BankFeedUploadProps {
 
 const AED_TO_GBP_RATE = 0.21;
 
+const pad2 = (n: number): string => String(n).padStart(2, '0');
+
+// Builds a YYYY-MM-DD string directly from parts instead of round-tripping through
+// Date + toISOString(), which converts to UTC and silently shifts the date back a day
+// whenever the local timezone is ahead of UTC (e.g. UK during BST, UAE at UTC+4).
+const buildDateString = (year: number, month: number, day: number): string | null => {
+  const d = new Date(year, month - 1, day);
+  // Date() normalizes overflowing values (e.g. Feb 30 -> Mar 2) instead of erroring,
+  // so this catches genuinely invalid dates.
+  if (isNaN(d.getTime()) || d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) {
+    return null;
+  }
+  return `${year}-${pad2(month)}-${pad2(day)}`;
+};
+
 // Bank statements export dates as DD/MM/YYYY, but `new Date(str)` assumes US MM/DD/YYYY
 // for slash-separated strings, silently swapping day/month whenever the day is <= 12.
+// Wio Bank exports a compact YYYYMMDD string instead (e.g. 20260518), which `new Date()`
+// can't parse at all — it returns Invalid Date, so it's matched explicitly here regardless
+// of which bank is selected in the upload dropdown.
 const parseTransactionDate = (rawDate: string): string => {
-  const dmyMatch = String(rawDate).trim().match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  const trimmed = String(rawDate).trim();
+
+  const compactMatch = trimmed.match(/^(\d{4})(\d{2})(\d{2})$/);
+  if (compactMatch) {
+    const [, year, month, day] = compactMatch;
+    const built = buildDateString(Number(year), Number(month), Number(day));
+    if (built) return built;
+  }
+
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    const built = buildDateString(Number(year), Number(month), Number(day));
+    if (built) return built;
+  }
+
+  const dmyMatch = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
   if (dmyMatch) {
     const [, day, month, year] = dmyMatch;
-    const parsed = new Date(Number(year), Number(month) - 1, Number(day));
-    if (!isNaN(parsed.getTime())) {
-      return parsed.toISOString().split('T')[0];
-    }
+    const built = buildDateString(Number(year), Number(month), Number(day));
+    if (built) return built;
   }
+
   const fallback = new Date(rawDate);
-  return !isNaN(fallback.getTime())
-    ? fallback.toISOString().split('T')[0]
-    : new Date().toISOString().split('T')[0];
+  if (!isNaN(fallback.getTime())) {
+    return `${fallback.getFullYear()}-${pad2(fallback.getMonth() + 1)}-${pad2(fallback.getDate())}`;
+  }
+  const today = new Date();
+  return `${today.getFullYear()}-${pad2(today.getMonth() + 1)}-${pad2(today.getDate())}`;
 };
 
 const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, banks, merchantMappings = [] }) => {

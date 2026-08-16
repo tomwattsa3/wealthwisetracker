@@ -563,7 +563,10 @@ const App: React.FC = () => {
     if (!session) return;
     console.log('Session ready, calling fetchData...');
     fetchData();
-  }, [session]);
+    // Only re-run when the logged-in user actually changes (login/logout), not on every
+    // token refresh — Supabase auto-refreshes the session (and fires a new session object)
+    // whenever the tab regains focus, which was re-triggering a full data reload each time.
+  }, [session?.user?.id]);
 
   // --- HANDLERS (UPDATED FOR SUPABASE) ---
 
@@ -1190,22 +1193,6 @@ const App: React.FC = () => {
     });
   }, [dateFilteredTransactions, searchQuery, filterCategory, filterSubcategory, filterType, filterBank, filterRecentlyAdded]);
 
-  // Check if any specific filters are active (not including date filter)
-  const hasActiveFilters = filterType !== 'all' || filterBank !== 'all' || filterCategory !== 'all' || filterSubcategory !== 'all' || filterRecentlyAdded !== 'all' || searchQuery.trim() !== '';
-
-  // Calculate total for filtered view (History Tab Total) - only shows value when filters are active
-  const filteredTotal = useMemo(() => {
-    // Return 0 if no filters are active
-    if (!hasActiveFilters) return 0;
-
-    return filteredTransactions
-      .filter(t => !t.excluded && t.categoryId !== 'excluded')
-      .reduce((acc, t) => {
-        const amount = currency === 'GBP' ? t.amountGBP : t.amountAED;
-        return t.type === 'INCOME' ? acc + amount : acc - amount;
-      }, 0);
-  }, [filteredTransactions, hasActiveFilters, currency]);
-
   // KPI Summary (Respects Date Filter and Currency)
   const summary = useMemo<FinancialSummary>(() => {
     return activeTransactions.reduce(
@@ -1569,10 +1556,10 @@ const App: React.FC = () => {
 
           {/* Top Bar with Filter & Search (Hidden in Cat/Yearly View) */}
           {activeTab !== 'categories' && activeTab !== 'yearly' && activeTab !== 'breakdown' && activeTab !== 'settings' && (
-            <div className="flex flex-col gap-4 mb-2 md:mb-8">
-                
+            <div className="flex flex-col gap-2 mb-1 md:gap-4 md:mb-8">
+
                 {/* Mobile Dashboard Headline */}
-                <div className="md:hidden pt-2 flex justify-between items-center">
+                <div className="md:hidden pt-1 flex justify-between items-center">
                    <h1 className="text-2xl font-bold text-slate-900 dark:text-neutral-200">
                      {activeTab === 'home' ? 'Dashboard' : 'Transactions'}
                    </h1>
@@ -2042,7 +2029,6 @@ const App: React.FC = () => {
                   if (!cat) return null;
 
                   const allCatTransactions = activeTransactions.filter(t => t.categoryId === cat.id);
-                  if (allCatTransactions.length === 0) return null;
 
                   const subFilter = mobileSubFilters[index] || 'all';
                   const catTransactions = subFilter === 'all' ? allCatTransactions : allCatTransactions.filter(t => t.subcategoryName === subFilter);
@@ -2486,8 +2472,6 @@ const App: React.FC = () => {
                   <div className="col-span-12 xl:col-span-9">
                     <div className="grid xl:grid-cols-3 lg:grid-cols-2 gap-5">
                       {widgetCategoryIds.map((catId, index) => {
-                        const hasTransactions = activeTransactions.some(t => t.categoryId === catId);
-                        if (!hasTransactions) return null;
                         return (
                         <div key={`desktop-${index}-${catId}`} className="relative group">
                           {widgetCategoryIds.length > 1 && (
@@ -2780,7 +2764,7 @@ const App: React.FC = () => {
 
           {/* HISTORY VIEW */}
           {activeTab === 'history' && (
-            <div className="h-full overflow-y-auto flex flex-col space-y-4 px-2 sm:px-0 pb-32">
+            <div className="h-full overflow-y-auto flex flex-col space-y-2 md:space-y-4 px-0 sm:px-0 pb-20">
               {/* Upload + Summary Cards - Desktop: all four cards in a single row */}
               <div className="hidden lg:grid lg:grid-cols-10 gap-3 items-stretch">
                 <div className="col-span-4">
@@ -2818,40 +2802,54 @@ const App: React.FC = () => {
 
               {/* Summary Cards - Mobile & Tablet (below lg, no upload card shown) */}
               <div className="lg:hidden grid grid-cols-3 gap-2">
-                <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-2.5 flex flex-col items-center">
-                  <div className="flex items-center gap-1 mb-1">
+                <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-2 flex flex-col items-center gap-0.5">
+                  <div className="flex items-center gap-1">
                     <span className="w-5 h-5 rounded-md bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-[10px] shrink-0">💰</span>
                     <span className="text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Total</span>
                   </div>
-                  <span className="text-sm font-bold text-slate-900 dark:text-neutral-200">£{dailyAverageData.totalGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  <span className="text-[10px] font-medium text-slate-400 dark:text-neutral-500 mt-0.5">AED {dailyAverageData.totalAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span className="text-xs font-bold text-slate-900 dark:text-neutral-200">£{dailyAverageData.totalGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
-                <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-2.5 flex flex-col items-center">
-                  <div className="flex items-center gap-1 mb-1">
+                <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-2 flex flex-col items-center gap-0.5">
+                  <div className="flex items-center gap-1">
                     <span className="w-5 h-5 rounded-md bg-violet-50 dark:bg-violet-950 flex items-center justify-center text-[10px] shrink-0">📊</span>
                     <span className="text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Avg/Trans</span>
                   </div>
-                  <span className="text-sm font-bold text-slate-900 dark:text-neutral-200">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalGBP / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</span>
-                  <span className="text-[10px] font-medium text-slate-400 dark:text-neutral-500 mt-0.5">AED {dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalAED / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</span>
+                  <span className="text-xs font-bold text-slate-900 dark:text-neutral-200">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalGBP / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</span>
                 </div>
-                <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-2.5 flex flex-col items-center">
-                  <div className="flex items-center gap-1 mb-1">
+                <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-2 flex flex-col items-center gap-0.5">
+                  <div className="flex items-center gap-1">
                     <span className="w-5 h-5 rounded-md bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-[10px] shrink-0">✏️</span>
                     <span className="text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Trans</span>
                   </div>
-                  <span className="text-sm font-bold text-slate-900 dark:text-neutral-200">{dailyAverageData.transactionCount}</span>
+                  <span className="text-xs font-bold text-slate-900 dark:text-neutral-200">{dailyAverageData.transactionCount}</span>
                 </div>
               </div>
 
               <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-2 sm:p-3 animate-in fade-in shadow-sm flex flex-col flex-1 min-h-[500px] md:min-h-[600px] overflow-visible md:overflow-hidden">
-                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-3 sm:mb-6 gap-2 sm:gap-4 border-b border-slate-100 pb-3 sm:pb-6">
-                  <div className="flex items-center gap-2">
-                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-violet-50 flex items-center justify-center text-[#635bff] shrink-0">
-                          <ListFilter size={16} className="sm:w-5 sm:h-5" />
+                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-2 sm:mb-6 gap-2 sm:gap-4 border-b border-slate-100 pb-2 sm:pb-6">
+                  <div className="flex items-center justify-between gap-2 w-full lg:w-auto">
+                      <div className="flex items-center gap-2">
+                          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-violet-50 flex items-center justify-center text-[#635bff] shrink-0">
+                              <ListFilter size={16} className="sm:w-5 sm:h-5" />
+                          </div>
+                          <div>
+                              <h3 className="font-bold text-slate-800 text-sm sm:text-lg">Transaction Log</h3>
+                              <p className="text-[10px] sm:text-xs text-slate-500 font-medium mt-0.5">{filteredTransactions.length} records found</p>
+                          </div>
                       </div>
-                      <div>
-                          <h3 className="font-bold text-slate-800 text-sm sm:text-lg">Transaction Log</h3>
-                          <p className="text-[10px] sm:text-xs text-slate-500 font-medium mt-0.5">{filteredTransactions.length} records found</p>
+
+                      {/* Compact mobile search, next to the title */}
+                      <div className="md:hidden relative group flex-1 max-w-[130px]">
+                          <div className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors">
+                              <Search size={11} />
+                          </div>
+                          <input
+                              type="text"
+                              placeholder="Search..."
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              className="w-full pl-6 pr-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all placeholder:text-slate-400"
+                          />
                       </div>
                   </div>
 
@@ -2861,7 +2859,7 @@ const App: React.FC = () => {
                           <select
                               value={filterBank}
                               onChange={(e) => setFilterBank(e.target.value)}
-                              className="appearance-none pl-2 sm:pl-3 pr-6 sm:pr-8 py-1.5 sm:py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] sm:text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors"
+                              className="appearance-none pl-2 sm:pl-3 pr-6 sm:pr-8 py-1 sm:py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] sm:text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors"
                           >
                               <option value="all">Bank: All</option>
                               {availableBanks.map(bank => (
@@ -2876,7 +2874,7 @@ const App: React.FC = () => {
                           <select
                               value={filterType}
                               onChange={(e) => setFilterType(e.target.value as any)}
-                              className="appearance-none pl-2 sm:pl-3 pr-6 sm:pr-8 py-1.5 sm:py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] sm:text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors"
+                              className="appearance-none pl-2 sm:pl-3 pr-6 sm:pr-8 py-1 sm:py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] sm:text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors"
                           >
                               <option value="all">Type: All</option>
                               <option value="INCOME">Income</option>
@@ -2893,7 +2891,7 @@ const App: React.FC = () => {
                                   setFilterCategory(e.target.value);
                                   setFilterSubcategory('all');
                               }}
-                              className="appearance-none pl-2 sm:pl-3 pr-6 sm:pr-8 py-1.5 sm:py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] sm:text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors"
+                              className="appearance-none pl-2 sm:pl-3 pr-6 sm:pr-8 py-1 sm:py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] sm:text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors"
                           >
                               <option value="all">Category: All</option>
                               {allCategories.map(cat => (
@@ -2908,7 +2906,7 @@ const App: React.FC = () => {
                           <select
                               value={filterSubcategory}
                               onChange={(e) => setFilterSubcategory(e.target.value)}
-                              className="appearance-none pl-2 sm:pl-3 pr-6 sm:pr-8 py-1.5 sm:py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] sm:text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors"
+                              className="appearance-none pl-2 sm:pl-3 pr-6 sm:pr-8 py-1 sm:py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] sm:text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors"
                           >
                               <option value="all">Sub: All</option>
                               {availableSubcategories.map(sub => (
@@ -2923,7 +2921,7 @@ const App: React.FC = () => {
                           <select
                               value={filterRecentlyAdded}
                               onChange={(e) => setFilterRecentlyAdded(e.target.value as 'all' | 'today' | 'week' | 'uncategorized')}
-                              className="appearance-none pl-2 sm:pl-3 pr-6 sm:pr-8 py-1.5 sm:py-2 bg-violet-50 border border-violet-200 rounded-lg text-[10px] sm:text-xs font-bold text-violet-700 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 cursor-pointer hover:bg-violet-100 transition-colors"
+                              className="appearance-none pl-2 sm:pl-3 pr-6 sm:pr-8 py-1 sm:py-2 bg-violet-50 border border-violet-200 rounded-lg text-[10px] sm:text-xs font-bold text-violet-700 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 cursor-pointer hover:bg-violet-100 transition-colors"
                           >
                               <option value="all">Added: All</option>
                               <option value="today">Added Today</option>
@@ -2937,7 +2935,7 @@ const App: React.FC = () => {
                       {(filterCategory !== 'all' || filterSubcategory !== 'all' || filterType !== 'all' || filterBank !== 'all' || filterRecentlyAdded !== 'all') && (
                           <button
                               onClick={handleResetFilters}
-                              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors"
+                              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-2 text-[10px] sm:text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors"
                           >
                               <X size={10} className="sm:w-3 sm:h-3" />
                               Reset
@@ -2948,30 +2946,6 @@ const App: React.FC = () => {
                 </div>
 
                 <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                  {/* Total Amount Header Row + Mobile Search */}
-                  {filteredTransactions.length > 0 && (
-                    <div className="flex items-center justify-between px-3 py-2.5 mb-1 bg-slate-50 border border-slate-200 rounded-lg gap-3">
-                      {/* Mobile Search */}
-                      <div className="md:hidden relative group flex-1 min-w-0 max-w-[55%]">
-                        <div className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors">
-                          <Search size={11} />
-                        </div>
-                        <input
-                          type="text"
-                          placeholder="Search..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="w-full pl-6 pr-2 py-1 bg-white border border-slate-200 rounded-md text-base text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all placeholder:text-slate-400"
-                        />
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase">Total:</span>
-                        <span className={`text-sm font-bold font-mono ${filteredTotal >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                          {filteredTotal >= 0 ? '+' : ''}£{Math.abs(filteredTotal).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                    </div>
-                  )}
                   <TransactionList
                       transactions={filteredTransactions}
                       categories={categories}

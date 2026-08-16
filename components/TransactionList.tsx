@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Transaction, Category } from '../types';
-import { EyeOff, Eye, FileSpreadsheet, Save, AlertTriangle, Check, Trash2, ArrowUpDown } from 'lucide-react';
+import { EyeOff, Eye, FileSpreadsheet, Save, AlertTriangle, Check, Trash2, ArrowUpDown, X } from 'lucide-react';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -18,16 +18,20 @@ interface TransactionRowProps {
     onExclude: (id: string) => void;
     gridTemplate: string;
     index: number;
+    selected: boolean;
+    onToggleSelect: (id: string) => void;
 }
 
 const DeleteConfirmationModal = ({
     isOpen,
     onClose,
-    onConfirm
+    onConfirm,
+    count = 1
 }: {
     isOpen: boolean;
     onClose: () => void;
     onConfirm: () => void;
+    count?: number;
 }) => {
     if (!isOpen) return null;
 
@@ -40,9 +44,11 @@ const DeleteConfirmationModal = ({
                         <AlertTriangle size={24} />
                     </div>
                     <div>
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-neutral-200">Delete Transaction?</h3>
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-neutral-200">{count > 1 ? `Delete ${count} Transactions?` : 'Delete Transaction?'}</h3>
                         <p className="text-sm text-slate-500 dark:text-neutral-500 mt-2 leading-relaxed">
-                            This will permanently delete this transaction. This action cannot be undone.
+                            {count > 1
+                                ? `This will permanently delete ${count} transactions. This action cannot be undone.`
+                                : 'This will permanently delete this transaction. This action cannot be undone.'}
                         </p>
                     </div>
                     <div className="flex gap-3 w-full mt-2">
@@ -116,6 +122,58 @@ const ExcludeConfirmationModal = ({
     );
 };
 
+const BulkCategoryConfirmationModal = ({
+    isOpen,
+    onClose,
+    onConfirm,
+    count,
+    categoryName,
+    subcategoryName
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+    count: number;
+    categoryName: string;
+    subcategoryName?: string;
+}) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
+            <div className="relative bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 border border-slate-100 dark:border-neutral-700 animate-in zoom-in-95 duration-200">
+                <div className="flex flex-col items-center text-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100">
+                        <AlertTriangle size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-neutral-200">Change category for {count} transactions?</h3>
+                        <p className="text-sm text-slate-500 dark:text-neutral-500 mt-2 leading-relaxed">
+                            This will overwrite the category{subcategoryName ? ' and subcategory' : ''} on <span className="font-semibold text-slate-700 dark:text-neutral-300">{count}</span> transaction{count > 1 ? 's' : ''} to
+                            {' '}<span className="font-semibold text-slate-700 dark:text-neutral-300">{categoryName}{subcategoryName ? ` / ${subcategoryName}` : ''}</span>. Make sure this is really what you want to do — it cannot be undone in bulk.
+                        </p>
+                    </div>
+                    <div className="flex gap-3 w-full mt-2">
+                        <button
+                            onClick={onClose}
+                            className="flex-1 py-2.5 rounded-xl font-bold text-slate-700 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-700 hover:bg-slate-200 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={onConfirm}
+                            className="flex-1 py-2.5 rounded-xl font-bold text-white bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-200 transition-all active:scale-95"
+                        >
+                            Yes, Apply
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const TransactionRow: React.FC<TransactionRowProps> = ({
     t,
     categories,
@@ -123,7 +181,9 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     onDelete,
     onExclude,
     gridTemplate,
-    index
+    index,
+    selected,
+    onToggleSelect
 }) => {
     // Local state for editing fields
     const [description, setDescription] = useState(t.description);
@@ -220,33 +280,28 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     return (
         <>
             {/* Mobile Row */}
-            <div className={`md:hidden grid grid-cols-[1fr_80px] items-center border-b border-slate-100 dark:border-neutral-700 last:border-b-0 ${isCategoryMissing ? 'bg-amber-50 dark:bg-amber-950/30' : 'bg-white dark:bg-neutral-800'} ${isExcluded ? 'opacity-40' : ''}`}>
+            <div className={`md:hidden grid grid-cols-[1fr_100px_76px] gap-0.5 items-center border-b border-slate-100 dark:border-neutral-700 last:border-b-0 ${isCategoryMissing ? 'bg-amber-50 dark:bg-amber-950/30' : 'bg-white dark:bg-neutral-800'} ${isExcluded ? 'opacity-40' : ''}`}>
                 <div className="px-3 py-3 min-w-0">
                     <div className="flex items-center gap-1.5 min-w-0">
                         <span className={`px-1.5 py-px text-[7px] font-bold rounded-full shrink-0 ${displayType === 'INCOME' ? 'text-white bg-emerald-500' : 'text-white bg-rose-500'}`}>
                             {displayType === 'INCOME' ? 'IN' : 'OUT'}
                         </span>
                         <span className="text-[11px] font-medium text-slate-700 dark:text-neutral-400 truncate">{t.description || 'No merchant'}</span>
-                        {t.subcategoryName && (
-                            <span className="px-1.5 py-px bg-slate-100 dark:bg-neutral-700 rounded-full text-[7px] font-medium text-slate-500 dark:text-neutral-500 shrink-0 leading-tight">{t.subcategoryName}</span>
-                        )}
                     </div>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-[9px] text-slate-400 dark:text-neutral-500">{t.date}</span>
-                        {t.categoryName && t.categoryName !== 'Excluded' && (
-                            <span className="text-[9px] text-slate-400 dark:text-neutral-500">· {t.categoryName}</span>
-                        )}
-                    </div>
+                    <span className="text-[9px] text-slate-400 dark:text-neutral-500 mt-0.5 block">{t.date}</span>
                 </div>
-                <div className="px-2 py-3 text-right">
+                <div className="py-3 flex flex-col items-end gap-0.5 min-w-0">
+                    {t.categoryName && t.categoryName !== 'Excluded' && (
+                        <span className="px-1.5 py-px bg-slate-100 dark:bg-neutral-700 rounded-full text-[7px] font-medium text-slate-500 dark:text-neutral-500 whitespace-nowrap truncate max-w-full leading-tight">{t.categoryName}</span>
+                    )}
+                    {t.subcategoryName && (
+                        <span className="text-[8px] italic text-slate-400 dark:text-neutral-500 whitespace-nowrap truncate max-w-full">{t.subcategoryName}</span>
+                    )}
+                </div>
+                <div className="pl-0.5 pr-2 py-3 text-right">
                     <span className={`text-[11px] font-semibold tabular-nums ${isExcluded ? 'text-slate-400 dark:text-neutral-500 line-through' : displayType === 'INCOME' ? 'text-emerald-700' : 'text-slate-800 dark:text-neutral-300'}`}>
                         £{(t.amountGBP || t.amount || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
-                    {(t.amountAED || 0) > 0 && (
-                        <p className="text-[9px] font-medium text-slate-400 dark:text-neutral-500 tabular-nums">
-                            AED {(t.amountAED || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </p>
-                    )}
                 </div>
             </div>
 
@@ -363,14 +418,24 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                         <Trash2 size={14} />
                     </button>
                 </div>
+
+                {/* 9. Select */}
+                <div className="px-2 py-3.5 flex items-center justify-center">
+                    <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => onToggleSelect(t.id)}
+                        className="w-3.5 h-3.5 rounded accent-[#635bff] cursor-pointer"
+                    />
+                </div>
             </div>
         </>
     );
 };
 
 const TransactionList: React.FC<TransactionListProps> = ({ transactions, categories, onUpdate, onDelete }) => {
-  // Desktop Grid Template: Date | Type | Category | Subcategory | Merchant | GBP | AED | Action
-  const gridTemplate = "grid-cols-[100px_80px_140px_140px_1fr_80px_80px_160px]";
+  // Desktop Grid Template: Date | Type | Category | Subcategory | Merchant | GBP | AED | Action | Select
+  const gridTemplate = "grid-cols-[100px_80px_140px_140px_1fr_80px_80px_160px_28px]";
   // Mobile Grid Template: simplified
   const mobileGridTemplate = "grid-cols-[1fr_auto_auto]";
 
@@ -386,21 +451,96 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
     });
   }, [transactions, sortOrder]);
 
-  // State for tracking which transaction is pending delete
-  const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkCategoryId, setBulkCategoryId] = useState('');
+  const [bulkSubcategoryName, setBulkSubcategoryName] = useState('');
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const allSelected = sortedTransactions.length > 0 && sortedTransactions.every(t => selectedIds.has(t.id));
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedTransactions.map(t => t.id)));
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+    setBulkCategoryId('');
+    setBulkSubcategoryName('');
+  };
+
+  const bulkCategory = categories.find(c => c.id === bulkCategoryId);
+
+  const handleBulkCategoryChange = (newCatId: string) => {
+    setBulkCategoryId(newCatId);
+    const cat = categories.find(c => c.id === newCatId);
+    setBulkSubcategoryName(cat && cat.subcategories.length > 0 ? cat.subcategories[0] : '');
+  };
+
+  // Bulk category change is destructive-ish (overwrites categorization on many rows at once),
+  // so it goes through a confirmation step rather than applying the moment Apply is clicked.
+  const [bulkCategoryApplyPending, setBulkCategoryApplyPending] = useState(false);
+
+  const handleApplyBulkCategory = () => {
+    if (!bulkCategoryId || !bulkCategory) return;
+    setBulkCategoryApplyPending(true);
+  };
+
+  const handleConfirmBulkCategoryApply = () => {
+    if (!bulkCategoryId || !bulkCategory) return;
+    selectedIds.forEach(id => {
+      onUpdate(id, {
+        categoryId: bulkCategoryId,
+        categoryName: bulkCategory.name,
+        subcategoryName: bulkSubcategoryName,
+        type: bulkCategory.type
+      });
+    });
+    setBulkCategoryApplyPending(false);
+    clearSelection();
+  };
+
+  const handleBulkExclude = (exclude: boolean) => {
+    selectedIds.forEach(id => {
+      onUpdate(id, {
+        categoryId: exclude ? 'excluded' : '',
+        categoryName: exclude ? 'Excluded' : '',
+        excluded: exclude
+      });
+    });
+    clearSelection();
+  };
+
+  // State for tracking which transactions are pending delete (single or bulk)
+  const [transactionsToDelete, setTransactionsToDelete] = useState<string[]>([]);
 
   // State for tracking which transaction is pending exclude/include toggle
   const [transactionToToggle, setTransactionToToggle] = useState<string | null>(null);
 
   const handleDeleteRequest = (id: string) => {
-      setTransactionToDelete(id);
+      setTransactionsToDelete([id]);
+  };
+
+  const handleBulkDeleteRequest = () => {
+      setTransactionsToDelete(Array.from(selectedIds));
   };
 
   const handleConfirmDelete = () => {
-      if (transactionToDelete) {
-          onDelete(transactionToDelete);
-          setTransactionToDelete(null);
-      }
+      transactionsToDelete.forEach(id => onDelete(id));
+      setTransactionsToDelete([]);
+      clearSelection();
   };
 
   const handleExcludeRequest = (id: string) => {
@@ -448,6 +588,73 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
   return (
     <>
         <div className="flex flex-col h-full bg-transparent overflow-visible md:overflow-hidden">
+        {/* Bulk Action Bar */}
+        {selectedIds.size > 0 && (
+            <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-indigo-50 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900/40 sticky top-0 z-20">
+                <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400 whitespace-nowrap">{selectedIds.size} selected</span>
+
+                <select
+                    value={bulkCategoryId}
+                    onChange={(e) => handleBulkCategoryChange(e.target.value)}
+                    className="text-[11px] bg-white dark:bg-neutral-800 border border-indigo-200 dark:border-indigo-800 rounded-md px-2 py-1 outline-none text-slate-700 dark:text-neutral-300"
+                >
+                    <option value="">Change category...</option>
+                    {categories.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                </select>
+
+                {bulkCategory && bulkCategory.subcategories.length > 0 && (
+                    <select
+                        value={bulkSubcategoryName}
+                        onChange={(e) => setBulkSubcategoryName(e.target.value)}
+                        className="text-[11px] bg-white dark:bg-neutral-800 border border-indigo-200 dark:border-indigo-800 rounded-md px-2 py-1 outline-none text-slate-700 dark:text-neutral-300"
+                    >
+                        {bulkCategory.subcategories.map(sub => (
+                            <option key={sub} value={sub}>{sub}</option>
+                        ))}
+                    </select>
+                )}
+
+                <button
+                    onClick={handleApplyBulkCategory}
+                    disabled={!bulkCategoryId}
+                    className="px-2.5 py-1 text-[11px] font-semibold text-white bg-indigo-500 hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-md transition-colors"
+                >
+                    Apply
+                </button>
+
+                <div className="w-px h-4 bg-indigo-200 dark:bg-indigo-800 mx-0.5" />
+
+                <button
+                    onClick={() => handleBulkExclude(true)}
+                    className="px-2.5 py-1 text-[11px] font-semibold text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-md transition-colors flex items-center gap-1"
+                >
+                    <EyeOff size={12} /> Exclude
+                </button>
+                <button
+                    onClick={() => handleBulkExclude(false)}
+                    className="px-2.5 py-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded-md transition-colors flex items-center gap-1"
+                >
+                    <Eye size={12} /> Include
+                </button>
+                <button
+                    onClick={handleBulkDeleteRequest}
+                    className="px-2.5 py-1 text-[11px] font-semibold text-rose-700 bg-rose-100 hover:bg-rose-200 rounded-md transition-colors flex items-center gap-1"
+                >
+                    <Trash2 size={12} /> Delete
+                </button>
+
+                <button
+                    onClick={clearSelection}
+                    className="ml-auto p-1 text-indigo-400 hover:text-indigo-700 rounded-md transition-colors"
+                    title="Clear selection"
+                >
+                    <X size={14} />
+                </button>
+            </div>
+        )}
+
         {/* Desktop Header */}
         <div className={`hidden md:grid ${gridTemplate} bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700 sticky top-0 z-10`}>
             <button
@@ -464,10 +671,19 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
             <div className="px-2 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center">GBP</div>
             <div className="px-2 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center">AED</div>
             <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Action</div>
+            <div className="px-2 py-2 flex items-center justify-center">
+                <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                    onChange={toggleSelectAll}
+                    className="w-3.5 h-3.5 rounded accent-[#635bff] cursor-pointer"
+                />
+            </div>
         </div>
 
         {/* Mobile Header */}
-        <div className="md:hidden grid grid-cols-[1fr_80px] bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700 sticky top-0 z-10">
+        <div className="md:hidden grid grid-cols-[1fr_100px_76px] gap-0.5 bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700 sticky top-0 z-10">
             <button
               onClick={() => setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest')}
               className="px-3 py-1.5 flex items-center gap-1 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider hover:text-slate-600 dark:hover:text-neutral-300 transition-colors"
@@ -475,11 +691,12 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
               Merchant
               <ArrowUpDown size={9} />
             </button>
+            <div className="py-1.5 pr-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Category</div>
             <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Amount</div>
         </div>
 
         {/* Rows */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-0 py-0 pb-8 md:pb-0 min-h-[350px] md:min-h-[450px]">
+        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-0 py-0 pb-4 md:pb-0 min-h-[350px] md:min-h-[450px]">
             {sortedTransactions.map((t, index) => (
                 <TransactionRow
                     key={t.id}
@@ -490,6 +707,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
                     onExclude={handleExcludeRequest}
                     gridTemplate={gridTemplate}
                     index={index}
+                    selected={selectedIds.has(t.id)}
+                    onToggleSelect={toggleSelect}
                 />
             ))}
         </div>
@@ -497,9 +716,10 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
 
         {/* Delete Confirmation Modal */}
         <DeleteConfirmationModal
-            isOpen={!!transactionToDelete}
-            onClose={() => setTransactionToDelete(null)}
+            isOpen={transactionsToDelete.length > 0}
+            onClose={() => setTransactionsToDelete([])}
             onConfirm={handleConfirmDelete}
+            count={transactionsToDelete.length}
         />
 
         {/* Exclude Confirmation Modal */}
@@ -508,6 +728,16 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
             onClose={() => setTransactionToToggle(null)}
             onConfirm={handleConfirmToggle}
             isCurrentlyExcluded={isCurrentlyExcluded}
+        />
+
+        {/* Bulk Category Change Confirmation Modal */}
+        <BulkCategoryConfirmationModal
+            isOpen={bulkCategoryApplyPending}
+            onClose={() => setBulkCategoryApplyPending(false)}
+            onConfirm={handleConfirmBulkCategoryApply}
+            count={selectedIds.size}
+            categoryName={bulkCategory?.name || ''}
+            subcategoryName={bulkSubcategoryName}
         />
     </>
   );

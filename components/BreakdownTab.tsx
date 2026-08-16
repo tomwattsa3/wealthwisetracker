@@ -257,7 +257,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
         data-cat-row={cat.id}
         className={`border-b border-slate-100 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-700/60 ${rowBg(rowIndex)} ${isDragging ? 'opacity-40' : ''} ${isDragOver ? 'border-t-2 border-t-[#635bff]' : ''}`}
       >
-        <td className={`sticky left-0 z-10 px-2 py-2.5 border-r border-slate-200 dark:border-neutral-700 ${rowBg(rowIndex)}`}>
+        <td className={`sticky left-0 z-10 px-2 py-[12.5px] border-r border-slate-200 dark:border-neutral-700 ${rowBg(rowIndex)}`}>
           <div className="flex items-center gap-1">
             <button
               onPointerDown={handleGripPointerDown(cat.id, allVisibleCatIds)}
@@ -281,7 +281,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
         {monthCols.map(m => {
           const amt = getCell(cat.id, m.key);
           return (
-            <td key={m.key} className={`pl-5 pr-3 py-2.5 text-left tabular-nums border-l border-slate-100 dark:border-neutral-700/60 ${amountClass}`}>
+            <td key={m.key} className={`pl-5 pr-3 py-[12.5px] text-left tabular-nums border-l border-slate-100 dark:border-neutral-700/60 ${amountClass}`}>
               {amt !== 0 ? formatAmount(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
             </td>
           );
@@ -294,13 +294,13 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
         const subRowIndex = zebraRef.i++;
         rows.push(
           <tr key={`${cat.id}-${subName}`} className={`border-b border-slate-100 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-700/60 ${rowBg(subRowIndex)}`}>
-            <td className={`sticky left-0 z-10 pl-11 pr-4 py-2 border-r border-slate-200 dark:border-neutral-700 ${rowBg(subRowIndex)}`}>
+            <td className={`sticky left-0 z-10 pl-11 pr-4 py-2.5 border-r border-slate-200 dark:border-neutral-700 ${rowBg(subRowIndex)}`}>
               <span className="text-slate-500 dark:text-neutral-500 whitespace-nowrap">{subName}</span>
             </td>
             {monthCols.map(m => {
               const amt = getSubCell(cat.id, subName, m.key);
               return (
-                <td key={m.key} className="pl-5 pr-3 py-2 text-left tabular-nums border-l border-slate-100 dark:border-neutral-700/60 text-slate-500 dark:text-neutral-500">
+                <td key={m.key} className="pl-5 pr-3 py-2.5 text-left tabular-nums border-l border-slate-100 dark:border-neutral-700/60 text-slate-500 dark:text-neutral-500">
                   {amt !== 0 ? formatAmount(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
                 </td>
               );
@@ -317,12 +317,30 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
   const expenseZebra = { i: 0 };
 
   return (
-    <div className="pb-20 space-y-4">
+    <div className="pb-20 md:pb-4 space-y-4">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-neutral-200">Breakdown</h1>
-          <p className="text-xs text-slate-400 dark:text-neutral-500 mt-1">Every category, month by month · drag the grip to reorder</p>
+        <div className="flex items-center justify-between gap-2 md:block">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-neutral-200">Breakdown</h1>
+            <p className="hidden md:block text-xs text-slate-400 dark:text-neutral-500 mt-1">Every category, month by month · drag the grip to reorder</p>
+          </div>
+          {/* Mobile-only: date selector next to the headline */}
+          <div className="md:hidden flex items-center gap-1.5 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 rounded-lg px-2 py-1 shrink-0">
+            <input
+              type="month"
+              value={rangeStart}
+              onChange={(e) => { setRangeStart(e.target.value); setRangeLabel('Custom'); }}
+              className="bg-transparent text-[10px] font-semibold text-slate-700 dark:text-neutral-300 outline-none w-[64px]"
+            />
+            <span className="text-slate-300 dark:text-neutral-600 text-xs">–</span>
+            <input
+              type="month"
+              value={rangeEnd}
+              onChange={(e) => { setRangeEnd(e.target.value); setRangeLabel('Custom'); }}
+              className="bg-transparent text-[10px] font-semibold text-slate-700 dark:text-neutral-300 outline-none w-[64px]"
+            />
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex bg-slate-100 dark:bg-neutral-700 p-0.5 rounded-lg shrink-0">
@@ -336,7 +354,8 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-1.5 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 rounded-lg px-2 py-1">
+          {/* Desktop-only: date selector in its original spot */}
+          <div className="hidden md:flex items-center gap-1.5 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 rounded-lg px-2 py-1">
             <input
               type="month"
               value={rangeStart}
@@ -351,7 +370,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
               className="bg-transparent text-[11px] font-semibold text-slate-700 dark:text-neutral-300 outline-none"
             />
           </div>
-          <div className="flex bg-slate-100 dark:bg-neutral-700 p-0.5 rounded-lg shrink-0">
+          <div className="hidden md:flex bg-slate-100 dark:bg-neutral-700 p-0.5 rounded-lg shrink-0">
             <button
               onClick={() => setCurrency('GBP')}
               className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all ${currency === 'GBP' ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
@@ -379,7 +398,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
           style={{ animation: 'breakdownFadeIn 0.28s ease-out' }}
         >
           <style>{`@keyframes breakdownFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
-          <div className="overflow-x-auto custom-scrollbar">
+          <div className="overflow-auto custom-scrollbar max-h-[75vh]">
             <table
               className="border-collapse text-[11px] md:text-xs w-full transition-[width] duration-300"
               style={{ tableLayout: 'fixed', minWidth: `${categoryColWidth + monthCols.length * 90}px`, transition: 'min-width 0.05s linear' }}
@@ -390,7 +409,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
               </colgroup>
               <thead>
                 <tr>
-                  <th className="relative sticky left-0 z-20 bg-slate-50 dark:bg-neutral-700 text-left px-4 py-2.5 font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap border-b border-r border-slate-200 dark:border-neutral-700">
+                  <th className="relative sticky top-0 left-0 z-40 bg-slate-50 dark:bg-neutral-700 text-left px-4 py-[12.5px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap border-b border-r border-slate-200 dark:border-neutral-700">
                     Category
                     <div
                       onPointerDown={handleResizePointerDown}
@@ -403,7 +422,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                   {monthCols.map(m => (
                     <th
                       key={m.key}
-                      className="px-3 py-2.5 text-left font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap border-b border-l bg-slate-50 dark:bg-neutral-700 border-slate-200 dark:border-neutral-700"
+                      className="sticky top-0 z-30 px-3 py-[12.5px] text-left font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap border-b border-l bg-slate-50 dark:bg-neutral-700 border-slate-200 dark:border-neutral-700"
                     >
                       {MONTHS[m.monthIndex]} '{String(m.year).slice(2)}
                     </th>
@@ -418,11 +437,11 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
 
                 {/* Total Income */}
                 <tr className="bg-emerald-50/60 dark:bg-emerald-950/20 border-b border-slate-200 dark:border-neutral-700">
-                  <td className="sticky left-0 z-10 bg-emerald-50 dark:bg-emerald-950 px-4 py-2.5 font-bold text-slate-900 dark:text-neutral-200 border-r border-slate-200 dark:border-neutral-700 whitespace-nowrap">
+                  <td className="sticky left-0 z-10 bg-emerald-50 dark:bg-emerald-950 px-4 py-[12.5px] font-bold text-slate-900 dark:text-neutral-200 border-r border-slate-200 dark:border-neutral-700 whitespace-nowrap">
                     Total Income
                   </td>
                   {monthCols.map(m => (
-                    <td key={m.key} className="pl-5 pr-3 py-2.5 text-left tabular-nums font-bold border-l border-emerald-100 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-400">
+                    <td key={m.key} className="pl-5 pr-3 py-[12.5px] text-left tabular-nums font-bold border-l border-emerald-100 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-400">
                       {formatAmount(monthTotal(incomeCategories, m.key))}
                     </td>
                   ))}
@@ -436,27 +455,27 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                   <CategorySection key={cat.id} cat={cat} isExpense={true} zebraRef={expenseZebra} />
                 ))}
 
-                {/* Total Expenses */}
+                {/* Total Expenses — sticky just above the Net row, so both stay visible while scrolling */}
                 <tr className="bg-slate-50 dark:bg-neutral-700 border-b border-slate-200 dark:border-neutral-700">
-                  <td className="sticky left-0 z-10 bg-slate-50 dark:bg-neutral-700 px-4 py-2.5 font-bold text-slate-900 dark:text-neutral-200 border-r border-slate-200 dark:border-neutral-700 whitespace-nowrap">
+                  <td className="sticky left-0 bottom-[48px] z-[25] bg-slate-50 dark:bg-neutral-700 px-4 py-[12.5px] font-bold text-slate-900 dark:text-neutral-200 border-r border-slate-200 dark:border-neutral-700 whitespace-nowrap">
                     Total Expenses
                   </td>
                   {monthCols.map(m => (
-                    <td key={m.key} className="pl-5 pr-3 py-2.5 text-left tabular-nums font-bold border-l border-slate-200 dark:border-neutral-700 text-slate-800 dark:text-neutral-300">
+                    <td key={m.key} className="sticky bottom-[48px] z-[15] bg-slate-50 dark:bg-neutral-700 pl-5 pr-3 py-[12.5px] text-left tabular-nums font-bold border-l border-slate-200 dark:border-neutral-700 text-slate-800 dark:text-neutral-300">
                       {formatAmount(-monthTotal(expenseCategories, m.key))}
                     </td>
                   ))}
                 </tr>
 
-                {/* Net */}
+                {/* Net — sticky to the bottom of the screen so it stays visible while scrolling through expanded subcategories */}
                 <tr className="bg-[#635bff]">
-                  <td className="sticky left-0 z-10 bg-[#635bff] px-4 py-3 font-bold text-white border-r border-[#5348e0] whitespace-nowrap">
+                  <td className="sticky left-0 bottom-0 z-30 bg-[#635bff] px-4 py-[15px] font-bold text-white border-r border-[#5348e0] whitespace-nowrap shadow-[0_-2px_8px_rgba(0,0,0,0.08)]">
                     Net
                   </td>
                   {monthCols.map(m => {
                     const net = monthTotal(incomeCategories, m.key) - monthTotal(expenseCategories, m.key);
                     return (
-                      <td key={m.key} className="pl-5 pr-3 py-3 text-left tabular-nums font-bold border-l border-white/10 text-white">
+                      <td key={m.key} className="sticky bottom-0 z-20 bg-[#635bff] pl-5 pr-3 py-[15px] text-left tabular-nums font-bold border-l border-white/10 text-white shadow-[0_-2px_8px_rgba(0,0,0,0.08)]">
                         {formatAmount(net)}
                       </td>
                     );

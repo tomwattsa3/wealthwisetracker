@@ -27,12 +27,6 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
     return currency === 'GBP' ? `£${f}` : `AED ${f}`;
   };
 
-  const altCurrencyLabel = currency === 'GBP' ? 'AED' : '£';
-  const formatAlt = (val: number) => {
-    const f = val.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return currency === 'GBP' ? `AED ${f}` : `£${f}`;
-  };
-
   // --- KPI Revenue variant ---
   if (variant === 'kpi-revenue') {
     return (
@@ -40,13 +34,8 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-sm shrink-0">📈</span>
           <div className="min-w-0">
-            <span className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Income</span>
-            <div className="flex items-baseline gap-1.5">
-              {amountAlt !== undefined && (
-                <span className="text-[10px] italic text-slate-400 dark:text-neutral-500 truncate">{formatAlt(amountAlt)}</span>
-              )}
-              <p className="text-lg font-bold text-slate-900 dark:text-neutral-200 truncate">{currencyDisplay}</p>
-            </div>
+            <p className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider leading-tight">Income</p>
+            <p className="text-lg font-bold text-slate-900 dark:text-neutral-200 truncate leading-tight">{currencyDisplay}</p>
           </div>
         </div>
         {percentChange !== undefined && (
@@ -68,13 +57,8 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-950 flex items-center justify-center text-sm shrink-0">📉</span>
           <div className="min-w-0">
-            <span className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Expenses</span>
-            <div className="flex items-baseline gap-1.5">
-              {amountAlt !== undefined && (
-                <span className="text-[10px] italic text-slate-400 dark:text-neutral-500 truncate">{formatAlt(amountAlt)}</span>
-              )}
-              <p className="text-lg font-bold text-slate-900 dark:text-neutral-200 truncate">{currencyDisplay}</p>
-            </div>
+            <p className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider leading-tight">Expenses</p>
+            <p className="text-lg font-bold text-slate-900 dark:text-neutral-200 truncate leading-tight">{currencyDisplay}</p>
           </div>
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
@@ -98,22 +82,14 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
     const rev = revenueAmount ?? 0;
     const exp = expenseAmount ?? 0;
     const netSaved = rev - exp;
-    const revAlt = revenueAmountAlt ?? 0;
-    const expAlt = expenseAmountAlt ?? 0;
-    const netSavedAlt = revAlt - expAlt;
 
     return (
       <div className="bg-[#635bff] rounded-xl px-4 py-3 flex items-center justify-between gap-3 h-full">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center text-sm shrink-0">💰</span>
           <div className="min-w-0">
-            <span className="text-[10px] font-semibold text-white/70 uppercase tracking-wider">Net Saved</span>
-            <div className="flex items-baseline gap-1.5">
-              {(revenueAmountAlt !== undefined || expenseAmountAlt !== undefined) && (
-                <span className="text-[10px] italic text-white/60 truncate">{formatAlt(netSavedAlt)}</span>
-              )}
-              <p className="text-lg font-bold text-white truncate">{formatVal(netSaved)}</p>
-            </div>
+            <p className="text-[10px] font-semibold text-white/70 uppercase tracking-wider leading-tight">Net Saved</p>
+            <p className="text-lg font-bold text-white truncate leading-tight">{formatVal(netSaved)}</p>
           </div>
         </div>
         {rev > 0 && (

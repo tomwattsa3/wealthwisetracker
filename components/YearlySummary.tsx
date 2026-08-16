@@ -492,44 +492,44 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
   return (
     <div className="pb-20 space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-neutral-200">Analytics</h1>
-          <p className="text-xs text-slate-400 dark:text-neutral-500 mt-1">{dateRange.label}: {new Date(dateRange.start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} – {new Date(dateRange.end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex bg-slate-100 dark:bg-neutral-700 p-0.5 rounded-lg overflow-x-auto hide-scrollbar">
-            {[
-              { label: 'MTD', preset: presets.thisMonth },
-              { label: 'Last Wk', preset: presets.lastWeek },
-              { label: 'Last Mo', preset: presets.lastMonth },
-              { label: 'YTD', preset: presets.thisYear },
-            ].map((item) => (
+      <div className="space-y-1">
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-neutral-200 shrink-0">Analytics</h1>
+          <div className="flex items-center gap-1.5 md:gap-2 min-w-0">
+            <div className="flex bg-slate-100 dark:bg-neutral-700 p-0.5 rounded-lg overflow-x-auto hide-scrollbar">
+              {[
+                { label: 'MTD', preset: presets.thisMonth },
+                { label: 'Last Wk', preset: presets.lastWeek },
+                { label: 'Last Mo', preset: presets.lastMonth },
+                { label: 'YTD', preset: presets.thisYear },
+              ].map((item) => (
+                <button
+                  key={item.preset.label}
+                  onClick={() => { setDateRange(item.preset); setShowCustom(false); }}
+                  className={`px-1.5 md:px-2 py-0.5 md:py-1 text-[9px] md:text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${dateRange.label === item.preset.label && !showCustom ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
+                >
+                  {item.label}
+                </button>
+              ))}
               <button
-                key={item.preset.label}
-                onClick={() => { setDateRange(item.preset); setShowCustom(false); }}
-                className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${dateRange.label === item.preset.label && !showCustom ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
+                onClick={() => setShowCustom(!showCustom)}
+                className={`px-1.5 md:px-2 py-0.5 md:py-1 text-[9px] md:text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${showCustom || dateRange.label === 'Custom' ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
               >
-                {item.label}
+                Custom
               </button>
-            ))}
-            <button
-              onClick={() => setShowCustom(!showCustom)}
-              className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${showCustom || dateRange.label === 'Custom' ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
-            >
-              Custom
-            </button>
+            </div>
+            {onRefresh && (
+              <button
+                onClick={onRefresh}
+                className="p-1.5 md:p-2 rounded-xl bg-white dark:bg-neutral-800 border border-slate-100 dark:border-neutral-700 shadow-sm text-slate-400 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300 transition-colors shrink-0"
+                title="Refresh data"
+              >
+                <RefreshCw size={14} className="md:w-4 md:h-4" />
+              </button>
+            )}
           </div>
-          {onRefresh && (
-            <button
-              onClick={onRefresh}
-              className="p-2 rounded-xl bg-white dark:bg-neutral-800 border border-slate-100 dark:border-neutral-700 shadow-sm text-slate-400 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300 transition-colors"
-              title="Refresh data"
-            >
-              <RefreshCw size={16} />
-            </button>
-          )}
         </div>
+        <p className="hidden md:block text-xs text-slate-400 dark:text-neutral-500">{dateRange.label}: {new Date(dateRange.start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} – {new Date(dateRange.end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
       </div>
 
       {showCustom && (
@@ -558,41 +558,41 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-3 gap-2.5 md:gap-4">
-        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-3 md:p-5">
-          <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
+      <div className="grid grid-cols-3 gap-2 md:gap-4">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-2.5 md:p-5">
+          <div className="flex items-center gap-1 md:gap-2 mb-1.5 md:mb-3">
             <span className="w-6 h-6 md:w-10 md:h-10 rounded-md md:rounded-lg bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-xs md:text-base shrink-0">📈</span>
             <span className="text-[8px] md:text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Income</span>
           </div>
-          <p className="text-base md:text-3xl font-bold text-emerald-600">{formatAmount(totalIncome)}</p>
+          <p className="text-sm md:text-3xl font-bold text-emerald-600">{formatAmount(totalIncome)}</p>
           <div className="flex flex-col md:flex-row md:items-center md:gap-2 mt-0.5 md:mt-1.5">
-            <p className="text-[8px] md:text-xs font-medium text-slate-400 dark:text-neutral-500 md:text-slate-500">{formatAED(totalIncomeAED)}</p>
+            <p className="hidden md:block text-xs font-medium text-slate-500">{formatAED(totalIncomeAED)}</p>
             <span className="hidden md:inline text-slate-300">·</span>
-            <p className="text-[7px] md:text-xs text-slate-300 md:text-slate-500 mt-0.5 md:mt-0">Avg {formatAmount(avgMonthlyIncome)}/mo</p>
+            <p className="text-[7px] md:text-xs text-slate-300 md:text-slate-500">Avg {formatAmount(avgMonthlyIncome)}/mo</p>
           </div>
         </div>
-        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-3 md:p-5">
-          <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-2.5 md:p-5">
+          <div className="flex items-center gap-1 md:gap-2 mb-1.5 md:mb-3">
             <span className="w-6 h-6 md:w-10 md:h-10 rounded-md md:rounded-lg bg-rose-50 dark:bg-rose-950 flex items-center justify-center text-xs md:text-base shrink-0">📉</span>
             <span className="text-[8px] md:text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Expenses</span>
           </div>
-          <p className="text-base md:text-3xl font-bold text-slate-900 dark:text-neutral-200">{formatAmount(totalExpense)}</p>
+          <p className="text-sm md:text-3xl font-bold text-slate-900 dark:text-neutral-200">{formatAmount(totalExpense)}</p>
           <div className="flex flex-col md:flex-row md:items-center md:gap-2 mt-0.5 md:mt-1.5">
-            <p className="text-[8px] md:text-xs font-medium text-slate-400 dark:text-neutral-500 md:text-slate-500">{formatAED(totalExpenseAED)}</p>
+            <p className="hidden md:block text-xs font-medium text-slate-500">{formatAED(totalExpenseAED)}</p>
             <span className="hidden md:inline text-slate-300">·</span>
-            <p className="text-[7px] md:text-xs text-slate-300 md:text-slate-500 mt-0.5 md:mt-0">Avg {formatAmount(avgMonthlySpend)}/mo</p>
+            <p className="text-[7px] md:text-xs text-slate-300 md:text-slate-500">Avg {formatAmount(avgMonthlySpend)}/mo</p>
           </div>
         </div>
-        <div className="bg-[#635bff] rounded-2xl p-3 md:p-5">
-          <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
+        <div className="bg-[#635bff] rounded-2xl p-2.5 md:p-5">
+          <div className="flex items-center gap-1 md:gap-2 mb-1.5 md:mb-3">
             <span className="w-6 h-6 md:w-10 md:h-10 rounded-md md:rounded-lg bg-white/15 flex items-center justify-center text-xs md:text-base shrink-0">💰</span>
             <span className="text-[8px] md:text-[10px] font-semibold text-white/70 uppercase tracking-wider">Net Saved</span>
           </div>
-          <p className="text-base md:text-3xl font-bold text-white">{formatAmount(netBalance)}</p>
+          <p className="text-sm md:text-3xl font-bold text-white">{formatAmount(netBalance)}</p>
           <div className="flex flex-col md:flex-row md:items-center md:gap-2 mt-0.5 md:mt-1.5">
-            <p className="text-[8px] md:text-xs font-medium text-white/60">{formatAED(netBalanceAED)}</p>
+            <p className="hidden md:block text-xs font-medium text-white/60">{formatAED(netBalanceAED)}</p>
             <span className="hidden md:inline text-white/30">·</span>
-            <p className="text-[7px] md:text-xs text-white/50 mt-0.5 md:mt-0">{totalTransactions} transactions</p>
+            <p className="text-[7px] md:text-xs text-white/50">{totalTransactions} transactions</p>
           </div>
         </div>
       </div>
@@ -605,46 +605,46 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
         {/* Spending Trend Chart */}
         <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 overflow-hidden">
-          <div className="px-4 md:px-5 py-3 md:py-4 border-b border-slate-100 dark:border-neutral-700 flex items-center gap-2 md:gap-3">
-            <h3 className="text-xs md:text-sm font-bold text-slate-900 dark:text-neutral-200 shrink-0 leading-tight md:whitespace-nowrap text-left">Spending<br className="md:hidden" /> Trend</h3>
-            <div className="flex items-center gap-1.5 md:gap-2 flex-1 justify-end flex-wrap">
-              <div className="relative">
+          <div className="px-4 md:px-5 py-3 md:py-4 border-b border-slate-100 dark:border-neutral-700 flex items-center gap-1.5 md:gap-3">
+            <h3 className="text-[10px] md:text-sm font-bold text-slate-900 dark:text-neutral-200 shrink-0 leading-tight whitespace-nowrap text-left">Spending Trend</h3>
+            <div className="flex items-center gap-1 md:gap-2 flex-1 justify-end flex-nowrap overflow-x-auto hide-scrollbar">
+              <div className="relative shrink-0">
                 <select
                   value={chartCategoryFilter}
                   onChange={(e) => { setChartCategoryFilter(e.target.value); setChartSubcategoryFilter('all'); }}
-                  className="appearance-none bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg pl-2.5 pr-7 py-1 text-[10px] font-semibold text-slate-600 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer max-w-[140px] truncate"
+                  className="appearance-none bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg pl-2 md:pl-2.5 pr-6 md:pr-7 py-1 text-[9px] md:text-[10px] font-semibold text-slate-600 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer max-w-[84px] md:max-w-[140px] truncate"
                 >
                   <option value="all">All Categories</option>
                   {expenseCategoryOptions.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
                 </select>
-                <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
+                <ChevronDown size={10} className="absolute right-1.5 md:right-2 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
               </div>
               {chartCategoryFilter !== 'all' && (() => {
                 const selectedCat = expenseCategoryOptions.find(c => c.id === chartCategoryFilter);
                 return selectedCat && selectedCat.subcategories.length > 0 ? (
-                  <div className="relative">
+                  <div className="relative shrink-0">
                     <select
                       value={chartSubcategoryFilter}
                       onChange={(e) => setChartSubcategoryFilter(e.target.value)}
-                      className="appearance-none bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg pl-2.5 pr-7 py-1 text-[10px] font-semibold text-slate-600 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer max-w-[140px] truncate"
+                      className="appearance-none bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg pl-2 md:pl-2.5 pr-6 md:pr-7 py-1 text-[9px] md:text-[10px] font-semibold text-slate-600 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer max-w-[84px] md:max-w-[140px] truncate"
                     >
                       <option value="all">All Subcategories</option>
                       {selectedCat.subcategories.map(sub => (
                         <option key={sub} value={sub}>{sub}</option>
                       ))}
                     </select>
-                    <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
+                    <ChevronDown size={10} className="absolute right-1.5 md:right-2 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
                   </div>
                 ) : null;
               })()}
-            <div className="flex bg-slate-100 dark:bg-neutral-700 p-0.5 rounded-lg">
+            <div className="flex bg-slate-100 dark:bg-neutral-700 p-0.5 rounded-lg shrink-0">
               {granularityOptions.map(g => (
                 <button
                   key={g}
                   onClick={() => setChartGranularity(g)}
-                  className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all capitalize ${chartGranularity === g ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
+                  className={`px-1.5 md:px-2.5 py-1 text-[9px] md:text-[10px] font-semibold rounded-md transition-all capitalize ${chartGranularity === g ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
                 >
                   {g}
                 </button>
