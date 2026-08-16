@@ -36,10 +36,10 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
   // --- KPI Revenue variant ---
   if (variant === 'kpi-revenue') {
     return (
-      <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 p-5 flex flex-col justify-between h-full">
+      <div className="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-700 p-5 flex flex-col justify-between h-full">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-base">📈</span>
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-base shrink-0">📈</span>
             <span className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Income</span>
           </div>
           {percentChange !== undefined && (
@@ -62,10 +62,10 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
     const spendPct = rev > 0 ? (amount / rev) * 100 : 0;
 
     return (
-      <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 p-5 flex flex-col justify-between h-full">
+      <div className="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-700 p-5 flex flex-col justify-between h-full">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-base">📉</span>
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-lg bg-rose-50 dark:bg-rose-950 flex items-center justify-center text-base shrink-0">📉</span>
             <span className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Expenses</span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -99,21 +99,21 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
     const netSavedAlt = revAlt - expAlt;
 
     return (
-      <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 p-5 flex flex-col justify-between h-full">
+      <div className="bg-[#635bff] rounded-xl p-5 flex flex-col justify-between h-full">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-base">💰</span>
-            <span className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Net Saved</span>
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-lg bg-white/15 flex items-center justify-center text-base shrink-0">💰</span>
+            <span className="text-[10px] font-semibold text-white/70 uppercase tracking-wider">Net Saved</span>
           </div>
           {rev > 0 && (
-            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${netSaved >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white/15 text-white">
               {((netSaved / rev) * 100).toFixed(1)}% of income
             </span>
           )}
         </div>
-        <p className={`text-3xl font-bold ${netSaved >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatVal(netSaved)}</p>
+        <p className="text-3xl font-bold text-white">{formatVal(netSaved)}</p>
         {(revenueAmountAlt !== undefined || expenseAmountAlt !== undefined) && (
-          <p className="text-[11px] font-medium text-slate-400 dark:text-neutral-500 mt-1">{formatAlt(netSavedAlt)}</p>
+          <p className="text-[11px] font-medium text-white/60 mt-1">{formatAlt(netSavedAlt)}</p>
         )}
       </div>
     );

@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Local design reference pack (not app source)
+application-ui-v4*/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

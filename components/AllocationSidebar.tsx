@@ -113,7 +113,7 @@ const AllocationSidebar: React.FC<AllocationSidebarProps> = ({
         <div className="px-4 py-3 border-b border-slate-100 dark:border-neutral-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-lg">💰</span>
+              <span className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-sm shrink-0">💰</span>
               <span className="text-sm font-bold text-slate-900 dark:text-neutral-200">Income</span>
             </div>
             <span className="text-sm font-bold text-slate-900 dark:text-neutral-200">{formatCurrency(incomeTotal)}</span>
@@ -127,21 +127,21 @@ const AllocationSidebar: React.FC<AllocationSidebarProps> = ({
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           {groupedIncome.length > 0 ? (
             <div>
-              <div className="grid grid-cols-[1fr_32px_80px] bg-slate-100 dark:bg-neutral-700 border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 sticky top-0 z-10">
-                <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Merchant</div>
-                <div className="px-1 py-1.5 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Qty</div>
+              <div className="grid grid-cols-[1fr_32px_80px] bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700 sticky top-0 z-10">
+                <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Merchant</div>
+                <div className="px-1 py-1.5 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center">Qty</div>
                 <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Amount</div>
               </div>
 
-              {groupedIncome.map((t, idx) => (
-                <div key={t.id} className={`grid grid-cols-[1fr_32px_80px] items-center border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60 dark:bg-neutral-700/60' : 'bg-white dark:bg-neutral-800'}`}>
-                  <div className="px-3 py-3 min-w-0 flex items-center justify-between gap-1.5 border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
+              {groupedIncome.map((t) => (
+                <div key={t.id} className="grid grid-cols-[1fr_32px_80px] items-center border-b border-slate-100 dark:border-neutral-700 last:border-b-0 hover:bg-slate-50 dark:hover:bg-neutral-700/40">
+                  <div className="px-3 py-3 min-w-0 flex items-center justify-between gap-1.5">
                     <span className="text-[11px] font-medium text-slate-700 dark:text-neutral-400 truncate" title={t.description}>{t.description || "Unknown"}</span>
                     {t.subcategoryName && (
-                      <span className="px-1.5 py-px bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-md text-[8px] font-medium text-slate-500 dark:text-neutral-500 shrink-0 leading-tight">{t.subcategoryName}</span>
+                      <span className="px-1.5 py-px bg-slate-100 dark:bg-neutral-700 rounded-full text-[8px] font-medium text-slate-500 dark:text-neutral-500 shrink-0 leading-tight">{t.subcategoryName}</span>
                     )}
                   </div>
-                  <div className="px-1 py-3 text-center border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
+                  <div className="px-1 py-3 text-center">
                     <span className="text-[10px] text-slate-400 dark:text-neutral-500">{t.count > 1 ? t.count : ''}</span>
                   </div>
                   <div className="px-3 py-3 text-right">
@@ -159,14 +159,19 @@ const AllocationSidebar: React.FC<AllocationSidebarProps> = ({
       {/* Spend by Category */}
       <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 p-5 overflow-hidden">
         <h3 className="text-xs font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider mb-3">Spend by Category</h3>
-        <div className="space-y-4 max-h-[320px] overflow-y-auto custom-scrollbar">
-          {expenseData.slice(0, 6).map(item => {
+        <div className="space-y-4">
+          {expenseData.map(item => {
             const percentage = totalExpenses > 0 ? (item.total / totalExpenses) * 100 : 0;
             return (
               <div key={item.category.id} className="py-1">
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm">{getCategoryEmoji(item.category.id)}</span>
+                    <span
+                      className="w-6 h-6 rounded-md flex items-center justify-center text-xs shrink-0"
+                      style={{ backgroundColor: `${item.category.color || '#94a3b8'}1A` }}
+                    >
+                      {getCategoryEmoji(item.category.id)}
+                    </span>
                     <span className="text-xs font-medium text-slate-700 dark:text-neutral-400">{item.category.name}</span>
                     {item.transactions && item.transactions.length > 0 && (
                       <span className="text-[9px] text-slate-400 dark:text-neutral-500 font-medium">{item.transactions.length}</span>

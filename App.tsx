@@ -341,7 +341,7 @@ const App: React.FC = () => {
       setMobileCategoryIds(mobileCategoryIds.filter((_, i) => i !== index));
     }
   };
-  
+
   // --- SUPABASE DATA FETCHING ---
   const fetchData = async () => {
     try {
@@ -1468,7 +1468,7 @@ const App: React.FC = () => {
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          className={`flex-1 h-full bg-slate-100 dark:bg-neutral-900 p-2 pb-24 md:px-8 md:py-6 max-w-[100vw] ${activeTab === 'history' ? 'overflow-hidden' : 'overflow-y-auto'}`}
+          className={`flex-1 h-full bg-slate-100 dark:bg-neutral-900 p-3 pb-24 md:px-8 md:py-6 max-w-[100vw] ${activeTab === 'history' ? 'overflow-hidden' : 'overflow-y-auto'}`}
         >
           {/* Pull-to-refresh indicator */}
           <div
@@ -1856,34 +1856,34 @@ const App: React.FC = () => {
                 )}
 
                 {/* Mobile KPI Cards */}
-                <div className="grid grid-cols-3 gap-2.5">
-                  <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 p-3">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <span className="text-sm">📈</span>
-                      <span className="text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Income</span>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <div className="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-700 p-2 min-w-0">
+                    <div className="flex items-center gap-1 mb-1.5">
+                      <span className="w-5 h-5 rounded-md bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-[10px] shrink-0">📈</span>
+                      <span className="text-[7px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider truncate">Income</span>
                     </div>
-                    <p className="text-base font-bold text-emerald-600">{formatCurrency(summary.totalIncome)}</p>
-                    <p className="text-[9px] font-medium text-slate-400 dark:text-neutral-500 mt-0.5">
+                    <p className="text-[13px] font-bold text-emerald-600 tracking-tight truncate">{formatCurrency(summary.totalIncome)}</p>
+                    <p className="text-[8px] font-medium text-slate-400 dark:text-neutral-500 mt-0.5 truncate">
                       {currency === 'GBP' ? `AED ${summaryAlt.totalIncome.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${summaryAlt.totalIncome.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     </p>
                   </div>
-                  <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 p-3">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <span className="text-sm">📉</span>
-                      <span className="text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Expenses</span>
+                  <div className="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-700 p-2 min-w-0">
+                    <div className="flex items-center gap-1 mb-1.5">
+                      <span className="w-5 h-5 rounded-md bg-rose-50 dark:bg-rose-950 flex items-center justify-center text-[10px] shrink-0">📉</span>
+                      <span className="text-[7px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider truncate">Expenses</span>
                     </div>
-                    <p className="text-base font-bold text-slate-900 dark:text-neutral-200">{formatCurrency(summary.totalExpense)}</p>
-                    <p className="text-[9px] font-medium text-slate-400 dark:text-neutral-500 mt-0.5">
+                    <p className="text-[13px] font-bold text-slate-900 dark:text-neutral-200 tracking-tight truncate">{formatCurrency(summary.totalExpense)}</p>
+                    <p className="text-[8px] font-medium text-slate-400 dark:text-neutral-500 mt-0.5 truncate">
                       {currency === 'GBP' ? `AED ${summaryAlt.totalExpense.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${summaryAlt.totalExpense.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     </p>
                   </div>
-                  <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 p-3">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <span className="text-sm">💰</span>
-                      <span className="text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Saved</span>
+                  <div className="bg-[#635bff] rounded-xl p-2 min-w-0">
+                    <div className="flex items-center gap-1 mb-1.5">
+                      <span className="w-5 h-5 rounded-md bg-white/15 flex items-center justify-center text-[10px] shrink-0">💰</span>
+                      <span className="text-[7px] font-semibold text-white/70 uppercase tracking-wider truncate">Saved</span>
                     </div>
-                    <p className={`text-base font-bold ${summary.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(summary.balance)}</p>
-                    <p className="text-[9px] font-medium text-slate-400 dark:text-neutral-500 mt-0.5">
+                    <p className="text-[13px] font-bold text-white tracking-tight truncate">{formatCurrency(summary.balance)}</p>
+                    <p className="text-[8px] font-medium text-white/60 mt-0.5 truncate">
                       {currency === 'GBP' ? `AED ${summaryAlt.balance.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${summaryAlt.balance.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     </p>
                   </div>
@@ -1919,7 +1919,7 @@ const App: React.FC = () => {
                       <div className="px-3 py-2.5 border-b border-slate-100 dark:border-neutral-700">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5">
-                            <span className="text-base">💰</span>
+                            <span className="w-6 h-6 rounded-md bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-xs shrink-0">💰</span>
                             <span className="text-xs font-bold text-slate-900 dark:text-neutral-200">Income</span>
                           </div>
                           <div className="text-right">
@@ -1932,24 +1932,24 @@ const App: React.FC = () => {
                         </div>
                       </div>
                       <div>
-                        <div className="grid grid-cols-[1fr_28px_72px] bg-slate-100 dark:bg-neutral-700 border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 sticky top-0 z-10">
-                          <div className="px-3 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Merchant</div>
-                          <div className="px-1 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Qty</div>
+                        <div className="grid grid-cols-[1fr_28px_72px] bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700 sticky top-0 z-10">
+                          <div className="px-3 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Merchant</div>
+                          <div className="px-1 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center">Qty</div>
                           <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Amount</div>
                         </div>
                         <div className="max-h-[420px] overflow-y-auto">
-                          {topIncomeGrouped.map((g, idx) => (
-                            <div key={g.description} className={`grid grid-cols-[1fr_28px_72px] items-center border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60 dark:bg-neutral-700/60' : 'bg-white dark:bg-neutral-800'}`}>
-                              <div className="px-3 py-2.5 border-r border-dashed border-slate-200/80 dark:border-neutral-600/80 flex items-center justify-between gap-1 min-w-0">
+                          {topIncomeGrouped.map((g) => (
+                            <div key={g.description} className="grid grid-cols-[1fr_28px_72px] items-center border-b border-slate-100 dark:border-neutral-700 last:border-b-0">
+                              <div className="px-3 py-3 flex items-center justify-between gap-1 min-w-0">
                                 <span className="text-[11px] font-medium text-slate-700 dark:text-neutral-400 truncate">{g.description}</span>
                                 {g.subcategoryName && (
-                                  <span className="px-1.5 py-px bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-md text-[7px] font-medium text-slate-500 dark:text-neutral-500 shrink-0 leading-tight">{g.subcategoryName}</span>
+                                  <span className="px-1.5 py-px bg-slate-100 dark:bg-neutral-700 rounded-full text-[8px] font-medium text-slate-500 dark:text-neutral-500 shrink-0 leading-tight">{g.subcategoryName}</span>
                                 )}
                               </div>
-                              <div className="px-1 py-2.5 text-center border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
+                              <div className="px-1 py-3 text-center">
                                 <span className="text-[10px] text-slate-400 dark:text-neutral-500">{g.count > 1 ? g.count : ''}</span>
                               </div>
-                              <div className="px-2 py-2.5 text-right">
+                              <div className="px-2 py-3 text-right">
                                 <span className="text-[11px] font-semibold text-emerald-700">{formatCurrency(g.amount)}</span>
                               </div>
                             </div>
@@ -1992,7 +1992,12 @@ const App: React.FC = () => {
                       <div className="px-3 py-2.5 border-b border-slate-100 dark:border-neutral-700">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-3">
-                            <span className="text-base">{getCategoryEmoji(catId)}</span>
+                            <span
+                              className="w-6 h-6 rounded-md flex items-center justify-center text-xs shrink-0"
+                              style={{ backgroundColor: `${cat.color || '#94a3b8'}1A` }}
+                            >
+                              {getCategoryEmoji(catId)}
+                            </span>
                             <div className="relative flex-1 min-w-0">
                               <span className="text-xs font-bold text-slate-900 dark:text-neutral-200">{cat.name}</span>
                               <select
@@ -2027,24 +2032,24 @@ const App: React.FC = () => {
                       </div>
 
                       <div>
-                        <div className="grid grid-cols-[1fr_28px_72px] bg-slate-100 dark:bg-neutral-700 border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 sticky top-0 z-10">
-                          <div className="px-3 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Merchant</div>
-                          <div className="px-1 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Qty</div>
+                        <div className="grid grid-cols-[1fr_28px_72px] bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700 sticky top-0 z-10">
+                          <div className="px-3 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Merchant</div>
+                          <div className="px-1 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center">Qty</div>
                           <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Amount</div>
                         </div>
                         <div className="max-h-[420px] overflow-y-auto">
-                          {topGrouped.map((g, idx) => (
-                            <div key={g.description} className={`grid grid-cols-[1fr_28px_72px] items-center border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60 dark:bg-neutral-700/60' : 'bg-white dark:bg-neutral-800'}`}>
-                              <div className="px-3 py-2.5 border-r border-dashed border-slate-200/80 dark:border-neutral-600/80 flex items-center justify-between gap-1 min-w-0">
+                          {topGrouped.map((g) => (
+                            <div key={g.description} className="grid grid-cols-[1fr_28px_72px] items-center border-b border-slate-100 dark:border-neutral-700 last:border-b-0">
+                              <div className="px-3 py-3 flex items-center justify-between gap-1 min-w-0">
                                 <span className="text-[11px] font-medium text-slate-700 dark:text-neutral-400 truncate">{g.description}</span>
                                 {g.subcategoryName && (
-                                  <span className="px-1.5 py-px bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-md text-[7px] font-medium text-slate-500 dark:text-neutral-500 shrink-0 leading-tight">{g.subcategoryName}</span>
+                                  <span className="px-1.5 py-px bg-slate-100 dark:bg-neutral-700 rounded-full text-[8px] font-medium text-slate-500 dark:text-neutral-500 shrink-0 leading-tight">{g.subcategoryName}</span>
                                 )}
                               </div>
-                              <div className="px-1 py-2.5 text-center border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
+                              <div className="px-1 py-3 text-center">
                                 <span className="text-[10px] text-slate-400 dark:text-neutral-500">{g.count > 1 ? g.count : ''}</span>
                               </div>
-                              <div className="px-2 py-2.5 text-right">
+                              <div className="px-2 py-3 text-right">
                                 <span className="text-[11px] font-semibold text-slate-800 dark:text-neutral-300">{formatCurrency(g.amount)}</span>
                               </div>
                             </div>
@@ -2092,21 +2097,21 @@ const App: React.FC = () => {
 
                   const renderRows = (grouped: { description: string; amount: number; count: number }[], amountColor: string) => (
                     <div>
-                      <div className="grid grid-cols-[1fr_28px_72px] bg-slate-100 dark:bg-neutral-700 border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 sticky top-0 z-10">
-                        <div className="px-3 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Merchant</div>
-                        <div className="px-1 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Qty</div>
+                      <div className="grid grid-cols-[1fr_28px_72px] bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700 sticky top-0 z-10">
+                        <div className="px-3 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Merchant</div>
+                        <div className="px-1 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center">Qty</div>
                         <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Amount</div>
                       </div>
                       <div className="max-h-[420px] overflow-y-auto">
-                        {grouped.map((g, idx) => (
-                          <div key={g.description} className={`grid grid-cols-[1fr_28px_72px] items-center border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60 dark:bg-neutral-700/60' : 'bg-white dark:bg-neutral-800'}`}>
-                            <div className="px-3 py-2.5 border-r border-dashed border-slate-200/80 dark:border-neutral-600/80 flex items-center justify-between gap-1 min-w-0">
+                        {grouped.map((g) => (
+                          <div key={g.description} className="grid grid-cols-[1fr_28px_72px] items-center border-b border-slate-100 dark:border-neutral-700 last:border-b-0">
+                            <div className="px-3 py-3 flex items-center justify-between gap-1 min-w-0">
                               <span className="text-[11px] font-medium text-slate-700 dark:text-neutral-400 truncate">{g.description}</span>
                             </div>
-                            <div className="px-1 py-2.5 text-center border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
+                            <div className="px-1 py-3 text-center">
                               <span className="text-[10px] text-slate-400 dark:text-neutral-500">{g.count > 1 ? g.count : ''}</span>
                             </div>
-                            <div className="px-2 py-2.5 text-right">
+                            <div className="px-2 py-3 text-right">
                               <span className={`text-[11px] font-semibold ${amountColor}`}>{formatCurrency(g.amount)}</span>
                             </div>
                           </div>
@@ -2119,13 +2124,13 @@ const App: React.FC = () => {
                   );
 
                   return (
-                    <div className="grid grid-cols-2 gap-2.5">
+                    <div className="space-y-2.5">
                       {/* Loans In card */}
                       <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 overflow-hidden">
                         <div className="px-3 py-2.5 border-b border-slate-100 dark:border-neutral-700">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-base">🏦</span>
+                              <span className="w-6 h-6 rounded-md bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-xs shrink-0">🏦</span>
                               <span className="text-xs font-bold text-slate-900 dark:text-neutral-200">Loans In</span>
                             </div>
                             <div className="text-right">
@@ -2145,7 +2150,7 @@ const App: React.FC = () => {
                         <div className="px-3 py-2.5 border-b border-slate-100 dark:border-neutral-700">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-base">💸</span>
+                              <span className="w-6 h-6 rounded-md bg-rose-50 dark:bg-rose-950 flex items-center justify-center text-xs shrink-0">💸</span>
                               <span className="text-xs font-bold text-slate-900 dark:text-neutral-200">Repayments</span>
                             </div>
                             <div className="text-right">
@@ -2291,7 +2296,7 @@ const App: React.FC = () => {
                     <div className="px-3 py-2.5 border-b border-slate-100 dark:border-neutral-700">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-base">🚫</span>
+                          <span className="w-6 h-6 rounded-md bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-xs shrink-0">🚫</span>
                           <span className="text-xs font-bold text-slate-900 dark:text-neutral-200">Excluded</span>
                         </div>
                         <span className="text-xs font-bold text-slate-400 dark:text-neutral-500">
@@ -2303,17 +2308,17 @@ const App: React.FC = () => {
                       </div>
                     </div>
                     <div className="max-h-[300px] overflow-y-auto">
-                      <div className="grid grid-cols-[1fr_72px] bg-slate-100 dark:bg-neutral-700 border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 sticky top-0 z-10">
-                        <div className="px-3 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Merchant</div>
+                      <div className="grid grid-cols-[1fr_72px] bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700 sticky top-0 z-10">
+                        <div className="px-3 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Merchant</div>
                         <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Amount</div>
                       </div>
-                      {excludedTransactions.map((t, idx) => (
-                        <div key={t.id} className={`grid grid-cols-[1fr_72px] items-center border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60 dark:bg-neutral-700/60' : 'bg-white dark:bg-neutral-800'}`}>
-                          <div className="px-3 py-2.5 min-w-0 border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
+                      {excludedTransactions.map((t) => (
+                        <div key={t.id} className="grid grid-cols-[1fr_72px] items-center border-b border-slate-100 dark:border-neutral-700 last:border-b-0">
+                          <div className="px-3 py-3 min-w-0">
                             <span className="text-[11px] font-medium text-slate-500 dark:text-neutral-500 truncate block">{t.description}</span>
                             <span className="text-[9px] text-slate-400 dark:text-neutral-500">{t.date}</span>
                           </div>
-                          <div className="px-2 py-2.5 text-right">
+                          <div className="px-2 py-3 text-right">
                             <span className="text-[11px] font-semibold text-slate-400 dark:text-neutral-500">{formatCurrency(currency === 'GBP' ? t.amountGBP : t.amountAED)}</span>
                           </div>
                         </div>
@@ -2472,21 +2477,21 @@ const App: React.FC = () => {
 
                   const renderRows = (grouped: { description: string; amount: number; count: number }[], amountColor: string) => (
                     <div>
-                      <div className="grid grid-cols-[1fr_40px_100px] bg-slate-100 dark:bg-neutral-700 border-b border-dashed border-slate-200/80 dark:border-neutral-600/80">
-                        <div className="px-5 py-2 text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Merchant</div>
-                        <div className="px-2 py-2 text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Qty</div>
+                      <div className="grid grid-cols-[1fr_40px_100px] bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700">
+                        <div className="px-5 py-2 text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Merchant</div>
+                        <div className="px-2 py-2 text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center">Qty</div>
                         <div className="px-4 py-2 text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Amount</div>
                       </div>
                       <div className="max-h-[320px] overflow-y-auto">
-                        {grouped.map((g, idx) => (
-                          <div key={g.description} className={`grid grid-cols-[1fr_40px_100px] items-center border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60 dark:bg-neutral-700/60' : 'bg-white dark:bg-neutral-800'}`}>
-                            <div className="px-5 py-3 border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
+                        {grouped.map((g) => (
+                          <div key={g.description} className="grid grid-cols-[1fr_40px_100px] items-center border-b border-slate-100 dark:border-neutral-700 last:border-b-0 hover:bg-slate-50 dark:hover:bg-neutral-700/40">
+                            <div className="px-5 py-3.5">
                               <span className="text-sm font-medium text-slate-700 dark:text-neutral-400">{g.description}</span>
                             </div>
-                            <div className="px-2 py-3 text-center border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
+                            <div className="px-2 py-3.5 text-center">
                               <span className="text-xs text-slate-400 dark:text-neutral-500">{g.count > 1 ? g.count : ''}</span>
                             </div>
-                            <div className="px-4 py-3 text-right">
+                            <div className="px-4 py-3.5 text-right">
                               <span className={`text-sm font-semibold ${amountColor}`}>{formatCurrency(g.amount)}</span>
                             </div>
                           </div>
@@ -2505,7 +2510,7 @@ const App: React.FC = () => {
                         <div className="px-5 py-4 border-b border-slate-100 dark:border-neutral-700">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <span className="text-lg">🏦</span>
+                              <span className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-sm shrink-0">🏦</span>
                               <span className="text-sm font-bold text-slate-900 dark:text-neutral-200">Loans In</span>
                             </div>
                             <div className="text-right">
@@ -2525,7 +2530,7 @@ const App: React.FC = () => {
                         <div className="px-5 py-4 border-b border-slate-100 dark:border-neutral-700">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <span className="text-lg">💸</span>
+                              <span className="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-950 flex items-center justify-center text-sm shrink-0">💸</span>
                               <span className="text-sm font-bold text-slate-900 dark:text-neutral-200">Repayments</span>
                             </div>
                             <div className="text-right">
@@ -2585,7 +2590,7 @@ const App: React.FC = () => {
                         <div className="px-5 py-4 border-b border-slate-100 dark:border-neutral-700">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <span className="text-lg">🚫</span>
+                              <span className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-sm shrink-0">🚫</span>
                               <span className="text-sm font-bold text-slate-900 dark:text-neutral-200">Excluded</span>
                             </div>
                             <div className="text-right">
@@ -2597,20 +2602,20 @@ const App: React.FC = () => {
                           </div>
                         </div>
                         <div className="max-h-[320px] overflow-y-auto">
-                          <div className="grid grid-cols-[1fr_40px_100px] bg-slate-100 dark:bg-neutral-700 border-b border-dashed border-slate-200/80 dark:border-neutral-600/80">
-                            <div className="px-5 py-2 text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Merchant</div>
-                            <div className="px-2 py-2 text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Qty</div>
+                          <div className="grid grid-cols-[1fr_40px_100px] bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700">
+                            <div className="px-5 py-2 text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Merchant</div>
+                            <div className="px-2 py-2 text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center">Qty</div>
                             <div className="px-4 py-2 text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Amount</div>
                           </div>
-                          {excGrouped.map((g, idx) => (
-                            <div key={g.description} className={`grid grid-cols-[1fr_40px_100px] items-center border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 last:border-b-0 ${idx % 2 === 1 ? 'bg-slate-50/60 dark:bg-neutral-700/60' : 'bg-white dark:bg-neutral-800'}`}>
-                              <div className="px-5 py-3 border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
+                          {excGrouped.map((g) => (
+                            <div key={g.description} className="grid grid-cols-[1fr_40px_100px] items-center border-b border-slate-100 dark:border-neutral-700 last:border-b-0 hover:bg-slate-50 dark:hover:bg-neutral-700/40">
+                              <div className="px-5 py-3.5">
                                 <span className="text-sm font-medium text-slate-500 dark:text-neutral-500">{g.description}</span>
                               </div>
-                              <div className="px-2 py-3 text-center border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
+                              <div className="px-2 py-3.5 text-center">
                                 <span className="text-xs text-slate-400 dark:text-neutral-500">{g.count > 1 ? g.count : ''}</span>
                               </div>
-                              <div className="px-4 py-3 text-right">
+                              <div className="px-4 py-3.5 text-right">
                                 <span className="text-sm font-semibold text-slate-400 dark:text-neutral-500">{formatCurrency(g.amount)}</span>
                               </div>
                             </div>
