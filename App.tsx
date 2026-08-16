@@ -391,7 +391,11 @@ const App: React.FC = () => {
     const newIds = [...mobileCategoryIds];
     newIds[index] = newId;
     setMobileCategoryIds(newIds);
+    setMobileSubFilters(prev => ({ ...prev, [index]: 'all' }));
   };
+
+  // Per-card subcategory filter for mobile expense cards, keyed by card index
+  const [mobileSubFilters, setMobileSubFilters] = useState<Record<number, string>>({});
 
   const handleAddMobileCard = () => {
     // Find first category not already in the list
@@ -2037,8 +2041,11 @@ const App: React.FC = () => {
                   const cat = expenseCategories.find(c => c.id === catId);
                   if (!cat) return null;
 
-                  const catTransactions = activeTransactions.filter(t => t.categoryId === cat.id);
-                  if (catTransactions.length === 0) return null;
+                  const allCatTransactions = activeTransactions.filter(t => t.categoryId === cat.id);
+                  if (allCatTransactions.length === 0) return null;
+
+                  const subFilter = mobileSubFilters[index] || 'all';
+                  const catTransactions = subFilter === 'all' ? allCatTransactions : allCatTransactions.filter(t => t.subcategoryName === subFilter);
 
                   const catTotal = catTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
                   const catTotalAlt = catTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountAED : t.amountGBP), 0);
@@ -2099,6 +2106,18 @@ const App: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span className="text-[9px] text-slate-400 dark:text-neutral-500">📋 EXPENSE SHEET</span>
+                          {cat.subcategories.length > 0 && (
+                            <select
+                              value={subFilter}
+                              onChange={(e) => setMobileSubFilters(prev => ({ ...prev, [index]: e.target.value }))}
+                              className="bg-transparent text-[9px] font-medium text-slate-400 dark:text-neutral-500 outline-none cursor-pointer ml-auto"
+                            >
+                              <option value="all">All</option>
+                              {cat.subcategories.map(s => (
+                                <option key={s} value={s}>{s}</option>
+                              ))}
+                            </select>
+                          )}
                         </div>
                       </div>
 

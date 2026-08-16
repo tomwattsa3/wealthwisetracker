@@ -390,7 +390,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
               </colgroup>
               <thead>
                 <tr>
-                  <th className="relative sticky left-0 z-20 bg-slate-50 dark:bg-neutral-700/50 text-left px-4 py-2.5 font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap border-b border-r border-slate-200 dark:border-neutral-700">
+                  <th className="relative sticky left-0 z-20 bg-slate-50 dark:bg-neutral-700 text-left px-4 py-2.5 font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap border-b border-r border-slate-200 dark:border-neutral-700">
                     Category
                     <div
                       onPointerDown={handleResizePointerDown}
@@ -403,7 +403,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                   {monthCols.map(m => (
                     <th
                       key={m.key}
-                      className="px-3 py-2.5 text-left font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap border-b border-l bg-slate-50 dark:bg-neutral-700/50 border-slate-200 dark:border-neutral-700"
+                      className="px-3 py-2.5 text-left font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap border-b border-l bg-slate-50 dark:bg-neutral-700 border-slate-200 dark:border-neutral-700"
                     >
                       {MONTHS[m.monthIndex]} '{String(m.year).slice(2)}
                     </th>
@@ -418,7 +418,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
 
                 {/* Total Income */}
                 <tr className="bg-emerald-50/60 dark:bg-emerald-950/20 border-b border-slate-200 dark:border-neutral-700">
-                  <td className="sticky left-0 z-10 bg-emerald-50/60 dark:bg-emerald-950/20 px-4 py-2.5 font-bold text-slate-900 dark:text-neutral-200 border-r border-slate-200 dark:border-neutral-700 whitespace-nowrap">
+                  <td className="sticky left-0 z-10 bg-emerald-50 dark:bg-emerald-950 px-4 py-2.5 font-bold text-slate-900 dark:text-neutral-200 border-r border-slate-200 dark:border-neutral-700 whitespace-nowrap">
                     Total Income
                   </td>
                   {monthCols.map(m => (
@@ -437,8 +437,8 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                 ))}
 
                 {/* Total Expenses */}
-                <tr className="bg-slate-50 dark:bg-neutral-700/50 border-b border-slate-200 dark:border-neutral-700">
-                  <td className="sticky left-0 z-10 bg-slate-50 dark:bg-neutral-700/50 px-4 py-2.5 font-bold text-slate-900 dark:text-neutral-200 border-r border-slate-200 dark:border-neutral-700 whitespace-nowrap">
+                <tr className="bg-slate-50 dark:bg-neutral-700 border-b border-slate-200 dark:border-neutral-700">
+                  <td className="sticky left-0 z-10 bg-slate-50 dark:bg-neutral-700 px-4 py-2.5 font-bold text-slate-900 dark:text-neutral-200 border-r border-slate-200 dark:border-neutral-700 whitespace-nowrap">
                     Total Expenses
                   </td>
                   {monthCols.map(m => (
