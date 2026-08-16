@@ -205,17 +205,14 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     // Check if the category was deleted (categoryId exists but not found in categories)
     const isCategoryMissing = t.categoryId !== '' && t.categoryId !== 'excluded' && !categories.find(c => c.id === t.categoryId);
 
-    // Determine row styling - Alternating colors
-    const isEven = index % 2 === 0;
+    // Determine row styling - semantic states only, no alternating stripe
     const rowBackground = isExcluded
         ? 'bg-slate-100 dark:bg-neutral-700'
         : isCategoryMissing
-            ? 'bg-amber-50 !border-amber-400'
+            ? 'bg-amber-50 dark:bg-amber-950/30'
             : isDirty
-                ? 'bg-indigo-50/60'
-                : isEven
-                    ? 'bg-white dark:bg-neutral-800'
-                    : 'bg-slate-50 dark:bg-neutral-700';
+                ? 'bg-indigo-50/60 dark:bg-indigo-950/30'
+                : 'bg-white dark:bg-neutral-800';
 
     // Common cell styles for the "sheet" look - More spacious padding
     const cellClass = "h-full flex flex-col justify-center px-4 py-3 border-r border-slate-200/60 dark:border-neutral-600/60 last:border-r-0";
@@ -223,15 +220,15 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     return (
         <>
             {/* Mobile Row */}
-            <div className={`md:hidden grid grid-cols-[1fr_80px] items-center border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 last:border-b-0 ${index % 2 === 1 ? 'bg-slate-50/60 dark:bg-neutral-700/60' : 'bg-white dark:bg-neutral-800'} ${isCategoryMissing ? '!bg-amber-50' : ''} ${isExcluded ? 'opacity-40' : ''}`}>
-                <div className="px-3 py-2.5 border-r border-dashed border-slate-200/80 dark:border-neutral-600/80 min-w-0">
+            <div className={`md:hidden grid grid-cols-[1fr_80px] items-center border-b border-slate-100 dark:border-neutral-700 last:border-b-0 ${isCategoryMissing ? 'bg-amber-50 dark:bg-amber-950/30' : 'bg-white dark:bg-neutral-800'} ${isExcluded ? 'opacity-40' : ''}`}>
+                <div className="px-3 py-3 min-w-0">
                     <div className="flex items-center gap-1.5 min-w-0">
-                        <span className={`px-1 py-px text-[7px] font-bold rounded shrink-0 ${displayType === 'INCOME' ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50'}`}>
+                        <span className={`px-1.5 py-px text-[7px] font-bold rounded-full shrink-0 ${displayType === 'INCOME' ? 'text-white bg-emerald-500' : 'text-white bg-rose-500'}`}>
                             {displayType === 'INCOME' ? 'IN' : 'OUT'}
                         </span>
                         <span className="text-[11px] font-medium text-slate-700 dark:text-neutral-400 truncate">{t.description || 'No merchant'}</span>
                         {t.subcategoryName && (
-                            <span className="px-1.5 py-px bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-md text-[7px] font-medium text-slate-500 dark:text-neutral-500 shrink-0 leading-tight">{t.subcategoryName}</span>
+                            <span className="px-1.5 py-px bg-slate-100 dark:bg-neutral-700 rounded-full text-[7px] font-medium text-slate-500 dark:text-neutral-500 shrink-0 leading-tight">{t.subcategoryName}</span>
                         )}
                     </div>
                     <div className="flex items-center gap-1.5 mt-0.5">
@@ -241,7 +238,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                         )}
                     </div>
                 </div>
-                <div className="px-2 py-2.5 text-right">
+                <div className="px-2 py-3 text-right">
                     <span className={`text-[11px] font-semibold tabular-nums ${isExcluded ? 'text-slate-400 dark:text-neutral-500 line-through' : displayType === 'INCOME' ? 'text-emerald-700' : 'text-slate-800 dark:text-neutral-300'}`}>
                         £{(t.amountGBP || t.amount || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
@@ -254,21 +251,21 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
             </div>
 
             {/* Desktop Grid View */}
-            <div className={`hidden md:grid ${gridTemplate} items-center border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 ${rowBackground} ${isExcluded ? 'opacity-50' : ''}`}>
+            <div className={`hidden md:grid ${gridTemplate} items-center border-b border-slate-100 dark:border-neutral-700 hover:bg-slate-50 dark:hover:bg-neutral-700/40 ${rowBackground} ${isExcluded ? 'opacity-50' : ''}`}>
                 {/* 1. Date */}
-                <div className="px-4 py-3.5 border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
+                <div className="px-4 py-3.5">
                     <span className="text-[11px] font-semibold text-slate-700 dark:text-neutral-400 whitespace-nowrap">{t.date}</span>
                 </div>
 
                 {/* 2. Type - Pill Style */}
-                <div className="px-3 py-3.5 border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
-                    <span className={`inline-block px-2 py-0.5 text-[10px] font-medium rounded ${displayType === 'INCOME' ? 'text-white bg-emerald-500' : 'text-white bg-rose-500'}`}>
+                <div className="px-3 py-3.5">
+                    <span className={`inline-block px-2 py-0.5 text-[10px] font-medium rounded-full ${displayType === 'INCOME' ? 'text-white bg-emerald-500' : 'text-white bg-rose-500'}`}>
                         {displayType === 'INCOME' ? 'IN' : 'OUT'}
                     </span>
                 </div>
 
                 {/* 3. Category */}
-                <div className="pl-4 pr-3 py-3.5 border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
+                <div className="pl-4 pr-3 py-3.5">
                      {isCategoryMissing ? (
                         <div className="flex items-center gap-1">
                             <AlertTriangle size={12} className="text-amber-500" />
@@ -289,7 +286,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 </div>
 
                 {/* 4. Subcategory - Dropdown */}
-                <div className="pl-3 pr-4 py-3.5 border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
+                <div className="pl-3 pr-4 py-3.5">
                      <select
                         value={subcategoryName}
                         onChange={(e) => handleSubcategoryChange(e.target.value)}
@@ -304,7 +301,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 </div>
 
                 {/* 5. Description (Merchant) + Bank */}
-                <div className="px-4 py-3.5 min-w-0 border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
+                <div className="px-4 py-3.5 min-w-0">
                      <input
                         type="text"
                         value={description}
@@ -321,14 +318,14 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 </div>
 
                 {/* 6. GBP Amount */}
-                <div className="px-2 py-3.5 text-center border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
+                <div className="px-2 py-3.5 text-center">
                     <span className={`text-[11px] font-semibold ${isExcluded ? 'text-slate-400 dark:text-neutral-500 line-through' : 'text-slate-800 dark:text-neutral-300'}`}>
                         £{(t.amountGBP || t.amount || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                 </div>
 
                 {/* 7. AED Amount - Only show for Wio Bank */}
-                <div className="px-2 py-3.5 text-center border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
+                <div className="px-2 py-3.5 text-center">
                     <span className={`text-[11px] font-medium ${isExcluded ? 'text-slate-400 dark:text-neutral-500 line-through' : 'text-slate-500 dark:text-neutral-500'}`}>
                         {(t.bankName === 'Wio Bank' || t.bankName === 'Revolut') && (t.amountAED || 0) > 0
                             ? `AED ${(t.amountAED || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -452,28 +449,28 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
     <>
         <div className="flex flex-col h-full bg-transparent overflow-visible md:overflow-hidden">
         {/* Desktop Header */}
-        <div className={`hidden md:grid ${gridTemplate} bg-slate-50/80 dark:bg-neutral-700/80 border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 sticky top-0 z-10`}>
+        <div className={`hidden md:grid ${gridTemplate} bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700 sticky top-0 z-10`}>
             <button
               onClick={() => setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest')}
-              className="px-4 py-2 flex items-center gap-1 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider hover:text-slate-600 dark:hover:text-neutral-300 transition-colors border-r border-dashed border-slate-200/80 dark:border-neutral-600/80"
+              className="px-4 py-2 flex items-center gap-1 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider hover:text-slate-600 dark:hover:text-neutral-300 transition-colors"
             >
               Date
               <ArrowUpDown size={10} />
             </button>
-            <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Type</div>
-            <div className="pl-4 pr-3 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Category</div>
-            <div className="pl-3 pr-4 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Subcategory</div>
-            <div className="px-4 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Merchant</div>
-            <div className="px-2 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">GBP</div>
-            <div className="px-2 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">AED</div>
+            <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Type</div>
+            <div className="pl-4 pr-3 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Category</div>
+            <div className="pl-3 pr-4 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Subcategory</div>
+            <div className="px-4 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Merchant</div>
+            <div className="px-2 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center">GBP</div>
+            <div className="px-2 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center">AED</div>
             <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Action</div>
         </div>
 
         {/* Mobile Header */}
-        <div className="md:hidden grid grid-cols-[1fr_80px] bg-slate-100 dark:bg-neutral-700 border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 sticky top-0 z-10">
+        <div className="md:hidden grid grid-cols-[1fr_80px] bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700 sticky top-0 z-10">
             <button
               onClick={() => setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest')}
-              className="px-3 py-1.5 flex items-center gap-1 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider hover:text-slate-600 dark:hover:text-neutral-300 transition-colors border-r border-dashed border-slate-200/80 dark:border-neutral-600/80"
+              className="px-3 py-1.5 flex items-center gap-1 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider hover:text-slate-600 dark:hover:text-neutral-300 transition-colors"
             >
               Merchant
               <ArrowUpDown size={9} />

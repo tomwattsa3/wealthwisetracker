@@ -108,12 +108,12 @@ const AllocationSidebar: React.FC<AllocationSidebarProps> = ({
     <div className="flex flex-col gap-5 h-full">
 
       {/* Income Card — expense-sheet style, fixed height to match expense cards */}
-      <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 flex flex-col overflow-hidden h-[420px]">
+      <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-emerald-100 dark:border-emerald-900/40 flex flex-col overflow-hidden h-[420px]">
         {/* Header */}
-        <div className="px-4 py-3 border-b border-slate-100 dark:border-neutral-700">
+        <div className="px-4 py-3 bg-emerald-50 dark:bg-emerald-950/40 border-b border-emerald-100 dark:border-emerald-900/40">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-sm shrink-0">💰</span>
+              <span className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center text-sm shrink-0">💰</span>
               <span className="text-sm font-bold text-slate-900 dark:text-neutral-200">Income</span>
             </div>
             <span className="text-sm font-bold text-slate-900 dark:text-neutral-200">{formatCurrency(incomeTotal)}</span>
@@ -127,7 +127,7 @@ const AllocationSidebar: React.FC<AllocationSidebarProps> = ({
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           {groupedIncome.length > 0 ? (
             <div>
-              <div className="grid grid-cols-[1fr_32px_80px] bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700 sticky top-0 z-10">
+              <div className="grid grid-cols-[1fr_32px_80px] bg-slate-50 dark:bg-neutral-700/50 border-b border-slate-200 dark:border-neutral-700 sticky top-0 z-10">
                 <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Merchant</div>
                 <div className="px-1 py-1.5 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center">Qty</div>
                 <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Amount</div>

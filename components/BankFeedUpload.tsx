@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import Papa from 'papaparse';
-import { Upload, AlertCircle, FileSpreadsheet, ChevronDown, Webhook, Loader2, CheckCircle2, Sparkles } from 'lucide-react';
+import { Upload, AlertCircle, FileSpreadsheet, ChevronDown, Webhook, Loader2, CheckCircle2 } from 'lucide-react';
 import { Transaction, Bank, MerchantMapping } from '../types';
 
 interface BankFeedUploadProps {
@@ -258,7 +258,7 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
   };
 
   return (
-      <div className="flex flex-col animate-in fade-in space-y-2 sm:space-y-4">
+      <div className="flex flex-col h-full animate-in fade-in space-y-2 sm:space-y-4">
 
           {/* Upload Section */}
           <div
@@ -266,59 +266,37 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             className={`
-                w-full rounded-xl sm:rounded-2xl p-3 sm:p-6 flex flex-col md:flex-row items-center justify-between gap-3 sm:gap-6 transition-all border-2 border-dashed relative overflow-hidden
+                w-full h-full rounded-xl p-4 flex flex-col justify-center items-start gap-3 transition-all border-2 border-dashed relative overflow-hidden
                 ${isDragging ? 'border-[#635bff] bg-indigo-50/50 scale-[1.01] shadow-lg' : 'border-slate-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 hover:border-indigo-300 hover:bg-slate-50 dark:hover:bg-neutral-700'}
             `}
           >
-              <div className="flex items-center gap-3 sm:gap-5 flex-1 relative z-10 w-full">
-                  <div className={`p-2 sm:p-4 rounded-lg sm:rounded-xl shrink-0 ${isDragging ? 'bg-[#635bff] text-white' : 'bg-indigo-50 text-[#635bff]'}`}>
-                      <Upload size={20} className="sm:w-7 sm:h-7" />
+              <div className="flex items-center gap-2.5 relative z-10">
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isDragging ? 'bg-[#635bff] text-white' : 'bg-indigo-50 text-[#635bff]'}`}>
+                      <Upload size={16} />
                   </div>
-                  <div className="min-w-0 flex-1">
-                      <h3 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-neutral-200 mb-0.5 sm:mb-1 flex items-center gap-2 flex-wrap">
-                        <span>Upload Bank Feed</span>
-                        {/* Hide badges on mobile */}
-                        {merchantMappings.length > 0 && (() => {
-                          const readyCount = merchantMappings.filter(m => (m.count || 0) >= 3).length;
-                          const learningCount = merchantMappings.length - readyCount;
-                          return (
-                            <span className="hidden sm:flex text-[10px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold items-center gap-1">
-                              <Sparkles size={10} /> {readyCount} Ready{learningCount > 0 ? `, ${learningCount} Learning` : ''}
-                            </span>
-                          );
-                        })()}
-                        {webhookUrl ? (
-                          <span className="hidden sm:flex text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold items-center gap-1">
-                            <Webhook size={10} /> Webhook Active
-                          </span>
-                        ) : (
-                          <span className="hidden sm:flex text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold items-center gap-1">
-                            <AlertCircle size={10} /> Webhook Not Active
-                          </span>
-                        )}
-                      </h3>
-                      <p className="text-xs sm:text-sm text-slate-500 dark:text-neutral-500 truncate">
-                          {selectedBank.currency === 'AED'
-                            ? `CSV from ${selectedBank.name}. AED → GBP.`
-                            : `CSV from ${selectedBank.name}. GBP.`
-                          }
-                      </p>
-                  </div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-neutral-200 flex items-center gap-2 flex-wrap">
+                    <span>Upload Bank Feed</span>
+                    {webhookUrl && (
+                      <span className="text-[9px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full uppercase tracking-wider font-bold flex items-center gap-1">
+                        <Webhook size={9} /> Live
+                      </span>
+                    )}
+                  </h3>
               </div>
 
               {/* Bank Selector & File Input */}
-              <div className="flex flex-row items-center gap-2 sm:gap-3 w-full md:w-auto relative z-10">
-                 <div className="relative flex-1 sm:w-48 sm:flex-none">
+              <div className="flex flex-row items-center gap-2 w-full relative z-10">
+                 <div className="relative flex-1">
                     <select
                         value={selectedBankId}
                         onChange={(e) => setSelectedBankId(e.target.value)}
-                        className="w-full appearance-none bg-white dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 text-slate-700 dark:text-neutral-300 py-2 sm:py-2.5 pl-2 sm:pl-3 pr-6 sm:pr-8 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold focus:outline-none focus:border-[#635bff] focus:ring-4 focus:ring-[#635bff]/10 cursor-pointer"
+                        className="w-full appearance-none bg-white dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 text-slate-700 dark:text-neutral-300 py-2 pl-2.5 pr-6 rounded-lg text-xs font-bold focus:outline-none focus:border-[#635bff] focus:ring-4 focus:ring-[#635bff]/10 cursor-pointer"
                     >
                         {banks.map(bank => (
                             <option key={bank.id} value={bank.id}>{bank.name}</option>
                         ))}
                     </select>
-                    <ChevronDown size={12} className="sm:w-3.5 sm:h-3.5 absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
+                    <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
                  </div>
 
                  <label className="relative shrink-0">
@@ -328,14 +306,13 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
                         onChange={(e) => e.target.files && handleFileUpload(e.target.files[0])}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                       />
-                      <span className="bg-[#635bff] hover:bg-[#5851e3] text-white px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-indigo-200 transition-all flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap cursor-pointer">
+                      <span className="bg-[#635bff] hover:bg-[#5851e3] text-white px-3 py-2 rounded-lg text-xs font-bold shadow-md shadow-indigo-200 transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer">
                           {webhookStatus === 'sending' ? (
-                             <Loader2 size={14} className="sm:w-4 sm:h-4 animate-spin" />
+                             <Loader2 size={13} className="animate-spin" />
                           ) : (
-                             <FileSpreadsheet size={14} className="sm:w-4 sm:h-4" />
+                             <FileSpreadsheet size={13} />
                           )}
-                          <span className="hidden sm:inline">{webhookStatus === 'sending' ? 'Sending...' : 'Select CSV'}</span>
-                          <span className="sm:hidden">CSV</span>
+                          <span>{webhookStatus === 'sending' ? 'Sending...' : 'Select CSV'}</span>
                       </span>
                   </label>
               </div>

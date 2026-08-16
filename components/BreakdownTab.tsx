@@ -1,0 +1,474 @@
+
+import React, { useMemo, useState, useEffect } from 'react';
+import { ChevronRight, GripVertical } from 'lucide-react';
+import { Transaction, Category } from '../types';
+
+interface BreakdownTabProps {
+  transactions: Transaction[];
+  categories: Category[];
+  getCategoryEmoji: (categoryId: string) => string;
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const monthInputValue = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, getCategoryEmoji }) => {
+  const [currency, setCurrency] = useState<'GBP' | 'AED'>('GBP');
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
+
+  const now = new Date();
+  const [rangeStart, setRangeStart] = useState(`${now.getFullYear()}-01`);
+  const [rangeEnd, setRangeEnd] = useState(monthInputValue(now));
+  const [rangeLabel, setRangeLabel] = useState<'Last Month' | 'YTD' | 'This Year' | 'Custom'>('YTD');
+
+  // Custom row order — persisted, category id order within each section (income/expense)
+  const [categoryOrder, setCategoryOrder] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('breakdownCategoryOrder');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  useEffect(() => {
+    localStorage.setItem('breakdownCategoryOrder', JSON.stringify(categoryOrder));
+  }, [categoryOrder]);
+
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  const [categoryColWidth, setCategoryColWidth] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('breakdownCategoryColWidth');
+      return saved ? parseInt(saved, 10) : 160;
+    } catch {
+      return 160;
+    }
+  });
+  useEffect(() => {
+    localStorage.setItem('breakdownCategoryColWidth', String(categoryColWidth));
+  }, [categoryColWidth]);
+
+  const handleResizePointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startWidth = categoryColWidth;
+
+    const handleMove = (moveEvent: PointerEvent) => {
+      const delta = moveEvent.clientX - startX;
+      setCategoryColWidth(Math.min(360, Math.max(120, startWidth + delta)));
+    };
+    const handleUp = () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+    };
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
+  };
+
+  const presets: { label: 'Last Month' | 'YTD' | 'This Year'; getRange: () => { start: string; end: string } }[] = [
+    {
+      label: 'Last Month',
+      getRange: () => {
+        const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const v = monthInputValue(d);
+        return { start: v, end: v };
+      }
+    },
+    { label: 'YTD', getRange: () => ({ start: `${now.getFullYear()}-01`, end: monthInputValue(now) }) },
+    { label: 'This Year', getRange: () => ({ start: `${now.getFullYear()}-01`, end: `${now.getFullYear()}-12` }) },
+  ];
+
+  const applyPreset = (preset: typeof presets[number]) => {
+    const { start, end } = preset.getRange();
+    setRangeStart(start);
+    setRangeEnd(end);
+    setRangeLabel(preset.label);
+  };
+
+  const toggleCat = (catId: string) => {
+    setExpandedCats(prev => {
+      const next = new Set(prev);
+      if (next.has(catId)) next.delete(catId); else next.add(catId);
+      return next;
+    });
+  };
+
+  // Move `draggedId` to sit where `targetId` currently is (same-type only — income stays with income, expense with expense)
+  const moveCategory = (draggedId: string, targetId: string, allCatIds: string[]) => {
+    const draggedCat = categories.find(c => c.id === draggedId);
+    const targetCat = categories.find(c => c.id === targetId);
+    if (!draggedCat || !targetCat || draggedCat.type !== targetCat.type) return;
+
+    setCategoryOrder(prev => {
+      const base = [...prev];
+      allCatIds.forEach(id => { if (!base.includes(id)) base.push(id); });
+
+      const draggedIdx = base.indexOf(draggedId);
+      if (draggedIdx === -1) return base;
+      base.splice(draggedIdx, 1);
+      const insertIdx = base.indexOf(targetId);
+      base.splice(insertIdx === -1 ? base.length : insertIdx, 0, draggedId);
+      return base;
+    });
+  };
+
+  const handleGripPointerDown = (catId: string, allCatIds: string[]) => (e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDraggingId(catId);
+
+    const handleMove = (moveEvent: PointerEvent) => {
+      const el = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
+      const rowEl = el?.closest('[data-cat-row]') as HTMLElement | null;
+      setDragOverId(rowEl?.dataset.catRow || null);
+    };
+
+    const handleUp = (upEvent: PointerEvent) => {
+      const el = document.elementFromPoint(upEvent.clientX, upEvent.clientY);
+      const rowEl = el?.closest('[data-cat-row]') as HTMLElement | null;
+      const overId = rowEl?.dataset.catRow;
+      if (overId && overId !== catId) {
+        moveCategory(catId, overId, allCatIds);
+      }
+      setDraggingId(null);
+      setDragOverId(null);
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+    };
+
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
+  };
+
+  const formatAmount = (amount: number) => {
+    const symbol = currency === 'GBP' ? '£' : 'AED ';
+    const formatted = Math.abs(amount).toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    return `${amount < 0 ? '-' : ''}${symbol}${formatted}`;
+  };
+
+  const activeTransactions = useMemo(
+    () => transactions.filter(t => !t.excluded && t.categoryId !== 'excluded'),
+    [transactions]
+  );
+
+  // Every month in the selected range, oldest first (Jan on the left) — includes months with no data
+  const monthCols = useMemo(() => {
+    const [startYear, startMonth] = rangeStart.split('-').map(Number);
+    const [endYear, endMonth] = rangeEnd.split('-').map(Number);
+    const cols: { key: string; monthValue: string; year: number; monthIndex: number }[] = [];
+    let y = startYear, m = startMonth - 1;
+    while (y < endYear || (y === endYear && m <= endMonth - 1)) {
+      cols.push({ key: `${y}-${m}`, monthValue: monthInputValue(new Date(y, m, 1)), year: y, monthIndex: m });
+      m++;
+      if (m > 11) { m = 0; y++; }
+    }
+    return cols;
+  }, [rangeStart, rangeEnd]);
+
+  // categoryId -> monthKey -> amount
+  const grid = useMemo(() => {
+    const map = new Map<string, Map<string, number>>();
+    activeTransactions.forEach(t => {
+      const d = new Date(t.date);
+      const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
+      const amount = currency === 'GBP' ? t.amountGBP : t.amountAED;
+      if (!map.has(t.categoryId)) map.set(t.categoryId, new Map());
+      const catMap = map.get(t.categoryId)!;
+      catMap.set(monthKey, (catMap.get(monthKey) || 0) + amount);
+    });
+    return map;
+  }, [activeTransactions, currency]);
+
+  // "categoryId::subcategoryName" -> monthKey -> amount
+  const subGrid = useMemo(() => {
+    const map = new Map<string, Map<string, number>>();
+    activeTransactions.forEach(t => {
+      const subKey = `${t.categoryId}::${t.subcategoryName || 'Other'}`;
+      const d = new Date(t.date);
+      const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
+      const amount = currency === 'GBP' ? t.amountGBP : t.amountAED;
+      if (!map.has(subKey)) map.set(subKey, new Map());
+      const catMap = map.get(subKey)!;
+      catMap.set(monthKey, (catMap.get(monthKey) || 0) + amount);
+    });
+    return map;
+  }, [activeTransactions, currency]);
+
+  // Which subcategories actually have data, per category
+  const subcategoriesByCategory = useMemo(() => {
+    const map = new Map<string, string[]>();
+    activeTransactions.forEach(t => {
+      const subName = t.subcategoryName || 'Other';
+      if (!map.has(t.categoryId)) map.set(t.categoryId, []);
+      const list = map.get(t.categoryId)!;
+      if (!list.includes(subName)) list.push(subName);
+    });
+    return map;
+  }, [activeTransactions]);
+
+  const getCell = (catId: string, monthKey: string) => grid.get(catId)?.get(monthKey) || 0;
+  const getSubCell = (catId: string, subName: string, monthKey: string) => subGrid.get(`${catId}::${subName}`)?.get(monthKey) || 0;
+  const catHasData = (catId: string) => monthCols.some(m => getCell(catId, m.key) !== 0);
+  const monthTotal = (cats: Category[], monthKey: string) => cats.reduce((sum, c) => sum + getCell(c.id, monthKey), 0);
+
+  const sortByOrder = (cats: Category[]) => {
+    return [...cats].sort((a, b) => {
+      const ia = categoryOrder.indexOf(a.id);
+      const ib = categoryOrder.indexOf(b.id);
+      if (ia === -1 && ib === -1) return 0;
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+  };
+
+  const incomeCategories = useMemo(
+    () => sortByOrder(categories.filter(c => c.type === 'INCOME' && catHasData(c.id))),
+    [categories, grid, monthCols, categoryOrder]
+  );
+  const expenseCategories = useMemo(
+    () => sortByOrder(categories.filter(c => c.type === 'EXPENSE' && catHasData(c.id))),
+    [categories, grid, monthCols, categoryOrder]
+  );
+  const allVisibleCatIds = useMemo(
+    () => [...incomeCategories, ...expenseCategories].map(c => c.id),
+    [incomeCategories, expenseCategories]
+  );
+
+  // Renders a category row plus its expanded subcategory rows, tracking a running zebra index
+  const CategorySection: React.FC<{ cat: Category; isExpense: boolean; zebraRef: { i: number } }> = ({ cat, isExpense, zebraRef }) => {
+    const isExpanded = expandedCats.has(cat.id);
+    const subNames = subcategoriesByCategory.get(cat.id) || [];
+    const sign = isExpense ? -1 : 1;
+    const amountClass = isExpense ? 'text-slate-800 dark:text-neutral-300' : 'text-emerald-700 dark:text-emerald-400';
+
+    const rowBg = (i: number) => (i % 2 === 1 ? 'bg-slate-50 dark:bg-neutral-700' : 'bg-white dark:bg-neutral-800');
+
+    const rowIndex = zebraRef.i++;
+    const isDragging = draggingId === cat.id;
+    const isDragOver = dragOverId === cat.id && draggingId !== cat.id;
+
+    const rows = [
+      <tr
+        key={cat.id}
+        data-cat-row={cat.id}
+        className={`border-b border-slate-100 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-700/60 ${rowBg(rowIndex)} ${isDragging ? 'opacity-40' : ''} ${isDragOver ? 'border-t-2 border-t-[#635bff]' : ''}`}
+      >
+        <td className={`sticky left-0 z-10 px-2 py-2.5 border-r border-slate-200 dark:border-neutral-700 ${rowBg(rowIndex)}`}>
+          <div className="flex items-center gap-1">
+            <button
+              onPointerDown={handleGripPointerDown(cat.id, allVisibleCatIds)}
+              className="text-slate-300 dark:text-neutral-600 hover:text-slate-500 dark:hover:text-neutral-400 cursor-grab active:cursor-grabbing touch-none shrink-0 p-0.5"
+              title="Drag to reorder"
+            >
+              <GripVertical size={13} />
+            </button>
+            <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => toggleCat(cat.id)}>
+              <ChevronRight size={12} className={`text-slate-400 dark:text-neutral-500 transition-transform shrink-0 ${isExpanded ? 'rotate-90' : ''} ${subNames.length === 0 ? 'opacity-0' : ''}`} />
+              <span
+                className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] shrink-0"
+                style={{ backgroundColor: `${cat.color || '#94a3b8'}1A` }}
+              >
+                {getCategoryEmoji(cat.id)}
+              </span>
+              <span className="font-medium text-slate-700 dark:text-neutral-300 whitespace-nowrap">{cat.name}</span>
+            </div>
+          </div>
+        </td>
+        {monthCols.map(m => {
+          const amt = getCell(cat.id, m.key);
+          return (
+            <td key={m.key} className={`pl-5 pr-3 py-2.5 text-left tabular-nums border-l border-slate-100 dark:border-neutral-700/60 ${amountClass}`}>
+              {amt !== 0 ? formatAmount(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
+            </td>
+          );
+        })}
+      </tr>
+    ];
+
+    if (isExpanded) {
+      subNames.forEach(subName => {
+        const subRowIndex = zebraRef.i++;
+        rows.push(
+          <tr key={`${cat.id}-${subName}`} className={`border-b border-slate-100 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-700/60 ${rowBg(subRowIndex)}`}>
+            <td className={`sticky left-0 z-10 pl-11 pr-4 py-2 border-r border-slate-200 dark:border-neutral-700 ${rowBg(subRowIndex)}`}>
+              <span className="text-slate-500 dark:text-neutral-500 whitespace-nowrap">{subName}</span>
+            </td>
+            {monthCols.map(m => {
+              const amt = getSubCell(cat.id, subName, m.key);
+              return (
+                <td key={m.key} className="pl-5 pr-3 py-2 text-left tabular-nums border-l border-slate-100 dark:border-neutral-700/60 text-slate-500 dark:text-neutral-500">
+                  {amt !== 0 ? formatAmount(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
+                </td>
+              );
+            })}
+          </tr>
+        );
+      });
+    }
+
+    return <>{rows}</>;
+  };
+
+  const incomeZebra = { i: 0 };
+  const expenseZebra = { i: 0 };
+
+  return (
+    <div className="pb-20 space-y-4">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-neutral-200">Breakdown</h1>
+          <p className="text-xs text-slate-400 dark:text-neutral-500 mt-1">Every category, month by month · drag the grip to reorder</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex bg-slate-100 dark:bg-neutral-700 p-0.5 rounded-lg shrink-0">
+            {presets.map(preset => (
+              <button
+                key={preset.label}
+                onClick={() => applyPreset(preset)}
+                className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${rangeLabel === preset.label ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 rounded-lg px-2 py-1">
+            <input
+              type="month"
+              value={rangeStart}
+              onChange={(e) => { setRangeStart(e.target.value); setRangeLabel('Custom'); }}
+              className="bg-transparent text-[11px] font-semibold text-slate-700 dark:text-neutral-300 outline-none"
+            />
+            <span className="text-slate-300 dark:text-neutral-600 text-xs">–</span>
+            <input
+              type="month"
+              value={rangeEnd}
+              onChange={(e) => { setRangeEnd(e.target.value); setRangeLabel('Custom'); }}
+              className="bg-transparent text-[11px] font-semibold text-slate-700 dark:text-neutral-300 outline-none"
+            />
+          </div>
+          <div className="flex bg-slate-100 dark:bg-neutral-700 p-0.5 rounded-lg shrink-0">
+            <button
+              onClick={() => setCurrency('GBP')}
+              className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all ${currency === 'GBP' ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
+            >
+              £
+            </button>
+            <button
+              onClick={() => setCurrency('AED')}
+              className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all ${currency === 'AED' ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
+            >
+              AED
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {monthCols.length === 0 ? (
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-10 text-center text-slate-400 dark:text-neutral-500 text-sm">
+          No transactions in this range
+        </div>
+      ) : (
+        <div
+          key={`${rangeStart}_${rangeEnd}_${currency}`}
+          className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 overflow-hidden"
+          style={{ animation: 'breakdownFadeIn 0.28s ease-out' }}
+        >
+          <style>{`@keyframes breakdownFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+          <div className="overflow-x-auto custom-scrollbar">
+            <table
+              className="border-collapse text-[11px] md:text-xs w-full transition-[width] duration-300"
+              style={{ tableLayout: 'fixed', minWidth: `${categoryColWidth + monthCols.length * 90}px`, transition: 'min-width 0.05s linear' }}
+            >
+              <colgroup>
+                <col style={{ width: `${categoryColWidth}px` }} />
+                {monthCols.map(m => <col key={m.key} />)}
+              </colgroup>
+              <thead>
+                <tr>
+                  <th className="relative sticky left-0 z-20 bg-slate-50 dark:bg-neutral-700/50 text-left px-4 py-2.5 font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap border-b border-r border-slate-200 dark:border-neutral-700">
+                    Category
+                    <div
+                      onPointerDown={handleResizePointerDown}
+                      className="absolute top-0 right-0 h-full w-2 cursor-col-resize touch-none flex items-center justify-center group"
+                      title="Drag to resize"
+                    >
+                      <div className="w-0.5 h-4 rounded-full bg-slate-300 dark:bg-neutral-600 group-hover:bg-[#635bff] group-hover:h-full transition-all" />
+                    </div>
+                  </th>
+                  {monthCols.map(m => (
+                    <th
+                      key={m.key}
+                      className="px-3 py-2.5 text-left font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap border-b border-l bg-slate-50 dark:bg-neutral-700/50 border-slate-200 dark:border-neutral-700"
+                    >
+                      {MONTHS[m.monthIndex]} '{String(m.year).slice(2)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {/* Income rows */}
+                {incomeCategories.map(cat => (
+                  <CategorySection key={cat.id} cat={cat} isExpense={false} zebraRef={incomeZebra} />
+                ))}
+
+                {/* Total Income */}
+                <tr className="bg-emerald-50/60 dark:bg-emerald-950/20 border-b border-slate-200 dark:border-neutral-700">
+                  <td className="sticky left-0 z-10 bg-emerald-50/60 dark:bg-emerald-950/20 px-4 py-2.5 font-bold text-slate-900 dark:text-neutral-200 border-r border-slate-200 dark:border-neutral-700 whitespace-nowrap">
+                    Total Income
+                  </td>
+                  {monthCols.map(m => (
+                    <td key={m.key} className="pl-5 pr-3 py-2.5 text-left tabular-nums font-bold border-l border-emerald-100 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-400">
+                      {formatAmount(monthTotal(incomeCategories, m.key))}
+                    </td>
+                  ))}
+                </tr>
+
+                {/* spacer */}
+                <tr><td colSpan={monthCols.length + 1} className="h-3 bg-white dark:bg-neutral-800" /></tr>
+
+                {/* Expense rows */}
+                {expenseCategories.map(cat => (
+                  <CategorySection key={cat.id} cat={cat} isExpense={true} zebraRef={expenseZebra} />
+                ))}
+
+                {/* Total Expenses */}
+                <tr className="bg-slate-50 dark:bg-neutral-700/50 border-b border-slate-200 dark:border-neutral-700">
+                  <td className="sticky left-0 z-10 bg-slate-50 dark:bg-neutral-700/50 px-4 py-2.5 font-bold text-slate-900 dark:text-neutral-200 border-r border-slate-200 dark:border-neutral-700 whitespace-nowrap">
+                    Total Expenses
+                  </td>
+                  {monthCols.map(m => (
+                    <td key={m.key} className="pl-5 pr-3 py-2.5 text-left tabular-nums font-bold border-l border-slate-200 dark:border-neutral-700 text-slate-800 dark:text-neutral-300">
+                      {formatAmount(-monthTotal(expenseCategories, m.key))}
+                    </td>
+                  ))}
+                </tr>
+
+                {/* Net */}
+                <tr className="bg-[#635bff]">
+                  <td className="sticky left-0 z-10 bg-[#635bff] px-4 py-3 font-bold text-white border-r border-[#5348e0] whitespace-nowrap">
+                    Net
+                  </td>
+                  {monthCols.map(m => {
+                    const net = monthTotal(incomeCategories, m.key) - monthTotal(expenseCategories, m.key);
+                    return (
+                      <td key={m.key} className="pl-5 pr-3 py-3 text-left tabular-nums font-bold border-l border-white/10 text-white">
+                        {formatAmount(net)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default BreakdownTab;

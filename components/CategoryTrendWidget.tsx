@@ -195,7 +195,7 @@ const CategoryTrendWidget: React.FC<CategoryTrendWidgetProps> = ({
           {groupedTransactions.length > 0 ? (
             <div>
               {/* Column Headers */}
-              <div className="grid grid-cols-[1fr_32px_80px] bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700 sticky top-0 z-10">
+              <div className="grid grid-cols-[1fr_32px_80px] bg-slate-50 dark:bg-neutral-700/50 border-b border-slate-200 dark:border-neutral-700 sticky top-0 z-10">
                 <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider">Merchant</div>
                 <div className="px-1 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-center">Qty</div>
                 <div className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-right">Amount</div>

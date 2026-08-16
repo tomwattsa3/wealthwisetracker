@@ -15,12 +15,13 @@ import CategoryManager from './components/CategoryManager';
 import BankFeedUpload from './components/BankFeedUpload';
 import YearlySummary from './components/YearlySummary';
 import SettingsManager from './components/SettingsManager';
+import BreakdownTab from './components/BreakdownTab';
 import {
   LayoutDashboard, Plus, Home, ListFilter, Search,
   ChevronLeft, ChevronRight, Filter, EyeOff, TrendingUp,
   Car, Plane, Smartphone, Coffee, ShoppingBag, PoundSterling, Activity, X,
   ArrowUpDown, FolderCog, CalendarRange, Building, ArrowRightLeft, Settings,
-  RotateCcw, Loader2, LogOut, Sparkles, Sun, Moon
+  RotateCcw, Loader2, LogOut, Sparkles, Sun, Moon, Table
 } from 'lucide-react';
 
 // Helper for category icons
@@ -46,6 +47,70 @@ const DEFAULT_CATEGORY_EMOJIS: Record<string, string> = {
     food: '🍔',
     groceries: '🛒',
     income_salary: '💰',
+};
+
+// Ordered keyword → emoji lookup, checked most-specific-first, for auto-picking a fitting
+// emoji from a category's name (the way a model would infer one) when no emoji is set.
+const CATEGORY_EMOJI_KEYWORDS: [string[], string][] = [
+    [['food delivery', 'delivery'], '🛵'],
+    [['coffee', 'cafe', 'caffe'], '☕'],
+    [['restaurant', 'dining', 'meal', 'eating out', 'takeaway', 'take-away'], '🍽️'],
+    [['grocery', 'groceries', 'supermarket'], '🛒'],
+    [['food'], '🍔'],
+    [['rent', 'mortgage', 'housing', 'home'], '🏠'],
+    [['electric', 'utility', 'utilities', 'dewa'], '💡'],
+    [['water', 'gas bill'], '🚰'],
+    [['wifi', 'internet', 'broadband'], '📶'],
+    [['phone', 'mobile'], '📱'],
+    [['fuel', 'petrol', 'gas station', 'enoc', 'adnoc'], '⛽'],
+    [['parking'], '🅿️'],
+    [['taxi', 'uber', 'careem', 'rideshare', 'ride share', 'cab'], '🚕'],
+    [['train', 'metro', 'subway', 'bus', 'transit'], '🚆'],
+    [['car', 'vehicle', 'auto'], '🚗'],
+    [['flight', 'airfare', 'airline'], '✈️'],
+    [['hotel', 'accommodation'], '🏨'],
+    [['vacation', 'holiday', 'trip'], '🧳'],
+    [['travel'], '✈️'],
+    [['subscription', 'streaming', 'netflix', 'spotify'], '📺'],
+    [['software', 'saas', 'app', 'apps'], '💻'],
+    [['work', 'business', 'office'], '💼'],
+    [['salary', 'wage', 'payroll'], '💰'],
+    [['freelance', 'contract'], '🧑‍💻'],
+    [['income'], '💰'],
+    [['invest', 'investment', 'stock', 'stocks'], '📈'],
+    [['saving', 'savings'], '🏦'],
+    [['debt', 'loan', 'credit card', 'repayment'], '💳'],
+    [['insurance'], '🛡️'],
+    [['medical', 'doctor', 'hospital', 'clinic', 'dentist'], '🏥'],
+    [['pharmacy', 'medicine', 'health'], '💊'],
+    [['gym', 'fitness', 'workout'], '🏋️'],
+    [['wellness', 'spa', 'massage'], '🧖'],
+    [['beauty', 'haircut', 'salon', 'barber'], '💇'],
+    [['pet', 'dog', 'cat', 'vet'], '🐶'],
+    [['kid', 'kids', 'child', 'children', 'baby'], '👶'],
+    [['education', 'school', 'course', 'tuition', 'learning'], '🎓'],
+    [['book', 'books'], '📚'],
+    [['gift', 'present'], '🎁'],
+    [['charity', 'donation'], '❤️'],
+    [['movie', 'cinema', 'film'], '🎬'],
+    [['game', 'gaming'], '🎮'],
+    [['music'], '🎵'],
+    [['tax', 'vat'], '🧾'],
+    [['bank fee', 'bank charge', 'fee'], '🏦'],
+    [['clothes', 'clothing', 'fashion', 'apparel'], '👕'],
+    [['shopping'], '🛍️'],
+    [['transfer'], '🔁'],
+    [['exclude'], '🚫'],
+];
+
+// Auto-pick a fitting emoji from a category name when nothing has been explicitly set,
+// similar to how a model would infer an emoji for a topic.
+const guessCategoryEmoji = (name: string): string | undefined => {
+    const lower = name.toLowerCase();
+    for (const [keywords, emoji] of CATEGORY_EMOJI_KEYWORDS) {
+        if (keywords.some(k => lower.includes(k))) return emoji;
+    }
+    return undefined;
 };
 
 const App: React.FC = () => {
@@ -194,10 +259,10 @@ const App: React.FC = () => {
     return currency === 'GBP' ? `£${formatted}` : `AED ${formatted}`;
   };
 
-  const [activeTab, setActiveTab] = useState<'home' | 'history' | 'categories' | 'yearly' | 'settings'>(() => {
+  const [activeTab, setActiveTab] = useState<'home' | 'history' | 'categories' | 'yearly' | 'breakdown' | 'settings'>(() => {
     const saved = localStorage.getItem('activeTab');
-    if (saved && ['home', 'history', 'categories', 'yearly', 'settings'].includes(saved)) {
-      return saved as 'home' | 'history' | 'categories' | 'yearly' | 'settings';
+    if (saved && ['home', 'history', 'categories', 'yearly', 'breakdown', 'settings'].includes(saved)) {
+      return saved as 'home' | 'history' | 'categories' | 'yearly' | 'breakdown' | 'settings';
     }
     return 'home';
   });
@@ -230,7 +295,10 @@ const App: React.FC = () => {
 
   const getCategoryEmoji = (categoryId: string): string => {
     const cat = categories.find(c => c.id === categoryId);
-    return cat?.emoji || DEFAULT_CATEGORY_EMOJIS[categoryId] || '📊';
+    return cat?.emoji
+      || DEFAULT_CATEGORY_EMOJIS[categoryId]
+      || (cat?.name && guessCategoryEmoji(cat.name))
+      || '📊';
   };
 
   const handleEmojiChange = async (categoryId: string, emoji: string) => {
@@ -1373,6 +1441,7 @@ const App: React.FC = () => {
                { id: 'home', icon: Home, label: 'Dashboard', mobileLabel: 'Home', mobileOnly: true },
                { id: 'history', icon: ArrowRightLeft, label: 'Transactions', mobileLabel: 'Trans', mobileOnly: true },
                { id: 'yearly', icon: CalendarRange, label: 'Analytics', mobileLabel: 'Analytics', mobileOnly: true },
+               { id: 'breakdown', icon: Table, label: 'Breakdown', mobileLabel: 'Breakdown', mobileOnly: true },
                { id: 'categories', icon: FolderCog, label: 'Categories', mobileLabel: 'Cats', mobileOnly: true },
                { id: 'settings', icon: Settings, label: 'Settings', mobileLabel: 'Settings', mobileOnly: false }
              ].map((item) => (
@@ -1495,7 +1564,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Top Bar with Filter & Search (Hidden in Cat/Yearly View) */}
-          {activeTab !== 'categories' && activeTab !== 'yearly' && activeTab !== 'settings' && (
+          {activeTab !== 'categories' && activeTab !== 'yearly' && activeTab !== 'breakdown' && activeTab !== 'settings' && (
             <div className="flex flex-col gap-4 mb-2 md:mb-8">
                 
                 {/* Mobile Dashboard Headline */}
@@ -1915,11 +1984,11 @@ const App: React.FC = () => {
                     .slice(0, 6);
 
                   return (
-                    <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 overflow-hidden">
-                      <div className="px-3 py-2.5 border-b border-slate-100 dark:border-neutral-700">
+                    <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-emerald-100 dark:border-emerald-900/40 overflow-hidden">
+                      <div className="px-3 py-2.5 bg-emerald-50 dark:bg-emerald-950/40 border-b border-emerald-100 dark:border-emerald-900/40">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5">
-                            <span className="w-6 h-6 rounded-md bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-xs shrink-0">💰</span>
+                            <span className="w-6 h-6 rounded-md bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center text-xs shrink-0">💰</span>
                             <span className="text-xs font-bold text-slate-900 dark:text-neutral-200">Income</span>
                           </div>
                           <div className="text-right">
@@ -1932,7 +2001,7 @@ const App: React.FC = () => {
                         </div>
                       </div>
                       <div>
-                        <div className="grid grid-cols-[1fr_28px_72px] bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700 sticky top-0 z-10">
+                        <div className="grid grid-cols-[1fr_28px_72px] bg-slate-50 dark:bg-neutral-700/50 border-b border-emerald-100 dark:border-emerald-900/40 sticky top-0 z-10">
                           <div className="px-3 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Merchant</div>
                           <div className="px-1 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center">Qty</div>
                           <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Amount</div>
@@ -1969,6 +2038,8 @@ const App: React.FC = () => {
                   if (!cat) return null;
 
                   const catTransactions = activeTransactions.filter(t => t.categoryId === cat.id);
+                  if (catTransactions.length === 0) return null;
+
                   const catTotal = catTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
                   const catTotalAlt = catTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountAED : t.amountGBP), 0);
 
@@ -2032,7 +2103,7 @@ const App: React.FC = () => {
                       </div>
 
                       <div>
-                        <div className="grid grid-cols-[1fr_28px_72px] bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700 sticky top-0 z-10">
+                        <div className="grid grid-cols-[1fr_28px_72px] bg-slate-50 dark:bg-neutral-700/50 border-b border-slate-200 dark:border-neutral-700 sticky top-0 z-10">
                           <div className="px-3 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Merchant</div>
                           <div className="px-1 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center">Qty</div>
                           <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Amount</div>
@@ -2097,7 +2168,7 @@ const App: React.FC = () => {
 
                   const renderRows = (grouped: { description: string; amount: number; count: number }[], amountColor: string) => (
                     <div>
-                      <div className="grid grid-cols-[1fr_28px_72px] bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700 sticky top-0 z-10">
+                      <div className="grid grid-cols-[1fr_28px_72px] bg-slate-50 dark:bg-neutral-700/50 border-b border-slate-200 dark:border-neutral-700 sticky top-0 z-10">
                         <div className="px-3 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Merchant</div>
                         <div className="px-1 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center">Qty</div>
                         <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Amount</div>
@@ -2308,7 +2379,7 @@ const App: React.FC = () => {
                       </div>
                     </div>
                     <div className="max-h-[300px] overflow-y-auto">
-                      <div className="grid grid-cols-[1fr_72px] bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700 sticky top-0 z-10">
+                      <div className="grid grid-cols-[1fr_72px] bg-slate-50 dark:bg-neutral-700/50 border-b border-slate-200 dark:border-neutral-700 sticky top-0 z-10">
                         <div className="px-3 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Merchant</div>
                         <div className="px-2 py-1.5 text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Amount</div>
                       </div>
@@ -2395,7 +2466,10 @@ const App: React.FC = () => {
                   {/* Left: Category Cards */}
                   <div className="col-span-12 xl:col-span-9">
                     <div className="grid xl:grid-cols-3 lg:grid-cols-2 gap-5">
-                      {widgetCategoryIds.map((catId, index) => (
+                      {widgetCategoryIds.map((catId, index) => {
+                        const hasTransactions = activeTransactions.some(t => t.categoryId === catId);
+                        if (!hasTransactions) return null;
+                        return (
                         <div key={`desktop-${index}-${catId}`} className="relative group">
                           {widgetCategoryIds.length > 1 && (
                             <button
@@ -2417,7 +2491,8 @@ const App: React.FC = () => {
                             onEmojiChange={handleEmojiChange}
                           />
                         </div>
-                      ))}
+                        );
+                      })}
                       {/* Add Widget Button */}
                       <button
                         onClick={handleAddDesktopWidget}
@@ -2477,7 +2552,7 @@ const App: React.FC = () => {
 
                   const renderRows = (grouped: { description: string; amount: number; count: number }[], amountColor: string) => (
                     <div>
-                      <div className="grid grid-cols-[1fr_40px_100px] bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700">
+                      <div className="grid grid-cols-[1fr_40px_100px] bg-slate-50 dark:bg-neutral-700/50 border-b border-slate-200 dark:border-neutral-700">
                         <div className="px-5 py-2 text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Merchant</div>
                         <div className="px-2 py-2 text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center">Qty</div>
                         <div className="px-4 py-2 text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Amount</div>
@@ -2602,7 +2677,7 @@ const App: React.FC = () => {
                           </div>
                         </div>
                         <div className="max-h-[320px] overflow-y-auto">
-                          <div className="grid grid-cols-[1fr_40px_100px] bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700">
+                          <div className="grid grid-cols-[1fr_40px_100px] bg-slate-50 dark:bg-neutral-700/50 border-b border-slate-200 dark:border-neutral-700">
                             <div className="px-5 py-2 text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Merchant</div>
                             <div className="px-2 py-2 text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-center">Qty</div>
                             <div className="px-4 py-2 text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Amount</div>
@@ -2636,7 +2711,14 @@ const App: React.FC = () => {
                 <YearlySummary transactions={transactions} categories={categories} onRefresh={fetchData} getCategoryEmoji={getCategoryEmoji} />
              </div>
           )}
-          
+
+          {/* BREAKDOWN VIEW */}
+          {activeTab === 'breakdown' && (
+             <div className="h-full">
+                <BreakdownTab transactions={transactions} categories={categories} getCategoryEmoji={getCategoryEmoji} />
+             </div>
+          )}
+
            {/* CATEGORIES VIEW */}
            {activeTab === 'categories' && (
              <div className="h-full">
@@ -2680,64 +2762,62 @@ const App: React.FC = () => {
           {/* HISTORY VIEW */}
           {activeTab === 'history' && (
             <div className="h-full overflow-y-auto flex flex-col space-y-4 px-2 sm:px-0 pb-32">
-               {/* Hidden on mobile/tablet, visible on desktop only */}
-               <div className="hidden lg:block">
-                 <BankFeedUpload
+              {/* Upload + Summary Cards - Desktop: all four cards in a single row */}
+              <div className="hidden lg:grid lg:grid-cols-10 gap-3 items-stretch">
+                <div className="col-span-4">
+                  <BankFeedUpload
                     onImport={handleImportTransactions}
                     webhookUrl={webhookUrl}
                     banks={banks}
                     merchantMappings={merchantMappings}
-                 />
-               </div>
-
-              {/* Summary Cards - Desktop */}
-              <div className="hidden md:grid md:grid-cols-3 gap-3">
-                <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 p-4 flex flex-col items-center">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <span className="text-base">💰</span>
+                  />
+                </div>
+                <div className="col-span-2 bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-4 flex items-center gap-3">
+                  <span className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-base shrink-0">💰</span>
+                  <div className="min-w-0">
                     <span className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Total</span>
+                    <p className="text-base font-bold text-slate-900 dark:text-neutral-200 truncate">£{dailyAverageData.totalGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <p className="text-[11px] font-medium text-slate-400 dark:text-neutral-500 truncate">AED {dailyAverageData.totalAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   </div>
-                  <span className="text-base font-bold text-slate-900 dark:text-neutral-200">£{dailyAverageData.totalGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  <span className="text-[11px] font-medium text-slate-400 dark:text-neutral-500 mt-0.5">AED {dailyAverageData.totalAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
-                <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 p-4 flex flex-col items-center">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <span className="text-base">📊</span>
+                <div className="col-span-2 bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-4 flex items-center gap-3">
+                  <span className="w-10 h-10 rounded-lg bg-violet-50 dark:bg-violet-950 flex items-center justify-center text-base shrink-0">📊</span>
+                  <div className="min-w-0">
                     <span className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Avg/Trans</span>
+                    <p className="text-base font-bold text-slate-900 dark:text-neutral-200 truncate">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalGBP / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</p>
+                    <p className="text-[11px] font-medium text-slate-400 dark:text-neutral-500 truncate">AED {dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalAED / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</p>
                   </div>
-                  <span className="text-base font-bold text-slate-900 dark:text-neutral-200">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalGBP / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</span>
-                  <span className="text-[11px] font-medium text-slate-400 dark:text-neutral-500 mt-0.5">AED {dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalAED / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</span>
                 </div>
-                <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 p-4 flex flex-col items-center">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <span className="text-base">✏️</span>
+                <div className="col-span-2 bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-4 flex items-center gap-3">
+                  <span className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-base shrink-0">✏️</span>
+                  <div className="min-w-0">
                     <span className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Trans</span>
+                    <p className="text-base font-bold text-slate-900 dark:text-neutral-200 truncate">{dailyAverageData.transactionCount}</p>
                   </div>
-                  <span className="text-base font-bold text-slate-900 dark:text-neutral-200">{dailyAverageData.transactionCount}</span>
                 </div>
               </div>
 
-              {/* Summary Cards - Mobile */}
-              <div className="md:hidden grid grid-cols-3 gap-2">
-                <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 p-2.5 flex flex-col items-center">
+              {/* Summary Cards - Mobile & Tablet (below lg, no upload card shown) */}
+              <div className="lg:hidden grid grid-cols-3 gap-2">
+                <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-2.5 flex flex-col items-center">
                   <div className="flex items-center gap-1 mb-1">
-                    <span className="text-sm">💰</span>
+                    <span className="w-5 h-5 rounded-md bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-[10px] shrink-0">💰</span>
                     <span className="text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Total</span>
                   </div>
                   <span className="text-sm font-bold text-slate-900 dark:text-neutral-200">£{dailyAverageData.totalGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   <span className="text-[10px] font-medium text-slate-400 dark:text-neutral-500 mt-0.5">AED {dailyAverageData.totalAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
-                <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 p-2.5 flex flex-col items-center">
+                <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-2.5 flex flex-col items-center">
                   <div className="flex items-center gap-1 mb-1">
-                    <span className="text-sm">📊</span>
+                    <span className="w-5 h-5 rounded-md bg-violet-50 dark:bg-violet-950 flex items-center justify-center text-[10px] shrink-0">📊</span>
                     <span className="text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Avg/Trans</span>
                   </div>
                   <span className="text-sm font-bold text-slate-900 dark:text-neutral-200">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalGBP / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</span>
                   <span className="text-[10px] font-medium text-slate-400 dark:text-neutral-500 mt-0.5">AED {dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalAED / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</span>
                 </div>
-                <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 p-2.5 flex flex-col items-center">
+                <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-2.5 flex flex-col items-center">
                   <div className="flex items-center gap-1 mb-1">
-                    <span className="text-sm">✏️</span>
+                    <span className="w-5 h-5 rounded-md bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-[10px] shrink-0">✏️</span>
                     <span className="text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Trans</span>
                   </div>
                   <span className="text-sm font-bold text-slate-900 dark:text-neutral-200">{dailyAverageData.transactionCount}</span>
@@ -2747,7 +2827,7 @@ const App: React.FC = () => {
               <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-2 sm:p-3 animate-in fade-in shadow-sm flex flex-col flex-1 min-h-[500px] md:min-h-[600px] overflow-visible md:overflow-hidden">
                 <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-3 sm:mb-6 gap-2 sm:gap-4 border-b border-slate-100 pb-3 sm:pb-6">
                   <div className="flex items-center gap-2">
-                      <div className="p-1.5 sm:p-2 bg-slate-100 rounded-lg text-slate-700">
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-violet-50 flex items-center justify-center text-[#635bff] shrink-0">
                           <ListFilter size={16} className="sm:w-5 sm:h-5" />
                       </div>
                       <div>

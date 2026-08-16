@@ -559,9 +559,9 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
       {/* KPI Cards */}
       <div className="grid grid-cols-3 gap-2.5 md:gap-4">
-        <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 p-3 md:p-5">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-3 md:p-5">
           <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
-            <span className="text-sm md:text-base">📈</span>
+            <span className="w-6 h-6 md:w-10 md:h-10 rounded-md md:rounded-lg bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-xs md:text-base shrink-0">📈</span>
             <span className="text-[8px] md:text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Income</span>
           </div>
           <p className="text-base md:text-3xl font-bold text-emerald-600">{formatAmount(totalIncome)}</p>
@@ -571,9 +571,9 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
             <p className="text-[7px] md:text-xs text-slate-300 md:text-slate-500 mt-0.5 md:mt-0">Avg {formatAmount(avgMonthlyIncome)}/mo</p>
           </div>
         </div>
-        <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 p-3 md:p-5">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-3 md:p-5">
           <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
-            <span className="text-sm md:text-base">📉</span>
+            <span className="w-6 h-6 md:w-10 md:h-10 rounded-md md:rounded-lg bg-rose-50 dark:bg-rose-950 flex items-center justify-center text-xs md:text-base shrink-0">📉</span>
             <span className="text-[8px] md:text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Expenses</span>
           </div>
           <p className="text-base md:text-3xl font-bold text-slate-900 dark:text-neutral-200">{formatAmount(totalExpense)}</p>
@@ -583,16 +583,16 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
             <p className="text-[7px] md:text-xs text-slate-300 md:text-slate-500 mt-0.5 md:mt-0">Avg {formatAmount(avgMonthlySpend)}/mo</p>
           </div>
         </div>
-        <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 p-3 md:p-5">
+        <div className="bg-[#635bff] rounded-2xl p-3 md:p-5">
           <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
-            <span className="text-sm md:text-base">💰</span>
-            <span className="text-[8px] md:text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Net Saved</span>
+            <span className="w-6 h-6 md:w-10 md:h-10 rounded-md md:rounded-lg bg-white/15 flex items-center justify-center text-xs md:text-base shrink-0">💰</span>
+            <span className="text-[8px] md:text-[10px] font-semibold text-white/70 uppercase tracking-wider">Net Saved</span>
           </div>
-          <p className={`text-base md:text-3xl font-bold ${netBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatAmount(netBalance)}</p>
+          <p className="text-base md:text-3xl font-bold text-white">{formatAmount(netBalance)}</p>
           <div className="flex flex-col md:flex-row md:items-center md:gap-2 mt-0.5 md:mt-1.5">
-            <p className="text-[8px] md:text-xs font-medium text-slate-400 dark:text-neutral-500 md:text-slate-500">{formatAED(netBalanceAED)}</p>
-            <span className="hidden md:inline text-slate-300">·</span>
-            <p className="text-[7px] md:text-xs text-slate-300 md:text-slate-500 mt-0.5 md:mt-0">{totalTransactions} transactions</p>
+            <p className="text-[8px] md:text-xs font-medium text-white/60">{formatAED(netBalanceAED)}</p>
+            <span className="hidden md:inline text-white/30">·</span>
+            <p className="text-[7px] md:text-xs text-white/50 mt-0.5 md:mt-0">{totalTransactions} transactions</p>
           </div>
         </div>
       </div>
@@ -727,11 +727,11 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
           </div>
 
           {/* Desktop Table Header */}
-          <div className="hidden md:grid grid-cols-5 bg-slate-50/80 dark:bg-neutral-700/80 border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 sticky top-0">
-            <div className="px-4 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Month</div>
-            <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Income</div>
-            <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Expenses</div>
-            <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">Net</div>
+          <div className="hidden md:grid grid-cols-5 bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700 sticky top-0">
+            <div className="px-4 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Month</div>
+            <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Income</div>
+            <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Expenses</div>
+            <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Net</div>
             <div className="px-3 py-2 text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider text-right">Trans</div>
           </div>
 
@@ -747,7 +747,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                   {/* Month Row - Mobile */}
                   <button
                     onClick={() => hasData && toggleMonth(idx)}
-                    className={`md:hidden w-full flex items-center justify-between px-3 py-3 transition-colors text-left border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 ${hasData ? 'hover:bg-slate-50 dark:hover:bg-neutral-700 cursor-pointer' : 'cursor-default'} ${isExpanded ? 'bg-slate-50 dark:bg-neutral-700' : idx % 2 === 1 ? 'bg-slate-50/60 dark:bg-neutral-700/60' : 'bg-white dark:bg-neutral-800'}`}
+                    className={`md:hidden w-full flex items-center justify-between px-3 py-3 transition-colors text-left border-b border-slate-100 dark:border-neutral-700 ${hasData ? 'hover:bg-slate-50 dark:hover:bg-neutral-700 cursor-pointer' : 'cursor-default'} ${isExpanded ? 'bg-slate-50 dark:bg-neutral-700' : 'bg-white dark:bg-neutral-800'}`}
                     disabled={!hasData}
                   >
                     <div className="flex items-center gap-1.5">
@@ -771,24 +771,24 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                   {/* Month Row - Desktop */}
                   <button
                     onClick={() => hasData && toggleMonth(idx)}
-                    className={`hidden md:grid w-full grid-cols-5 transition-colors text-left border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 ${hasData ? 'hover:bg-slate-50/80 dark:hover:bg-neutral-700/80 cursor-pointer' : 'cursor-default'} ${isExpanded ? 'bg-slate-50 dark:bg-neutral-700' : idx % 2 === 1 ? 'bg-slate-50/60 dark:bg-neutral-700/60' : 'bg-white dark:bg-neutral-800'}`}
+                    className={`hidden md:grid w-full grid-cols-5 transition-colors text-left border-b border-slate-100 dark:border-neutral-700 ${hasData ? 'hover:bg-slate-50 dark:hover:bg-neutral-700/40 cursor-pointer' : 'cursor-default'} ${isExpanded ? 'bg-slate-50 dark:bg-neutral-700' : 'bg-white dark:bg-neutral-800'}`}
                     disabled={!hasData}
                   >
-                    <div className="flex items-center gap-2 px-4 py-3.5 border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
+                    <div className="flex items-center gap-2 px-4 py-3.5">
                       <ChevronRight size={12} className={`text-slate-400 dark:text-neutral-500 transition-transform ${isExpanded ? 'rotate-90' : ''} ${!hasData ? 'opacity-0' : ''}`} />
                       <p className="font-medium text-slate-900 dark:text-neutral-200 text-[11px]">{row.fullMonth}</p>
                     </div>
-                    <div className="px-3 py-3.5 text-right border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
+                    <div className="px-3 py-3.5 text-right">
                       <p className={`text-[11px] font-semibold ${row.income > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
                         {row.income > 0 ? `+£${row.income.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
                       </p>
                     </div>
-                    <div className="px-3 py-3.5 text-right border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
+                    <div className="px-3 py-3.5 text-right">
                       <p className={`text-[11px] font-semibold ${row.expense > 0 ? 'text-slate-800 dark:text-neutral-300' : 'text-slate-300'}`}>
                         {row.expense > 0 ? `£${row.expense.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
                       </p>
                     </div>
-                    <div className="px-3 py-3.5 text-right border-r border-dashed border-slate-200/80 dark:border-neutral-600/80">
+                    <div className="px-3 py-3.5 text-right">
                       <p className={`text-[11px] font-semibold ${row.net > 0 ? 'text-emerald-600' : row.net < 0 ? 'text-rose-600' : 'text-slate-300'}`}>
                         {row.income > 0 || row.expense > 0 ? (row.net >= 0 ? '+' : '') + `£${row.net.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '-'}
                       </p>
@@ -800,7 +800,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
                   {/* Expanded Category Breakdown */}
                   {isExpanded && hasData && (
-                    <div className="bg-slate-50/80 dark:bg-neutral-700/80 border-b border-dashed border-slate-200/80 dark:border-neutral-600/80 px-2 md:px-6 py-3">
+                    <div className="bg-slate-50/80 dark:bg-neutral-700/80 border-b border-slate-100 dark:border-neutral-700 px-2 md:px-6 py-3">
                       <p className="text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider mb-2.5 ml-1 md:ml-5">Expenses by Category</p>
                       <div className="space-y-2 ml-1 md:ml-5">
                         {categoryBreakdown.map((cat, catIdx) => {
@@ -820,7 +820,12 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                                     size={10}
                                     className={`text-slate-400 dark:text-neutral-500 transition-transform shrink-0 ${isCatExpanded ? 'rotate-90' : ''} ${!hasSubcategories ? 'opacity-0' : ''}`}
                                   />
-                                  <span className="text-sm shrink-0">{getCategoryEmoji ? getCategoryEmoji(cat.id) : '📊'}</span>
+                                  <span
+                                    className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] shrink-0"
+                                    style={{ backgroundColor: `${cat.color || '#94a3b8'}1A` }}
+                                  >
+                                    {getCategoryEmoji ? getCategoryEmoji(cat.id) : '📊'}
+                                  </span>
                                   <span className="text-[11px] font-medium text-slate-700 dark:text-neutral-400 truncate">{cat.name}</span>
                                   <span className="text-[9px] text-slate-400 dark:text-neutral-500">({cat.count})</span>
                                 </div>
@@ -887,7 +892,12 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                 <div key={idx} className="py-0.5">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-sm shrink-0">{getCategoryEmoji ? getCategoryEmoji(cat.id) : '📊'}</span>
+                      <span
+                        className="w-6 h-6 rounded-md flex items-center justify-center text-xs shrink-0"
+                        style={{ backgroundColor: `${cat.color || '#94a3b8'}1A` }}
+                      >
+                        {getCategoryEmoji ? getCategoryEmoji(cat.id) : '📊'}
+                      </span>
                       <span className="text-xs font-medium text-slate-700 dark:text-neutral-400 truncate">{cat.name}</span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -912,8 +922,10 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
       {/* Category Comparison Card */}
       <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 dark:border-neutral-700 flex items-center gap-2">
-          <ArrowLeftRight size={16} className="text-[#635bff]" />
+        <div className="px-5 py-4 border-b border-slate-100 dark:border-neutral-700 flex items-center gap-2.5">
+          <span className="w-8 h-8 rounded-lg bg-violet-50 dark:bg-violet-950 flex items-center justify-center text-[#635bff] shrink-0">
+            <ArrowLeftRight size={16} />
+          </span>
           <h3 className="text-sm font-bold text-slate-900 dark:text-neutral-200">Category Comparison</h3>
         </div>
 

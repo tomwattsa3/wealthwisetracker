@@ -36,21 +36,23 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
   // --- KPI Revenue variant ---
   if (variant === 'kpi-revenue') {
     return (
-      <div className="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-700 p-5 flex flex-col justify-between h-full">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-base shrink-0">📈</span>
+      <div className="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-700 px-4 py-3 flex items-center justify-between gap-3 h-full">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-sm shrink-0">📈</span>
+          <div className="min-w-0">
             <span className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Income</span>
+            <div className="flex items-baseline gap-1.5">
+              {amountAlt !== undefined && (
+                <span className="text-[10px] italic text-slate-400 dark:text-neutral-500 truncate">{formatAlt(amountAlt)}</span>
+              )}
+              <p className="text-lg font-bold text-slate-900 dark:text-neutral-200 truncate">{currencyDisplay}</p>
+            </div>
           </div>
-          {percentChange !== undefined && (
-            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${percentChange >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-              {percentChange >= 0 ? '+' : ''}{percentChange.toFixed(1)}%
-            </span>
-          )}
         </div>
-        <p className="text-3xl font-bold text-slate-900 dark:text-neutral-200">{currencyDisplay}</p>
-        {amountAlt !== undefined && (
-          <p className="text-[11px] font-medium text-slate-400 dark:text-neutral-500 mt-1">{formatAlt(amountAlt)}</p>
+        {percentChange !== undefined && (
+          <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${percentChange >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+            {percentChange >= 0 ? '+' : ''}{percentChange.toFixed(1)}%
+          </span>
         )}
       </div>
     );
@@ -62,29 +64,31 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
     const spendPct = rev > 0 ? (amount / rev) * 100 : 0;
 
     return (
-      <div className="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-700 p-5 flex flex-col justify-between h-full">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-lg bg-rose-50 dark:bg-rose-950 flex items-center justify-center text-base shrink-0">📉</span>
+      <div className="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-700 px-4 py-3 flex items-center justify-between gap-3 h-full">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-950 flex items-center justify-center text-sm shrink-0">📉</span>
+          <div className="min-w-0">
             <span className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Expenses</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {rev > 0 && (
-              <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${spendPct > 100 ? 'bg-rose-50 text-rose-600' : spendPct > 80 ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                {spendPct.toFixed(1)}% of income
-              </span>
-            )}
-            {percentChange !== undefined && (
-              <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${percentChange >= 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                {percentChange >= 0 ? '+' : ''}{percentChange.toFixed(1)}%
-              </span>
-            )}
+            <div className="flex items-baseline gap-1.5">
+              {amountAlt !== undefined && (
+                <span className="text-[10px] italic text-slate-400 dark:text-neutral-500 truncate">{formatAlt(amountAlt)}</span>
+              )}
+              <p className="text-lg font-bold text-slate-900 dark:text-neutral-200 truncate">{currencyDisplay}</p>
+            </div>
           </div>
         </div>
-        <p className="text-3xl font-bold text-slate-900 dark:text-neutral-200">{currencyDisplay}</p>
-        {amountAlt !== undefined && (
-          <p className="text-[11px] font-medium text-slate-400 dark:text-neutral-500 mt-1">{formatAlt(amountAlt)}</p>
-        )}
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          {rev > 0 && (
+            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${spendPct > 100 ? 'bg-rose-50 text-rose-600' : spendPct > 80 ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+              {spendPct.toFixed(1)}% of income
+            </span>
+          )}
+          {percentChange !== undefined && (
+            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${percentChange >= 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+              {percentChange >= 0 ? '+' : ''}{percentChange.toFixed(1)}%
+            </span>
+          )}
+        </div>
       </div>
     );
   }
@@ -99,21 +103,23 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, amount, type, subtitle, cu
     const netSavedAlt = revAlt - expAlt;
 
     return (
-      <div className="bg-[#635bff] rounded-xl p-5 flex flex-col justify-between h-full">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-lg bg-white/15 flex items-center justify-center text-base shrink-0">💰</span>
+      <div className="bg-[#635bff] rounded-xl px-4 py-3 flex items-center justify-between gap-3 h-full">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center text-sm shrink-0">💰</span>
+          <div className="min-w-0">
             <span className="text-[10px] font-semibold text-white/70 uppercase tracking-wider">Net Saved</span>
+            <div className="flex items-baseline gap-1.5">
+              {(revenueAmountAlt !== undefined || expenseAmountAlt !== undefined) && (
+                <span className="text-[10px] italic text-white/60 truncate">{formatAlt(netSavedAlt)}</span>
+              )}
+              <p className="text-lg font-bold text-white truncate">{formatVal(netSaved)}</p>
+            </div>
           </div>
-          {rev > 0 && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white/15 text-white">
-              {((netSaved / rev) * 100).toFixed(1)}% of income
-            </span>
-          )}
         </div>
-        <p className="text-3xl font-bold text-white">{formatVal(netSaved)}</p>
-        {(revenueAmountAlt !== undefined || expenseAmountAlt !== undefined) && (
-          <p className="text-[11px] font-medium text-white/60 mt-1">{formatAlt(netSavedAlt)}</p>
+        {rev > 0 && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white/15 text-white shrink-0">
+            {((netSaved / rev) * 100).toFixed(1)}% of income
+          </span>
         )}
       </div>
     );
