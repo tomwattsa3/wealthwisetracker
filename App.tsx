@@ -228,22 +228,15 @@ const App: React.FC = () => {
   // Breakdown View Mode (Category vs Subcategory)
   const [breakdownViewMode, setBreakdownViewMode] = useState<'category' | 'subcategory'>('category');
 
-  // Emoji Override State (persisted in localStorage)
-  const [emojiOverrides, setEmojiOverrides] = useState<Record<string, string>>(() => {
-    const saved = localStorage.getItem('categoryEmojiOverrides');
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  useEffect(() => {
-    localStorage.setItem('categoryEmojiOverrides', JSON.stringify(emojiOverrides));
-  }, [emojiOverrides]);
-
   const getCategoryEmoji = (categoryId: string): string => {
-    return emojiOverrides[categoryId] || DEFAULT_CATEGORY_EMOJIS[categoryId] || '📊';
+    const cat = categories.find(c => c.id === categoryId);
+    return cat?.emoji || DEFAULT_CATEGORY_EMOJIS[categoryId] || '📊';
   };
 
-  const handleEmojiChange = (categoryId: string, emoji: string) => {
-    setEmojiOverrides(prev => ({ ...prev, [categoryId]: emoji }));
+  const handleEmojiChange = async (categoryId: string, emoji: string) => {
+    setCategories(prev => prev.map(c => c.id === categoryId ? { ...c, emoji } : c));
+    const { error } = await supabase.from('Categories').update({ emoji }).eq('id', categoryId);
+    if (error) console.error('Failed to update category emoji:', error);
   };
 
   // Widget Configuration State
@@ -369,7 +362,8 @@ const App: React.FC = () => {
             name: c.name,
             subcategories: c.subcategories || [],
             type: c.type as 'INCOME' | 'EXPENSE',
-            color: c.color || '#94a3b8'
+            color: c.color || '#94a3b8',
+            emoji: c.emoji || undefined
           }));
           console.log('Loaded categories from Supabase:', activeCategories);
         } else {
@@ -494,9 +488,10 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    console.log('App mounted, calling fetchData...');
+    if (!session) return;
+    console.log('Session ready, calling fetchData...');
     fetchData();
-  }, []);
+  }, [session]);
 
   // --- HANDLERS (UPDATED FOR SUPABASE) ---
 

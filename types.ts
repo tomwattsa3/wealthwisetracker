@@ -8,6 +8,7 @@ export interface Category {
   subcategories: string[];
   type: TransactionType;
   color: string;
+  emoji?: string;
 }
 
 export interface Bank {

@@ -13,6 +13,23 @@ interface BankFeedUploadProps {
 
 const AED_TO_GBP_RATE = 0.21;
 
+// Bank statements export dates as DD/MM/YYYY, but `new Date(str)` assumes US MM/DD/YYYY
+// for slash-separated strings, silently swapping day/month whenever the day is <= 12.
+const parseTransactionDate = (rawDate: string): string => {
+  const dmyMatch = String(rawDate).trim().match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (dmyMatch) {
+    const [, day, month, year] = dmyMatch;
+    const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString().split('T')[0];
+    }
+  }
+  const fallback = new Date(rawDate);
+  return !isNaN(fallback.getTime())
+    ? fallback.toISOString().split('T')[0]
+    : new Date().toISOString().split('T')[0];
+};
+
 const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, banks, merchantMappings = [] }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -111,10 +128,7 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
             }
 
             // Date Formatting
-            const dateObj = new Date(rawDate);
-            const dateStr = !isNaN(dateObj.getTime())
-                ? dateObj.toISOString().split('T')[0]
-                : new Date().toISOString().split('T')[0];
+            const dateStr = parseTransactionDate(rawDate);
 
             // Use bank from CSV if available, otherwise use selected bank
             const bankName = bankCol && row[bankCol] ? row[bankCol] : selectedBank.name;
