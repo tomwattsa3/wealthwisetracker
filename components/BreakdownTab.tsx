@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { ChevronRight, GripVertical } from 'lucide-react';
 import { Transaction, Category } from '../types';
 
@@ -49,6 +49,21 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
   useEffect(() => {
     localStorage.setItem('breakdownCategoryColWidth', String(categoryColWidth));
   }, [categoryColWidth]);
+
+  // Measured (not guessed) height of the Net row, so the Total Expenses row above it can be
+  // positioned with an exact `bottom` offset — no gap for scrolled rows to show through, and no
+  // reliance on `position: sticky` working on <tfoot> (unreliable on Safari/iOS).
+  const netRowRef = useRef<HTMLTableRowElement>(null);
+  const [netRowHeight, setNetRowHeight] = useState(0);
+  useLayoutEffect(() => {
+    const el = netRowRef.current;
+    if (!el) return;
+    const update = () => setNetRowHeight(el.offsetHeight);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const handleResizePointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
@@ -257,7 +272,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
         data-cat-row={cat.id}
         className={`border-b border-slate-100 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-700/60 ${rowBg(rowIndex)} ${isDragging ? 'opacity-40' : ''} ${isDragOver ? 'border-t-2 border-t-[#635bff]' : ''}`}
       >
-        <td className={`sticky left-0 z-10 px-2 py-[12.5px] border-r border-slate-200 dark:border-neutral-700 ${rowBg(rowIndex)}`}>
+        <td className={`sticky left-0 z-10 px-1.5 md:px-2 py-2 md:py-[12.5px] border-r border-slate-200 dark:border-neutral-700 ${rowBg(rowIndex)}`}>
           <div className="flex items-center gap-1">
             <button
               onPointerDown={handleGripPointerDown(cat.id, allVisibleCatIds)}
@@ -281,7 +296,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
         {monthCols.map(m => {
           const amt = getCell(cat.id, m.key);
           return (
-            <td key={m.key} className={`pl-5 pr-3 py-[12.5px] text-left tabular-nums border-l border-slate-100 dark:border-neutral-700/60 ${amountClass}`}>
+            <td key={m.key} className={`pl-2 md:pl-5 pr-1.5 md:pr-3 py-2 md:py-[12.5px] text-left tabular-nums border-l border-slate-100 dark:border-neutral-700/60 ${amountClass}`}>
               {amt !== 0 ? formatAmount(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
             </td>
           );
@@ -294,13 +309,13 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
         const subRowIndex = zebraRef.i++;
         rows.push(
           <tr key={`${cat.id}-${subName}`} className={`border-b border-slate-100 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-700/60 ${rowBg(subRowIndex)}`}>
-            <td className={`sticky left-0 z-10 pl-11 pr-4 py-2.5 border-r border-slate-200 dark:border-neutral-700 ${rowBg(subRowIndex)}`}>
+            <td className={`sticky left-0 z-10 pl-6 md:pl-11 pr-2 md:pr-4 py-1.5 md:py-2.5 border-r border-slate-200 dark:border-neutral-700 ${rowBg(subRowIndex)}`}>
               <span className="text-slate-500 dark:text-neutral-500 whitespace-nowrap">{subName}</span>
             </td>
             {monthCols.map(m => {
               const amt = getSubCell(cat.id, subName, m.key);
               return (
-                <td key={m.key} className="pl-5 pr-3 py-2.5 text-left tabular-nums border-l border-slate-100 dark:border-neutral-700/60 text-slate-500 dark:text-neutral-500">
+                <td key={m.key} className="pl-2 md:pl-5 pr-1.5 md:pr-3 py-1.5 md:py-2.5 text-left tabular-nums border-l border-slate-100 dark:border-neutral-700/60 text-slate-500 dark:text-neutral-500">
                   {amt !== 0 ? formatAmount(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
                 </td>
               );
@@ -400,8 +415,8 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
           <style>{`@keyframes breakdownFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
           <div className="overflow-auto custom-scrollbar max-h-[75vh]">
             <table
-              className="border-collapse text-[11px] md:text-xs w-full transition-[width] duration-300"
-              style={{ tableLayout: 'fixed', minWidth: `${categoryColWidth + monthCols.length * 90}px`, transition: 'min-width 0.05s linear' }}
+              className="border-collapse text-[9px] md:text-xs w-full transition-[width] duration-300"
+              style={{ tableLayout: 'fixed', minWidth: `${categoryColWidth + monthCols.length * 64}px`, transition: 'min-width 0.05s linear' }}
             >
               <colgroup>
                 <col style={{ width: `${categoryColWidth}px` }} />
@@ -409,7 +424,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
               </colgroup>
               <thead>
                 <tr>
-                  <th className="relative sticky top-0 left-0 z-40 bg-slate-50 dark:bg-neutral-700 text-left px-4 py-[12.5px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap border-b border-r border-slate-200 dark:border-neutral-700">
+                  <th className="relative sticky top-0 left-0 z-40 bg-slate-50 dark:bg-neutral-700 text-left px-2 md:px-4 py-2 md:py-[12.5px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap border-b border-r border-slate-200 dark:border-neutral-700">
                     Category
                     <div
                       onPointerDown={handleResizePointerDown}
@@ -422,7 +437,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                   {monthCols.map(m => (
                     <th
                       key={m.key}
-                      className="sticky top-0 z-30 px-3 py-[12.5px] text-left font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap border-b border-l bg-slate-50 dark:bg-neutral-700 border-slate-200 dark:border-neutral-700"
+                      className="sticky top-0 z-30 px-1.5 md:px-3 py-2 md:py-[12.5px] text-left font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap border-b border-l bg-slate-50 dark:bg-neutral-700 border-slate-200 dark:border-neutral-700"
                     >
                       {MONTHS[m.monthIndex]} '{String(m.year).slice(2)}
                     </th>
@@ -437,11 +452,11 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
 
                 {/* Total Income */}
                 <tr className="bg-emerald-50/60 dark:bg-emerald-950/20 border-b border-slate-200 dark:border-neutral-700">
-                  <td className="sticky left-0 z-10 bg-emerald-50 dark:bg-emerald-950 px-4 py-[12.5px] font-bold text-slate-900 dark:text-neutral-200 border-r border-slate-200 dark:border-neutral-700 whitespace-nowrap">
+                  <td className="sticky left-0 z-10 bg-emerald-50 dark:bg-emerald-950 px-2 md:px-4 py-2 md:py-[12.5px] font-bold text-slate-900 dark:text-neutral-200 border-r border-slate-200 dark:border-neutral-700 whitespace-nowrap">
                     Total Income
                   </td>
                   {monthCols.map(m => (
-                    <td key={m.key} className="pl-5 pr-3 py-[12.5px] text-left tabular-nums font-bold border-l border-emerald-100 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-400">
+                    <td key={m.key} className="pl-2 md:pl-5 pr-1.5 md:pr-3 py-2 md:py-[12.5px] text-left tabular-nums font-bold border-l border-emerald-100 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-400">
                       {formatAmount(monthTotal(incomeCategories, m.key))}
                     </td>
                   ))}
@@ -455,27 +470,37 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                   <CategorySection key={cat.id} cat={cat} isExpense={true} zebraRef={expenseZebra} />
                 ))}
 
-                {/* Total Expenses — sticky just above the Net row, so both stay visible while scrolling */}
+                {/* Total Expenses — positioned exactly `netRowHeight` px above the bottom, measured
+                    from the actual Net row below (not guessed), so no gap ever opens up between
+                    them for scrolled rows to show through. Sticky lives on the <td> cells directly
+                    since position:sticky on <tfoot>/<tr> is unreliable on Safari/iOS. */}
                 <tr className="bg-slate-50 dark:bg-neutral-700 border-b border-slate-200 dark:border-neutral-700">
-                  <td className="sticky left-0 bottom-[48px] z-[25] bg-slate-50 dark:bg-neutral-700 px-4 py-[12.5px] font-bold text-slate-900 dark:text-neutral-200 border-r border-slate-200 dark:border-neutral-700 whitespace-nowrap">
+                  <td
+                    className="sticky left-0 z-[25] bg-slate-50 dark:bg-neutral-700 px-2 md:px-4 py-2 md:py-[12.5px] font-bold text-slate-900 dark:text-neutral-200 border-r border-slate-200 dark:border-neutral-700 whitespace-nowrap"
+                    style={{ bottom: netRowHeight }}
+                  >
                     Total Expenses
                   </td>
                   {monthCols.map(m => (
-                    <td key={m.key} className="sticky bottom-[48px] z-[15] bg-slate-50 dark:bg-neutral-700 pl-5 pr-3 py-[12.5px] text-left tabular-nums font-bold border-l border-slate-200 dark:border-neutral-700 text-slate-800 dark:text-neutral-300">
+                    <td
+                      key={m.key}
+                      className="sticky z-[15] bg-slate-50 dark:bg-neutral-700 pl-2 md:pl-5 pr-1.5 md:pr-3 py-2 md:py-[12.5px] text-left tabular-nums font-bold border-l border-slate-200 dark:border-neutral-700 text-slate-800 dark:text-neutral-300"
+                      style={{ bottom: netRowHeight }}
+                    >
                       {formatAmount(-monthTotal(expenseCategories, m.key))}
                     </td>
                   ))}
                 </tr>
 
-                {/* Net — sticky to the bottom of the screen so it stays visible while scrolling through expanded subcategories */}
-                <tr className="bg-[#635bff]">
-                  <td className="sticky left-0 bottom-0 z-30 bg-[#635bff] px-4 py-[15px] font-bold text-white border-r border-[#5348e0] whitespace-nowrap shadow-[0_-2px_8px_rgba(0,0,0,0.08)]">
+                {/* Net — sticky to the actual bottom of the screen */}
+                <tr ref={netRowRef} className="bg-[#635bff]">
+                  <td className="sticky left-0 bottom-0 z-30 bg-[#635bff] px-2 md:px-4 py-2.5 md:py-[15px] font-bold text-white border-r border-[#5348e0] whitespace-nowrap shadow-[0_-2px_8px_rgba(0,0,0,0.08)]">
                     Net
                   </td>
                   {monthCols.map(m => {
                     const net = monthTotal(incomeCategories, m.key) - monthTotal(expenseCategories, m.key);
                     return (
-                      <td key={m.key} className="sticky bottom-0 z-20 bg-[#635bff] pl-5 pr-3 py-[15px] text-left tabular-nums font-bold border-l border-white/10 text-white shadow-[0_-2px_8px_rgba(0,0,0,0.08)]">
+                      <td key={m.key} className="sticky bottom-0 z-20 bg-[#635bff] pl-2 md:pl-5 pr-1.5 md:pr-3 py-2.5 md:py-[15px] text-left tabular-nums font-bold border-l border-white/10 text-white shadow-[0_-2px_8px_rgba(0,0,0,0.08)]">
                         {formatAmount(net)}
                       </td>
                     );
