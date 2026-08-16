@@ -296,7 +296,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
         {monthCols.map(m => {
           const amt = getCell(cat.id, m.key);
           return (
-            <td key={m.key} className={`pl-2 md:pl-5 pr-1.5 md:pr-3 py-2 md:py-[12.5px] text-left tabular-nums border-l border-slate-100 dark:border-neutral-700/60 ${amountClass}`}>
+            <td key={m.key} className={`px-1.5 md:px-3 py-2 md:py-[12.5px] text-center tabular-nums border-l border-slate-100 dark:border-neutral-700/60 ${amountClass}`}>
               {amt !== 0 ? formatAmount(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
             </td>
           );
@@ -315,7 +315,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
             {monthCols.map(m => {
               const amt = getSubCell(cat.id, subName, m.key);
               return (
-                <td key={m.key} className="pl-2 md:pl-5 pr-1.5 md:pr-3 py-1.5 md:py-2.5 text-left tabular-nums border-l border-slate-100 dark:border-neutral-700/60 text-slate-500 dark:text-neutral-500">
+                <td key={m.key} className="px-1.5 md:px-3 py-1.5 md:py-2.5 text-center tabular-nums border-l border-slate-100 dark:border-neutral-700/60 text-slate-500 dark:text-neutral-500">
                   {amt !== 0 ? formatAmount(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
                 </td>
               );
@@ -403,19 +403,19 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
       </div>
 
       {monthCols.length === 0 ? (
-        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-10 text-center text-slate-400 dark:text-neutral-500 text-sm">
+        <div className="-mx-3 md:mx-0 bg-white dark:bg-neutral-800 rounded-none md:rounded-2xl border-y md:border border-slate-200 dark:border-neutral-700 p-10 text-center text-slate-400 dark:text-neutral-500 text-sm">
           No transactions in this range
         </div>
       ) : (
         <div
           key={`${rangeStart}_${rangeEnd}_${currency}`}
-          className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 overflow-hidden"
+          className="-mx-3 md:mx-0 bg-white dark:bg-neutral-800 rounded-none md:rounded-2xl border-y md:border border-slate-200 dark:border-neutral-700 overflow-hidden"
           style={{ animation: 'breakdownFadeIn 0.28s ease-out' }}
         >
           <style>{`@keyframes breakdownFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
           <div className="overflow-auto custom-scrollbar max-h-[75vh]">
             <table
-              className="border-collapse text-[9px] md:text-xs w-full transition-[width] duration-300"
+              className="border-collapse text-[10px] md:text-[13px] w-full transition-[width] duration-300"
               style={{ tableLayout: 'fixed', minWidth: `${categoryColWidth + monthCols.length * 64}px`, transition: 'min-width 0.05s linear' }}
             >
               <colgroup>
@@ -456,7 +456,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                     Total Income
                   </td>
                   {monthCols.map(m => (
-                    <td key={m.key} className="pl-2 md:pl-5 pr-1.5 md:pr-3 py-2 md:py-[12.5px] text-left tabular-nums font-bold border-l border-emerald-100 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-400">
+                    <td key={m.key} className="px-1.5 md:px-3 py-2 md:py-[12.5px] text-center tabular-nums font-bold border-l border-emerald-100 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-400">
                       {formatAmount(monthTotal(incomeCategories, m.key))}
                     </td>
                   ))}
@@ -484,7 +484,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                   {monthCols.map(m => (
                     <td
                       key={m.key}
-                      className="sticky z-[15] bg-slate-50 dark:bg-neutral-700 pl-2 md:pl-5 pr-1.5 md:pr-3 py-2 md:py-[12.5px] text-left tabular-nums font-bold border-l border-slate-200 dark:border-neutral-700 text-slate-800 dark:text-neutral-300"
+                      className="sticky z-[15] bg-slate-50 dark:bg-neutral-700 px-1.5 md:px-3 py-2 md:py-[12.5px] text-center tabular-nums font-bold border-l border-slate-200 dark:border-neutral-700 text-slate-800 dark:text-neutral-300"
                       style={{ bottom: netRowHeight }}
                     >
                       {formatAmount(-monthTotal(expenseCategories, m.key))}
@@ -500,7 +500,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                   {monthCols.map(m => {
                     const net = monthTotal(incomeCategories, m.key) - monthTotal(expenseCategories, m.key);
                     return (
-                      <td key={m.key} className="sticky bottom-0 z-20 bg-[#635bff] pl-2 md:pl-5 pr-1.5 md:pr-3 py-2.5 md:py-[15px] text-left tabular-nums font-bold border-l border-white/10 text-white shadow-[0_-2px_8px_rgba(0,0,0,0.08)]">
+                      <td key={m.key} className="sticky bottom-0 z-20 bg-[#635bff] px-1.5 md:px-3 py-2.5 md:py-[15px] text-center tabular-nums font-bold border-l border-white/10 text-white shadow-[0_-2px_8px_rgba(0,0,0,0.08)]">
                         {formatAmount(net)}
                       </td>
                     );
