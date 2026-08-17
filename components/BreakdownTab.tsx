@@ -47,6 +47,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     monthIndex: number;
     isExpense: boolean;
   } | null>(null);
+  const [detailSortBy, setDetailSortBy] = useState<'date' | 'amount'>('date');
 
   const [categoryColWidth, setCategoryColWidth] = useState<number>(() => {
     try {
@@ -170,7 +171,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
 
   const formatAmount = (amount: number) => {
     const symbol = currency === 'GBP' ? '£' : 'AED ';
-    const formatted = Math.abs(amount).toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const formatted = Math.abs(amount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return `${amount < 0 ? '-' : ''}${symbol}${formatted}`;
   };
 
@@ -191,15 +192,21 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
 
   const detailModalTransactions = useMemo(() => {
     if (!detailModal) return [];
-    return activeTransactions
-      .filter(t => {
-        if (t.categoryId !== detailModal.categoryId) return false;
-        if (detailModal.subcategoryName && (t.subcategoryName || 'Other') !== detailModal.subcategoryName) return false;
-        const d = new Date(t.date);
-        return d.getFullYear() === detailModal.year && d.getMonth() === detailModal.monthIndex;
-      })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [detailModal, activeTransactions]);
+    const list = activeTransactions.filter(t => {
+      if (t.categoryId !== detailModal.categoryId) return false;
+      if (detailModal.subcategoryName && (t.subcategoryName || 'Other') !== detailModal.subcategoryName) return false;
+      const d = new Date(t.date);
+      return d.getFullYear() === detailModal.year && d.getMonth() === detailModal.monthIndex;
+    });
+    if (detailSortBy === 'amount') {
+      return list.sort((a, b) => {
+        const amtA = Math.abs(currency === 'GBP' ? a.amountGBP : a.amountAED);
+        const amtB = Math.abs(currency === 'GBP' ? b.amountGBP : b.amountAED);
+        return amtB - amtA;
+      });
+    }
+    return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [detailModal, activeTransactions, detailSortBy, currency]);
 
   const detailModalTotal = useMemo(
     () => detailModalTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0),
@@ -579,11 +586,27 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
             className="relative bg-white dark:bg-neutral-800 rounded-b-2xl md:rounded-2xl shadow-2xl w-full h-[75vh] md:w-[620px] md:h-[520px] md:max-h-[80vh] flex flex-col border-b border-x md:border border-slate-100 dark:border-neutral-700"
             style={{ animation: 'breakdownModalSlideDown 0.28s ease-out' }}
           >
-            <div className="order-1 px-5 py-4 border-b border-slate-100 dark:border-neutral-700 shrink-0">
-              <h3 className="text-sm md:text-lg font-bold text-slate-900 dark:text-neutral-200 truncate">
-                {detailModal.categoryName}{detailModal.subcategoryName ? ` · ${detailModal.subcategoryName}` : ''}
-              </h3>
-              <p className="text-xs md:text-sm text-slate-400 dark:text-neutral-500 mt-0.5">{MONTHS[detailModal.monthIndex]} {detailModal.year}</p>
+            <div className="order-1 px-5 py-4 border-b border-slate-100 dark:border-neutral-700 shrink-0 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <h3 className="text-sm md:text-lg font-bold text-slate-900 dark:text-neutral-200 truncate">
+                  {detailModal.categoryName}{detailModal.subcategoryName ? ` · ${detailModal.subcategoryName}` : ''}
+                </h3>
+                <p className="text-xs md:text-sm text-slate-400 dark:text-neutral-500 mt-0.5">{MONTHS[detailModal.monthIndex]} {detailModal.year}</p>
+              </div>
+              <div className="flex bg-slate-100 dark:bg-neutral-700 p-0.5 rounded-lg shrink-0">
+                <button
+                  onClick={() => setDetailSortBy('date')}
+                  className={`px-2 md:px-2.5 py-1 text-[9px] md:text-[11px] font-semibold rounded-md transition-all ${detailSortBy === 'date' ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
+                >
+                  Date
+                </button>
+                <button
+                  onClick={() => setDetailSortBy('amount')}
+                  className={`px-2 md:px-2.5 py-1 text-[9px] md:text-[11px] font-semibold rounded-md transition-all ${detailSortBy === 'amount' ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
+                >
+                  Amount
+                </button>
+              </div>
             </div>
             <div className="order-3 md:order-2 flex-1 overflow-y-auto custom-scrollbar">
               {detailModalTransactions.length > 0 ? (
@@ -592,7 +615,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                     <span className="shrink-0 whitespace-nowrap text-[7px] md:text-sm text-slate-400 dark:text-neutral-500">{t.date}</span>
                     <span className="flex-1 min-w-0 truncate font-medium text-slate-700 dark:text-neutral-300">{t.description || 'Unknown'}</span>
                     {/* Mobile: subcategory only — the category is already shown at the top of the modal */}
-                    <span className="md:hidden shrink-0 w-[70px] text-left truncate">
+                    <span className="md:hidden shrink-0 w-[70px] mr-2.5 text-left truncate">
                       {t.subcategoryName && (
                         <span className="px-1.5 py-px bg-slate-100 dark:bg-neutral-700 rounded-full text-[7px] font-medium text-slate-500 dark:text-neutral-500 leading-tight">
                           {t.subcategoryName}
