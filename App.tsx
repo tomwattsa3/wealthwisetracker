@@ -1625,7 +1625,7 @@ const App: React.FC = () => {
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          className={`flex-1 h-full bg-slate-100 dark:bg-neutral-900 p-3 pb-24 md:px-8 md:py-6 max-w-[100vw] ${activeTab === 'history' ? 'overflow-hidden' : 'overflow-y-auto'}`}
+          className={`flex-1 h-full bg-slate-100 dark:bg-neutral-900 p-3 pb-24 md:px-8 md:py-6 max-w-[100vw] ${activeTab === 'history' || activeTab === 'breakdown' ? 'overflow-hidden' : 'overflow-y-auto'}`}
         >
           {/* Pull-to-refresh indicator */}
           <div
@@ -1855,6 +1855,7 @@ const App: React.FC = () => {
           <motion.div
             key={activeTab}
             ref={restoreScrollOnMount}
+            className="h-full"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}

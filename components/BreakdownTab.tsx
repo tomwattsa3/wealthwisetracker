@@ -27,6 +27,14 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     localStorage.setItem('breakdownCurrency', currency);
   }, [currency]);
 
+  const [viewMode, setViewMode] = useState<'monthly' | 'yearly'>(() => {
+    const saved = localStorage.getItem('breakdownViewMode');
+    return saved === 'yearly' ? 'yearly' : 'monthly';
+  });
+  useEffect(() => {
+    localStorage.setItem('breakdownViewMode', viewMode);
+  }, [viewMode]);
+
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
 
   const now = new Date();
@@ -58,13 +66,14 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
-  // Tapping a category's month cell opens a modal listing the transactions behind that number
+  // Tapping a category's cell opens a modal listing the transactions behind that number.
+  // monthIndex is omitted in yearly view, meaning "every month of `year`".
   const [detailModal, setDetailModal] = useState<{
     categoryId: string;
     categoryName: string;
     subcategoryName?: string;
     year: number;
-    monthIndex: number;
+    monthIndex?: number;
     isExpense: boolean;
   } | null>(null);
   const [detailSortBy, setDetailSortBy] = useState<'date' | 'amount'>('date');
@@ -225,7 +234,9 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
       if (t.categoryId !== detailModal.categoryId) return false;
       if (detailModal.subcategoryName && (t.subcategoryName || 'Other') !== detailModal.subcategoryName) return false;
       const d = new Date(t.date);
-      return d.getFullYear() === detailModal.year && d.getMonth() === detailModal.monthIndex;
+      if (d.getFullYear() !== detailModal.year) return false;
+      if (detailModal.monthIndex !== undefined && d.getMonth() !== detailModal.monthIndex) return false;
+      return true;
     });
     if (detailSortBy === 'amount') {
       return list.sort((a, b) => {
@@ -255,6 +266,36 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     }
     return cols;
   }, [rangeStart, rangeEnd]);
+
+  // The grid's columns — either one per month, or (in yearly view) one per year, each aggregating
+  // every month of that year in the selected range. Everything downstream (headers, cells, totals)
+  // reads from `cols` and sums a column's `monthKeys`, so switching view mode never touches the
+  // underlying per-month data.
+  interface ColDef { key: string; label: string; year: number; monthIndex?: number; monthKeys: string[] }
+
+  const monthColDefs: ColDef[] = useMemo(
+    () => monthCols.map(m => ({
+      key: m.key,
+      label: `${MONTHS[m.monthIndex]} '${String(m.year).slice(2)}`,
+      year: m.year,
+      monthIndex: m.monthIndex,
+      monthKeys: [m.key],
+    })),
+    [monthCols]
+  );
+
+  const yearColDefs: ColDef[] = useMemo(() => {
+    const years: number[] = [];
+    monthCols.forEach(m => { if (!years.includes(m.year)) years.push(m.year); });
+    return years.map(year => ({
+      key: `y-${year}`,
+      label: String(year),
+      year,
+      monthKeys: monthCols.filter(m => m.year === year).map(m => m.key),
+    }));
+  }, [monthCols]);
+
+  const cols = viewMode === 'yearly' ? yearColDefs : monthColDefs;
 
   // categoryId -> monthKey -> amount
   // Uses Math.abs because stored amountGBP/amountAED is supposed to always be a positive
@@ -305,7 +346,9 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
   const getCell = (catId: string, monthKey: string) => grid.get(catId)?.get(monthKey) || 0;
   const getSubCell = (catId: string, subName: string, monthKey: string) => subGrid.get(`${catId}::${subName}`)?.get(monthKey) || 0;
   const catHasData = (catId: string) => monthCols.some(m => getCell(catId, m.key) !== 0);
-  const monthTotal = (cats: Category[], monthKey: string) => cats.reduce((sum, c) => sum + getCell(c.id, monthKey), 0);
+  const getColCell = (catId: string, col: ColDef) => col.monthKeys.reduce((sum, mk) => sum + getCell(catId, mk), 0);
+  const getSubColCell = (catId: string, subName: string, col: ColDef) => col.monthKeys.reduce((sum, mk) => sum + getSubCell(catId, subName, mk), 0);
+  const colTotal = (cats: Category[], col: ColDef) => cats.reduce((sum, c) => sum + getColCell(c.id, col), 0);
 
   const sortByOrder = (cats: Category[]) => {
     return [...cats].sort((a, b) => {
@@ -371,13 +414,13 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
               </div>
             </div>
           </td>
-          {monthCols.map(m => {
-            const amt = getCell(cat.id, m.key);
+          {cols.map(col => {
+            const amt = getColCell(cat.id, col);
             return (
               <td
-                key={m.key}
-                onClick={() => amt !== 0 && setDetailModal({ categoryId: cat.id, categoryName: cat.name, year: m.year, monthIndex: m.monthIndex, isExpense })}
-                className={`px-1.5 md:px-3 py-2.5 md:py-[12.5px] text-center tabular-nums border-l border-slate-100 dark:border-neutral-700/60 ${amountClass} ${amt !== 0 ? 'cursor-pointer hover:underline' : ''}`}
+                key={col.key}
+                onClick={() => amt !== 0 && setDetailModal({ categoryId: cat.id, categoryName: cat.name, year: col.year, monthIndex: col.monthIndex, isExpense })}
+                className={`px-1.5 md:px-3 py-2.5 md:py-[12.5px] text-center tabular-nums font-numeric border-l border-slate-100 dark:border-neutral-700/60 ${amountClass} ${amt !== 0 ? 'cursor-pointer hover:underline' : ''}`}
               >
                 {amt !== 0 ? formatAmount(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
               </td>
@@ -399,13 +442,13 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                 <td className={`sticky left-0 z-10 pl-6 md:pl-11 pr-2 md:pr-4 py-[7.5px] md:py-2.5 border-r border-slate-200 dark:border-neutral-700 ${rowBg(subRowIndex)}`}>
                   <span className="text-slate-500 dark:text-neutral-500 whitespace-nowrap">{subName}</span>
                 </td>
-                {monthCols.map(m => {
-                  const amt = getSubCell(cat.id, subName, m.key);
+                {cols.map(col => {
+                  const amt = getSubColCell(cat.id, subName, col);
                   return (
                     <td
-                      key={m.key}
-                      onClick={() => amt !== 0 && setDetailModal({ categoryId: cat.id, categoryName: cat.name, subcategoryName: subName, year: m.year, monthIndex: m.monthIndex, isExpense })}
-                      className={`px-1.5 md:px-3 py-[7.5px] md:py-2.5 text-center tabular-nums border-l border-slate-100 dark:border-neutral-700/60 text-slate-500 dark:text-neutral-500 ${amt !== 0 ? 'cursor-pointer hover:underline' : ''}`}
+                      key={col.key}
+                      onClick={() => amt !== 0 && setDetailModal({ categoryId: cat.id, categoryName: cat.name, subcategoryName: subName, year: col.year, monthIndex: col.monthIndex, isExpense })}
+                      className={`px-1.5 md:px-3 py-[7.5px] md:py-2.5 text-center tabular-nums font-numeric border-l border-slate-100 dark:border-neutral-700/60 text-slate-500 dark:text-neutral-500 ${amt !== 0 ? 'cursor-pointer hover:underline' : ''}`}
                     >
                       {amt !== 0 ? formatAmount(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
                     </td>
@@ -423,9 +466,9 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
   const expenseZebra = { i: 0 };
 
   return (
-    <div className="pb-8 md:pb-4 space-y-2 md:space-y-4">
+    <div className="h-full flex flex-col pb-8 md:pb-4 space-y-2 md:space-y-4">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-1.5 md:gap-3">
+      <div className="shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-1.5 md:gap-3">
         <div className="flex items-center justify-between gap-2 md:block">
           <div>
             <h1 className="text-sm md:text-2xl font-bold text-slate-900 dark:text-neutral-200">Breakdown</h1>
@@ -463,6 +506,12 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
               const preset = presets.find(p => p.label === id);
               if (preset) applyPreset(preset);
             }}
+          />
+          <SegmentedControl
+            layoutId="breakdownViewModePill"
+            options={[{ id: 'monthly', label: 'Monthly' }, { id: 'yearly', label: 'Yearly' }]}
+            value={viewMode}
+            onChange={(id) => setViewMode(id as 'monthly' | 'yearly')}
           />
           {/* Desktop-only: date selector in its original spot */}
           <div className="hidden md:flex items-center gap-1.5 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 rounded-lg px-2 py-1">
@@ -503,19 +552,19 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
         </div>
       ) : (
         <div
-          key={`${rangeStart}_${rangeEnd}_${currency}`}
-          className="-mx-3 md:mx-0 bg-white dark:bg-neutral-800 rounded-none md:rounded-2xl border-y md:border border-slate-200 dark:border-neutral-700 overflow-hidden"
+          key={`${rangeStart}_${rangeEnd}_${currency}_${viewMode}`}
+          className="flex-1 min-h-0 flex flex-col -mx-3 md:mx-0 bg-white dark:bg-neutral-800 rounded-none md:rounded-2xl border-y md:border border-slate-200 dark:border-neutral-700 overflow-hidden"
           style={{ animation: 'breakdownFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)' }}
         >
           <style>{`@keyframes breakdownFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
-          <div data-no-pull-refresh className="overflow-auto custom-scrollbar max-h-[75dvh]">
+          <div data-no-pull-refresh className="flex-1 min-h-0 overflow-auto custom-scrollbar">
             <table
               className="border-collapse text-[10px] md:text-[13px] w-full transition-[width] duration-300"
-              style={{ tableLayout: 'fixed', minWidth: `${categoryColWidth + monthCols.length * 64}px`, transition: 'min-width 0.05s linear' }}
+              style={{ tableLayout: 'fixed', minWidth: `${categoryColWidth + cols.length * 64}px`, transition: 'min-width 0.05s linear' }}
             >
               <colgroup>
                 <col style={{ width: `${categoryColWidth}px` }} />
-                {monthCols.map(m => <col key={m.key} />)}
+                {cols.map(col => <col key={col.key} />)}
               </colgroup>
               <thead>
                 <tr>
@@ -529,12 +578,12 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                       <div className="w-0.5 h-4 rounded-full bg-slate-300 dark:bg-neutral-600 group-hover:bg-[#635bff] group-hover:h-full transition-all" />
                     </div>
                   </th>
-                  {monthCols.map(m => (
+                  {cols.map(col => (
                     <th
-                      key={m.key}
+                      key={col.key}
                       className="sticky top-0 z-30 px-1.5 md:px-3 py-2.5 md:py-[12.5px] text-left font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap border-b border-l bg-slate-50 dark:bg-neutral-700 border-slate-200 dark:border-neutral-700"
                     >
-                      {MONTHS[m.monthIndex]} '{String(m.year).slice(2)}
+                      {col.label}
                     </th>
                   ))}
                 </tr>
@@ -550,15 +599,15 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                   <td className="sticky left-0 z-10 bg-emerald-50 dark:bg-emerald-950 px-2 md:px-4 py-2.5 md:py-[12.5px] font-bold text-slate-900 dark:text-neutral-200 border-r border-slate-200 dark:border-neutral-700 whitespace-nowrap">
                     Total Income
                   </td>
-                  {monthCols.map(m => (
-                    <td key={m.key} className="px-1.5 md:px-3 py-2.5 md:py-[12.5px] text-center tabular-nums font-bold border-l border-emerald-100 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-400">
-                      {formatAmount(monthTotal(incomeCategories, m.key))}
+                  {cols.map(col => (
+                    <td key={col.key} className="px-1.5 md:px-3 py-2.5 md:py-[12.5px] text-center tabular-nums font-numeric font-bold border-l border-emerald-100 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-400">
+                      {formatAmount(colTotal(incomeCategories, col))}
                     </td>
                   ))}
                 </tr>
 
                 {/* spacer */}
-                <tr><td colSpan={monthCols.length + 1} className="h-3 bg-white dark:bg-neutral-800" /></tr>
+                <tr><td colSpan={cols.length + 1} className="h-3 bg-white dark:bg-neutral-800" /></tr>
 
                 {/* Expense rows */}
                 {expenseCategories.map(cat => (
@@ -576,13 +625,13 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                   >
                     Total Expenses
                   </td>
-                  {monthCols.map(m => (
+                  {cols.map(col => (
                     <td
-                      key={m.key}
-                      className="sticky z-[15] bg-slate-50 dark:bg-neutral-700 px-1.5 md:px-3 py-2.5 md:py-[12.5px] text-center tabular-nums font-bold border-l border-slate-200 dark:border-neutral-700 text-slate-800 dark:text-neutral-300"
+                      key={col.key}
+                      className="sticky z-[15] bg-slate-50 dark:bg-neutral-700 px-1.5 md:px-3 py-2.5 md:py-[12.5px] text-center tabular-nums font-numeric font-bold border-l border-slate-200 dark:border-neutral-700 text-slate-800 dark:text-neutral-300"
                       style={{ bottom: netRowHeight }}
                     >
-                      {formatAmount(-monthTotal(expenseCategories, m.key))}
+                      {formatAmount(-colTotal(expenseCategories, col))}
                     </td>
                   ))}
                 </tr>
@@ -592,10 +641,10 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                   <td className="sticky left-0 bottom-0 z-30 bg-[#635bff] px-2 md:px-4 py-[12.5px] md:py-[15px] font-bold text-white border-r border-[#5348e0] whitespace-nowrap shadow-[0_-2px_8px_rgba(0,0,0,0.08)]">
                     Net
                   </td>
-                  {monthCols.map(m => {
-                    const net = monthTotal(incomeCategories, m.key) - monthTotal(expenseCategories, m.key);
+                  {cols.map(col => {
+                    const net = colTotal(incomeCategories, col) - colTotal(expenseCategories, col);
                     return (
-                      <td key={m.key} className="sticky bottom-0 z-20 bg-[#635bff] px-1.5 md:px-3 py-[12.5px] md:py-[15px] text-center tabular-nums font-bold border-l border-white/10 text-white shadow-[0_-2px_8px_rgba(0,0,0,0.08)]">
+                      <td key={col.key} className="sticky bottom-0 z-20 bg-[#635bff] px-1.5 md:px-3 py-[12.5px] md:py-[15px] text-center tabular-nums font-numeric font-bold border-l border-white/10 text-white shadow-[0_-2px_8px_rgba(0,0,0,0.08)]">
                         {formatAmount(net)}
                       </td>
                     );
@@ -648,7 +697,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                 <h3 className="text-sm md:text-lg font-bold text-slate-900 dark:text-neutral-200 truncate">
                   {detailModal.categoryName}{detailModal.subcategoryName ? ` · ${detailModal.subcategoryName}` : ''}
                 </h3>
-                <p className="text-xs md:text-sm text-slate-400 dark:text-neutral-500 mt-0.5">{MONTHS[detailModal.monthIndex]} {detailModal.year}</p>
+                <p className="text-xs md:text-sm text-slate-400 dark:text-neutral-500 mt-0.5">{detailModal.monthIndex !== undefined ? `${MONTHS[detailModal.monthIndex]} ${detailModal.year}` : detailModal.year}</p>
               </div>
               <SegmentedControl
                 layoutId="breakdownDetailSortPill"
@@ -675,7 +724,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                     <span className="hidden md:block shrink-0 max-w-[120px] truncate text-slate-400 dark:text-neutral-500">
                       {detailModal.categoryName}{t.subcategoryName ? `/${t.subcategoryName}` : ''}
                     </span>
-                    <span className={`shrink-0 font-bold tabular-nums whitespace-nowrap ${detailModal.isExpense ? 'text-slate-800 dark:text-neutral-300' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                    <span className={`shrink-0 font-bold tabular-nums font-numeric whitespace-nowrap ${detailModal.isExpense ? 'text-slate-800 dark:text-neutral-300' : 'text-emerald-700 dark:text-emerald-400'}`}>
                       {formatAmount((detailModal.isExpense ? -1 : 1) * Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED))}
                     </span>
                   </div>
