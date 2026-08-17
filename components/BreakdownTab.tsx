@@ -508,7 +508,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
           style={{ animation: 'breakdownFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)' }}
         >
           <style>{`@keyframes breakdownFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
-          <div data-no-pull-refresh className="overflow-auto custom-scrollbar max-h-[75vh]">
+          <div data-no-pull-refresh className="overflow-auto custom-scrollbar max-h-[75dvh]">
             <table
               className="border-collapse text-[10px] md:text-[13px] w-full transition-[width] duration-300"
               style={{ tableLayout: 'fixed', minWidth: `${categoryColWidth + monthCols.length * 64}px`, transition: 'min-width 0.05s linear' }}
@@ -608,8 +608,10 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
       )}
 
       {/* Transaction detail modal — opened by tapping a category's month cell. Slides down from
-          the top of the screen, covering ~75% of it, with the close button at the bottom. Drag it
-          up (or flick it up) to dismiss, like a native sheet. */}
+          the top of the screen, covering ~75% of it. Close via the backdrop, the X button, or by
+          dragging/flicking the header upward. Uses dvh (not vh) for sizing — on iOS Safari, vh is
+          based on the largest possible viewport and doesn't update as the address bar collapses
+          mid-animation, which was the likely source of a visible glitch right at the top edge. */}
       <AnimatePresence>
       {detailModal && (
         <div className="fixed inset-0 z-[100] md:flex md:items-center md:justify-center md:p-4">
@@ -622,7 +624,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
             onClick={closeDetailModal}
           />
           <motion.div
-            className="relative bg-white dark:bg-neutral-800 rounded-b-2xl md:rounded-2xl shadow-2xl w-full h-[75vh] md:w-[620px] md:h-[520px] md:max-h-[80vh] flex flex-col border-b border-x md:border border-slate-100 dark:border-neutral-700"
+            className="relative bg-white dark:bg-neutral-800 rounded-b-2xl md:rounded-2xl shadow-2xl w-full h-[75dvh] md:w-[620px] md:h-[520px] md:max-h-[80dvh] flex flex-col border-b border-x md:border border-slate-100 dark:border-neutral-700"
             initial={{ y: '-100%' }}
             animate={{ y: 0 }}
             exit={{ y: '-100%' }}
