@@ -228,15 +228,41 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     [transactions]
   );
 
-  const detailModalTransactions = useMemo(() => {
+  // Every transaction for the modal's category+period, regardless of subcategory — the source
+  // list the subcategory dropdown's options are built from, and that `modalSubFilter` narrows.
+  const detailModalCategoryTransactions = useMemo(() => {
     if (!detailModal) return [];
-    const list = activeTransactions.filter(t => {
+    return activeTransactions.filter(t => {
       if (t.categoryId !== detailModal.categoryId) return false;
-      if (detailModal.subcategoryName && (t.subcategoryName || 'Other') !== detailModal.subcategoryName) return false;
       const d = new Date(t.date);
       if (d.getFullYear() !== detailModal.year) return false;
       if (detailModal.monthIndex !== undefined && d.getMonth() !== detailModal.monthIndex) return false;
       return true;
+    });
+  }, [detailModal, activeTransactions]);
+
+  const detailModalSubcategories = useMemo(() => {
+    const names: string[] = [];
+    detailModalCategoryTransactions.forEach(t => {
+      const name = t.subcategoryName || 'Other';
+      if (!names.includes(name)) names.push(name);
+    });
+    return names.sort((a, b) => a.localeCompare(b));
+  }, [detailModalCategoryTransactions]);
+
+  // Which subcategory the list is narrowed to — defaults to whichever the user tapped into
+  // (a subcategory row vs. the category row), but is then freely changeable via the dropdown.
+  const [modalSubFilter, setModalSubFilter] = useState<string>('all');
+  const [summarise, setSummarise] = useState(false);
+  useEffect(() => {
+    setModalSubFilter(detailModal?.subcategoryName || 'all');
+    setSummarise(false);
+  }, [detailModal]);
+
+  const detailModalTransactions = useMemo(() => {
+    const list = detailModalCategoryTransactions.filter(t => {
+      if (modalSubFilter === 'all') return true;
+      return (t.subcategoryName || 'Other') === modalSubFilter;
     });
     if (detailSortBy === 'amount') {
       return list.sort((a, b) => {
@@ -246,12 +272,36 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
       });
     }
     return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [detailModal, activeTransactions, detailSortBy, currency]);
+  }, [detailModalCategoryTransactions, modalSubFilter, detailSortBy, currency]);
 
   const detailModalTotal = useMemo(
     () => detailModalTransactions.reduce((sum, t) => sum + Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED), 0),
     [detailModalTransactions, currency]
   );
+
+  // "Summarise" collapses repeated payments to the same merchant (e.g. 5 Careem trips) into one
+  // row with a combined total, grouped by description since that's the closest thing to a
+  // merchant name on a transaction.
+  interface GroupedRow { key: string; description: string; count: number; total: number; subcategoryName?: string; latestDate: string; }
+  const detailModalGrouped = useMemo(() => {
+    const map = new Map<string, GroupedRow>();
+    detailModalTransactions.forEach(t => {
+      const desc = t.description || 'Unknown';
+      const amt = Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED);
+      const existing = map.get(desc);
+      if (existing) {
+        existing.count += 1;
+        existing.total += amt;
+        if (existing.subcategoryName !== (t.subcategoryName || undefined)) existing.subcategoryName = undefined;
+        if (t.date > existing.latestDate) existing.latestDate = t.date;
+      } else {
+        map.set(desc, { key: desc, description: desc, count: 1, total: amt, subcategoryName: t.subcategoryName, latestDate: t.date });
+      }
+    });
+    const list = Array.from(map.values());
+    if (detailSortBy === 'amount') return list.sort((a, b) => b.total - a.total);
+    return list.sort((a, b) => new Date(b.latestDate).getTime() - new Date(a.latestDate).getTime());
+  }, [detailModalTransactions, detailSortBy, currency]);
 
   // Every month in the selected range, oldest first (Jan on the left) — includes months with no data
   const monthCols = useMemo(() => {
@@ -689,26 +739,70 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
               }
             }}
           >
-            <div className="order-1 px-5 py-4 border-b border-slate-100 dark:border-neutral-700 shrink-0 flex items-center justify-between gap-2">
-              <div
-                onPointerDown={(e) => detailModalDragControls.start(e)}
-                className="min-w-0 touch-none cursor-grab active:cursor-grabbing"
-              >
-                <h3 className="text-sm md:text-lg font-bold text-slate-900 dark:text-neutral-200 truncate">
-                  {detailModal.categoryName}{detailModal.subcategoryName ? ` · ${detailModal.subcategoryName}` : ''}
-                </h3>
-                <p className="text-xs md:text-sm text-slate-400 dark:text-neutral-500 mt-0.5">{detailModal.monthIndex !== undefined ? `${MONTHS[detailModal.monthIndex]} ${detailModal.year}` : detailModal.year}</p>
+            <div className="order-1 px-5 py-4 border-b border-slate-100 dark:border-neutral-700 shrink-0 flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <div
+                  onPointerDown={(e) => detailModalDragControls.start(e)}
+                  className="min-w-0 touch-none cursor-grab active:cursor-grabbing"
+                >
+                  <h3 className="text-sm md:text-lg font-bold text-slate-900 dark:text-neutral-200 truncate">
+                    {detailModal.categoryName}{modalSubFilter !== 'all' ? ` · ${modalSubFilter}` : ''}
+                  </h3>
+                  <p className="text-xs md:text-sm text-slate-400 dark:text-neutral-500 mt-0.5">{detailModal.monthIndex !== undefined ? `${MONTHS[detailModal.monthIndex]} ${detailModal.year}` : detailModal.year}</p>
+                </div>
+                <SegmentedControl
+                  layoutId="breakdownDetailSortPill"
+                  options={[{ id: 'date', label: 'Date' }, { id: 'amount', label: 'Amount' }]}
+                  value={detailSortBy}
+                  onChange={(id) => setDetailSortBy(id as 'date' | 'amount')}
+                  optionClassName="md:px-2.5 text-[9px] md:text-[11px]"
+                />
               </div>
-              <SegmentedControl
-                layoutId="breakdownDetailSortPill"
-                options={[{ id: 'date', label: 'Date' }, { id: 'amount', label: 'Amount' }]}
-                value={detailSortBy}
-                onChange={(id) => setDetailSortBy(id as 'date' | 'amount')}
-                optionClassName="md:px-2.5 text-[9px] md:text-[11px]"
-              />
+              {(detailModalSubcategories.length > 1 || detailModalTransactions.length > 1) && (
+                <div className="flex items-center gap-2">
+                  {detailModalSubcategories.length > 1 && (
+                    <select
+                      value={modalSubFilter}
+                      onChange={(e) => setModalSubFilter(e.target.value)}
+                      className="flex-1 min-w-0 text-[11px] md:text-xs font-semibold bg-slate-100 dark:bg-neutral-700 text-slate-700 dark:text-neutral-300 rounded-lg px-2.5 py-1.5 outline-none border-none cursor-pointer"
+                    >
+                      <option value="all">All subcategories</option>
+                      {detailModalSubcategories.map(name => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
+                  )}
+                  {detailModalTransactions.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setSummarise(s => !s)}
+                      className={`shrink-0 text-[11px] md:text-xs font-semibold rounded-lg px-2.5 py-1.5 transition-colors active:scale-95 ${summarise ? 'bg-[#635bff] text-white' : 'bg-slate-100 dark:bg-neutral-700 text-slate-700 dark:text-neutral-300'}`}
+                    >
+                      Summarise
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
             <div className="order-3 md:order-2 flex-1 overflow-y-auto custom-scrollbar">
-              {detailModalTransactions.length > 0 ? (
+              {detailModalTransactions.length === 0 ? (
+                <div className="py-10 text-center text-slate-400 dark:text-neutral-500 text-xs md:text-sm">No transactions</div>
+              ) : summarise ? (
+                detailModalGrouped.map(g => (
+                  <div key={g.key} className="flex items-center gap-2.5 md:gap-3 px-5 py-3.5 md:py-2.5 border-b border-slate-100 dark:border-neutral-700 last:border-b-0 text-[10px] md:text-sm">
+                    <span className="flex-1 min-w-0 truncate font-medium text-slate-700 dark:text-neutral-300">{g.description}</span>
+                    <span className="shrink-0 px-1.5 py-px bg-slate-100 dark:bg-neutral-700 rounded-full text-[7px] md:text-[10px] font-medium text-slate-500 dark:text-neutral-500 leading-tight">
+                      ×{g.count}
+                    </span>
+                    <span className="hidden md:block shrink-0 max-w-[120px] truncate text-slate-400 dark:text-neutral-500">
+                      {detailModal.categoryName}{g.subcategoryName ? `/${g.subcategoryName}` : ''}
+                    </span>
+                    <span className={`shrink-0 font-bold tabular-nums font-numeric whitespace-nowrap ${detailModal.isExpense ? 'text-slate-800 dark:text-neutral-300' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                      {formatAmount((detailModal.isExpense ? -1 : 1) * g.total)}
+                    </span>
+                  </div>
+                ))
+              ) : (
                 detailModalTransactions.map(t => (
                   <div key={t.id} className="flex items-center gap-2.5 md:gap-3 px-5 py-3.5 md:py-2.5 border-b border-slate-100 dark:border-neutral-700 last:border-b-0 text-[10px] md:text-sm">
                     <span className="shrink-0 whitespace-nowrap text-[7px] md:text-sm text-slate-400 dark:text-neutral-500">{t.date}</span>
@@ -729,8 +823,6 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                     </span>
                   </div>
                 ))
-              ) : (
-                <div className="py-10 text-center text-slate-400 dark:text-neutral-500 text-xs md:text-sm">No transactions</div>
               )}
             </div>
             <div className="order-2 md:order-3 px-5 py-3 border-b md:border-t md:border-b-0 border-slate-100 dark:border-neutral-700 flex items-center justify-between bg-slate-50 dark:bg-neutral-900/40 shrink-0">
