@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { ChevronRight, GripVertical, X } from 'lucide-react';
 import { Transaction, Category } from '../types';
@@ -102,16 +102,23 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
   // Measured (not guessed) height of the Net row, so the Total Expenses row above it can be
   // positioned with an exact `bottom` offset — no gap for scrolled rows to show through, and no
   // reliance on `position: sticky` working on <tfoot> (unreliable on Safari/iOS).
-  const netRowRef = useRef<HTMLTableRowElement>(null);
+  //
+  // This has to be a callback ref, not a plain useRef + useLayoutEffect([]): the table wrapper
+  // remounts (it's keyed on range/currency/viewMode below), which destroys and recreates the Net
+  // <tr> DOM node. A useLayoutEffect that only runs once on BreakdownTab's own mount would keep
+  // its ResizeObserver watching the old, now-detached node forever, freezing netRowHeight at a
+  // stale value the moment the user changes range, currency, or view — a callback ref instead
+  // fires on every attach, so the observer always tracks the row that's actually on screen.
+  const netRowObserverRef = useRef<ResizeObserver | null>(null);
   const [netRowHeight, setNetRowHeight] = useState(0);
-  useLayoutEffect(() => {
-    const el = netRowRef.current;
+  const netRowRef = useCallback((el: HTMLTableRowElement | null) => {
+    netRowObserverRef.current?.disconnect();
+    netRowObserverRef.current = null;
     if (!el) return;
-    const update = () => setNetRowHeight(el.offsetHeight);
-    update();
-    const observer = new ResizeObserver(update);
+    setNetRowHeight(el.offsetHeight);
+    const observer = new ResizeObserver(() => setNetRowHeight(el.offsetHeight));
     observer.observe(el);
-    return () => observer.disconnect();
+    netRowObserverRef.current = observer;
   }, []);
 
   const handleResizePointerDown = (e: React.PointerEvent) => {
@@ -791,11 +798,13 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                 detailModalGrouped.map(g => (
                   <div key={g.key} className="flex items-center gap-2.5 md:gap-3 px-5 py-3.5 md:py-2.5 border-b border-slate-100 dark:border-neutral-700 last:border-b-0 text-[10px] md:text-sm">
                     <span className="flex-1 min-w-0 truncate font-medium text-slate-700 dark:text-neutral-300">{g.description}</span>
+                    {g.subcategoryName && (
+                      <span className="shrink-0 max-w-[70px] md:max-w-[100px] truncate px-1.5 py-px bg-slate-100 dark:bg-neutral-700 rounded-full text-[7px] md:text-[10px] font-medium text-slate-500 dark:text-neutral-500 leading-tight">
+                        {g.subcategoryName}
+                      </span>
+                    )}
                     <span className="shrink-0 px-1.5 py-px bg-slate-100 dark:bg-neutral-700 rounded-full text-[7px] md:text-[10px] font-medium text-slate-500 dark:text-neutral-500 leading-tight">
                       ×{g.count}
-                    </span>
-                    <span className="hidden md:block shrink-0 max-w-[120px] truncate text-slate-400 dark:text-neutral-500">
-                      {detailModal.categoryName}{g.subcategoryName ? `/${g.subcategoryName}` : ''}
                     </span>
                     <span className={`shrink-0 font-bold tabular-nums font-numeric whitespace-nowrap ${detailModal.isExpense ? 'text-slate-800 dark:text-neutral-300' : 'text-emerald-700 dark:text-emerald-400'}`}>
                       {formatAmount((detailModal.isExpense ? -1 : 1) * g.total)}
