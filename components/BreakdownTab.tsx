@@ -572,44 +572,53 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
       {/* Transaction detail modal — opened by tapping a category's month cell. Slides down from
           the top of the screen, covering ~75% of it, with the close button at the bottom. */}
       {detailModal && (
-        <div className="fixed inset-0 z-[100]">
+        <div className="fixed inset-0 z-[100] md:flex md:items-center md:justify-center md:p-4">
           <style>{`@keyframes breakdownModalSlideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }`}</style>
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setDetailModal(null)} />
           <div
-            className="relative bg-white dark:bg-neutral-800 rounded-b-2xl shadow-2xl w-full sm:max-w-md sm:mx-auto h-[75vh] flex flex-col border-b border-x border-slate-100 dark:border-neutral-700"
+            className="relative bg-white dark:bg-neutral-800 rounded-b-2xl md:rounded-2xl shadow-2xl w-full h-[75vh] md:w-[620px] md:h-[520px] md:max-h-[80vh] flex flex-col border-b border-x md:border border-slate-100 dark:border-neutral-700"
             style={{ animation: 'breakdownModalSlideDown 0.28s ease-out' }}
           >
-            <div className="px-5 py-4 border-b border-slate-100 dark:border-neutral-700 shrink-0">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-neutral-200 truncate">
+            <div className="order-1 px-5 py-4 border-b border-slate-100 dark:border-neutral-700 shrink-0">
+              <h3 className="text-sm md:text-lg font-bold text-slate-900 dark:text-neutral-200 truncate">
                 {detailModal.categoryName}{detailModal.subcategoryName ? ` · ${detailModal.subcategoryName}` : ''}
               </h3>
-              <p className="text-xs text-slate-400 dark:text-neutral-500 mt-0.5">{MONTHS[detailModal.monthIndex]} {detailModal.year}</p>
+              <p className="text-xs md:text-sm text-slate-400 dark:text-neutral-500 mt-0.5">{MONTHS[detailModal.monthIndex]} {detailModal.year}</p>
             </div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
+            <div className="order-3 md:order-2 flex-1 overflow-y-auto custom-scrollbar">
               {detailModalTransactions.length > 0 ? (
                 detailModalTransactions.map(t => (
-                  <div key={t.id} className="flex items-center justify-between gap-3 px-5 py-3 border-b border-slate-100 dark:border-neutral-700 last:border-b-0">
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-slate-700 dark:text-neutral-300 truncate">{t.description || 'Unknown'}</p>
-                      <p className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">{t.date}{t.subcategoryName ? ` · ${t.subcategoryName}` : ''}</p>
-                    </div>
-                    <span className={`text-xs font-bold tabular-nums shrink-0 ${detailModal.isExpense ? 'text-slate-800 dark:text-neutral-300' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                  <div key={t.id} className="flex items-center gap-2.5 md:gap-3 px-5 py-3.5 md:py-2.5 border-b border-slate-100 dark:border-neutral-700 last:border-b-0 text-[10px] md:text-sm">
+                    <span className="shrink-0 whitespace-nowrap text-[7px] md:text-sm text-slate-400 dark:text-neutral-500">{t.date}</span>
+                    <span className="flex-1 min-w-0 truncate font-medium text-slate-700 dark:text-neutral-300">{t.description || 'Unknown'}</span>
+                    {/* Mobile: subcategory only — the category is already shown at the top of the modal */}
+                    <span className="md:hidden shrink-0 w-[70px] text-left truncate">
+                      {t.subcategoryName && (
+                        <span className="px-1.5 py-px bg-slate-100 dark:bg-neutral-700 rounded-full text-[7px] font-medium text-slate-500 dark:text-neutral-500 leading-tight">
+                          {t.subcategoryName}
+                        </span>
+                      )}
+                    </span>
+                    <span className="hidden md:block shrink-0 max-w-[120px] truncate text-slate-400 dark:text-neutral-500">
+                      {detailModal.categoryName}{t.subcategoryName ? `/${t.subcategoryName}` : ''}
+                    </span>
+                    <span className={`shrink-0 font-bold tabular-nums whitespace-nowrap ${detailModal.isExpense ? 'text-slate-800 dark:text-neutral-300' : 'text-emerald-700 dark:text-emerald-400'}`}>
                       {formatAmount((detailModal.isExpense ? -1 : 1) * (currency === 'GBP' ? t.amountGBP : t.amountAED))}
                     </span>
                   </div>
                 ))
               ) : (
-                <div className="py-10 text-center text-slate-400 dark:text-neutral-500 text-xs">No transactions</div>
+                <div className="py-10 text-center text-slate-400 dark:text-neutral-500 text-xs md:text-sm">No transactions</div>
               )}
             </div>
-            <div className="px-5 py-3 border-t border-slate-100 dark:border-neutral-700 flex items-center justify-between bg-slate-50 dark:bg-neutral-900/40 shrink-0">
-              <span className="text-xs font-semibold text-slate-500 dark:text-neutral-400">Total</span>
-              <span className="text-sm font-bold text-slate-900 dark:text-neutral-200">
+            <div className="order-2 md:order-3 px-5 py-3 border-b md:border-t md:border-b-0 border-slate-100 dark:border-neutral-700 flex items-center justify-between bg-slate-50 dark:bg-neutral-900/40 shrink-0">
+              <span className="text-xs md:text-sm font-semibold text-slate-500 dark:text-neutral-400">Total</span>
+              <span className="text-sm md:text-base font-bold text-slate-900 dark:text-neutral-200">
                 {formatAmount((detailModal.isExpense ? -1 : 1) * detailModalTotal)}
               </span>
             </div>
             {/* Close button at the bottom */}
-            <div className="px-5 py-3 border-t border-slate-100 dark:border-neutral-700 flex justify-center shrink-0">
+            <div className="order-4 px-5 py-3 border-t border-slate-100 dark:border-neutral-700 flex justify-center shrink-0">
               <button
                 onClick={() => setDetailModal(null)}
                 className="w-10 h-10 rounded-full bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-slate-500 dark:text-neutral-400 hover:bg-slate-200 dark:hover:bg-neutral-600 transition-colors"

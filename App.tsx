@@ -1817,7 +1817,7 @@ const App: React.FC = () => {
             <div className="animate-in fade-in duration-500">
 
               {/* ===== MOBILE DASHBOARD (fintech SaaS style) ===== */}
-              <div className="md:hidden space-y-4 px-2 sm:px-0">
+              <div className="md:hidden space-y-4 px-0 sm:px-0">
                 {/* Timeframe & Currency Switchers */}
                 <div className="flex items-center justify-between gap-2">
                   {/* Timeframe Selector */}
@@ -1975,7 +1975,7 @@ const App: React.FC = () => {
                     .slice(0, 6);
 
                   return (
-                    <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-emerald-100 dark:border-emerald-900/40 overflow-hidden">
+                    <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-sm border border-emerald-100 dark:border-emerald-900/40 overflow-hidden">
                       <div className="px-3 py-2.5 bg-emerald-50 dark:bg-emerald-950/40 border-b border-emerald-100 dark:border-emerald-900/40">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5">
@@ -2052,7 +2052,7 @@ const App: React.FC = () => {
                     .sort((a, b) => b.amount - a.amount);
 
                   return (
-                    <div key={`mobile-${index}-${catId}`} className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 overflow-hidden">
+                    <div key={`mobile-${index}-${catId}`} className="bg-white dark:bg-neutral-800 rounded-xl shadow-sm border border-slate-100 dark:border-neutral-700 overflow-hidden">
                       <div className="px-3 py-2.5 border-b border-slate-100 dark:border-neutral-700">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-3">
@@ -2202,7 +2202,7 @@ const App: React.FC = () => {
                   return (
                     <div className="space-y-2.5">
                       {/* Loans In card */}
-                      <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 overflow-hidden">
+                      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-sm border border-slate-100 dark:border-neutral-700 overflow-hidden">
                         <div className="px-3 py-2.5 border-b border-slate-100 dark:border-neutral-700">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
@@ -2222,7 +2222,7 @@ const App: React.FC = () => {
                       </div>
 
                       {/* Repayments card */}
-                      <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 overflow-hidden">
+                      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-sm border border-slate-100 dark:border-neutral-700 overflow-hidden">
                         <div className="px-3 py-2.5 border-b border-slate-100 dark:border-neutral-700">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
@@ -2267,14 +2267,14 @@ const App: React.FC = () => {
 
                 <button
                   onClick={handleAddMobileCard}
-                  className="w-full py-3 border border-dashed border-slate-200 dark:border-neutral-600 rounded-2xl text-slate-400 dark:text-neutral-500 text-xs font-medium hover:border-slate-300 hover:text-slate-500 transition-colors flex items-center justify-center gap-1.5"
+                  className="w-full py-3 border border-dashed border-slate-200 dark:border-neutral-600 rounded-xl text-slate-400 dark:text-neutral-500 text-xs font-medium hover:border-slate-300 hover:text-slate-500 transition-colors flex items-center justify-center gap-1.5"
                 >
                   <Plus size={14} />
                   Add Category Card
                 </button>
 
                 {/* Spend by Category */}
-                <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 p-4 overflow-hidden">
+                <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-sm border border-slate-100 dark:border-neutral-700 p-4 overflow-hidden">
                   <div className="flex flex-col gap-3 mb-3 flex-shrink-0">
                      <div className="flex justify-between items-center">
                          {filterCategory === 'all' && filterSubcategory === 'all' ? (
@@ -2368,7 +2368,7 @@ const App: React.FC = () => {
 
                 {/* Excluded Transactions */}
                 {excludedTransactions.length > 0 && (
-                  <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 overflow-hidden">
+                  <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-sm border border-slate-100 dark:border-neutral-700 overflow-hidden">
                     <div className="px-3 py-2.5 border-b border-slate-100 dark:border-neutral-700">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
