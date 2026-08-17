@@ -1,7 +1,10 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Transaction, Category } from '../types';
 import { EyeOff, Eye, FileSpreadsheet, Save, AlertTriangle, Check, Trash2, ArrowUpDown, X } from 'lucide-react';
+import AnimatedModal from './AnimatedModal';
+import { DURATION, EASE_OUT } from '../lib/motion';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -33,41 +36,36 @@ const DeleteConfirmationModal = ({
     onConfirm: () => void;
     count?: number;
 }) => {
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
-            <div className="relative bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 border border-slate-100 dark:border-neutral-700 animate-in zoom-in-95 duration-200">
-                <div className="flex flex-col items-center text-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100">
-                        <AlertTriangle size={24} />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-neutral-200">{count > 1 ? `Delete ${count} Transactions?` : 'Delete Transaction?'}</h3>
-                        <p className="text-sm text-slate-500 dark:text-neutral-500 mt-2 leading-relaxed">
-                            {count > 1
-                                ? `This will permanently delete ${count} transactions. This action cannot be undone.`
-                                : 'This will permanently delete this transaction. This action cannot be undone.'}
-                        </p>
-                    </div>
-                    <div className="flex gap-3 w-full mt-2">
-                        <button
-                            onClick={onClose}
-                            className="flex-1 py-2.5 rounded-xl font-bold text-slate-700 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-700 hover:bg-slate-200 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={onConfirm}
-                            className="flex-1 py-2.5 rounded-xl font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-200 transition-all active:scale-95"
-                        >
-                            Yes, Delete
-                        </button>
-                    </div>
+        <AnimatedModal isOpen={isOpen} onClose={onClose}>
+            <div className="flex flex-col items-center text-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100">
+                    <AlertTriangle size={24} />
+                </div>
+                <div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-neutral-200">{count > 1 ? `Delete ${count} Transactions?` : 'Delete Transaction?'}</h3>
+                    <p className="text-sm text-slate-500 dark:text-neutral-500 mt-2 leading-relaxed">
+                        {count > 1
+                            ? `This will permanently delete ${count} transactions. This action cannot be undone.`
+                            : 'This will permanently delete this transaction. This action cannot be undone.'}
+                    </p>
+                </div>
+                <div className="flex gap-3 w-full mt-2">
+                    <button
+                        onClick={onClose}
+                        className="flex-1 py-2.5 rounded-xl font-bold text-slate-700 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-700 hover:bg-slate-200 transition-colors active:scale-95"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        className="flex-1 py-2.5 rounded-xl font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-200 transition-all active:scale-95"
+                    >
+                        Yes, Delete
+                    </button>
                 </div>
             </div>
-        </div>
+        </AnimatedModal>
     );
 };
 
@@ -82,43 +80,38 @@ const ExcludeConfirmationModal = ({
     onConfirm: () => void;
     isCurrentlyExcluded: boolean;
 }) => {
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
-            <div className="relative bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 border border-slate-100 dark:border-neutral-700 animate-in zoom-in-95 duration-200">
-                <div className="flex flex-col items-center text-center gap-4">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${isCurrentlyExcluded ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
-                        {isCurrentlyExcluded ? <Eye size={24} /> : <EyeOff size={24} />}
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-neutral-200">
-                            {isCurrentlyExcluded ? 'Include Transaction?' : 'Exclude Transaction?'}
-                        </h3>
-                        <p className="text-sm text-slate-500 dark:text-neutral-500 mt-2 leading-relaxed">
-                            {isCurrentlyExcluded
-                                ? 'This will include the transaction back in your totals and reports.'
-                                : 'This will exclude the transaction from your totals and reports. You can include it again later.'}
-                        </p>
-                    </div>
-                    <div className="flex gap-3 w-full mt-2">
-                        <button
-                            onClick={onClose}
-                            className="flex-1 py-2.5 rounded-xl font-bold text-slate-700 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-700 hover:bg-slate-200 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={onConfirm}
-                            className={`flex-1 py-2.5 rounded-xl font-bold text-white shadow-lg transition-all active:scale-95 ${isCurrentlyExcluded ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200' : 'bg-amber-600 hover:bg-amber-700 shadow-amber-200'}`}
-                        >
-                            {isCurrentlyExcluded ? 'Yes, Include' : 'Yes, Exclude'}
-                        </button>
-                    </div>
+        <AnimatedModal isOpen={isOpen} onClose={onClose}>
+            <div className="flex flex-col items-center text-center gap-4">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${isCurrentlyExcluded ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                    {isCurrentlyExcluded ? <Eye size={24} /> : <EyeOff size={24} />}
+                </div>
+                <div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-neutral-200">
+                        {isCurrentlyExcluded ? 'Include Transaction?' : 'Exclude Transaction?'}
+                    </h3>
+                    <p className="text-sm text-slate-500 dark:text-neutral-500 mt-2 leading-relaxed">
+                        {isCurrentlyExcluded
+                            ? 'This will include the transaction back in your totals and reports.'
+                            : 'This will exclude the transaction from your totals and reports. You can include it again later.'}
+                    </p>
+                </div>
+                <div className="flex gap-3 w-full mt-2">
+                    <button
+                        onClick={onClose}
+                        className="flex-1 py-2.5 rounded-xl font-bold text-slate-700 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-700 hover:bg-slate-200 transition-colors active:scale-95"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        className={`flex-1 py-2.5 rounded-xl font-bold text-white shadow-lg transition-all active:scale-95 ${isCurrentlyExcluded ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200' : 'bg-amber-600 hover:bg-amber-700 shadow-amber-200'}`}
+                    >
+                        {isCurrentlyExcluded ? 'Yes, Include' : 'Yes, Exclude'}
+                    </button>
                 </div>
             </div>
-        </div>
+        </AnimatedModal>
     );
 };
 
@@ -137,40 +130,35 @@ const BulkCategoryConfirmationModal = ({
     categoryName: string;
     subcategoryName?: string;
 }) => {
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
-            <div className="relative bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 border border-slate-100 dark:border-neutral-700 animate-in zoom-in-95 duration-200">
-                <div className="flex flex-col items-center text-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100">
-                        <AlertTriangle size={24} />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-neutral-200">Change category for {count} transactions?</h3>
-                        <p className="text-sm text-slate-500 dark:text-neutral-500 mt-2 leading-relaxed">
-                            This will overwrite the category{subcategoryName ? ' and subcategory' : ''} on <span className="font-semibold text-slate-700 dark:text-neutral-300">{count}</span> transaction{count > 1 ? 's' : ''} to
-                            {' '}<span className="font-semibold text-slate-700 dark:text-neutral-300">{categoryName}{subcategoryName ? ` / ${subcategoryName}` : ''}</span>. Make sure this is really what you want to do — it cannot be undone in bulk.
-                        </p>
-                    </div>
-                    <div className="flex gap-3 w-full mt-2">
-                        <button
-                            onClick={onClose}
-                            className="flex-1 py-2.5 rounded-xl font-bold text-slate-700 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-700 hover:bg-slate-200 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={onConfirm}
-                            className="flex-1 py-2.5 rounded-xl font-bold text-white bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-200 transition-all active:scale-95"
-                        >
-                            Yes, Apply
-                        </button>
-                    </div>
+        <AnimatedModal isOpen={isOpen} onClose={onClose}>
+            <div className="flex flex-col items-center text-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100">
+                    <AlertTriangle size={24} />
+                </div>
+                <div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-neutral-200">Change category for {count} transactions?</h3>
+                    <p className="text-sm text-slate-500 dark:text-neutral-500 mt-2 leading-relaxed">
+                        This will overwrite the category{subcategoryName ? ' and subcategory' : ''} on <span className="font-semibold text-slate-700 dark:text-neutral-300">{count}</span> transaction{count > 1 ? 's' : ''} to
+                        {' '}<span className="font-semibold text-slate-700 dark:text-neutral-300">{categoryName}{subcategoryName ? ` / ${subcategoryName}` : ''}</span>. Make sure this is really what you want to do — it cannot be undone in bulk.
+                    </p>
+                </div>
+                <div className="flex gap-3 w-full mt-2">
+                    <button
+                        onClick={onClose}
+                        className="flex-1 py-2.5 rounded-xl font-bold text-slate-700 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-700 hover:bg-slate-200 transition-colors active:scale-95"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        className="flex-1 py-2.5 rounded-xl font-bold text-white bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-200 transition-all active:scale-95"
+                    >
+                        Yes, Apply
+                    </button>
                 </div>
             </div>
-        </div>
+        </AnimatedModal>
     );
 };
 
@@ -278,7 +266,13 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     const cellClass = "h-full flex flex-col justify-center px-4 py-3 border-r border-slate-200/60 dark:border-neutral-600/60 last:border-r-0";
 
     return (
-        <>
+        <motion.div
+            layout="position"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: DURATION.modal, ease: EASE_OUT, delay: Math.min(index * 0.015, 0.3) }}
+        >
             {/* Mobile Row */}
             <div className={`md:hidden grid grid-cols-[1fr_100px_76px] gap-0.5 items-center border-b border-slate-100 dark:border-neutral-700 last:border-b-0 ${isCategoryMissing ? 'bg-amber-50 dark:bg-amber-950/30' : 'bg-white dark:bg-neutral-800'} ${isExcluded ? 'opacity-40' : ''}`}>
                 <div className="px-3 py-3 min-w-0">
@@ -429,7 +423,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                     />
                 </div>
             </div>
-        </>
+        </motion.div>
     );
 };
 
@@ -696,7 +690,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
         </div>
 
         {/* Rows */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-0 py-0 pb-4 md:pb-0 min-h-[350px] md:min-h-[450px]">
+        <div data-no-pull-refresh className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-0 py-0 pb-4 md:pb-0 min-h-[350px] md:min-h-[450px]">
+            <AnimatePresence initial={false}>
             {sortedTransactions.map((t, index) => (
                 <TransactionRow
                     key={t.id}
@@ -711,6 +706,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
                     onToggleSelect={toggleSelect}
                 />
             ))}
+            </AnimatePresence>
         </div>
         </div>
 

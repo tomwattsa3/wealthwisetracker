@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { DURATION, EASE_OUT, STAGGER_CONTAINER, STAGGER_ITEM } from './lib/motion';
 import { Session } from '@supabase/supabase-js';
 import { Transaction, FinancialSummary, Category, Bank, MerchantMapping } from './types';
 import { INITIAL_CATEGORIES, INITIAL_BANKS } from './constants';
@@ -16,6 +18,8 @@ import BankFeedUpload from './components/BankFeedUpload';
 import YearlySummary from './components/YearlySummary';
 import SettingsManager from './components/SettingsManager';
 import BreakdownTab from './components/BreakdownTab';
+import DashboardSkeleton from './components/DashboardSkeleton';
+import SegmentedControl from './components/SegmentedControl';
 import {
   LayoutDashboard, Plus, Home, ListFilter, Search,
   ChevronLeft, ChevronRight, Filter, EyeOff, TrendingUp,
@@ -210,6 +214,11 @@ const App: React.FC = () => {
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (isRefreshing) return;
+    // Skip pull-to-refresh for touches starting inside a nested scroll container (e.g. the
+    // Breakdown table) — those scroll independently of <main>, so main.scrollTop stays at 0
+    // even while the user is actively scrolling/tapping inside them, which was causing every
+    // touch there to be misread as a pull-to-refresh drag.
+    if ((e.target as HTMLElement).closest('[data-no-pull-refresh]')) return;
     if (mainRef.current && mainRef.current.scrollTop <= 0) {
       touchStartY.current = e.touches[0].clientY;
       isPulling.current = true;
@@ -250,7 +259,7 @@ const App: React.FC = () => {
 
   // Get transaction amount based on selected currency
   const getAmount = (t: Transaction) => {
-    return currency === 'GBP' ? t.amountGBP : t.amountAED;
+    return Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED);
   };
 
   // Currency formatter helper
@@ -270,6 +279,26 @@ const App: React.FC = () => {
   // Persist active tab to localStorage
   useEffect(() => {
     localStorage.setItem('activeTab', activeTab);
+  }, [activeTab]);
+
+  // Scroll position per tab — without this, <main> keeps whatever scrollTop it had from the
+  // previous tab instead of resetting (or restoring the new tab's own remembered position),
+  // since <main> itself never unmounts across tab switches. Restoration happens via a callback
+  // ref (below, on the tab content's motion.div) rather than a useEffect keyed on activeTab,
+  // because AnimatePresence's mode="wait" delays the new tab's actual mount until the outgoing
+  // one's exit animation finishes — a plain effect would fire too early, before real content
+  // (and therefore real scrollable height) exists.
+  const scrollPositions = useRef<Record<string, number>>({});
+  const handleTabChange = useCallback((newTab: typeof activeTab) => {
+    if (mainRef.current) {
+      scrollPositions.current[activeTab] = mainRef.current.scrollTop;
+    }
+    setActiveTab(newTab);
+  }, [activeTab]);
+  const restoreScrollOnMount = useCallback((el: HTMLDivElement | null) => {
+    if (el && mainRef.current) {
+      mainRef.current.scrollTop = scrollPositions.current[activeTab] ?? 0;
+    }
   }, [activeTab]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -481,9 +510,12 @@ const App: React.FC = () => {
           const isIncome = moneyInGBP > 0 || moneyInAED > 0;
           const type: 'INCOME' | 'EXPENSE' = isIncome ? 'INCOME' : 'EXPENSE';
 
-          // Store both currency amounts with conversion fallback
-          let amountGBP = isIncome ? moneyInGBP : moneyOutGBP;
-          let amountAED = isIncome ? moneyInAED : moneyOutAED;
+          // Store both currency amounts with conversion fallback. Math.abs guards against a row
+          // whose stored Money In/Out value is negative (e.g. a bad manual edit) — amountGBP/
+          // amountAED are supposed to always be a positive magnitude everywhere downstream, with
+          // `type` (INCOME/EXPENSE) carrying the direction, not the sign of the number itself.
+          let amountGBP = Math.abs(isIncome ? moneyInGBP : moneyOutGBP);
+          let amountAED = Math.abs(isIncome ? moneyInAED : moneyOutAED);
 
           // If AED is missing, convert from GBP
           if (amountAED === 0 && amountGBP > 0) {
@@ -745,8 +777,17 @@ const App: React.FC = () => {
 
     setSavingImport(true);
 
+    // Optimistic: show the imported transactions and close the review modal immediately,
+    // instead of waiting on the network round-trip. The temp (pending-*) ids get swapped for
+    // real ones once the insert resolves, or rolled back entirely if it fails.
+    const optimisticTxs = pendingImportTransactions;
+    setTransactions(prev => [...optimisticTxs, ...prev]);
+    setPendingImportTransactions([]);
+    setImportReviewOpen(false);
+    setSavingImport(false);
+
     // Map to Supabase schema
-    const dbPayloads = pendingImportTransactions.map(t => {
+    const dbPayloads = optimisticTxs.map(t => {
       const isIncome = t.type === 'INCOME';
       return {
         'Transaction Date': t.date,
@@ -769,7 +810,11 @@ const App: React.FC = () => {
     if (error) {
       console.error('Supabase import error:', error.message);
       alert('Failed to save transactions: ' + error.message);
-      setSavingImport(false);
+      // Roll back the optimistic rows and restore the review modal so the user can retry
+      const optimisticIds = new Set(optimisticTxs.map(t => t.id));
+      setTransactions(prev => prev.filter(t => !optimisticIds.has(t.id)));
+      setPendingImportTransactions(optimisticTxs);
+      setImportReviewOpen(true);
       return;
     }
 
@@ -807,8 +852,11 @@ const App: React.FC = () => {
         };
       });
 
-      // Add to main transactions list
-      setTransactions(prev => [...savedTxs, ...prev]);
+      // Swap the optimistic (temp-id) rows for the real saved ones, matched by insert order
+      setTransactions(prev => prev.map(t => {
+        const idx = optimisticTxs.findIndex(p => p.id === t.id);
+        return idx !== -1 && savedTxs[idx] ? savedTxs[idx] : t;
+      }));
 
       // Save merchant mappings for categorized transactions
       for (const t of savedTxs) {
@@ -817,13 +865,8 @@ const App: React.FC = () => {
         }
       }
 
-      // Close modal and clear pending
-      setPendingImportTransactions([]);
-      setImportReviewOpen(false);
       console.log('Saved', savedTxs.length, 'transactions');
     }
-
-    setSavingImport(false);
   };
 
   const deleteTransaction = async (id: string) => {
@@ -1194,10 +1237,13 @@ const App: React.FC = () => {
   }, [dateFilteredTransactions, searchQuery, filterCategory, filterSubcategory, filterType, filterBank, filterRecentlyAdded]);
 
   // KPI Summary (Respects Date Filter and Currency)
+  // Math.abs guards against rows whose stored amountGBP/amountAED is negative (should always be
+  // a positive magnitude, with type determining direction) — without it, one bad row silently
+  // cancels out other transactions in the same total instead of adding to it.
   const summary = useMemo<FinancialSummary>(() => {
     return activeTransactions.reduce(
       (acc, curr) => {
-        const amount = currency === 'GBP' ? curr.amountGBP : curr.amountAED;
+        const amount = Math.abs(currency === 'GBP' ? curr.amountGBP : curr.amountAED);
         if (curr.type === 'INCOME') {
           acc.totalIncome += amount;
           acc.balance += amount;
@@ -1215,7 +1261,7 @@ const App: React.FC = () => {
   const summaryAlt = useMemo(() => {
     return activeTransactions.reduce(
       (acc, curr) => {
-        const amount = currency === 'GBP' ? curr.amountAED : curr.amountGBP;
+        const amount = Math.abs(currency === 'GBP' ? curr.amountAED : curr.amountGBP);
         if (curr.type === 'INCOME') {
           acc.totalIncome += amount;
           acc.balance += amount;
@@ -1233,7 +1279,7 @@ const App: React.FC = () => {
   const globalSummary = useMemo<FinancialSummary>(() => {
     return activeTransactions.reduce(
       (acc, curr) => {
-        const amount = currency === 'GBP' ? curr.amountGBP : curr.amountAED;
+        const amount = Math.abs(currency === 'GBP' ? curr.amountGBP : curr.amountAED);
         if (curr.type === 'INCOME') {
           acc.totalIncome += amount;
           acc.balance += amount;
@@ -1285,7 +1331,7 @@ const App: React.FC = () => {
   const categoryBreakdown = useMemo(() => {
     return categories.map(cat => {
       const catTransactions = activeTransactions.filter(t => t.categoryId === cat.id);
-      const total = catTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
+      const total = catTransactions.reduce((sum, t) => sum + (Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED)), 0);
       return { category: cat, transactions: catTransactions, total };
     }).filter(c => c.total > 0).sort((a, b) => b.total - a.total);
   }, [activeTransactions, categories, currency]);
@@ -1301,7 +1347,7 @@ const App: React.FC = () => {
 
     activeTransactions.forEach(t => {
       if (t.type === 'EXPENSE' && t.categoryId === filterCategory) {
-        const amount = currency === 'GBP' ? t.amountGBP : t.amountAED;
+        const amount = Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED);
         groups[t.subcategoryName] = (groups[t.subcategoryName] || 0) + amount;
       }
     });
@@ -1328,7 +1374,7 @@ const App: React.FC = () => {
                     color: parent?.color || '#94a3b8'
                 };
             }
-            const amount = currency === 'GBP' ? t.amountGBP : t.amountAED;
+            const amount = Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED);
             groups[t.subcategoryName].total += amount;
         }
      });
@@ -1382,15 +1428,37 @@ const App: React.FC = () => {
     return <LoginPage />;
   }
 
-  // Data loading state
+  // Data loading state — a skeleton shaped like the real dashboard instead of a blank
+  // spinner-only screen, so there's no layout jump once the real content pops in.
   if (loading) {
-    return (
-        <div className="h-screen w-full flex items-center justify-center bg-slate-50 flex-col gap-3">
-             <Loader2 size={32} className="animate-spin text-slate-400" />
-             <p className="text-slate-500 font-medium text-sm">Loading financial data...</p>
-        </div>
-    );
+    return <DashboardSkeleton />;
   }
+
+  // Shared mobile date-range presets — used by both the Home and Transactions mobile timeframe
+  // selectors, which were previously two copy-pasted implementations of the same thing.
+  const mobileHistoryPresets = [
+    { label: 'MTD', fullLabel: 'This Month', getValue: () => {
+      const now = new Date();
+      return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: new Date(now.getFullYear(), now.getMonth() + 1, 0) };
+    }},
+    { label: 'Last Wk', fullLabel: 'Last Week', getValue: () => {
+      const now = new Date();
+      const dow = (now.getDay() + 6) % 7; // Mon=0, Sun=6
+      const lastSunday = new Date(now);
+      lastSunday.setDate(now.getDate() - ((dow + 1) % 7));
+      const lastMonday = new Date(lastSunday);
+      lastMonday.setDate(lastSunday.getDate() - 6);
+      return { start: lastMonday, end: lastSunday };
+    }},
+    { label: 'Last Mo', fullLabel: 'Last Month', getValue: () => {
+      const now = new Date();
+      return { start: new Date(now.getFullYear(), now.getMonth() - 1, 1), end: new Date(now.getFullYear(), now.getMonth(), 0) };
+    }},
+    { label: 'YTD', fullLabel: 'YTD', getValue: () => {
+      const now = new Date();
+      return { start: new Date(now.getFullYear(), 0, 1), end: now };
+    }},
+  ];
 
   return (
     <div className="bg-slate-50 dark:bg-neutral-900 h-screen font-['Poppins'] text-slate-900 dark:text-neutral-200 overflow-hidden">
@@ -1438,16 +1506,23 @@ const App: React.FC = () => {
              ].map((item) => (
                <button
                  key={item.id}
-                 onClick={() => setActiveTab(item.id as any)}
+                 onClick={() => handleTabChange(item.id as any)}
                  className={`
-                   flex flex-col md:flex-row md:gap-3 p-1.5 md:p-2.5 items-center justify-center rounded-lg md:rounded-xl transition-all duration-200 group relative flex-shrink-0
+                   flex flex-col md:flex-row md:gap-3 p-1.5 md:p-2.5 items-center justify-center rounded-lg md:rounded-xl transition-colors duration-150 active:scale-95 group relative flex-shrink-0
                    ${activeTab === item.id
-                     ? 'text-slate-900 dark:text-neutral-200 bg-slate-100 dark:bg-neutral-700 font-semibold'
+                     ? 'text-slate-900 dark:text-neutral-200 font-semibold'
                      : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-200 hover:bg-slate-50 dark:hover:bg-neutral-700'}
                    ${!isSidebarCollapsed ? 'md:justify-start md:px-3' : ''}
                    ${!item.mobileOnly ? 'hidden md:flex' : ''}
                  `}
                >
+                 {activeTab === item.id && (
+                   <motion.div
+                     layoutId="activeNavPill"
+                     className="absolute inset-0 bg-slate-100 dark:bg-neutral-700 rounded-lg md:rounded-xl -z-10"
+                     transition={{ duration: DURATION.page, ease: EASE_OUT }}
+                   />
+                 )}
                  <item.icon size={18} strokeWidth={activeTab === item.id ? 2.5 : 2} />
                  {/* Mobile label */}
                  <span className="text-[9px] mt-0.5 md:hidden">{item.mobileLabel}</span>
@@ -1466,9 +1541,20 @@ const App: React.FC = () => {
              {/* Mobile Dark Mode Toggle */}
              <button
                onClick={() => setDarkMode(!darkMode)}
-               className="flex flex-col md:hidden p-1.5 items-center justify-center rounded-lg transition-all duration-200 flex-shrink-0 text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-200"
+               className="flex flex-col md:hidden p-1.5 items-center justify-center rounded-lg transition-all duration-200 active:scale-95 flex-shrink-0 text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-200"
              >
-               {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+               <AnimatePresence mode="wait" initial={false}>
+                 <motion.span
+                   key={darkMode ? 'sun' : 'moon'}
+                   initial={{ opacity: 0, rotate: -90, scale: 0.6 }}
+                   animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                   exit={{ opacity: 0, rotate: 90, scale: 0.6 }}
+                   transition={{ duration: DURATION.press, ease: EASE_OUT }}
+                   className="flex"
+                 >
+                   {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+                 </motion.span>
+               </AnimatePresence>
                <span className="text-[9px] mt-0.5">{darkMode ? 'Light' : 'Dark'}</span>
              </button>
 
@@ -1479,7 +1565,7 @@ const App: React.FC = () => {
              <button
                 onClick={() => setIsModalOpen(true)}
                 className={`
-                  w-full bg-slate-900 dark:bg-[#635bff] text-white py-2.5 rounded-xl font-semibold shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 hover:bg-slate-800 dark:hover:bg-[#5348e0]
+                  w-full bg-slate-900 dark:bg-[#635bff] text-white py-2.5 rounded-xl font-semibold shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 hover:bg-slate-800 dark:hover:bg-[#5348e0]
                   ${isSidebarCollapsed ? 'px-0' : 'px-4'}
                 `}
               >
@@ -1493,11 +1579,22 @@ const App: React.FC = () => {
              <button
                 onClick={() => setDarkMode(!darkMode)}
                 className={`
-                  w-full text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-200 hover:bg-slate-50 dark:hover:bg-neutral-700 py-2.5 rounded-xl font-medium transition-all flex items-center justify-center gap-2 group relative
+                  w-full text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-200 hover:bg-slate-50 dark:hover:bg-neutral-700 py-2.5 rounded-xl font-medium transition-all active:scale-95 flex items-center justify-center gap-2 group relative
                   ${isSidebarCollapsed ? 'px-0' : 'px-4'}
                 `}
               >
-                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.span
+                    key={darkMode ? 'sun' : 'moon'}
+                    initial={{ opacity: 0, rotate: -90, scale: 0.6 }}
+                    animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                    exit={{ opacity: 0, rotate: 90, scale: 0.6 }}
+                    transition={{ duration: DURATION.press, ease: EASE_OUT }}
+                    className="flex"
+                  >
+                    {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+                  </motion.span>
+                </AnimatePresence>
                 {!isSidebarCollapsed && <span className="text-sm">{darkMode ? 'Light Mode' : 'Dark Mode'}</span>}
                 {isSidebarCollapsed && (
                   <span className="absolute left-14 bg-slate-900 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 border border-slate-700 pointer-events-none hidden md:block shadow-lg">
@@ -1587,52 +1684,23 @@ const App: React.FC = () => {
                       <>
                         {/* Timeframe Selector - same style as dashboard */}
                         <div className="flex items-center justify-between gap-2">
-                          <div className="flex bg-slate-100 dark:bg-neutral-700 p-0.5 rounded-lg overflow-x-auto hide-scrollbar">
-                            {[
-                              { label: 'MTD', fullLabel: 'This Month', getValue: () => {
-                                const now = new Date();
-                                return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: new Date(now.getFullYear(), now.getMonth() + 1, 0) };
-                              }},
-                              { label: 'Last Wk', fullLabel: 'Last Week', getValue: () => {
-                                const now = new Date();
-                                const dow = (now.getDay() + 6) % 7; // Mon=0, Sun=6
-                                const lastSunday = new Date(now);
-                                lastSunday.setDate(now.getDate() - ((dow + 1) % 7));
-                                const lastMonday = new Date(lastSunday);
-                                lastMonday.setDate(lastSunday.getDate() - 6);
-                                return { start: lastMonday, end: lastSunday };
-                              }},
-                              { label: 'Last Mo', fullLabel: 'Last Month', getValue: () => {
-                                const now = new Date();
-                                return { start: new Date(now.getFullYear(), now.getMonth() - 1, 1), end: new Date(now.getFullYear(), now.getMonth(), 0) };
-                              }},
-                              { label: 'YTD', fullLabel: 'YTD', getValue: () => {
-                                const now = new Date();
-                                return { start: new Date(now.getFullYear(), 0, 1), end: now };
-                              }},
-                            ].map((preset) => {
-                              const isActive = dateRange.label === preset.fullLabel;
-                              return (
-                                <button
-                                  key={preset.fullLabel}
-                                  onClick={() => {
-                                    const { start, end } = preset.getValue();
-                                    setDateRange({ start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0], label: preset.fullLabel });
-                                    setShowMobileCustomDates(false);
-                                  }}
-                                  className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${isActive && !showMobileCustomDates ? 'bg-white dark:bg-neutral-600 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-200'}`}
-                                >
-                                  {preset.label}
-                                </button>
-                              );
-                            })}
-                            <button
-                              onClick={() => setShowMobileCustomDates(!showMobileCustomDates)}
-                              className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${showMobileCustomDates || dateRange.label === 'Custom Range' ? 'bg-white dark:bg-neutral-600 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-200'}`}
-                            >
-                              Custom
-                            </button>
-                          </div>
+                          <SegmentedControl
+                            layoutId="historyMobileDatePresetPill"
+                            className="overflow-x-auto hide-scrollbar"
+                            options={[
+                              ...mobileHistoryPresets.map(p => ({ id: p.fullLabel, label: p.label })),
+                              { id: 'Custom Range', label: 'Custom' },
+                            ]}
+                            value={showMobileCustomDates ? 'Custom Range' : dateRange.label}
+                            onChange={(id) => {
+                              if (id === 'Custom Range') { setShowMobileCustomDates(!showMobileCustomDates); return; }
+                              const preset = mobileHistoryPresets.find(p => p.fullLabel === id);
+                              if (!preset) return;
+                              const { start, end } = preset.getValue();
+                              setDateRange({ start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0], label: preset.fullLabel });
+                              setShowMobileCustomDates(false);
+                            }}
+                          />
                         </div>
                         {/* Custom Date Range Picker */}
                         {showMobileCustomDates && (
@@ -1713,52 +1781,23 @@ const App: React.FC = () => {
                     
                     {/* Desktop Date Filter */}
                     <div className="hidden md:flex items-center gap-2">
-                      <div className="flex bg-slate-100 dark:bg-neutral-700 p-0.5 rounded-lg">
-                        {[
-                          { label: 'MTD', fullLabel: 'This Month', getValue: () => {
-                            const now = new Date();
-                            return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: new Date(now.getFullYear(), now.getMonth() + 1, 0) };
-                          }},
-                          { label: 'Last Week', fullLabel: 'Last Week', getValue: () => {
-                            const now = new Date();
-                            const dow = (now.getDay() + 6) % 7; // Mon=0, Sun=6
-                            const lastSunday = new Date(now);
-                            lastSunday.setDate(now.getDate() - ((dow + 1) % 7));
-                            const lastMonday = new Date(lastSunday);
-                            lastMonday.setDate(lastSunday.getDate() - 6);
-                            return { start: lastMonday, end: lastSunday };
-                          }},
-                          { label: 'Last Month', fullLabel: 'Last Month', getValue: () => {
-                            const now = new Date();
-                            return { start: new Date(now.getFullYear(), now.getMonth() - 1, 1), end: new Date(now.getFullYear(), now.getMonth(), 0) };
-                          }},
-                          { label: 'YTD', fullLabel: 'YTD', getValue: () => {
-                            const now = new Date();
-                            return { start: new Date(now.getFullYear(), 0, 1), end: now };
-                          }},
-                        ].map((preset) => {
-                          const isActive = dateRange.label === preset.fullLabel;
-                          return (
-                            <button
-                              key={preset.fullLabel}
-                              onClick={() => {
-                                const { start, end } = preset.getValue();
-                                setDateRange({ start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0], label: preset.fullLabel });
-                                setShowMobileCustomDates(false);
-                              }}
-                              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${isActive && !showMobileCustomDates ? 'bg-white dark:bg-neutral-600 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-200'}`}
-                            >
-                              {preset.label}
-                            </button>
-                          );
-                        })}
-                        <button
-                          onClick={() => setShowMobileCustomDates(!showMobileCustomDates)}
-                          className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${showMobileCustomDates || dateRange.label === 'Custom Range' ? 'bg-white dark:bg-neutral-600 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-200'}`}
-                        >
-                          Custom
-                        </button>
-                      </div>
+                      <SegmentedControl
+                        layoutId="historyDesktopDatePresetPill"
+                        optionClassName="md:px-3 md:py-1.5 md:text-xs"
+                        options={[
+                          ...mobileHistoryPresets.map(p => ({ id: p.fullLabel, label: p.fullLabel })),
+                          { id: 'Custom Range', label: 'Custom' },
+                        ]}
+                        value={showMobileCustomDates ? 'Custom Range' : dateRange.label}
+                        onChange={(id) => {
+                          if (id === 'Custom Range') { setShowMobileCustomDates(!showMobileCustomDates); return; }
+                          const preset = mobileHistoryPresets.find(p => p.fullLabel === id);
+                          if (!preset) return;
+                          const { start, end } = preset.getValue();
+                          setDateRange({ start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0], label: preset.fullLabel });
+                          setShowMobileCustomDates(false);
+                        }}
+                      />
                       {showMobileCustomDates && (
                         <div className="flex items-center gap-2 bg-white dark:bg-neutral-800 rounded-lg border border-slate-200 dark:border-neutral-600 px-2.5 py-1.5">
                           <input
@@ -1812,6 +1851,15 @@ const App: React.FC = () => {
             </div>
           )}
 
+          <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            ref={restoreScrollOnMount}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: DURATION.page, ease: EASE_OUT }}
+          >
           {/* DASHBOARD VIEW */}
           {activeTab === 'home' && (
             <div className="animate-in fade-in duration-500">
@@ -1821,67 +1869,30 @@ const App: React.FC = () => {
                 {/* Timeframe & Currency Switchers */}
                 <div className="flex items-center justify-between gap-2">
                   {/* Timeframe Selector */}
-                  <div className="flex bg-slate-100 dark:bg-neutral-700 p-0.5 rounded-lg overflow-x-auto hide-scrollbar">
-                    {[
-                      { label: 'MTD', fullLabel: 'This Month', getValue: () => {
-                        const now = new Date();
-                        return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: new Date(now.getFullYear(), now.getMonth() + 1, 0) };
-                      }},
-                      { label: 'Last Wk', fullLabel: 'Last Week', getValue: () => {
-                        const now = new Date();
-                        const dow = (now.getDay() + 6) % 7; // Mon=0, Sun=6
-                        const lastSunday = new Date(now);
-                        lastSunday.setDate(now.getDate() - ((dow + 1) % 7));
-                        const lastMonday = new Date(lastSunday);
-                        lastMonday.setDate(lastSunday.getDate() - 6);
-                        return { start: lastMonday, end: lastSunday };
-                      }},
-                      { label: 'Last Mo', fullLabel: 'Last Month', getValue: () => {
-                        const now = new Date();
-                        return { start: new Date(now.getFullYear(), now.getMonth() - 1, 1), end: new Date(now.getFullYear(), now.getMonth(), 0) };
-                      }},
-                      { label: 'YTD', fullLabel: 'YTD', getValue: () => {
-                        const now = new Date();
-                        return { start: new Date(now.getFullYear(), 0, 1), end: now };
-                      }},
-                    ].map((preset) => {
-                      const isActive = dateRange.label === preset.fullLabel;
-                      return (
-                        <button
-                          key={preset.fullLabel}
-                          onClick={() => {
-                            const { start, end } = preset.getValue();
-                            setDateRange({ start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0], label: preset.fullLabel });
-                            setShowMobileCustomDates(false);
-                          }}
-                          className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${isActive && !showMobileCustomDates ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
-                        >
-                          {preset.label}
-                        </button>
-                      );
-                    })}
-                    <button
-                      onClick={() => setShowMobileCustomDates(!showMobileCustomDates)}
-                      className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${showMobileCustomDates || dateRange.label === 'Custom Range' ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
-                    >
-                      Custom
-                    </button>
-                  </div>
+                  <SegmentedControl
+                    layoutId="homeMobileDatePresetPill"
+                    className="overflow-x-auto hide-scrollbar"
+                    options={[
+                      ...mobileHistoryPresets.map(p => ({ id: p.fullLabel, label: p.label })),
+                      { id: 'Custom Range', label: 'Custom' },
+                    ]}
+                    value={showMobileCustomDates ? 'Custom Range' : dateRange.label}
+                    onChange={(id) => {
+                      if (id === 'Custom Range') { setShowMobileCustomDates(!showMobileCustomDates); return; }
+                      const preset = mobileHistoryPresets.find(p => p.fullLabel === id);
+                      if (!preset) return;
+                      const { start, end } = preset.getValue();
+                      setDateRange({ start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0], label: preset.fullLabel });
+                      setShowMobileCustomDates(false);
+                    }}
+                  />
                   {/* Currency Switcher */}
-                  <div className="flex bg-slate-100 dark:bg-neutral-700 p-0.5 rounded-lg shrink-0">
-                    <button
-                      onClick={() => setCurrency('GBP')}
-                      className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all ${currency === 'GBP' ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
-                    >
-                      £
-                    </button>
-                    <button
-                      onClick={() => setCurrency('AED')}
-                      className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all ${currency === 'AED' ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
-                    >
-                      AED
-                    </button>
-                  </div>
+                  <SegmentedControl
+                    layoutId="homeMobileCurrencyPill"
+                    options={[{ id: 'GBP', label: '£' }, { id: 'AED', label: 'AED' }]}
+                    value={currency}
+                    onChange={(id) => setCurrency(id as 'GBP' | 'AED')}
+                  />
                 </div>
 
                 {/* Custom Date Range Picker */}
@@ -1916,8 +1927,13 @@ const App: React.FC = () => {
                 )}
 
                 {/* Mobile KPI Cards */}
-                <div className="grid grid-cols-3 gap-1.5">
-                  <div className="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-700 p-2 min-w-0">
+                <motion.div
+                  className="grid grid-cols-3 gap-1.5"
+                  variants={STAGGER_CONTAINER}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  <motion.div variants={STAGGER_ITEM} className="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-700 p-2 min-w-0">
                     <div className="flex items-center gap-1 mb-1.5">
                       <span className="w-5 h-5 rounded-md bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-[10px] shrink-0">📈</span>
                       <span className="text-[7px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider truncate">Income</span>
@@ -1926,8 +1942,8 @@ const App: React.FC = () => {
                     <p className="text-[8px] font-medium text-slate-400 dark:text-neutral-500 mt-0.5 truncate">
                       {currency === 'GBP' ? `AED ${summaryAlt.totalIncome.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${summaryAlt.totalIncome.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     </p>
-                  </div>
-                  <div className="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-700 p-2 min-w-0">
+                  </motion.div>
+                  <motion.div variants={STAGGER_ITEM} className="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-700 p-2 min-w-0">
                     <div className="flex items-center gap-1 mb-1.5">
                       <span className="w-5 h-5 rounded-md bg-rose-50 dark:bg-rose-950 flex items-center justify-center text-[10px] shrink-0">📉</span>
                       <span className="text-[7px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider truncate">Expenses</span>
@@ -1936,8 +1952,8 @@ const App: React.FC = () => {
                     <p className="text-[8px] font-medium text-slate-400 dark:text-neutral-500 mt-0.5 truncate">
                       {currency === 'GBP' ? `AED ${summaryAlt.totalExpense.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${summaryAlt.totalExpense.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     </p>
-                  </div>
-                  <div className="bg-[#635bff] rounded-xl p-2 min-w-0">
+                  </motion.div>
+                  <motion.div variants={STAGGER_ITEM} className="bg-[#635bff] rounded-xl p-2 min-w-0">
                     <div className="flex items-center gap-1 mb-1.5">
                       <span className="w-5 h-5 rounded-md bg-white/15 flex items-center justify-center text-[10px] shrink-0">💰</span>
                       <span className="text-[7px] font-semibold text-white/70 uppercase tracking-wider truncate">Saved</span>
@@ -1946,8 +1962,8 @@ const App: React.FC = () => {
                     <p className="text-[8px] font-medium text-white/60 mt-0.5 truncate">
                       {currency === 'GBP' ? `AED ${summaryAlt.balance.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `£${summaryAlt.balance.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     </p>
-                  </div>
-                </div>
+                  </motion.div>
+                </motion.div>
 
                 {/* Income Card */}
                 {(() => {
@@ -1955,13 +1971,13 @@ const App: React.FC = () => {
                   if (!incomeCat) return null;
 
                   const incomeTransactions = activeTransactions.filter(t => t.type === 'INCOME');
-                  const incomeTotal = incomeTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
-                  const incomeTotalAlt = incomeTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountAED : t.amountGBP), 0);
+                  const incomeTotal = incomeTransactions.reduce((sum, t) => sum + (Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED)), 0);
+                  const incomeTotalAlt = incomeTransactions.reduce((sum, t) => sum + (Math.abs(currency === 'GBP' ? t.amountAED : t.amountGBP)), 0);
 
                   const groupedIncome = new Map<string, { description: string; subcategoryName: string; amount: number; count: number }>();
                   incomeTransactions.forEach(t => {
                     const key = t.description || 'Unknown';
-                    const txAmount = currency === 'GBP' ? t.amountGBP : t.amountAED;
+                    const txAmount = Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED);
                     const existing = groupedIncome.get(key);
                     if (existing) {
                       existing.amount += txAmount;
@@ -2033,13 +2049,13 @@ const App: React.FC = () => {
                   const subFilter = mobileSubFilters[index] || 'all';
                   const catTransactions = subFilter === 'all' ? allCatTransactions : allCatTransactions.filter(t => t.subcategoryName === subFilter);
 
-                  const catTotal = catTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
-                  const catTotalAlt = catTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountAED : t.amountGBP), 0);
+                  const catTotal = catTransactions.reduce((sum, t) => sum + (Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED)), 0);
+                  const catTotalAlt = catTransactions.reduce((sum, t) => sum + (Math.abs(currency === 'GBP' ? t.amountAED : t.amountGBP)), 0);
 
                   const groupedTransactions = new Map<string, { description: string; subcategoryName: string; amount: number; count: number }>();
                   catTransactions.forEach(t => {
                     const key = t.description || 'Unknown';
-                    const txAmount = currency === 'GBP' ? t.amountGBP : t.amountAED;
+                    const txAmount = Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED);
                     const existing = groupedTransactions.get(key);
                     if (existing) {
                       existing.amount += txAmount;
@@ -2156,7 +2172,7 @@ const App: React.FC = () => {
                     const grouped = new Map<string, { description: string; amount: number; count: number }>();
                     txs.forEach(t => {
                       const key = t.description || 'Unknown';
-                      const txAmount = currency === 'GBP' ? t.amountGBP : t.amountAED;
+                      const txAmount = Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED);
                       const existing = grouped.get(key);
                       if (existing) { existing.amount += txAmount; existing.count += 1; }
                       else { grouped.set(key, { description: key, amount: txAmount, count: 1 }); }
@@ -2164,10 +2180,10 @@ const App: React.FC = () => {
                     return Array.from(grouped.values()).sort((a, b) => b.amount - a.amount);
                   };
 
-                  const loanInTotal = loanInTx.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
-                  const loanInTotalAlt = loanInTx.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountAED : t.amountGBP), 0);
-                  const loanOutTotal = loanOutTx.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
-                  const loanOutTotalAlt = loanOutTx.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountAED : t.amountGBP), 0);
+                  const loanInTotal = loanInTx.reduce((sum, t) => sum + (Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED)), 0);
+                  const loanInTotalAlt = loanInTx.reduce((sum, t) => sum + (Math.abs(currency === 'GBP' ? t.amountAED : t.amountGBP)), 0);
+                  const loanOutTotal = loanOutTx.reduce((sum, t) => sum + (Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED)), 0);
+                  const loanOutTotalAlt = loanOutTx.reduce((sum, t) => sum + (Math.abs(currency === 'GBP' ? t.amountAED : t.amountGBP)), 0);
                   const loanInGrouped = buildGrouped(loanInTx);
                   const loanOutGrouped = buildGrouped(loanOutTx);
 
@@ -2376,7 +2392,7 @@ const App: React.FC = () => {
                           <span className="text-xs font-bold text-slate-900 dark:text-neutral-200">Excluded</span>
                         </div>
                         <span className="text-xs font-bold text-slate-400 dark:text-neutral-500">
-                          {formatCurrency(excludedTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0))}
+                          {formatCurrency(excludedTransactions.reduce((sum, t) => sum + (Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED)), 0))}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 mt-0.5">
@@ -2395,7 +2411,7 @@ const App: React.FC = () => {
                             <span className="text-[9px] text-slate-400 dark:text-neutral-500">{t.date}</span>
                           </div>
                           <div className="px-2 py-3 text-right">
-                            <span className="text-[11px] font-semibold text-slate-400 dark:text-neutral-500">{formatCurrency(currency === 'GBP' ? t.amountGBP : t.amountAED)}</span>
+                            <span className="text-[11px] font-semibold text-slate-400 dark:text-neutral-500">{formatCurrency(Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED))}</span>
                           </div>
                         </div>
                       ))}
@@ -2408,7 +2424,8 @@ const App: React.FC = () => {
               <div className="hidden md:block space-y-6">
 
                 {/* Desktop KPI Row */}
-                <div className="grid grid-cols-3 gap-4">
+                <motion.div className="grid grid-cols-3 gap-4" variants={STAGGER_CONTAINER} initial="hidden" animate="visible">
+                  <motion.div variants={STAGGER_ITEM}>
                   <StatsCard
                     label="Income"
                     amount={summary.totalIncome}
@@ -2425,10 +2442,12 @@ const App: React.FC = () => {
                       const priorEnd = new Date(start.getTime() - 24 * 60 * 60 * 1000);
                       const priorIncome = transactions
                         .filter(t => !t.excluded && t.categoryId !== 'excluded' && t.type === 'INCOME' && t.date >= priorStart.toISOString().split('T')[0] && t.date <= priorEnd.toISOString().split('T')[0])
-                        .reduce((s, t) => s + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
+                        .reduce((s, t) => s + (Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED)), 0);
                       return priorIncome > 0 ? ((summary.totalIncome - priorIncome) / priorIncome) * 100 : 0;
                     })()}
                   />
+                  </motion.div>
+                  <motion.div variants={STAGGER_ITEM}>
                   <StatsCard
                     label="Expenses"
                     amount={summary.totalExpense}
@@ -2445,10 +2464,12 @@ const App: React.FC = () => {
                       const priorEnd = new Date(start.getTime() - 24 * 60 * 60 * 1000);
                       const priorExpense = transactions
                         .filter(t => !t.excluded && t.categoryId !== 'excluded' && t.type === 'EXPENSE' && t.date >= priorStart.toISOString().split('T')[0] && t.date <= priorEnd.toISOString().split('T')[0])
-                        .reduce((s, t) => s + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
+                        .reduce((s, t) => s + (Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED)), 0);
                       return priorExpense > 0 ? ((summary.totalExpense - priorExpense) / priorExpense) * 100 : 0;
                     })()}
                   />
+                  </motion.div>
+                  <motion.div variants={STAGGER_ITEM}>
                   <StatsCard
                     label="Profitability"
                     amount={summary.balance}
@@ -2460,7 +2481,8 @@ const App: React.FC = () => {
                     revenueAmountAlt={summaryAlt.totalIncome}
                     expenseAmountAlt={summaryAlt.totalExpense}
                   />
-                </div>
+                  </motion.div>
+                </motion.div>
 
                 {/* Section Title */}
                 <h3 className="text-xl font-bold text-slate-900 dark:text-neutral-200">Top Expense Categories</h3>
@@ -2538,7 +2560,7 @@ const App: React.FC = () => {
                     const grouped = new Map<string, { description: string; amount: number; count: number }>();
                     txs.forEach(t => {
                       const key = t.description || 'Unknown';
-                      const txAmount = currency === 'GBP' ? t.amountGBP : t.amountAED;
+                      const txAmount = Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED);
                       const existing = grouped.get(key);
                       if (existing) { existing.amount += txAmount; existing.count += 1; }
                       else { grouped.set(key, { description: key, amount: txAmount, count: 1 }); }
@@ -2546,10 +2568,10 @@ const App: React.FC = () => {
                     return Array.from(grouped.values()).sort((a, b) => b.amount - a.amount);
                   };
 
-                  const loanInTotal = loanInTx.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
-                  const loanInTotalAlt = loanInTx.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountAED : t.amountGBP), 0);
-                  const loanOutTotal = loanOutTx.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
-                  const loanOutTotalAlt = loanOutTx.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountAED : t.amountGBP), 0);
+                  const loanInTotal = loanInTx.reduce((sum, t) => sum + (Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED)), 0);
+                  const loanInTotalAlt = loanInTx.reduce((sum, t) => sum + (Math.abs(currency === 'GBP' ? t.amountAED : t.amountGBP)), 0);
+                  const loanOutTotal = loanOutTx.reduce((sum, t) => sum + (Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED)), 0);
+                  const loanOutTotalAlt = loanOutTx.reduce((sum, t) => sum + (Math.abs(currency === 'GBP' ? t.amountAED : t.amountGBP)), 0);
                   const loanInGrouped = buildGrouped(loanInTx);
                   const loanOutGrouped = buildGrouped(loanOutTx);
 
@@ -2651,11 +2673,11 @@ const App: React.FC = () => {
                 {(() => {
                   const excTxs = dateFilteredTransactions.filter(t => t.excluded || t.categoryId === 'excluded');
                   if (excTxs.length === 0) return null;
-                  const excTotal = excTxs.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
+                  const excTotal = excTxs.reduce((sum, t) => sum + (Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED)), 0);
                   const grouped = new Map<string, { description: string; amount: number; count: number }>();
                   excTxs.forEach(t => {
                     const key = t.description || 'Unknown';
-                    const txAmount = currency === 'GBP' ? t.amountGBP : t.amountAED;
+                    const txAmount = Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED);
                     const existing = grouped.get(key);
                     if (existing) { existing.amount += txAmount; existing.count += 1; }
                     else { grouped.set(key, { description: key, amount: txAmount, count: 1 }); }
@@ -2956,6 +2978,8 @@ const App: React.FC = () => {
               </div>
             </div>
           )}
+          </motion.div>
+          </AnimatePresence>
 
         </main>
       </div>

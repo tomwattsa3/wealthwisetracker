@@ -128,11 +128,15 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
             let isIncome = false;
 
             if (hasMultiColumns) {
-                // Parse multi-column format
-                const moneyOutGBP = moneyOutGBPCol ? parseFloat(String(row[moneyOutGBPCol]).replace(/[^0-9.-]/g, '')) || 0 : 0;
-                const moneyInGBP = moneyInGBPCol ? parseFloat(String(row[moneyInGBPCol]).replace(/[^0-9.-]/g, '')) || 0 : 0;
-                const moneyOutAED = moneyOutAEDCol ? parseFloat(String(row[moneyOutAEDCol]).replace(/[^0-9.-]/g, '')) || 0 : 0;
-                const moneyInAED = moneyInAEDCol ? parseFloat(String(row[moneyInAEDCol]).replace(/[^0-9.-]/g, '')) || 0 : 0;
+                // Parse multi-column format. Math.abs guards against a stray minus sign already
+                // present in the source CSV's Money In/Out cell — these columns should always be
+                // a positive magnitude, with which column it's in (In vs Out) carrying direction.
+                // Without it, a negative value here both mis-detects income vs expense below and
+                // silently cancels out other transactions when summed elsewhere in the app.
+                const moneyOutGBP = moneyOutGBPCol ? Math.abs(parseFloat(String(row[moneyOutGBPCol]).replace(/[^0-9.-]/g, '')) || 0) : 0;
+                const moneyInGBP = moneyInGBPCol ? Math.abs(parseFloat(String(row[moneyInGBPCol]).replace(/[^0-9.-]/g, '')) || 0) : 0;
+                const moneyOutAED = moneyOutAEDCol ? Math.abs(parseFloat(String(row[moneyOutAEDCol]).replace(/[^0-9.-]/g, '')) || 0) : 0;
+                const moneyInAED = moneyInAEDCol ? Math.abs(parseFloat(String(row[moneyInAEDCol]).replace(/[^0-9.-]/g, '')) || 0) : 0;
 
                 // Determine if income or expense
                 isIncome = moneyInGBP > 0 || moneyInAED > 0;

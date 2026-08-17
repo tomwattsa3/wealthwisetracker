@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Transaction, Category } from '../types';
 import { TrendingUp, TrendingDown, ChevronRight, ChevronDown, RefreshCw, ArrowLeftRight } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
+import SegmentedControl from './SegmentedControl';
 
 interface YearlySummaryProps {
   transactions: Transaction[];
@@ -62,6 +63,12 @@ const getDatePresets = () => {
 
 const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories, onRefresh, getCategoryEmoji }) => {
   const presets = getDatePresets();
+  const datePresetItems = [
+    { label: 'MTD', preset: presets.thisMonth },
+    { label: 'Last Wk', preset: presets.lastWeek },
+    { label: 'Last Mo', preset: presets.lastMonth },
+    { label: 'YTD', preset: presets.thisYear },
+  ];
 
   const [dateRange, setDateRange] = useState<DateRange>(presets.thisYear);
   const [expandedMonths, setExpandedMonths] = useState<Set<number>>(new Set());
@@ -496,28 +503,21 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-neutral-200 shrink-0">Analytics</h1>
           <div className="flex items-center gap-1.5 md:gap-2 min-w-0">
-            <div className="flex bg-slate-100 dark:bg-neutral-700 p-0.5 rounded-lg overflow-x-auto hide-scrollbar">
-              {[
-                { label: 'MTD', preset: presets.thisMonth },
-                { label: 'Last Wk', preset: presets.lastWeek },
-                { label: 'Last Mo', preset: presets.lastMonth },
-                { label: 'YTD', preset: presets.thisYear },
-              ].map((item) => (
-                <button
-                  key={item.preset.label}
-                  onClick={() => { setDateRange(item.preset); setShowCustom(false); }}
-                  className={`px-1.5 md:px-2 py-0.5 md:py-1 text-[9px] md:text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${dateRange.label === item.preset.label && !showCustom ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
-                >
-                  {item.label}
-                </button>
-              ))}
-              <button
-                onClick={() => setShowCustom(!showCustom)}
-                className={`px-1.5 md:px-2 py-0.5 md:py-1 text-[9px] md:text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${showCustom || dateRange.label === 'Custom' ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
-              >
-                Custom
-              </button>
-            </div>
+            <SegmentedControl
+              layoutId="yearlyDatePresetPill"
+              className="overflow-x-auto hide-scrollbar"
+              optionClassName="md:px-2 text-[9px] md:text-[10px]"
+              options={[
+                ...datePresetItems.map(item => ({ id: item.preset.label, label: item.label })),
+                { id: 'Custom', label: 'Custom' },
+              ]}
+              value={showCustom ? 'Custom' : dateRange.label}
+              onChange={(id) => {
+                if (id === 'Custom') { setShowCustom(!showCustom); return; }
+                const item = datePresetItems.find(i => i.preset.label === id);
+                if (item) { setDateRange(item.preset); setShowCustom(false); }
+              }}
+            />
             {onRefresh && (
               <button
                 onClick={onRefresh}
@@ -639,17 +639,13 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                   </div>
                 ) : null;
               })()}
-            <div className="flex bg-slate-100 dark:bg-neutral-700 p-0.5 rounded-lg shrink-0">
-              {granularityOptions.map(g => (
-                <button
-                  key={g}
-                  onClick={() => setChartGranularity(g)}
-                  className={`px-1.5 md:px-2.5 py-1 text-[9px] md:text-[10px] font-semibold rounded-md transition-all capitalize ${chartGranularity === g ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
-                >
-                  {g}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              layoutId="yearlyGranularityPill"
+              optionClassName="md:px-2.5 text-[9px] md:text-[10px] capitalize"
+              options={granularityOptions.map(g => ({ id: g, label: g }))}
+              value={chartGranularity}
+              onChange={(id) => setChartGranularity(id as 'daily' | 'weekly' | 'monthly')}
+            />
             </div>{/* end flex controls wrapper */}
           </div>
           <div className="px-2 md:px-5 pt-4 pb-1">

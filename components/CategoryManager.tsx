@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Category, TransactionType } from '../types';
 import { Plus, Tag, FolderPlus, X, Check, Trash2, Search, ChevronRight, Layers, AlertTriangle, Pencil } from 'lucide-react';
+import AnimatedModal from './AnimatedModal';
 
 interface CategoryManagerProps {
   categories: Category[];
@@ -40,40 +41,35 @@ const DeleteCategoryModal = ({
     onConfirm: () => void;
     categoryName: string;
 }) => {
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
-            <div className="relative bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 border border-slate-100 dark:border-neutral-700 animate-in zoom-in-95 duration-200">
-                <div className="flex flex-col items-center text-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100">
-                        <AlertTriangle size={24} />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-neutral-200">Delete Category?</h3>
-                        <p className="text-sm text-slate-500 dark:text-neutral-500 mt-2 leading-relaxed">
-                            Are you sure you want to delete <span className="font-bold text-slate-900 dark:text-neutral-200">{categoryName}</span>?
-                            This action cannot be undone.
-                        </p>
-                    </div>
-                    <div className="flex gap-3 w-full mt-2">
-                        <button
-                            onClick={onClose}
-                            className="flex-1 py-2.5 rounded-xl font-bold text-slate-700 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-700 hover:bg-slate-200 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={onConfirm}
-                            className="flex-1 py-2.5 rounded-xl font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-200 transition-all active:scale-95"
-                        >
-                            Delete
-                        </button>
-                    </div>
+        <AnimatedModal isOpen={isOpen} onClose={onClose}>
+            <div className="flex flex-col items-center text-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100">
+                    <AlertTriangle size={24} />
+                </div>
+                <div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-neutral-200">Delete Category?</h3>
+                    <p className="text-sm text-slate-500 dark:text-neutral-500 mt-2 leading-relaxed">
+                        Are you sure you want to delete <span className="font-bold text-slate-900 dark:text-neutral-200">{categoryName}</span>?
+                        This action cannot be undone.
+                    </p>
+                </div>
+                <div className="flex gap-3 w-full mt-2">
+                    <button
+                        onClick={onClose}
+                        className="flex-1 py-2.5 rounded-xl font-bold text-slate-700 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-700 hover:bg-slate-200 transition-colors active:scale-95"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        className="flex-1 py-2.5 rounded-xl font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-200 transition-all active:scale-95"
+                    >
+                        Delete
+                    </button>
                 </div>
             </div>
-        </div>
+        </AnimatedModal>
     );
 };
 
@@ -88,40 +84,35 @@ const DeleteSubcategoryModal = ({
     onConfirm: () => void;
     subcategoryName: string;
 }) => {
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
-            <div className="relative bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 border border-slate-100 dark:border-neutral-700 animate-in zoom-in-95 duration-200">
-                <div className="flex flex-col items-center text-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100">
-                        <AlertTriangle size={24} />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-neutral-200">Delete Subcategory?</h3>
-                        <p className="text-sm text-slate-500 dark:text-neutral-500 mt-2 leading-relaxed">
-                            Are you sure you want to delete <span className="font-bold text-slate-900 dark:text-neutral-200">{subcategoryName}</span>?
-                            This action cannot be undone.
-                        </p>
-                    </div>
-                    <div className="flex gap-3 w-full mt-2">
-                        <button
-                            onClick={onClose}
-                            className="flex-1 py-2.5 rounded-xl font-bold text-slate-700 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-700 hover:bg-slate-200 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={onConfirm}
-                            className="flex-1 py-2.5 rounded-xl font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-200 transition-all active:scale-95"
-                        >
-                            Delete
-                        </button>
-                    </div>
+        <AnimatedModal isOpen={isOpen} onClose={onClose}>
+            <div className="flex flex-col items-center text-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100">
+                    <AlertTriangle size={24} />
+                </div>
+                <div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-neutral-200">Delete Subcategory?</h3>
+                    <p className="text-sm text-slate-500 dark:text-neutral-500 mt-2 leading-relaxed">
+                        Are you sure you want to delete <span className="font-bold text-slate-900 dark:text-neutral-200">{subcategoryName}</span>?
+                        This action cannot be undone.
+                    </p>
+                </div>
+                <div className="flex gap-3 w-full mt-2">
+                    <button
+                        onClick={onClose}
+                        className="flex-1 py-2.5 rounded-xl font-bold text-slate-700 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-700 hover:bg-slate-200 transition-colors active:scale-95"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        className="flex-1 py-2.5 rounded-xl font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-200 transition-all active:scale-95"
+                    >
+                        Delete
+                    </button>
                 </div>
             </div>
-        </div>
+        </AnimatedModal>
     );
 };
 
@@ -534,10 +525,11 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
       />
 
       {/* Create Category Modal */}
-      {isCreating && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
-           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsCreating(false)}></div>
-           <div className="relative w-full max-w-sm sm:max-w-lg bg-white dark:bg-neutral-800 rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+      <AnimatedModal
+        isOpen={isCreating}
+        onClose={() => setIsCreating(false)}
+        panelClassName="relative w-full max-w-sm sm:max-w-lg bg-white dark:bg-neutral-800 rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden"
+      >
               <div className="p-3 sm:p-6 border-b border-slate-100 dark:border-neutral-700 flex justify-between items-center bg-slate-50/50 dark:bg-neutral-700/50">
                  <h3 className="text-sm sm:text-lg font-bold text-slate-800 dark:text-neutral-300">Create Category</h3>
                  <button onClick={() => setIsCreating(false)} className="text-slate-400 dark:text-neutral-500 hover:text-slate-600">
@@ -607,15 +599,16 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
                     </button>
                  </div>
               </form>
-           </div>
-        </div>
-      )}
+      </AnimatedModal>
 
       {/* Edit Category Modal */}
-      {isEditing && selectedCategory && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
-           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsEditing(false)}></div>
-           <div className="relative w-full max-w-sm sm:max-w-lg bg-white dark:bg-neutral-800 rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+      <AnimatedModal
+        isOpen={isEditing && !!selectedCategory}
+        onClose={() => setIsEditing(false)}
+        panelClassName="relative w-full max-w-sm sm:max-w-lg bg-white dark:bg-neutral-800 rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden"
+      >
+        {selectedCategory && (
+          <>
               <div className="p-3 sm:p-6 border-b border-slate-100 dark:border-neutral-700 flex justify-between items-center bg-slate-50/50 dark:bg-neutral-700/50">
                  <h3 className="text-sm sm:text-lg font-bold text-slate-800 dark:text-neutral-300">Edit Category</h3>
                  <button onClick={() => setIsEditing(false)} className="text-slate-400 dark:text-neutral-500 hover:text-slate-600">
@@ -673,9 +666,9 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
                     </button>
                  </div>
               </form>
-           </div>
-        </div>
-      )}
+          </>
+        )}
+      </AnimatedModal>
     </div>
   );
 };

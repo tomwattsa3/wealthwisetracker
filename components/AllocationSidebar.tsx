@@ -41,7 +41,7 @@ const AllocationSidebar: React.FC<AllocationSidebarProps> = ({
     }>();
 
     incomeTransactions.forEach(t => {
-      const txAmount = currency === 'GBP' ? t.amountGBP : t.amountAED;
+      const txAmount = Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED);
       const existing = groups.get(t.description);
       if (existing) {
         existing.amount += txAmount;
@@ -66,7 +66,7 @@ const AllocationSidebar: React.FC<AllocationSidebarProps> = ({
     return Array.from(groups.values()).sort((a, b) => b.amount - a.amount);
   }, [incomeTransactions, currency]);
 
-  const incomeTotal = incomeTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
+  const incomeTotal = incomeTransactions.reduce((sum, t) => sum + (Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED)), 0);
 
   // Group excluded transactions by merchant
   const groupedExcluded = useMemo(() => {
@@ -79,7 +79,7 @@ const AllocationSidebar: React.FC<AllocationSidebarProps> = ({
     }>();
 
     excludedTransactions.forEach(t => {
-      const txAmount = currency === 'GBP' ? t.amountGBP : t.amountAED;
+      const txAmount = Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED);
       const existing = groups.get(t.description);
       if (existing) {
         existing.amount += txAmount;
@@ -102,7 +102,7 @@ const AllocationSidebar: React.FC<AllocationSidebarProps> = ({
     return Array.from(groups.values()).sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
   }, [excludedTransactions, currency]);
 
-  const excludedTotal = excludedTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0);
+  const excludedTotal = excludedTransactions.reduce((sum, t) => sum + (Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED)), 0);
 
   return (
     <div className="flex flex-col gap-5 h-full">

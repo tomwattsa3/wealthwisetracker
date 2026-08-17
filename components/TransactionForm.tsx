@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, X, Calendar, PoundSterling, Type, Tag, EyeOff, Building } from 'lucide-react';
 import { Transaction, TransactionType, Category, Bank } from '../types';
+import AnimatedModal from './AnimatedModal';
 
 interface TransactionFormProps {
   onAddTransaction: (transaction: Omit<Transaction, 'id'>) => void;
@@ -77,15 +78,13 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction, isO
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 sm:p-6">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
-
-      {/* Modal Content */}
-      <div className="relative w-full max-w-md bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl overflow-hidden transform transition-all animate-in slide-in-from-bottom-10 fade-in border border-slate-100 dark:border-neutral-700">
+    <AnimatedModal
+      isOpen={isOpen}
+      onClose={onClose}
+      wrapperClassName="items-end sm:items-center p-4 sm:p-6"
+      panelClassName="relative w-full max-w-md bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl overflow-hidden border border-slate-100 dark:border-neutral-700"
+    >
         <div className="bg-white dark:bg-neutral-800 p-6 border-b border-slate-100 dark:border-neutral-700 flex justify-between items-start">
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-neutral-200 tracking-tight">New Transaction</h2>
@@ -236,8 +235,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction, isO
             Add Transaction
           </button>
         </form>
-      </div>
-    </div>
+    </AnimatedModal>
   );
 };
 

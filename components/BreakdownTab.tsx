@@ -1,7 +1,10 @@
 
 import React, { useMemo, useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { ChevronRight, GripVertical, X } from 'lucide-react';
 import { Transaction, Category } from '../types';
+import SegmentedControl from './SegmentedControl';
+import { MODAL_TRANSITION, SHEET_TRANSITION } from '../lib/motion';
 
 interface BreakdownTabProps {
   transactions: Transaction[];
@@ -14,13 +17,30 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const monthInputValue = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
 const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, getCategoryEmoji }) => {
-  const [currency, setCurrency] = useState<'GBP' | 'AED'>('GBP');
+  // Currency and date-range selections are persisted to localStorage (same mechanism already
+  // used below for category order/width) so a page refresh doesn't reset them back to defaults.
+  const [currency, setCurrency] = useState<'GBP' | 'AED'>(() => {
+    const saved = localStorage.getItem('breakdownCurrency');
+    return saved === 'AED' ? 'AED' : 'GBP';
+  });
+  useEffect(() => {
+    localStorage.setItem('breakdownCurrency', currency);
+  }, [currency]);
+
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
 
   const now = new Date();
-  const [rangeStart, setRangeStart] = useState(`${now.getFullYear()}-01`);
-  const [rangeEnd, setRangeEnd] = useState(monthInputValue(now));
-  const [rangeLabel, setRangeLabel] = useState<'Last Month' | 'YTD' | 'This Year' | 'Custom'>('YTD');
+  const [rangeStart, setRangeStart] = useState(() => localStorage.getItem('breakdownRangeStart') || `${now.getFullYear()}-01`);
+  const [rangeEnd, setRangeEnd] = useState(() => localStorage.getItem('breakdownRangeEnd') || monthInputValue(now));
+  const [rangeLabel, setRangeLabel] = useState<'Last Month' | 'YTD' | 'This Year' | 'Custom'>(() => {
+    const saved = localStorage.getItem('breakdownRangeLabel');
+    return saved === 'Last Month' || saved === 'YTD' || saved === 'This Year' || saved === 'Custom' ? saved : 'YTD';
+  });
+  useEffect(() => {
+    localStorage.setItem('breakdownRangeStart', rangeStart);
+    localStorage.setItem('breakdownRangeEnd', rangeEnd);
+    localStorage.setItem('breakdownRangeLabel', rangeLabel);
+  }, [rangeStart, rangeEnd, rangeLabel]);
 
   // Custom row order — persisted, category id order within each section (income/expense)
   const [categoryOrder, setCategoryOrder] = useState<string[]>(() => {
@@ -48,6 +68,15 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     isExpense: boolean;
   } | null>(null);
   const [detailSortBy, setDetailSortBy] = useState<'date' | 'amount'>('date');
+
+  // AnimatePresence (below, where the modal renders) plays the exit animation automatically
+  // before this actually unmounts the modal — no manual setTimeout/closing-state dance needed.
+  const closeDetailModal = () => setDetailModal(null);
+
+  // Drag-to-dismiss is restricted to the header (via dragListener={false} + this controls
+  // object) rather than the whole modal panel, so swiping through the transaction list below
+  // scrolls it normally instead of fighting with the dismiss gesture.
+  const detailModalDragControls = useDragControls();
 
   const [categoryColWidth, setCategoryColWidth] = useState<number>(() => {
     try {
@@ -209,7 +238,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
   }, [detailModal, activeTransactions, detailSortBy, currency]);
 
   const detailModalTotal = useMemo(
-    () => detailModalTransactions.reduce((sum, t) => sum + (currency === 'GBP' ? t.amountGBP : t.amountAED), 0),
+    () => detailModalTransactions.reduce((sum, t) => sum + Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED), 0),
     [detailModalTransactions, currency]
   );
 
@@ -228,12 +257,17 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
   }, [rangeStart, rangeEnd]);
 
   // categoryId -> monthKey -> amount
+  // Uses Math.abs because stored amountGBP/amountAED is supposed to always be a positive
+  // magnitude (sign comes from the category's income/expense type at render time), but a
+  // handful of rows have crept in with a negative value already baked in (e.g. a bad
+  // import/edit) — without the abs(), one of those silently cancels out other transactions
+  // in the same category+month cell instead of adding to the total.
   const grid = useMemo(() => {
     const map = new Map<string, Map<string, number>>();
     activeTransactions.forEach(t => {
       const d = new Date(t.date);
       const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
-      const amount = currency === 'GBP' ? t.amountGBP : t.amountAED;
+      const amount = Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED);
       if (!map.has(t.categoryId)) map.set(t.categoryId, new Map());
       const catMap = map.get(t.categoryId)!;
       catMap.set(monthKey, (catMap.get(monthKey) || 0) + amount);
@@ -248,7 +282,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
       const subKey = `${t.categoryId}::${t.subcategoryName || 'Other'}`;
       const d = new Date(t.date);
       const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
-      const amount = currency === 'GBP' ? t.amountGBP : t.amountAED;
+      const amount = Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED);
       if (!map.has(subKey)) map.set(subKey, new Map());
       const catMap = map.get(subKey)!;
       catMap.set(monthKey, (catMap.get(monthKey) || 0) + amount);
@@ -310,74 +344,79 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     const isDragging = draggingId === cat.id;
     const isDragOver = dragOverId === cat.id && draggingId !== cat.id;
 
-    const rows = [
-      <tr
-        key={cat.id}
-        data-cat-row={cat.id}
-        className={`border-b border-slate-100 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-700/60 ${rowBg(rowIndex)} ${isDragging ? 'opacity-40' : ''} ${isDragOver ? 'border-t-2 border-t-[#635bff]' : ''}`}
-      >
-        <td className={`sticky left-0 z-10 px-1.5 md:px-2 py-2.5 md:py-[12.5px] border-r border-slate-200 dark:border-neutral-700 ${rowBg(rowIndex)}`}>
-          <div className="flex items-center gap-1">
-            <button
-              onPointerDown={handleGripPointerDown(cat.id, allVisibleCatIds)}
-              className="text-slate-300 dark:text-neutral-600 hover:text-slate-500 dark:hover:text-neutral-400 cursor-grab active:cursor-grabbing touch-none shrink-0 p-0.5"
-              title="Drag to reorder"
-            >
-              <GripVertical size={13} />
-            </button>
-            <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => toggleCat(cat.id)}>
-              <ChevronRight size={12} className={`text-slate-400 dark:text-neutral-500 transition-transform shrink-0 ${isExpanded ? 'rotate-90' : ''} ${subNames.length === 0 ? 'opacity-0' : ''}`} />
-              <span
-                className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] shrink-0"
-                style={{ backgroundColor: `${cat.color || '#94a3b8'}1A` }}
+    return (
+      <>
+        <tr
+          data-cat-row={cat.id}
+          className={`border-b border-slate-100 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-700/60 ${rowBg(rowIndex)} ${isDragging ? 'opacity-40' : ''} ${isDragOver ? 'border-t-2 border-t-[#635bff]' : ''}`}
+        >
+          <td className={`sticky left-0 z-10 px-1.5 md:px-2 py-2.5 md:py-[12.5px] border-r border-slate-200 dark:border-neutral-700 ${rowBg(rowIndex)}`}>
+            <div className="flex items-center gap-1">
+              <button
+                onPointerDown={handleGripPointerDown(cat.id, allVisibleCatIds)}
+                className="text-slate-300 dark:text-neutral-600 hover:text-slate-500 dark:hover:text-neutral-400 cursor-grab active:cursor-grabbing touch-none shrink-0 p-0.5"
+                title="Drag to reorder"
               >
-                {getCategoryEmoji(cat.id)}
-              </span>
-              <span className="font-medium text-slate-700 dark:text-neutral-300 whitespace-nowrap">{cat.name}</span>
-            </div>
-          </div>
-        </td>
-        {monthCols.map(m => {
-          const amt = getCell(cat.id, m.key);
-          return (
-            <td
-              key={m.key}
-              onClick={() => amt !== 0 && setDetailModal({ categoryId: cat.id, categoryName: cat.name, year: m.year, monthIndex: m.monthIndex, isExpense })}
-              className={`px-1.5 md:px-3 py-2.5 md:py-[12.5px] text-center tabular-nums border-l border-slate-100 dark:border-neutral-700/60 ${amountClass} ${amt !== 0 ? 'cursor-pointer hover:underline' : ''}`}
-            >
-              {amt !== 0 ? formatAmount(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
-            </td>
-          );
-        })}
-      </tr>
-    ];
-
-    if (isExpanded) {
-      subNames.forEach(subName => {
-        const subRowIndex = zebraRef.i++;
-        rows.push(
-          <tr key={`${cat.id}-${subName}`} className={`border-b border-slate-100 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-700/60 ${rowBg(subRowIndex)}`}>
-            <td className={`sticky left-0 z-10 pl-6 md:pl-11 pr-2 md:pr-4 py-[7.5px] md:py-2.5 border-r border-slate-200 dark:border-neutral-700 ${rowBg(subRowIndex)}`}>
-              <span className="text-slate-500 dark:text-neutral-500 whitespace-nowrap">{subName}</span>
-            </td>
-            {monthCols.map(m => {
-              const amt = getSubCell(cat.id, subName, m.key);
-              return (
-                <td
-                  key={m.key}
-                  onClick={() => amt !== 0 && setDetailModal({ categoryId: cat.id, categoryName: cat.name, subcategoryName: subName, year: m.year, monthIndex: m.monthIndex, isExpense })}
-                  className={`px-1.5 md:px-3 py-[7.5px] md:py-2.5 text-center tabular-nums border-l border-slate-100 dark:border-neutral-700/60 text-slate-500 dark:text-neutral-500 ${amt !== 0 ? 'cursor-pointer hover:underline' : ''}`}
+                <GripVertical size={13} />
+              </button>
+              <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => toggleCat(cat.id)}>
+                <ChevronRight size={12} className={`text-slate-400 dark:text-neutral-500 transition-transform shrink-0 ${isExpanded ? 'rotate-90' : ''} ${subNames.length === 0 ? 'opacity-0' : ''}`} />
+                <span
+                  className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] shrink-0"
+                  style={{ backgroundColor: `${cat.color || '#94a3b8'}1A` }}
                 >
-                  {amt !== 0 ? formatAmount(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
+                  {getCategoryEmoji(cat.id)}
+                </span>
+                <span className="font-medium text-slate-700 dark:text-neutral-300 whitespace-nowrap">{cat.name}</span>
+              </div>
+            </div>
+          </td>
+          {monthCols.map(m => {
+            const amt = getCell(cat.id, m.key);
+            return (
+              <td
+                key={m.key}
+                onClick={() => amt !== 0 && setDetailModal({ categoryId: cat.id, categoryName: cat.name, year: m.year, monthIndex: m.monthIndex, isExpense })}
+                className={`px-1.5 md:px-3 py-2.5 md:py-[12.5px] text-center tabular-nums border-l border-slate-100 dark:border-neutral-700/60 ${amountClass} ${amt !== 0 ? 'cursor-pointer hover:underline' : ''}`}
+              >
+                {amt !== 0 ? formatAmount(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
+              </td>
+            );
+          })}
+        </tr>
+        <AnimatePresence initial={false}>
+          {isExpanded && subNames.map(subName => {
+            const subRowIndex = zebraRef.i++;
+            return (
+              <motion.tr
+                key={`${cat.id}-${subName}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={MODAL_TRANSITION}
+                className={`border-b border-slate-100 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-700/60 ${rowBg(subRowIndex)}`}
+              >
+                <td className={`sticky left-0 z-10 pl-6 md:pl-11 pr-2 md:pr-4 py-[7.5px] md:py-2.5 border-r border-slate-200 dark:border-neutral-700 ${rowBg(subRowIndex)}`}>
+                  <span className="text-slate-500 dark:text-neutral-500 whitespace-nowrap">{subName}</span>
                 </td>
-              );
-            })}
-          </tr>
-        );
-      });
-    }
-
-    return <>{rows}</>;
+                {monthCols.map(m => {
+                  const amt = getSubCell(cat.id, subName, m.key);
+                  return (
+                    <td
+                      key={m.key}
+                      onClick={() => amt !== 0 && setDetailModal({ categoryId: cat.id, categoryName: cat.name, subcategoryName: subName, year: m.year, monthIndex: m.monthIndex, isExpense })}
+                      className={`px-1.5 md:px-3 py-[7.5px] md:py-2.5 text-center tabular-nums border-l border-slate-100 dark:border-neutral-700/60 text-slate-500 dark:text-neutral-500 ${amt !== 0 ? 'cursor-pointer hover:underline' : ''}`}
+                    >
+                      {amt !== 0 ? formatAmount(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
+                    </td>
+                  );
+                })}
+              </motion.tr>
+            );
+          })}
+        </AnimatePresence>
+      </>
+    );
   };
 
   const incomeZebra = { i: 0 };
@@ -416,17 +455,15 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex bg-slate-100 dark:bg-neutral-700 p-0.5 rounded-lg shrink-0">
-            {presets.map(preset => (
-              <button
-                key={preset.label}
-                onClick={() => applyPreset(preset)}
-                className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${rangeLabel === preset.label ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            layoutId="breakdownPresetPill"
+            options={presets.map(p => ({ id: p.label, label: p.label }))}
+            value={rangeLabel === 'Custom' ? '' : rangeLabel}
+            onChange={(id) => {
+              const preset = presets.find(p => p.label === id);
+              if (preset) applyPreset(preset);
+            }}
+          />
           {/* Desktop-only: date selector in its original spot */}
           <div className="hidden md:flex items-center gap-1.5 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 rounded-lg px-2 py-1">
             <div className="relative">
@@ -449,19 +486,13 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
               />
             </div>
           </div>
-          <div className="hidden md:flex bg-slate-100 dark:bg-neutral-700 p-0.5 rounded-lg shrink-0">
-            <button
-              onClick={() => setCurrency('GBP')}
-              className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all ${currency === 'GBP' ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
-            >
-              £
-            </button>
-            <button
-              onClick={() => setCurrency('AED')}
-              className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all ${currency === 'AED' ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
-            >
-              AED
-            </button>
+          <div className="hidden md:flex">
+            <SegmentedControl
+              layoutId="breakdownCurrencyPill"
+              options={[{ id: 'GBP', label: '£' }, { id: 'AED', label: 'AED' }]}
+              value={currency}
+              onChange={(id) => setCurrency(id as 'GBP' | 'AED')}
+            />
           </div>
         </div>
       </div>
@@ -474,10 +505,10 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
         <div
           key={`${rangeStart}_${rangeEnd}_${currency}`}
           className="-mx-3 md:mx-0 bg-white dark:bg-neutral-800 rounded-none md:rounded-2xl border-y md:border border-slate-200 dark:border-neutral-700 overflow-hidden"
-          style={{ animation: 'breakdownFadeIn 0.28s ease-out' }}
+          style={{ animation: 'breakdownFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)' }}
         >
           <style>{`@keyframes breakdownFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
-          <div className="overflow-auto custom-scrollbar max-h-[75vh]">
+          <div data-no-pull-refresh className="overflow-auto custom-scrollbar max-h-[75vh]">
             <table
               className="border-collapse text-[10px] md:text-[13px] w-full transition-[width] duration-300"
               style={{ tableLayout: 'fixed', minWidth: `${categoryColWidth + monthCols.length * 64}px`, transition: 'min-width 0.05s linear' }}
@@ -577,36 +608,53 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
       )}
 
       {/* Transaction detail modal — opened by tapping a category's month cell. Slides down from
-          the top of the screen, covering ~75% of it, with the close button at the bottom. */}
+          the top of the screen, covering ~75% of it, with the close button at the bottom. Drag it
+          up (or flick it up) to dismiss, like a native sheet. */}
+      <AnimatePresence>
       {detailModal && (
         <div className="fixed inset-0 z-[100] md:flex md:items-center md:justify-center md:p-4">
-          <style>{`@keyframes breakdownModalSlideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }`}</style>
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setDetailModal(null)} />
-          <div
+          <motion.div
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={MODAL_TRANSITION}
+            onClick={closeDetailModal}
+          />
+          <motion.div
             className="relative bg-white dark:bg-neutral-800 rounded-b-2xl md:rounded-2xl shadow-2xl w-full h-[75vh] md:w-[620px] md:h-[520px] md:max-h-[80vh] flex flex-col border-b border-x md:border border-slate-100 dark:border-neutral-700"
-            style={{ animation: 'breakdownModalSlideDown 0.28s ease-out' }}
+            initial={{ y: '-100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '-100%' }}
+            transition={SHEET_TRANSITION}
+            drag="y"
+            dragListener={false}
+            dragControls={detailModalDragControls}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0.5, bottom: 0 }}
+            onDragEnd={(_, info) => {
+              if (info.offset.y < -80 || info.velocity.y < -600) {
+                closeDetailModal();
+              }
+            }}
           >
             <div className="order-1 px-5 py-4 border-b border-slate-100 dark:border-neutral-700 shrink-0 flex items-center justify-between gap-2">
-              <div className="min-w-0">
+              <div
+                onPointerDown={(e) => detailModalDragControls.start(e)}
+                className="min-w-0 touch-none cursor-grab active:cursor-grabbing"
+              >
                 <h3 className="text-sm md:text-lg font-bold text-slate-900 dark:text-neutral-200 truncate">
                   {detailModal.categoryName}{detailModal.subcategoryName ? ` · ${detailModal.subcategoryName}` : ''}
                 </h3>
                 <p className="text-xs md:text-sm text-slate-400 dark:text-neutral-500 mt-0.5">{MONTHS[detailModal.monthIndex]} {detailModal.year}</p>
               </div>
-              <div className="flex bg-slate-100 dark:bg-neutral-700 p-0.5 rounded-lg shrink-0">
-                <button
-                  onClick={() => setDetailSortBy('date')}
-                  className={`px-2 md:px-2.5 py-1 text-[9px] md:text-[11px] font-semibold rounded-md transition-all ${detailSortBy === 'date' ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
-                >
-                  Date
-                </button>
-                <button
-                  onClick={() => setDetailSortBy('amount')}
-                  className={`px-2 md:px-2.5 py-1 text-[9px] md:text-[11px] font-semibold rounded-md transition-all ${detailSortBy === 'amount' ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-200 shadow-sm' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
-                >
-                  Amount
-                </button>
-              </div>
+              <SegmentedControl
+                layoutId="breakdownDetailSortPill"
+                options={[{ id: 'date', label: 'Date' }, { id: 'amount', label: 'Amount' }]}
+                value={detailSortBy}
+                onChange={(id) => setDetailSortBy(id as 'date' | 'amount')}
+                optionClassName="md:px-2.5 text-[9px] md:text-[11px]"
+              />
             </div>
             <div className="order-3 md:order-2 flex-1 overflow-y-auto custom-scrollbar">
               {detailModalTransactions.length > 0 ? (
@@ -626,7 +674,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                       {detailModal.categoryName}{t.subcategoryName ? `/${t.subcategoryName}` : ''}
                     </span>
                     <span className={`shrink-0 font-bold tabular-nums whitespace-nowrap ${detailModal.isExpense ? 'text-slate-800 dark:text-neutral-300' : 'text-emerald-700 dark:text-emerald-400'}`}>
-                      {formatAmount((detailModal.isExpense ? -1 : 1) * (currency === 'GBP' ? t.amountGBP : t.amountAED))}
+                      {formatAmount((detailModal.isExpense ? -1 : 1) * Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED))}
                     </span>
                   </div>
                 ))
@@ -643,16 +691,17 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
             {/* Close button at the bottom */}
             <div className="order-4 px-5 py-3 border-t border-slate-100 dark:border-neutral-700 flex justify-center shrink-0">
               <button
-                onClick={() => setDetailModal(null)}
+                onClick={closeDetailModal}
                 className="w-10 h-10 rounded-full bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-slate-500 dark:text-neutral-400 hover:bg-slate-200 dark:hover:bg-neutral-600 transition-colors"
                 title="Close"
               >
                 <X size={18} />
               </button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
+      </AnimatePresence>
     </div>
   );
 };
