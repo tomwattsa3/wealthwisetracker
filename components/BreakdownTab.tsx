@@ -758,7 +758,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
               sync with the main table's via syncFooterScroll so the columns stay lined up; it's
               a real <table> with matching colgroup widths (not divs) so those widths compute
               identically to the main table's auto-distributed columns. */}
-          <div ref={footerScrollRef} className="shrink-0 overflow-x-auto hide-scrollbar border-t border-slate-200 dark:border-neutral-700">
+          <div ref={footerScrollRef} className="shrink-0 mt-2 overflow-x-auto hide-scrollbar border-t border-slate-200 dark:border-neutral-700">
             <table
               className="border-collapse text-[10px] md:text-[13px] w-full"
               style={{ tableLayout: 'fixed', minWidth: `${categoryColWidth + cols.length * 64}px` }}
@@ -769,26 +769,26 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
               </colgroup>
               <tbody>
                 <tr className="bg-slate-50 dark:bg-neutral-700 border-b border-slate-200 dark:border-neutral-700">
-                  <td className="sticky left-0 z-10 bg-slate-50 dark:bg-neutral-700 px-2 md:px-4 py-1.5 font-bold text-[10px] md:text-xs text-slate-900 dark:text-neutral-200 border-r border-slate-200 dark:border-neutral-700 whitespace-nowrap">
+                  <td className="sticky left-0 z-10 bg-slate-50 dark:bg-neutral-700 px-2 md:px-4 py-[6.6px] font-bold text-[10px] md:text-xs text-slate-900 dark:text-neutral-200 border-r border-slate-200 dark:border-neutral-700 whitespace-nowrap">
                     Total Expenses
                   </td>
                   {cols.map(col => (
                     <td
                       key={col.key}
-                      className="px-1.5 md:px-3 py-1.5 text-center tabular-nums font-numeric font-bold text-[10px] md:text-xs border-l border-slate-200 dark:border-neutral-700 text-slate-800 dark:text-neutral-300"
+                      className="px-1.5 md:px-3 py-[6.6px] text-center tabular-nums font-numeric font-bold text-[10px] md:text-xs border-l border-slate-200 dark:border-neutral-700 text-slate-800 dark:text-neutral-300"
                     >
                       {formatAmount(-colTotal(expenseCategories, col))}
                     </td>
                   ))}
                 </tr>
                 <tr className="bg-[#635bff]">
-                  <td className="sticky left-0 z-10 bg-[#635bff] px-2 md:px-4 py-1.5 font-bold text-[10px] md:text-xs text-white border-r border-[#5348e0] whitespace-nowrap">
+                  <td className="sticky left-0 z-10 bg-[#635bff] px-2 md:px-4 py-[6.6px] font-bold text-[10px] md:text-xs text-white border-r border-[#5348e0] whitespace-nowrap">
                     Net
                   </td>
                   {cols.map(col => {
                     const net = colTotal(incomeCategories, col) - colTotal(expenseCategories, col);
                     return (
-                      <td key={col.key} className="px-1.5 md:px-3 py-1.5 text-center tabular-nums font-numeric font-bold text-[10px] md:text-xs border-l border-white/10 text-white">
+                      <td key={col.key} className="px-1.5 md:px-3 py-[6.6px] text-center tabular-nums font-numeric font-bold text-[10px] md:text-xs border-l border-white/10 text-white">
                         {formatAmount(net)}
                       </td>
                     );
