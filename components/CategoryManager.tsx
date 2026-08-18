@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Category, TransactionType } from '../types';
-import { Plus, Tag, FolderPlus, X, Check, Trash2, Search, ChevronRight, Layers, AlertTriangle, Pencil } from 'lucide-react';
+import { Plus, Tag, FolderPlus, X, Check, Trash2, Search, ChevronRight, Layers, AlertTriangle, Pencil, Sparkles } from 'lucide-react';
 import AnimatedModal from './AnimatedModal';
 
 interface CategoryManagerProps {
@@ -13,6 +13,7 @@ interface CategoryManagerProps {
   onDeleteCategory: (categoryId: string) => void;
   getCategoryEmoji?: (categoryId: string) => string;
   onEmojiChange?: (categoryId: string, emoji: string) => void;
+  onReapplyAllEmojis?: () => void;
 }
 
 const PRESET_COLORS = [
@@ -154,7 +155,8 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
   onDeleteSubcategory,
   onDeleteCategory,
   getCategoryEmoji,
-  onEmojiChange
+  onEmojiChange,
+  onReapplyAllEmojis
 }) => {
   // Selection State
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -329,13 +331,28 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
                 <Layers className="text-violet-600" size={16} />
                 Categories
               </h2>
-              <button
-                onClick={() => setIsCreating(true)}
-                className="p-1.5 sm:p-2.5 bg-slate-900 dark:bg-neutral-600 text-white rounded-lg hover:bg-slate-800 transition-colors shadow-sm"
-                title="Add Category"
-              >
-                <Plus size={14} className="sm:w-[18px] sm:h-[18px]" />
-              </button>
+              <div className="flex items-center gap-1.5">
+                {onReapplyAllEmojis && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Re-guess every category\'s emoji from its name? This overwrites any you\'ve set manually.')) {
+                        onReapplyAllEmojis();
+                      }
+                    }}
+                    className="p-1.5 sm:p-2.5 bg-white dark:bg-neutral-700 text-slate-500 dark:text-neutral-400 border border-slate-200 dark:border-neutral-600 rounded-lg hover:bg-slate-50 dark:hover:bg-neutral-600 hover:text-slate-700 dark:hover:text-neutral-200 transition-colors shadow-sm"
+                    title="Re-apply emojis to all categories based on their names"
+                  >
+                    <Sparkles size={14} className="sm:w-[18px] sm:h-[18px]" />
+                  </button>
+                )}
+                <button
+                  onClick={() => setIsCreating(true)}
+                  className="p-1.5 sm:p-2.5 bg-slate-900 dark:bg-neutral-600 text-white rounded-lg hover:bg-slate-800 transition-colors shadow-sm"
+                  title="Add Category"
+                >
+                  <Plus size={14} className="sm:w-[18px] sm:h-[18px]" />
+                </button>
+              </div>
            </div>
 
            {/* Search */}

@@ -71,6 +71,7 @@ const CATEGORY_EMOJI_KEYWORDS: [string[], string][] = [
     [['taxi', 'uber', 'careem', 'rideshare', 'ride share', 'cab'], '🚕'],
     [['train', 'metro', 'subway', 'bus', 'transit'], '🚆'],
     [['car', 'vehicle', 'auto'], '🚗'],
+    [['transport', 'transportation'], '🚌'],
     [['flight', 'airfare', 'airline'], '✈️'],
     [['hotel', 'accommodation'], '🏨'],
     [['vacation', 'holiday', 'trip'], '🧳'],
@@ -105,6 +106,9 @@ const CATEGORY_EMOJI_KEYWORDS: [string[], string][] = [
     [['shopping'], '🛍️'],
     [['transfer'], '🔁'],
     [['exclude'], '🚫'],
+    [['day to day', 'daily spending', 'everyday'], '🧾'],
+    [['random', 'misc', 'miscellaneous'], '📦'],
+    [['personal'], '👤'],
 ];
 
 // Auto-pick a fitting emoji from a category name when nothing has been explicitly set,
@@ -334,6 +338,18 @@ const App: React.FC = () => {
     setCategories(prev => prev.map(c => c.id === categoryId ? { ...c, emoji } : c));
     const { error } = await supabase.from('Categories').update({ emoji }).eq('id', categoryId);
     if (error) console.error('Failed to update category emoji:', error);
+  };
+
+  // Re-guesses every category's emoji from its name and overwrites whatever's currently stored
+  // (including ones that were already manually set) — for when the existing set has drifted from
+  // what the names actually say, rather than fixing them one at a time.
+  const reapplyAllCategoryEmojis = async () => {
+    const updates = categories.map(c => ({ id: c.id, emoji: guessCategoryEmoji(c.name) || DEFAULT_CATEGORY_EMOJIS[c.id] || '📊' }));
+    setCategories(prev => prev.map(c => {
+      const match = updates.find(u => u.id === c.id);
+      return match ? { ...c, emoji: match.emoji } : c;
+    }));
+    await Promise.all(updates.map(u => supabase.from('Categories').update({ emoji: u.emoji }).eq('id', u.id)));
   };
 
   // Widget Configuration State
@@ -2743,6 +2759,7 @@ const App: React.FC = () => {
                     onDeleteCategory={handleDeleteCategory}
                     getCategoryEmoji={getCategoryEmoji}
                     onEmojiChange={handleEmojiChange}
+                    onReapplyAllEmojis={reapplyAllCategoryEmojis}
                  />
              </div>
           )}
