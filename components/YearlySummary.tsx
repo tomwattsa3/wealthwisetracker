@@ -643,35 +643,25 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         {/* Spending Trend Chart */}
         <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 overflow-hidden">
           <div className="px-4 md:px-5 pt-4 pb-3.5 md:pt-5 md:pb-4 border-b border-slate-100 dark:border-neutral-700 space-y-3">
-            <div className="flex items-center gap-1.5 md:gap-3">
-              <h3 className="text-[10px] md:text-sm font-bold text-slate-900 dark:text-neutral-200 shrink-0 leading-tight whitespace-nowrap text-left">Spending Trend</h3>
-              {chartCategoryFilters.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => { setChartCategoryFilters([]); setChartSubcategoryFilter('all'); }}
-                  className="shrink-0 text-[9px] md:text-[11px] font-semibold text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-300 underline underline-offset-2 transition-colors whitespace-nowrap"
-                >
-                  Remove filters
-                </button>
-              )}
-              <div className="flex items-center gap-1 md:gap-2 flex-1 justify-end flex-nowrap overflow-x-auto hide-scrollbar">
-                <SegmentedControl
-                  layoutId="yearlyGranularityPill"
-                  optionClassName="md:px-2.5 text-[9px] md:text-[10px] capitalize"
-                  options={granularityOptions.map(g => ({ id: g, label: g }))}
-                  value={chartGranularity}
-                  onChange={(id) => setChartGranularity(id as 'daily' | 'weekly' | 'monthly')}
-                />
-              </div>
-            </div>
-
-            {/* Category multi-select + monthly average for whatever's selected — a fixed
-                flex-col stack (not flex-wrap) so the gap between the dropdown row and the
-                Total/Avg row stays the same regardless of how many categories are selected or
-                how wide the resulting numbers are; flex-wrap let content length change which
-                line things landed on and made the gap between them jump around. */}
-            <div className="flex flex-col items-start gap-1.5">
-              <div className="flex flex-col items-start gap-1.5">
+            {/* Two independent columns instead of one interleaved stack: everything about
+                *picking* what to look at (title, filters, category/subcategory) stays on the
+                left; everything about the *numbers for that pick* (granularity, Total, Avg)
+                stacks tightly on the right, starting at the very top — so Total sits right under
+                Monthly/Weekly instead of trailing behind however tall the left column gets. */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col items-start gap-1.5 min-w-0">
+                <div className="flex items-center gap-1.5 md:gap-3">
+                  <h3 className="text-[10px] md:text-sm font-bold text-slate-900 dark:text-neutral-200 shrink-0 leading-tight whitespace-nowrap text-left">Spending Trend</h3>
+                  {chartCategoryFilters.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => { setChartCategoryFilters([]); setChartSubcategoryFilter('all'); }}
+                      className="shrink-0 text-[9px] md:text-[11px] font-semibold text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-300 underline underline-offset-2 transition-colors whitespace-nowrap"
+                    >
+                      Remove filters
+                    </button>
+                  )}
+                </div>
               <div className="relative shrink-0" ref={categoryMenuRef}>
                 <button
                   type="button"
@@ -739,14 +729,23 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                 ) : null;
               })()}
               </div>
-              <div className="flex flex-col md:flex-row gap-2 ml-auto">
-                <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-neutral-700/60 rounded-lg px-2.5 py-1.5 md:px-3.5 md:py-2.5">
-                  <span className="text-[8px] md:text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap">Total</span>
-                  <span className="text-[11px] md:text-base font-bold tabular-nums font-numeric text-slate-900 dark:text-neutral-200 whitespace-nowrap">{formatAmount(chartSelectedTotal)}</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-neutral-700/60 rounded-lg px-2.5 py-1.5 md:px-3.5 md:py-2.5">
-                  <span className="text-[8px] md:text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap">Avg/{avgPeriodLabel}</span>
-                  <span className="text-[11px] md:text-base font-bold tabular-nums font-numeric text-slate-900 dark:text-neutral-200 whitespace-nowrap">{formatAmount(chartSelectedAvgPerPeriod)}</span>
+              <div className="flex flex-col items-end gap-1.5 shrink-0">
+                <SegmentedControl
+                  layoutId="yearlyGranularityPill"
+                  optionClassName="md:px-2.5 text-[9px] md:text-[10px] capitalize"
+                  options={granularityOptions.map(g => ({ id: g, label: g }))}
+                  value={chartGranularity}
+                  onChange={(id) => setChartGranularity(id as 'daily' | 'weekly' | 'monthly')}
+                />
+                <div className="flex flex-col md:flex-row gap-2">
+                  <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-neutral-700/60 rounded-lg px-2.5 py-1.5 md:px-3.5 md:py-2.5">
+                    <span className="text-[8px] md:text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap">Total</span>
+                    <span className="text-[11px] md:text-base font-bold tabular-nums font-numeric text-slate-900 dark:text-neutral-200 whitespace-nowrap">{formatAmount(chartSelectedTotal)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-neutral-700/60 rounded-lg px-2.5 py-1.5 md:px-3.5 md:py-2.5">
+                    <span className="text-[8px] md:text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap">Avg/{avgPeriodLabel}</span>
+                    <span className="text-[11px] md:text-base font-bold tabular-nums font-numeric text-slate-900 dark:text-neutral-200 whitespace-nowrap">{formatAmount(chartSelectedAvgPerPeriod)}</span>
+                  </div>
                 </div>
               </div>
             </div>
