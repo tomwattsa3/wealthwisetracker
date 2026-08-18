@@ -154,7 +154,11 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     if (!el || !detailModal) return;
     const prevOverflow = el.style.overflow;
     el.style.overflow = 'hidden';
-    return () => { el.style.overflow = prevOverflow; };
+    // Restoring overflow on a large table forces the browser to recompute its layout/scrollbars
+    // — doing that synchronously in the same commit as closeDetailModal() competes with the
+    // very first frame of the modal's slide-up exit animation and visibly stalls it. Deferring
+    // one frame lets that first frame paint before the table's layout gets touched.
+    return () => { requestAnimationFrame(() => { el.style.overflow = prevOverflow; }); };
   }, [detailModal]);
 
   const handleResizePointerDown = (e: React.PointerEvent) => {

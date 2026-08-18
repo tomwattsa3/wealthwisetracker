@@ -13,6 +13,31 @@ interface BankFeedUploadProps {
 
 const AED_TO_GBP_RATE = 0.21;
 
+// Historical GBP->AED rate, fetched per calendar month (keyed "YYYY-MM") and cached for the
+// life of the page — used to fill in whichever currency an import doesn't provide, using the
+// actual rate for that transaction's month instead of one flat rate applied everywhere. Backed
+// by a free, keyless historical-rates API (no ECB feed publishes AED, so frankfurter.app etc.
+// don't work here). Falls back to the static AED_TO_GBP_RATE if the fetch fails for any reason
+// (offline, rate limited, a month with no published data) so an import never hard-fails on this.
+const monthlyGbpToAedRateCache = new Map<string, number>();
+const fetchMonthlyGbpToAedRate = async (month: string): Promise<number> => {
+  const cached = monthlyGbpToAedRateCache.get(month);
+  if (cached) return cached;
+  const fallback = 1 / AED_TO_GBP_RATE;
+  try {
+    const res = await fetch(`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${month}-01/v1/currencies/gbp.json`);
+    if (!res.ok) throw new Error('rate fetch failed');
+    const data = await res.json();
+    const rate = data?.gbp?.aed;
+    const resolved = typeof rate === 'number' && rate > 0 ? rate : fallback;
+    monthlyGbpToAedRateCache.set(month, resolved);
+    return resolved;
+  } catch {
+    monthlyGbpToAedRateCache.set(month, fallback);
+    return fallback;
+  }
+};
+
 const pad2 = (n: number): string => String(n).padStart(2, '0');
 
 // Builds a YYYY-MM-DD string directly from parts instead of round-tripping through
@@ -28,19 +53,36 @@ const buildDateString = (year: number, month: number, day: number): string | nul
   return `${year}-${pad2(month)}-${pad2(day)}`;
 };
 
+// A 4-digit year within a sane range for a real transaction — used to disambiguate which way
+// round an 8-digit compact date reads, since both orderings can independently parse into a
+// technically-valid calendar date (e.g. "15062026" is validly either 15 Jun 2026 or the year
+// 1506, June 20th).
+const isPlausibleTransactionYear = (dateStr: string | null): boolean => {
+  if (!dateStr) return false;
+  const year = Number(dateStr.slice(0, 4));
+  return year >= 2000 && year <= 2100;
+};
+
 // Bank statements export dates as DD/MM/YYYY, but `new Date(str)` assumes US MM/DD/YYYY
 // for slash-separated strings, silently swapping day/month whenever the day is <= 12.
-// Wio Bank exports a compact YYYYMMDD string instead (e.g. 20260518), which `new Date()`
-// can't parse at all — it returns Invalid Date, so it's matched explicitly here regardless
-// of which bank is selected in the upload dropdown.
+// Some banks (e.g. Wio) export a compact 8-digit string instead, with no separators at all —
+// `new Date()` can't parse that, returning Invalid Date, so it's matched explicitly here. Which
+// of the two common orderings (YYYYMMDD vs DDMMYYYY) it actually is varies by export, so both
+// are tried and whichever produces a plausible, recent year wins — guessing wrong here used to
+// silently fail validation and fall all the way through to defaulting to today's date instead
+// of the real transaction date.
 const parseTransactionDate = (rawDate: string): string => {
   const trimmed = String(rawDate).trim();
 
-  const compactMatch = trimmed.match(/^(\d{4})(\d{2})(\d{2})$/);
+  const compactMatch = trimmed.match(/^(\d{8})$/);
   if (compactMatch) {
-    const [, year, month, day] = compactMatch;
-    const built = buildDateString(Number(year), Number(month), Number(day));
-    if (built) return built;
+    const digits = compactMatch[1];
+    const asYyyymmdd = buildDateString(Number(digits.slice(0, 4)), Number(digits.slice(4, 6)), Number(digits.slice(6, 8)));
+    const asDdmmyyyy = buildDateString(Number(digits.slice(4, 8)), Number(digits.slice(2, 4)), Number(digits.slice(0, 2)));
+    if (isPlausibleTransactionYear(asYyyymmdd)) return asYyyymmdd!;
+    if (isPlausibleTransactionYear(asDdmmyyyy)) return asDdmmyyyy!;
+    if (asYyyymmdd) return asYyyymmdd;
+    if (asDdmmyyyy) return asDdmmyyyy;
   }
 
   const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -90,7 +132,6 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
           return;
         }
 
-        const parsed: Omit<Transaction, 'id'>[] = [];
         const data = results.data as any[];
         const headers = results.meta.fields || [];
 
@@ -119,13 +160,39 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
         let count = 0;
         let autoCategorizedCount = 0;
 
+        // First pass (synchronous): parse every row, but don't fill in a missing currency yet —
+        // just record which month's rate it'll need. This lets every unique month's historical
+        // rate be fetched once, in parallel, instead of doing it serially per-row.
+        interface StagedRow {
+            dateStr: string;
+            month: string;
+            rawDesc: string;
+            amountGBP: number;
+            amountAED: number;
+            needsGbpToAed: boolean;
+            needsAedToGbp: boolean;
+            isIncome: boolean;
+            bankName: string;
+            categoryId: string;
+            categoryName: string;
+            subcategoryName: string;
+            wasAutoCategorized: boolean;
+        }
+
+        const staged: StagedRow[] = [];
+        const monthsNeedingRate = new Set<string>();
+
         data.forEach((row) => {
             const rawDate = row[dateCol];
             const rawDesc = descCol ? row[descCol] : 'Unknown Transaction';
+            const dateStr = parseTransactionDate(rawDate);
+            const month = dateStr.slice(0, 7);
 
             let amountGBP = 0;
             let amountAED = 0;
             let isIncome = false;
+            let needsGbpToAed = false;
+            let needsAedToGbp = false;
 
             if (hasMultiColumns) {
                 // Parse multi-column format. Math.abs guards against a stray minus sign already
@@ -146,12 +213,14 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
                 // Skip rows with no amounts
                 if (amountGBP === 0 && amountAED === 0) return;
 
-                // If one currency is missing, convert from the other
+                // If one currency is missing, convert from the other using that month's actual rate
                 if (amountGBP === 0 && amountAED > 0) {
-                    amountGBP = amountAED * AED_TO_GBP_RATE;
+                    needsAedToGbp = true;
+                    monthsNeedingRate.add(month);
                 }
                 if (amountAED === 0 && amountGBP > 0) {
-                    amountAED = amountGBP / AED_TO_GBP_RATE;
+                    needsGbpToAed = true;
+                    monthsNeedingRate.add(month);
                 }
             } else {
                 // Single amount column (legacy format)
@@ -161,13 +230,15 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
 
                 isIncome = amountSource >= 0;
                 const isForeign = selectedBank.currency !== 'GBP';
-                const rate = selectedBank.currency === 'AED' ? AED_TO_GBP_RATE : 1;
-                amountGBP = Math.abs(amountSource * rate);
-                amountAED = isForeign ? Math.abs(amountSource) : amountGBP / AED_TO_GBP_RATE;
+                if (isForeign) {
+                    amountAED = Math.abs(amountSource);
+                    needsAedToGbp = true;
+                } else {
+                    amountGBP = Math.abs(amountSource);
+                    needsGbpToAed = true;
+                }
+                monthsNeedingRate.add(month);
             }
-
-            // Date Formatting
-            const dateStr = parseTransactionDate(rawDate);
 
             // Use bank from CSV if available, otherwise use selected bank
             const bankName = bankCol && row[bankCol] ? row[bankCol] : selectedBank.name;
@@ -193,23 +264,43 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
               autoCategorizedCount++;
             }
 
-            parsed.push({
-                date: dateStr,
+            staged.push({
+                dateStr, month, rawDesc, amountGBP, amountAED, needsGbpToAed, needsAedToGbp,
+                isIncome, bankName, categoryId, categoryName, subcategoryName, wasAutoCategorized
+            });
+        });
+
+        // Fetch each distinct month's historical GBP->AED rate once, in parallel.
+        const rateByMonth = new Map<string, number>();
+        await Promise.all(Array.from(monthsNeedingRate).map(async (month) => {
+            rateByMonth.set(month, await fetchMonthlyGbpToAedRate(month));
+        }));
+
+        const parsed: Omit<Transaction, 'id'>[] = staged.map((r) => {
+            let amountGBP = r.amountGBP;
+            let amountAED = r.amountAED;
+            if (r.needsGbpToAed) {
+                amountAED = amountGBP * (rateByMonth.get(r.month) ?? (1 / AED_TO_GBP_RATE));
+            } else if (r.needsAedToGbp) {
+                amountGBP = amountAED / (rateByMonth.get(r.month) ?? (1 / AED_TO_GBP_RATE));
+            }
+            count++;
+            return {
+                date: r.dateStr,
                 amount: amountGBP,
                 amountGBP: amountGBP,
                 amountAED: amountAED,
                 originalAmount: amountAED > 0 ? amountAED : undefined,
                 originalCurrency: amountAED > 0 ? 'AED' : undefined,
-                type: isIncome ? 'INCOME' : 'EXPENSE',
-                categoryId,
-                categoryName,
-                subcategoryName,
-                description: rawDesc,
-                notes: wasAutoCategorized ? '✨ Auto-categorized' : '',
+                type: r.isIncome ? 'INCOME' : 'EXPENSE',
+                categoryId: r.categoryId,
+                categoryName: r.categoryName,
+                subcategoryName: r.subcategoryName,
+                description: r.rawDesc,
+                notes: r.wasAutoCategorized ? '✨ Auto-categorized' : '',
                 excluded: false,
-                bankName: bankName
-            });
-            count++;
+                bankName: r.bankName
+            };
         });
 
         if (parsed.length === 0) {
