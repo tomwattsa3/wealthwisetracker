@@ -666,7 +666,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                 <button
                   type="button"
                   onClick={() => setCategoryMenuOpen(o => !o)}
-                  className="flex items-center gap-1.5 bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg pl-2.5 pr-2 py-1.5 text-[10px] md:text-[11px] font-semibold text-slate-600 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer max-w-[220px] md:max-w-[320px]"
+                  className="flex items-center gap-1.5 bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg pl-2.5 pr-2 py-1.5 text-[10px] md:text-[11px] font-semibold text-slate-600 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer max-w-[170px] md:max-w-[320px]"
                 >
                   <span className="truncate">
                     {chartCategoryFilters.length === 0
