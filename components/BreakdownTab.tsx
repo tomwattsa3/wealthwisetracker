@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { ChevronRight, ChevronDown, GripVertical, SlidersHorizontal, X } from 'lucide-react';
 import { Transaction, Category } from '../types';
@@ -134,27 +134,16 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     localStorage.setItem('breakdownCategoryColWidth', String(categoryColWidth));
   }, [categoryColWidth]);
 
-  // Measured (not guessed) height of the Net row, so the Total Expenses row above it can be
-  // positioned with an exact `bottom` offset — no gap for scrolled rows to show through, and no
-  // reliance on `position: sticky` working on <tfoot> (unreliable on Safari/iOS).
-  //
-  // This has to be a callback ref, not a plain useRef + useLayoutEffect([]): the table wrapper
-  // remounts (it's keyed on range/currency/viewMode below), which destroys and recreates the Net
-  // <tr> DOM node. A useLayoutEffect that only runs once on BreakdownTab's own mount would keep
-  // its ResizeObserver watching the old, now-detached node forever, freezing netRowHeight at a
-  // stale value the moment the user changes range, currency, or view — a callback ref instead
-  // fires on every attach, so the observer always tracks the row that's actually on screen.
-  const netRowObserverRef = useRef<ResizeObserver | null>(null);
-  const [netRowHeight, setNetRowHeight] = useState(0);
-  const netRowRef = useCallback((el: HTMLTableRowElement | null) => {
-    netRowObserverRef.current?.disconnect();
-    netRowObserverRef.current = null;
-    if (!el) return;
-    setNetRowHeight(el.offsetHeight);
-    const observer = new ResizeObserver(() => setNetRowHeight(el.offsetHeight));
-    observer.observe(el);
-    netRowObserverRef.current = observer;
-  }, []);
+  // Total Expenses/Net live in their own compact footer below the scrolling table now (not
+  // sticky inside it), so there's no longer a need to measure Net's height to offset Total
+  // Expenses above it — they're just two plain stacked rows.
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const footerScrollRef = useRef<HTMLDivElement>(null);
+  const syncFooterScroll = () => {
+    if (tableScrollRef.current && footerScrollRef.current) {
+      footerScrollRef.current.scrollLeft = tableScrollRef.current.scrollLeft;
+    }
+  };
 
   const handleResizePointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
@@ -570,9 +559,9 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
   const expenseZebra = { i: 0 };
 
   return (
-    <div className="h-full flex flex-col pb-8 md:pb-4 space-y-2 md:space-y-4">
+    <div className="h-full flex flex-col pb-8 md:pb-4 space-y-2.5 md:space-y-4">
       {/* Header */}
-      <div className="shrink-0 flex flex-col md:flex-row md:items-start justify-between gap-1.5 md:gap-3">
+      <div className="shrink-0 flex flex-col md:flex-row md:items-start justify-between gap-2 md:gap-3.5">
         <div className="relative flex items-center gap-2 md:block">
           <div className="shrink-0">
             <h1 className="text-sm md:text-2xl font-bold text-slate-900 dark:text-neutral-200">Breakdown</h1>
@@ -702,7 +691,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
           style={{ animation: 'breakdownFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)' }}
         >
           <style>{`@keyframes breakdownFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
-          <div data-no-pull-refresh className="flex-1 min-h-0 overflow-auto custom-scrollbar">
+          <div data-no-pull-refresh ref={tableScrollRef} onScroll={syncFooterScroll} className="flex-1 min-h-0 overflow-auto custom-scrollbar">
             <table
               className="border-collapse text-[10px] md:text-[13px] w-full transition-[width] duration-300"
               style={{ tableLayout: 'fixed', minWidth: `${categoryColWidth + cols.length * 64}px`, transition: 'min-width 0.05s linear' }}
@@ -759,37 +748,47 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                   <CategorySection key={cat.id} cat={cat} isExpense={true} zebraRef={expenseZebra} />
                 ))}
 
-                {/* Total Expenses — positioned exactly `netRowHeight` px above the bottom, measured
-                    from the actual Net row below (not guessed), so no gap ever opens up between
-                    them for scrolled rows to show through. Sticky lives on the <td> cells directly
-                    since position:sticky on <tfoot>/<tr> is unreliable on Safari/iOS. */}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Total Expenses / Net — a compact footer pinned below the scrolling table (not
+              inside it), so it always sits just above the space that clears the bottom nav
+              instead of eating into the rows you can see. Its own horizontal scroll is kept in
+              sync with the main table's via syncFooterScroll so the columns stay lined up; it's
+              a real <table> with matching colgroup widths (not divs) so those widths compute
+              identically to the main table's auto-distributed columns. */}
+          <div ref={footerScrollRef} className="shrink-0 overflow-x-auto hide-scrollbar border-t border-slate-200 dark:border-neutral-700">
+            <table
+              className="border-collapse text-[10px] md:text-[13px] w-full"
+              style={{ tableLayout: 'fixed', minWidth: `${categoryColWidth + cols.length * 64}px` }}
+            >
+              <colgroup>
+                <col style={{ width: `${categoryColWidth}px` }} />
+                {cols.map(col => <col key={col.key} />)}
+              </colgroup>
+              <tbody>
                 <tr className="bg-slate-50 dark:bg-neutral-700 border-b border-slate-200 dark:border-neutral-700">
-                  <td
-                    className="sticky left-0 z-[25] bg-slate-50 dark:bg-neutral-700 px-2 md:px-4 py-2.5 md:py-[12.5px] font-bold text-slate-900 dark:text-neutral-200 border-r border-slate-200 dark:border-neutral-700 whitespace-nowrap"
-                    style={{ bottom: netRowHeight }}
-                  >
+                  <td className="sticky left-0 z-10 bg-slate-50 dark:bg-neutral-700 px-2 md:px-4 py-1.5 font-bold text-[10px] md:text-xs text-slate-900 dark:text-neutral-200 border-r border-slate-200 dark:border-neutral-700 whitespace-nowrap">
                     Total Expenses
                   </td>
                   {cols.map(col => (
                     <td
                       key={col.key}
-                      className="sticky z-[15] bg-slate-50 dark:bg-neutral-700 px-1.5 md:px-3 py-2.5 md:py-[12.5px] text-center tabular-nums font-numeric font-bold border-l border-slate-200 dark:border-neutral-700 text-slate-800 dark:text-neutral-300"
-                      style={{ bottom: netRowHeight }}
+                      className="px-1.5 md:px-3 py-1.5 text-center tabular-nums font-numeric font-bold text-[10px] md:text-xs border-l border-slate-200 dark:border-neutral-700 text-slate-800 dark:text-neutral-300"
                     >
                       {formatAmount(-colTotal(expenseCategories, col))}
                     </td>
                   ))}
                 </tr>
-
-                {/* Net — sticky to the actual bottom of the screen */}
-                <tr ref={netRowRef} className="bg-[#635bff]">
-                  <td className="sticky left-0 bottom-0 z-30 bg-[#635bff] px-2 md:px-4 py-[12.5px] md:py-[15px] font-bold text-white border-r border-[#5348e0] whitespace-nowrap shadow-[0_-2px_8px_rgba(0,0,0,0.08)]">
+                <tr className="bg-[#635bff]">
+                  <td className="sticky left-0 z-10 bg-[#635bff] px-2 md:px-4 py-1.5 font-bold text-[10px] md:text-xs text-white border-r border-[#5348e0] whitespace-nowrap">
                     Net
                   </td>
                   {cols.map(col => {
                     const net = colTotal(incomeCategories, col) - colTotal(expenseCategories, col);
                     return (
-                      <td key={col.key} className="sticky bottom-0 z-20 bg-[#635bff] px-1.5 md:px-3 py-[12.5px] md:py-[15px] text-center tabular-nums font-numeric font-bold border-l border-white/10 text-white shadow-[0_-2px_8px_rgba(0,0,0,0.08)]">
+                      <td key={col.key} className="px-1.5 md:px-3 py-1.5 text-center tabular-nums font-numeric font-bold text-[10px] md:text-xs border-l border-white/10 text-white">
                         {formatAmount(net)}
                       </td>
                     );
