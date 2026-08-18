@@ -21,7 +21,20 @@ const AnimatedModal: React.FC<AnimatedModalProps> = ({ isOpen, onClose, children
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className={`fixed inset-0 z-[100] flex justify-center p-4 ${wrapperClassName || 'items-center'}`}>
+        // The wrapper carries its own exit={{ pointerEvents: 'none' }} — Framer Motion applies
+        // non-numeric style values like this instantly, at the *start* of the exit transition,
+        // not when it finishes. That matters because AnimatePresence keeps this full-screen
+        // overlay mounted for the whole exit animation, and on iOS Safari specifically, the
+        // exit-complete callback that would normally unmount it can occasionally never fire —
+        // leaving an invisible click-eating layer over the entire app until reload. Setting
+        // pointer-events to none the moment the close starts means a stuck exit can never block
+        // input, regardless of whether the fade-out visual itself ever finishes.
+        <motion.div
+          className={`fixed inset-0 z-[100] flex justify-center p-4 ${wrapperClassName || 'items-center'}`}
+          initial={{ pointerEvents: 'auto' }}
+          animate={{ pointerEvents: 'auto' }}
+          exit={{ pointerEvents: 'none' }}
+        >
           <motion.div
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
             onClick={onClose}
@@ -39,7 +52,7 @@ const AnimatedModal: React.FC<AnimatedModalProps> = ({ isOpen, onClose, children
           >
             {children}
           </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
   );

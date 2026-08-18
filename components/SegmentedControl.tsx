@@ -19,6 +19,10 @@ interface SegmentedControlProps {
   optionClassName?: string;
   activeTextClassName?: string;
   inactiveTextClassName?: string;
+  /** Background (+ any other styling) of the sliding active pill — defaults to a plain white/dark
+   * card. Override for controls where that reads as too low-contrast against the track (e.g. a
+   * solid accent color), pairing it with a lighter `activeTextClassName`. */
+  pillClassName?: string;
 }
 
 // Shared "pill behind the active option" control — replaces the instant className-swap pattern
@@ -33,6 +37,7 @@ const SegmentedControl: React.FC<SegmentedControlProps> = ({
   optionClassName,
   activeTextClassName = 'text-slate-900 dark:text-neutral-200',
   inactiveTextClassName = 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300',
+  pillClassName = 'bg-white dark:bg-neutral-800 border border-slate-200/80 dark:border-neutral-600/80',
 }) => {
   return (
     <div className={`flex bg-slate-100 dark:bg-neutral-700 p-0.5 rounded-lg shrink-0 ${className || ''}`}>
@@ -43,12 +48,13 @@ const SegmentedControl: React.FC<SegmentedControlProps> = ({
             key={opt.id}
             type="button"
             onClick={() => onChange(opt.id)}
-            className={`relative px-2.5 py-1 text-[10px] font-semibold rounded-md whitespace-nowrap transition-colors active:scale-95 ${isActive ? activeTextClassName : inactiveTextClassName} ${optionClassName || ''}`}
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+            className={`relative px-2.5 py-1 text-[10px] font-semibold rounded-md whitespace-nowrap transition-colors active:scale-95 outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[#635bff]/40 ${isActive ? activeTextClassName : inactiveTextClassName} ${optionClassName || ''}`}
           >
             {isActive && (
               <motion.div
                 layoutId={layoutId}
-                className="absolute inset-0 bg-white dark:bg-neutral-800 rounded-md shadow-sm -z-10"
+                className={`absolute inset-0 rounded-md shadow-[0_1px_3px_rgba(0,0,0,0.1)] -z-10 ${pillClassName}`}
                 transition={{ duration: DURATION.press, ease: EASE_OUT }}
               />
             )}

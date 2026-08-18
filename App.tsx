@@ -285,9 +285,9 @@ const App: React.FC = () => {
   // previous tab instead of resetting (or restoring the new tab's own remembered position),
   // since <main> itself never unmounts across tab switches. Restoration happens via a callback
   // ref (below, on the tab content's motion.div) rather than a useEffect keyed on activeTab,
-  // because AnimatePresence's mode="wait" delays the new tab's actual mount until the outgoing
-  // one's exit animation finishes — a plain effect would fire too early, before real content
-  // (and therefore real scrollable height) exists.
+  // because a callback ref fires exactly when React actually creates the new tab's DOM node —
+  // a plain effect keyed on activeTab can fire a render early relative to that, before real
+  // content (and therefore real scrollable height) exists.
   const scrollPositions = useRef<Record<string, number>>({});
   const handleTabChange = useCallback((newTab: typeof activeTab) => {
     if (mainRef.current) {
@@ -1851,7 +1851,14 @@ const App: React.FC = () => {
             </div>
           )}
 
-          <AnimatePresence mode="wait">
+          {/* mode="popLayout", not "wait": with "wait" the incoming tab doesn't mount until the
+              outgoing one's exit animation reports complete, and on iOS Safari that completion
+              callback can occasionally never fire — which would make tapping nav items appear to
+              do nothing, since the new tab is stuck waiting behind a phantom exit. popLayout still
+              mounts the new tab immediately (no dependency on the old one finishing) while pulling
+              the exiting tab out of layout flow so the two don't visually stack on top of each
+              other in the meantime. */}
+          <AnimatePresence mode="popLayout">
           <motion.div
             key={activeTab}
             ref={restoreScrollOnMount}

@@ -720,7 +720,17 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
           mid-animation, which was the likely source of a visible glitch right at the top edge. */}
       <AnimatePresence>
       {detailModal && (
-        <div className="fixed inset-0 z-[100] md:flex md:items-center md:justify-center md:p-4">
+        // exit={{ pointerEvents: 'none' }} makes this whole overlay (including the draggable
+        // panel below) stop intercepting touches the instant it starts closing, not just once
+        // AnimatePresence finishes unmounting it — on iOS Safari the exit-complete callback that
+        // normally does that unmount can occasionally never fire, which otherwise leaves an
+        // invisible full-screen layer eating every subsequent tap until the page is reloaded.
+        <motion.div
+          className="fixed inset-0 z-[100] md:flex md:items-center md:justify-center md:p-4"
+          initial={{ pointerEvents: 'auto' }}
+          animate={{ pointerEvents: 'auto' }}
+          exit={{ pointerEvents: 'none' }}
+        >
           <motion.div
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
             initial={{ opacity: 0 }}
@@ -762,6 +772,8 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                   options={[{ id: 'date', label: 'Date' }, { id: 'amount', label: 'Amount' }]}
                   value={detailSortBy}
                   onChange={(id) => setDetailSortBy(id as 'date' | 'amount')}
+                  activeTextClassName="text-[#635bff] dark:text-[#8b85ff]"
+                  inactiveTextClassName="text-slate-500 dark:text-neutral-400 hover:text-slate-700 dark:hover:text-neutral-300"
                   optionClassName="md:px-2.5 text-[9px] md:text-[11px]"
                 />
               </div>
@@ -851,7 +863,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
               </button>
             </div>
           </motion.div>
-        </div>
+        </motion.div>
       )}
       </AnimatePresence>
     </div>

@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Transaction, Category } from '../types';
 import { TrendingUp, TrendingDown, ChevronRight, ChevronDown, RefreshCw, ArrowLeftRight } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
@@ -77,8 +77,28 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [chartGranularity, setChartGranularity] = useState<'daily' | 'weekly' | 'monthly'>('daily');
-  const [chartCategoryFilter, setChartCategoryFilter] = useState<string>('all');
+  // Empty array means "All Categories" — otherwise the chart/average combine every selected
+  // category (e.g. Food + Groceries + Transport) into one line/total instead of picking just one.
+  const [chartCategoryFilters, setChartCategoryFilters] = useState<string[]>([]);
   const [chartSubcategoryFilter, setChartSubcategoryFilter] = useState<string>('all');
+  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const categoryMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!categoryMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (categoryMenuRef.current && !categoryMenuRef.current.contains(e.target as Node)) {
+        setCategoryMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [categoryMenuOpen]);
+
+  const toggleChartCategory = (id: string) => {
+    setChartCategoryFilters(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    setChartSubcategoryFilter('all');
+  };
 
   // Compare card state
   const [compareCat, setCompareCat] = useState<string>('');
@@ -385,11 +405,12 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
   const chartData = useMemo(() => {
     const expenses = filteredTransactions.filter(t => {
       if (t.type !== 'EXPENSE') return false;
-      if (chartCategoryFilter === 'all') return true;
-      const cat = categories.find(c => c.id === t.categoryId || c.name === t.categoryName);
-      const catId = cat?.id || t.categoryId;
-      if (catId !== chartCategoryFilter) return false;
-      if (chartSubcategoryFilter !== 'all' && t.subcategoryName !== chartSubcategoryFilter) return false;
+      if (chartCategoryFilters.length > 0) {
+        const cat = categories.find(c => c.id === t.categoryId || c.name === t.categoryName);
+        const catId = cat?.id || t.categoryId;
+        if (!chartCategoryFilters.includes(catId)) return false;
+      }
+      if (chartCategoryFilters.length === 1 && chartSubcategoryFilter !== 'all' && t.subcategoryName !== chartSubcategoryFilter) return false;
       return true;
     });
 
@@ -476,7 +497,32 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         amountAED: Math.round(monthAmountAED * 100) / 100,
       };
     });
-  }, [filteredTransactions, dateRange, chartGranularity, monthlyData, chartCategoryFilter, chartSubcategoryFilter, categories]);
+  }, [filteredTransactions, dateRange, chartGranularity, monthlyData, chartCategoryFilters, chartSubcategoryFilter, categories]);
+
+  // Total (and monthly average) for whichever categories are selected above, over the current
+  // date range — e.g. Jan–Mar with Food + Groceries + Transport selected gives the combined
+  // average monthly spend across just those three categories for those three months.
+  const chartSelectedTotal = useMemo(() => {
+    return filteredTransactions.reduce((sum, t) => {
+      if (t.type !== 'EXPENSE') return sum;
+      if (chartCategoryFilters.length > 0) {
+        const cat = categories.find(c => c.id === t.categoryId || c.name === t.categoryName);
+        const catId = cat?.id || t.categoryId;
+        if (!chartCategoryFilters.includes(catId)) return sum;
+      }
+      if (chartCategoryFilters.length === 1 && chartSubcategoryFilter !== 'all' && t.subcategoryName !== chartSubcategoryFilter) return sum;
+      return sum + t.amount;
+    }, 0);
+  }, [filteredTransactions, chartCategoryFilters, chartSubcategoryFilter, categories]);
+
+  // Divide by however many points the chart itself is currently showing — one per registered
+  // month in Monthly view, one per calendar week in Weekly view, one per calendar day in Daily
+  // view — so switching the granularity toggle switches what the average is "per", instead of
+  // always being a monthly figure regardless of which view is selected. Not
+  // `completedMonthsInRange`: that's calendar months elapsed so far this year, which overcounts
+  // and deflates the average whenever the data doesn't yet reach the current month.
+  const avgPeriodLabel = chartGranularity === 'monthly' ? 'mo' : chartGranularity === 'weekly' ? 'wk' : 'day';
+  const chartSelectedAvgPerPeriod = chartSelectedTotal / (chartData.length || 1);
 
   // KPI calculations
   const totalIncome = filteredTransactions.filter(t => t.type === 'INCOME').reduce((sum, t) => sum + t.amount, 0);
@@ -486,8 +532,11 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
   const totalExpenseAED = filteredTransactions.filter(t => t.type === 'EXPENSE').reduce((sum, t) => sum + (t.amountAED || 0), 0);
   const netBalanceAED = totalIncomeAED - totalExpenseAED;
   const totalTransactions = filteredTransactions.length;
-  const avgMonthlySpend = totalExpense / completedMonthsInRange;
-  const avgMonthlyIncome = totalIncome / completedMonthsInRange;
+  // Divide by months that actually have data in range, not calendar months elapsed this year —
+  // see chartSelectedAvgPerMonth below for why (otherwise it deflates once the data doesn't yet
+  // reach the current month).
+  const avgMonthlySpend = totalExpense / (monthlyData.length || 1);
+  const avgMonthlyIncome = totalIncome / (monthlyData.length || 1);
 
   const formatAmount = (amount: number) => {
     return `£${amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -565,10 +614,8 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
             <span className="text-[8px] md:text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Income</span>
           </div>
           <p className="text-sm md:text-3xl font-bold text-emerald-600">{formatAmount(totalIncome)}</p>
-          <div className="flex flex-col md:flex-row md:items-center md:gap-2 mt-0.5 md:mt-1.5">
-            <p className="hidden md:block text-xs font-medium text-slate-500">{formatAED(totalIncomeAED)}</p>
-            <span className="hidden md:inline text-slate-300">·</span>
-            <p className="text-[7px] md:text-xs text-slate-300 md:text-slate-500">Avg {formatAmount(avgMonthlyIncome)}/mo</p>
+          <div className="mt-0.5 md:mt-1.5">
+            <p className="text-[10px] md:text-xs font-semibold md:font-medium text-slate-400 md:text-slate-500">Avg {formatAmount(avgMonthlyIncome)}/mo</p>
           </div>
         </div>
         <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-2.5 md:p-5">
@@ -577,10 +624,8 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
             <span className="text-[8px] md:text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Expenses</span>
           </div>
           <p className="text-sm md:text-3xl font-bold text-slate-900 dark:text-neutral-200">{formatAmount(totalExpense)}</p>
-          <div className="flex flex-col md:flex-row md:items-center md:gap-2 mt-0.5 md:mt-1.5">
-            <p className="hidden md:block text-xs font-medium text-slate-500">{formatAED(totalExpenseAED)}</p>
-            <span className="hidden md:inline text-slate-300">·</span>
-            <p className="text-[7px] md:text-xs text-slate-300 md:text-slate-500">Avg {formatAmount(avgMonthlySpend)}/mo</p>
+          <div className="mt-0.5 md:mt-1.5">
+            <p className="text-[10px] md:text-xs font-semibold md:font-medium text-slate-400 md:text-slate-500">Avg {formatAmount(avgMonthlySpend)}/mo</p>
           </div>
         </div>
         <div className="bg-[#635bff] rounded-2xl p-2.5 md:p-5">
@@ -589,10 +634,8 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
             <span className="text-[8px] md:text-[10px] font-semibold text-white/70 uppercase tracking-wider">Net Saved</span>
           </div>
           <p className="text-sm md:text-3xl font-bold text-white">{formatAmount(netBalance)}</p>
-          <div className="flex flex-col md:flex-row md:items-center md:gap-2 mt-0.5 md:mt-1.5">
-            <p className="hidden md:block text-xs font-medium text-white/60">{formatAED(netBalanceAED)}</p>
-            <span className="hidden md:inline text-white/30">·</span>
-            <p className="text-[7px] md:text-xs text-white/50">{totalTransactions} transactions</p>
+          <div className="mt-0.5 md:mt-1.5">
+            <p className="text-[10px] md:text-xs font-semibold md:font-medium text-white/60">{totalTransactions} transactions</p>
           </div>
         </div>
       </div>
@@ -605,48 +648,93 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
         {/* Spending Trend Chart */}
         <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 overflow-hidden">
-          <div className="px-4 md:px-5 py-3 md:py-4 border-b border-slate-100 dark:border-neutral-700 flex items-center gap-1.5 md:gap-3">
-            <h3 className="text-[10px] md:text-sm font-bold text-slate-900 dark:text-neutral-200 shrink-0 leading-tight whitespace-nowrap text-left">Spending Trend</h3>
-            <div className="flex items-center gap-1 md:gap-2 flex-1 justify-end flex-nowrap overflow-x-auto hide-scrollbar">
-              <div className="relative shrink-0">
-                <select
-                  value={chartCategoryFilter}
-                  onChange={(e) => { setChartCategoryFilter(e.target.value); setChartSubcategoryFilter('all'); }}
-                  className="appearance-none bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg pl-2 md:pl-2.5 pr-6 md:pr-7 py-1 text-[9px] md:text-[10px] font-semibold text-slate-600 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer max-w-[84px] md:max-w-[140px] truncate"
-                >
-                  <option value="all">All Categories</option>
-                  {expenseCategoryOptions.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
-                <ChevronDown size={10} className="absolute right-1.5 md:right-2 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
+          <div className="px-4 md:px-5 pt-4 pb-3.5 md:pt-5 md:pb-4 border-b border-slate-100 dark:border-neutral-700 space-y-3">
+            <div className="flex items-center gap-1.5 md:gap-3">
+              <h3 className="text-[10px] md:text-sm font-bold text-slate-900 dark:text-neutral-200 shrink-0 leading-tight whitespace-nowrap text-left">Spending Trend</h3>
+              <div className="flex items-center gap-1 md:gap-2 flex-1 justify-end flex-nowrap overflow-x-auto hide-scrollbar">
+                <SegmentedControl
+                  layoutId="yearlyGranularityPill"
+                  optionClassName="md:px-2.5 text-[9px] md:text-[10px] capitalize"
+                  options={granularityOptions.map(g => ({ id: g, label: g }))}
+                  value={chartGranularity}
+                  onChange={(id) => setChartGranularity(id as 'daily' | 'weekly' | 'monthly')}
+                />
               </div>
-              {chartCategoryFilter !== 'all' && (() => {
-                const selectedCat = expenseCategoryOptions.find(c => c.id === chartCategoryFilter);
+            </div>
+
+            {/* Category multi-select + monthly average for whatever's selected */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative shrink-0" ref={categoryMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setCategoryMenuOpen(o => !o)}
+                  className="flex items-center gap-1.5 bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg pl-2.5 pr-2 py-1.5 text-[10px] md:text-[11px] font-semibold text-slate-600 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer max-w-[180px] md:max-w-[240px]"
+                >
+                  <span className="truncate">
+                    {chartCategoryFilters.length === 0
+                      ? 'All Categories'
+                      : chartCategoryFilters.length === 1
+                        ? (expenseCategoryOptions.find(c => c.id === chartCategoryFilters[0])?.name || '1 selected')
+                        : chartCategoryFilters
+                            .map(id => expenseCategoryOptions.find(c => c.id === id)?.name)
+                            .filter(Boolean)
+                            .join(' + ')}
+                  </span>
+                  <ChevronDown size={11} className="shrink-0 text-slate-400 dark:text-neutral-500" />
+                </button>
+                {categoryMenuOpen && (
+                  <div className="absolute z-20 mt-1 w-56 max-h-64 overflow-y-auto bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 rounded-xl shadow-lg p-1.5 custom-scrollbar">
+                    <button
+                      type="button"
+                      onClick={() => { setChartCategoryFilters([]); setChartSubcategoryFilter('all'); }}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${chartCategoryFilters.length === 0 ? 'text-[#635bff] bg-violet-50 dark:bg-violet-950' : 'text-slate-500 dark:text-neutral-400 hover:bg-slate-50 dark:hover:bg-neutral-700'}`}
+                    >
+                      All Categories
+                    </button>
+                    <div className="my-1 border-t border-slate-100 dark:border-neutral-700" />
+                    {expenseCategoryOptions.map(cat => {
+                      const checked = chartCategoryFilters.includes(cat.id);
+                      return (
+                        <label
+                          key={cat.id}
+                          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-slate-700 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleChartCategory(cat.id)}
+                            className="accent-[#635bff] w-3.5 h-3.5 shrink-0"
+                          />
+                          <span className="truncate">{cat.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              {chartCategoryFilters.length === 1 && (() => {
+                const selectedCat = expenseCategoryOptions.find(c => c.id === chartCategoryFilters[0]);
                 return selectedCat && selectedCat.subcategories.length > 0 ? (
                   <div className="relative shrink-0">
                     <select
                       value={chartSubcategoryFilter}
                       onChange={(e) => setChartSubcategoryFilter(e.target.value)}
-                      className="appearance-none bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg pl-2 md:pl-2.5 pr-6 md:pr-7 py-1 text-[9px] md:text-[10px] font-semibold text-slate-600 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer max-w-[84px] md:max-w-[140px] truncate"
+                      className="appearance-none bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg pl-2.5 pr-7 py-1.5 text-[10px] md:text-[11px] font-semibold text-slate-600 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer max-w-[140px] truncate"
                     >
                       <option value="all">All Subcategories</option>
                       {selectedCat.subcategories.map(sub => (
                         <option key={sub} value={sub}>{sub}</option>
                       ))}
                     </select>
-                    <ChevronDown size={10} className="absolute right-1.5 md:right-2 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
+                    <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
                   </div>
                 ) : null;
               })()}
-            <SegmentedControl
-              layoutId="yearlyGranularityPill"
-              optionClassName="md:px-2.5 text-[9px] md:text-[10px] capitalize"
-              options={granularityOptions.map(g => ({ id: g, label: g }))}
-              value={chartGranularity}
-              onChange={(id) => setChartGranularity(id as 'daily' | 'weekly' | 'monthly')}
-            />
-            </div>{/* end flex controls wrapper */}
+              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-neutral-700/60 rounded-lg px-2.5 py-1.5 ml-auto">
+                <span className="text-[8px] md:text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap">Avg/{avgPeriodLabel}</span>
+                <span className="text-[11px] md:text-xs font-bold tabular-nums font-numeric text-slate-900 dark:text-neutral-200 whitespace-nowrap">{formatAmount(chartSelectedAvgPerPeriod)}</span>
+              </div>
+            </div>
           </div>
           <div className="px-2 md:px-5 pt-4 pb-1">
             {chartData.length > 0 ? (
