@@ -725,6 +725,10 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                 ) : null;
               })()}
               <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-neutral-700/60 rounded-lg px-2.5 py-1.5 ml-auto">
+                <span className="text-[8px] md:text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap">Total</span>
+                <span className="text-[11px] md:text-xs font-bold tabular-nums font-numeric text-slate-900 dark:text-neutral-200 whitespace-nowrap">{formatAmount(chartSelectedTotal)}</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-neutral-700/60 rounded-lg px-2.5 py-1.5">
                 <span className="text-[8px] md:text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap">Avg/{avgPeriodLabel}</span>
                 <span className="text-[11px] md:text-xs font-bold tabular-nums font-numeric text-slate-900 dark:text-neutral-200 whitespace-nowrap">{formatAmount(chartSelectedAvgPerPeriod)}</span>
               </div>
