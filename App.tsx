@@ -1657,12 +1657,6 @@ const App: React.FC = () => {
                    </h1>
                    <div className="flex items-center gap-2">
                      <button
-                       onClick={() => window.location.reload()}
-                       className="p-2 bg-white dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-full text-slate-500 dark:text-neutral-500 shadow-sm active:scale-95 transition-transform"
-                     >
-                       <RotateCcw size={18} />
-                     </button>
-                     <button
                        onClick={handleLogout}
                        className="p-2 bg-white dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-full text-slate-500 dark:text-neutral-500 hover:text-rose-600 hover:border-rose-200 shadow-sm active:scale-95 transition-all"
                        title="Logout"
@@ -1823,15 +1817,6 @@ const App: React.FC = () => {
                         </div>
                       )}
                     </div>
-
-                    {/* Refresh Button */}
-                    <button
-                      onClick={() => window.location.reload()}
-                      className="hidden md:flex p-2 bg-white dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg text-slate-500 dark:text-neutral-500 hover:text-slate-900 dark:hover:text-neutral-200 hover:border-slate-300 transition-all shadow-sm active:scale-95 items-center justify-center h-[38px] w-[38px]"
-                      title="Refresh Application"
-                    >
-                      <RotateCcw size={16} />
-                    </button>
 
                     {/* Logout Button */}
                     <button
@@ -2736,7 +2721,7 @@ const App: React.FC = () => {
           {/* YEARLY VIEW */}
           {activeTab === 'yearly' && (
              <div className="h-full">
-                <YearlySummary transactions={transactions} categories={categories} onRefresh={fetchData} getCategoryEmoji={getCategoryEmoji} />
+                <YearlySummary transactions={transactions} categories={categories} getCategoryEmoji={getCategoryEmoji} />
              </div>
           )}
 

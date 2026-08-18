@@ -1,14 +1,13 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Transaction, Category } from '../types';
-import { TrendingUp, TrendingDown, ChevronRight, ChevronDown, RefreshCw, ArrowLeftRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, ChevronRight, ChevronDown, ArrowLeftRight } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
 import SegmentedControl from './SegmentedControl';
 
 interface YearlySummaryProps {
   transactions: Transaction[];
   categories: Category[];
-  onRefresh?: () => void;
   getCategoryEmoji?: (categoryId: string) => string;
 }
 
@@ -61,7 +60,7 @@ const getDatePresets = () => {
   };
 };
 
-const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories, onRefresh, getCategoryEmoji }) => {
+const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories, getCategoryEmoji }) => {
   const presets = getDatePresets();
   const datePresetItems = [
     { label: 'MTD', preset: presets.thisMonth },
@@ -571,15 +570,6 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                 if (item) { setDateRange(item.preset); setShowCustom(false); }
               }}
             />
-            {onRefresh && (
-              <button
-                onClick={onRefresh}
-                className="p-1.5 md:p-2 rounded-xl bg-white dark:bg-neutral-800 border border-slate-100 dark:border-neutral-700 shadow-sm text-slate-400 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300 transition-colors shrink-0"
-                title="Refresh data"
-              >
-                <RefreshCw size={14} className="md:w-4 md:h-4" />
-              </button>
-            )}
           </div>
         </div>
         <p className="hidden md:block text-xs text-slate-400 dark:text-neutral-500">{dateRange.label}: {new Date(dateRange.start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} – {new Date(dateRange.end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>

@@ -145,6 +145,18 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     }
   };
 
+  // While the detail modal is open, lock the table's own scroll container — otherwise a scroll
+  // gesture inside the modal can "leak" through to the table underneath once the modal's own
+  // list hits its scroll boundary (rubber-banding on iOS especially), visibly dragging the
+  // background table around behind the modal.
+  useEffect(() => {
+    const el = tableScrollRef.current;
+    if (!el || !detailModal) return;
+    const prevOverflow = el.style.overflow;
+    el.style.overflow = 'hidden';
+    return () => { el.style.overflow = prevOverflow; };
+  }, [detailModal]);
+
   const handleResizePointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
