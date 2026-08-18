@@ -1498,9 +1498,9 @@ const App: React.FC = () => {
            <div className="flex justify-around items-center px-2 md:flex-col md:h-auto md:gap-1 md:items-stretch md:px-0 overflow-x-auto md:overflow-x-visible no-scrollbar">
              {[
                { id: 'home', icon: Home, label: 'Dashboard', mobileLabel: 'Home', mobileOnly: true },
-               { id: 'history', icon: ArrowRightLeft, label: 'Transactions', mobileLabel: 'Trans', mobileOnly: true },
-               { id: 'yearly', icon: CalendarRange, label: 'Analytics', mobileLabel: 'Analytics', mobileOnly: true },
                { id: 'breakdown', icon: Table, label: 'Breakdown', mobileLabel: 'Breakdown', mobileOnly: true },
+               { id: 'yearly', icon: CalendarRange, label: 'Analytics', mobileLabel: 'Analytics', mobileOnly: true },
+               { id: 'history', icon: ArrowRightLeft, label: 'Transactions', mobileLabel: 'Trans', mobileOnly: true },
                { id: 'categories', icon: FolderCog, label: 'Categories', mobileLabel: 'Cats', mobileOnly: false },
                { id: 'settings', icon: Settings, label: 'Settings', mobileLabel: 'Settings', mobileOnly: false }
              ].map((item) => (
