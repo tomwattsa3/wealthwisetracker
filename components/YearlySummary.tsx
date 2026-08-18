@@ -645,6 +645,15 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
           <div className="px-4 md:px-5 pt-4 pb-3.5 md:pt-5 md:pb-4 border-b border-slate-100 dark:border-neutral-700 space-y-3">
             <div className="flex items-center gap-1.5 md:gap-3">
               <h3 className="text-[10px] md:text-sm font-bold text-slate-900 dark:text-neutral-200 shrink-0 leading-tight whitespace-nowrap text-left">Spending Trend</h3>
+              {chartCategoryFilters.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => { setChartCategoryFilters([]); setChartSubcategoryFilter('all'); }}
+                  className="shrink-0 text-[9px] md:text-[11px] font-semibold text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-300 underline underline-offset-2 transition-colors whitespace-nowrap"
+                >
+                  Remove filters
+                </button>
+              )}
               <div className="flex items-center gap-1 md:gap-2 flex-1 justify-end flex-nowrap overflow-x-auto hide-scrollbar">
                 <SegmentedControl
                   layoutId="yearlyGranularityPill"
@@ -656,13 +665,18 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
               </div>
             </div>
 
-            {/* Category multi-select + monthly average for whatever's selected */}
-            <div className="flex flex-wrap items-center gap-2">
+            {/* Category multi-select + monthly average for whatever's selected — a fixed
+                flex-col stack (not flex-wrap) so the gap between the dropdown row and the
+                Total/Avg row stays the same regardless of how many categories are selected or
+                how wide the resulting numbers are; flex-wrap let content length change which
+                line things landed on and made the gap between them jump around. */}
+            <div className="flex flex-col items-start gap-1.5">
+              <div className="flex flex-col items-start gap-1.5">
               <div className="relative shrink-0" ref={categoryMenuRef}>
                 <button
                   type="button"
                   onClick={() => setCategoryMenuOpen(o => !o)}
-                  className="flex items-center gap-1.5 bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg pl-2.5 pr-2 py-1.5 text-[10px] md:text-[11px] font-semibold text-slate-600 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer max-w-[180px] md:max-w-[240px]"
+                  className="flex items-center gap-1.5 bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg pl-2.5 pr-2 py-1.5 text-[10px] md:text-[11px] font-semibold text-slate-600 dark:text-neutral-300 outline-none focus:border-[#635bff] cursor-pointer max-w-[220px] md:max-w-[320px]"
                 >
                   <span className="truncate">
                     {chartCategoryFilters.length === 0
@@ -724,13 +738,16 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                   </div>
                 ) : null;
               })()}
-              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-neutral-700/60 rounded-lg px-2.5 py-1.5 ml-auto">
-                <span className="text-[8px] md:text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap">Total</span>
-                <span className="text-[11px] md:text-xs font-bold tabular-nums font-numeric text-slate-900 dark:text-neutral-200 whitespace-nowrap">{formatAmount(chartSelectedTotal)}</span>
               </div>
-              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-neutral-700/60 rounded-lg px-2.5 py-1.5">
-                <span className="text-[8px] md:text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap">Avg/{avgPeriodLabel}</span>
-                <span className="text-[11px] md:text-xs font-bold tabular-nums font-numeric text-slate-900 dark:text-neutral-200 whitespace-nowrap">{formatAmount(chartSelectedAvgPerPeriod)}</span>
+              <div className="flex flex-col md:flex-row gap-2 ml-auto">
+                <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-neutral-700/60 rounded-lg px-2.5 py-1.5 md:px-3.5 md:py-2.5">
+                  <span className="text-[8px] md:text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap">Total</span>
+                  <span className="text-[11px] md:text-base font-bold tabular-nums font-numeric text-slate-900 dark:text-neutral-200 whitespace-nowrap">{formatAmount(chartSelectedTotal)}</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-neutral-700/60 rounded-lg px-2.5 py-1.5 md:px-3.5 md:py-2.5">
+                  <span className="text-[8px] md:text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap">Avg/{avgPeriodLabel}</span>
+                  <span className="text-[11px] md:text-base font-bold tabular-nums font-numeric text-slate-900 dark:text-neutral-200 whitespace-nowrap">{formatAmount(chartSelectedAvgPerPeriod)}</span>
+                </div>
               </div>
             </div>
           </div>
