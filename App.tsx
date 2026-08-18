@@ -1501,7 +1501,7 @@ const App: React.FC = () => {
                { id: 'history', icon: ArrowRightLeft, label: 'Transactions', mobileLabel: 'Trans', mobileOnly: true },
                { id: 'yearly', icon: CalendarRange, label: 'Analytics', mobileLabel: 'Analytics', mobileOnly: true },
                { id: 'breakdown', icon: Table, label: 'Breakdown', mobileLabel: 'Breakdown', mobileOnly: true },
-               { id: 'categories', icon: FolderCog, label: 'Categories', mobileLabel: 'Cats', mobileOnly: true },
+               { id: 'categories', icon: FolderCog, label: 'Categories', mobileLabel: 'Cats', mobileOnly: false },
                { id: 'settings', icon: Settings, label: 'Settings', mobileLabel: 'Settings', mobileOnly: false }
              ].map((item) => (
                <button
@@ -1537,27 +1537,6 @@ const App: React.FC = () => {
                  )}
                </button>
              ))}
-
-             {/* Mobile Dark Mode Toggle */}
-             <button
-               onClick={() => setDarkMode(!darkMode)}
-               className="flex flex-col md:hidden p-1.5 items-center justify-center rounded-lg transition-all duration-200 active:scale-95 flex-shrink-0 text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-200"
-             >
-               <AnimatePresence mode="wait" initial={false}>
-                 <motion.span
-                   key={darkMode ? 'sun' : 'moon'}
-                   initial={{ opacity: 0, rotate: -90, scale: 0.6 }}
-                   animate={{ opacity: 1, rotate: 0, scale: 1 }}
-                   exit={{ opacity: 0, rotate: 90, scale: 0.6 }}
-                   transition={{ duration: DURATION.press, ease: EASE_OUT }}
-                   className="flex"
-                 >
-                   {darkMode ? <Sun size={18} /> : <Moon size={18} />}
-                 </motion.span>
-               </AnimatePresence>
-               <span className="text-[9px] mt-0.5">{darkMode ? 'Light' : 'Dark'}</span>
-             </button>
-
            </div>
 
            {/* Desktop Add Button */}

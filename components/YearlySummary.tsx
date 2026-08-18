@@ -128,9 +128,13 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
 
   const applyCustomRange = () => {
     if (customStart && customEnd) {
+      // customStart/customEnd are "YYYY-MM" (from <input type="month">) — expand to the first and
+      // last calendar day of those months so the range covers them in full.
+      const [startYear, startMonth] = customStart.split('-').map(Number);
+      const [endYear, endMonth] = customEnd.split('-').map(Number);
       setDateRange({
-        start: customStart,
-        end: customEnd,
+        start: formatDateLocal(new Date(startYear, startMonth - 1, 1)),
+        end: formatDateLocal(new Date(endYear, endMonth, 0)),
         label: 'Custom'
       });
       setShowCustom(false);
@@ -584,14 +588,14 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
       {showCustom && (
         <div className="flex items-center gap-2 bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-600 p-2.5">
           <input
-            type="date"
+            type="month"
             value={customStart}
             onChange={(e) => setCustomStart(e.target.value)}
             className="flex-1 min-w-0 bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg px-2 py-1.5 text-[10px] font-semibold text-slate-700 dark:text-neutral-400 outline-none focus:border-[#635bff]"
           />
           <span className="text-slate-300 text-xs font-bold">–</span>
           <input
-            type="date"
+            type="month"
             value={customEnd}
             onChange={(e) => setCustomEnd(e.target.value)}
             className="flex-1 min-w-0 bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg px-2 py-1.5 text-[10px] font-semibold text-slate-700 dark:text-neutral-400 outline-none focus:border-[#635bff]"

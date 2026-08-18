@@ -49,7 +49,7 @@ const SegmentedControl: React.FC<SegmentedControlProps> = ({
             type="button"
             onClick={() => onChange(opt.id)}
             style={{ WebkitTapHighlightColor: 'transparent' }}
-            className={`relative px-2.5 py-1 text-[10px] font-semibold rounded-md whitespace-nowrap transition-colors active:scale-95 outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[#635bff]/40 ${isActive ? activeTextClassName : inactiveTextClassName} ${optionClassName || ''}`}
+            className={`relative isolate px-2.5 py-1 text-[10px] font-semibold rounded-md whitespace-nowrap transition-colors active:scale-95 outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[#635bff]/40 ${isActive ? activeTextClassName : inactiveTextClassName} ${optionClassName || ''}`}
           >
             {isActive && (
               <motion.div
