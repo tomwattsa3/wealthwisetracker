@@ -573,14 +573,15 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     <div className="h-full flex flex-col pb-8 md:pb-4 space-y-2 md:space-y-4">
       {/* Header */}
       <div className="shrink-0 flex flex-col md:flex-row md:items-start justify-between gap-1.5 md:gap-3">
-        <div className="flex items-center gap-2 md:block">
+        <div className="relative flex items-center gap-2 md:block">
           <div className="shrink-0">
             <h1 className="text-sm md:text-2xl font-bold text-slate-900 dark:text-neutral-200">Breakdown</h1>
             <p className="hidden md:block text-xs text-slate-400 dark:text-neutral-500 mt-1">Every category, month by month · drag the grip to reorder</p>
           </div>
-          {/* Mobile-only: date selector — centered in the space next to the headline rather than
-              flush against the right edge. */}
-          <div className="md:hidden flex-1 flex justify-center">
+          {/* Mobile-only: date selector — absolutely centered on the row itself (not just the
+              space left over after the title), since the title's width shouldn't shift where
+              this appears. */}
+          <div className="md:hidden absolute left-1/2 -translate-x-1/2">
             <div className="flex items-center gap-1.5 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 rounded-lg px-2 py-1 shrink-0">
               <div className="relative">
                 <span className="pointer-events-none text-[10px] font-semibold text-slate-700 dark:text-neutral-300 whitespace-nowrap">{formatMonthShort(rangeStart)}</span>
@@ -650,7 +651,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
               <ChevronDown size={12} className={`transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
             </button>
             {filtersOpen && (
-              <div className="absolute right-0 z-20 mt-1 w-52 divide-y divide-slate-100 dark:divide-neutral-700 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 rounded-xl shadow-lg p-3 space-y-3">
+              <div className="absolute right-0 z-[60] mt-1 w-52 divide-y divide-slate-100 dark:divide-neutral-700 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 rounded-xl shadow-lg p-3 space-y-3">
                 <div>
                   <p className="text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider mb-1.5">View</p>
                   <SegmentedControl
