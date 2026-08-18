@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
-import { ChevronRight, GripVertical, X } from 'lucide-react';
+import { ChevronRight, ChevronDown, GripVertical, SlidersHorizontal, X } from 'lucide-react';
 import { Transaction, Category } from '../types';
 import SegmentedControl from './SegmentedControl';
 import { MODAL_TRANSITION, SHEET_TRANSITION } from '../lib/motion';
@@ -50,21 +50,56 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     localStorage.setItem('breakdownRangeLabel', rangeLabel);
   }, [rangeStart, rangeEnd, rangeLabel]);
 
-  // Custom row order — persisted, category id order within each section (income/expense)
+  // Custom row order — persisted, category id order within each section (income/expense). Until
+  // the user actually drags a row (saving their own order to localStorage), default to leading
+  // with Housing/Groceries/Food/Transport — sortByOrder puts unlisted categories after these in
+  // their existing relative order, so this only pins those four to the front rather than
+  // dictating the whole list.
   const [categoryOrder, setCategoryOrder] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('breakdownCategoryOrder');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) return JSON.parse(saved);
     } catch {
-      return [];
+      // fall through to default below
     }
+    const defaultFirst = ['Housing', 'Groceries', 'Food', 'Transport'];
+    return defaultFirst
+      .map(name => categories.find(c => c.name === name)?.id)
+      .filter((id): id is string => !!id);
   });
   useEffect(() => {
     localStorage.setItem('breakdownCategoryOrder', JSON.stringify(categoryOrder));
   }, [categoryOrder]);
 
+  // 'custom' = drag-to-reorder order above; 'amount' = highest total spend (over the current
+  // date range) first, recomputed live as the range/currency/categories change.
+  const [sortMode, setSortMode] = useState<'custom' | 'amount'>(() => {
+    const saved = localStorage.getItem('breakdownSortMode');
+    return saved === 'amount' ? 'amount' : 'custom';
+  });
+  useEffect(() => {
+    localStorage.setItem('breakdownSortMode', sortMode);
+  }, [sortMode]);
+
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  // View/Sort/Currency live behind one "Filters" button instead of as three permanently-visible
+  // pill rows — they change far less often than the date range, so keeping them tucked away is
+  // more compact without losing anything (Tailwind UI's dropdown-menu pattern, applied here with
+  // plain state instead of headlessui since that isn't a project dependency).
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filtersMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!filtersOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (filtersMenuRef.current && !filtersMenuRef.current.contains(e.target as Node)) {
+        setFiltersOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [filtersOpen]);
 
   // Tapping a category's cell opens a modal listing the transactions behind that number.
   // monthIndex is omitted in yearly view, meaning "every month of `year`".
@@ -418,13 +453,24 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     });
   };
 
+  // Total across every month in the current range (not just the visible cols, so this stays
+  // stable whether you're looking at the Monthly or Yearly view).
+  const categoryTotal = (catId: string) => monthCols.reduce((sum, m) => sum + getCell(catId, m.key), 0);
+
+  const sortCategories = (cats: Category[]) => {
+    if (sortMode === 'amount') {
+      return [...cats].sort((a, b) => categoryTotal(b.id) - categoryTotal(a.id));
+    }
+    return sortByOrder(cats);
+  };
+
   const incomeCategories = useMemo(
-    () => sortByOrder(categories.filter(c => c.type === 'INCOME' && catHasData(c.id))),
-    [categories, grid, monthCols, categoryOrder]
+    () => sortCategories(categories.filter(c => c.type === 'INCOME' && catHasData(c.id))),
+    [categories, grid, monthCols, categoryOrder, sortMode]
   );
   const expenseCategories = useMemo(
-    () => sortByOrder(categories.filter(c => c.type === 'EXPENSE' && catHasData(c.id))),
-    [categories, grid, monthCols, categoryOrder]
+    () => sortCategories(categories.filter(c => c.type === 'EXPENSE' && catHasData(c.id))),
+    [categories, grid, monthCols, categoryOrder, sortMode]
   );
   const allVisibleCatIds = useMemo(
     () => [...incomeCategories, ...expenseCategories].map(c => c.id),
@@ -453,8 +499,9 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
           <td className={`sticky left-0 z-10 px-1.5 md:px-2 py-2.5 md:py-[12.5px] border-r border-slate-200 dark:border-neutral-700 ${rowBg(rowIndex)}`}>
             <div className="flex items-center gap-1">
               <button
-                onPointerDown={handleGripPointerDown(cat.id, allVisibleCatIds)}
-                className="text-slate-300 dark:text-neutral-600 hover:text-slate-500 dark:hover:text-neutral-400 cursor-grab active:cursor-grabbing touch-none shrink-0 p-0.5"
+                onPointerDown={sortMode === 'custom' ? handleGripPointerDown(cat.id, allVisibleCatIds) : undefined}
+                disabled={sortMode !== 'custom'}
+                className={`text-slate-300 dark:text-neutral-600 shrink-0 p-0.5 ${sortMode === 'custom' ? 'hover:text-slate-500 dark:hover:text-neutral-400 cursor-grab active:cursor-grabbing touch-none' : 'opacity-0 pointer-events-none'}`}
                 title="Drag to reorder"
               >
                 <GripVertical size={13} />
@@ -525,36 +572,39 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
   return (
     <div className="h-full flex flex-col pb-8 md:pb-4 space-y-2 md:space-y-4">
       {/* Header */}
-      <div className="shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-1.5 md:gap-3">
-        <div className="flex items-center justify-between gap-2 md:block">
-          <div>
+      <div className="shrink-0 flex flex-col md:flex-row md:items-start justify-between gap-1.5 md:gap-3">
+        <div className="flex items-center gap-2 md:block">
+          <div className="shrink-0">
             <h1 className="text-sm md:text-2xl font-bold text-slate-900 dark:text-neutral-200">Breakdown</h1>
             <p className="hidden md:block text-xs text-slate-400 dark:text-neutral-500 mt-1">Every category, month by month · drag the grip to reorder</p>
           </div>
-          {/* Mobile-only: date selector next to the headline */}
-          <div className="md:hidden flex items-center gap-1.5 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 rounded-lg px-2 py-1 shrink-0">
-            <div className="relative">
-              <span className="pointer-events-none text-[10px] font-semibold text-slate-700 dark:text-neutral-300 whitespace-nowrap">{formatMonthShort(rangeStart)}</span>
-              <input
-                type="month"
-                value={rangeStart}
-                onChange={(e) => { setRangeStart(e.target.value); setRangeLabel('Custom'); }}
-                className="absolute inset-0 opacity-0 cursor-pointer w-full"
-              />
-            </div>
-            <span className="text-slate-300 dark:text-neutral-600 text-xs">–</span>
-            <div className="relative">
-              <span className="pointer-events-none text-[10px] font-semibold text-slate-700 dark:text-neutral-300 whitespace-nowrap">{formatMonthShort(rangeEnd)}</span>
-              <input
-                type="month"
-                value={rangeEnd}
-                onChange={(e) => { setRangeEnd(e.target.value); setRangeLabel('Custom'); }}
-                className="absolute inset-0 opacity-0 cursor-pointer w-full"
-              />
+          {/* Mobile-only: date selector — centered in the space next to the headline rather than
+              flush against the right edge. */}
+          <div className="md:hidden flex-1 flex justify-center">
+            <div className="flex items-center gap-1.5 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 rounded-lg px-2 py-1 shrink-0">
+              <div className="relative">
+                <span className="pointer-events-none text-[10px] font-semibold text-slate-700 dark:text-neutral-300 whitespace-nowrap">{formatMonthShort(rangeStart)}</span>
+                <input
+                  type="month"
+                  value={rangeStart}
+                  onChange={(e) => { setRangeStart(e.target.value); setRangeLabel('Custom'); }}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                />
+              </div>
+              <span className="text-slate-300 dark:text-neutral-600 text-xs">–</span>
+              <div className="relative">
+                <span className="pointer-events-none text-[10px] font-semibold text-slate-700 dark:text-neutral-300 whitespace-nowrap">{formatMonthShort(rangeEnd)}</span>
+                <input
+                  type="month"
+                  value={rangeEnd}
+                  onChange={(e) => { setRangeEnd(e.target.value); setRangeLabel('Custom'); }}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                />
+              </div>
             </div>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center justify-center md:justify-end gap-2">
           <SegmentedControl
             layoutId="breakdownPresetPill"
             options={presets.map(p => ({ id: p.label, label: p.label }))}
@@ -564,13 +614,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
               if (preset) applyPreset(preset);
             }}
           />
-          <SegmentedControl
-            layoutId="breakdownViewModePill"
-            options={[{ id: 'monthly', label: 'Monthly' }, { id: 'yearly', label: 'Yearly' }]}
-            value={viewMode}
-            onChange={(id) => setViewMode(id as 'monthly' | 'yearly')}
-          />
-          {/* Desktop-only: date selector in its original spot */}
+          {/* Desktop-only: date selector, inline with the presets */}
           <div className="hidden md:flex items-center gap-1.5 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 rounded-lg px-2 py-1">
             <div className="relative">
               <span className="pointer-events-none text-[11px] font-semibold text-slate-700 dark:text-neutral-300 whitespace-nowrap">{formatMonthShort(rangeStart)}</span>
@@ -592,13 +636,56 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
               />
             </div>
           </div>
-          <div className="hidden md:flex">
-            <SegmentedControl
-              layoutId="breakdownCurrencyPill"
-              options={[{ id: 'GBP', label: '£' }, { id: 'AED', label: 'AED' }]}
-              value={currency}
-              onChange={(id) => setCurrency(id as 'GBP' | 'AED')}
-            />
+
+          {/* View / Sort / Currency — tucked behind one Filters button instead of three
+              always-visible pill rows, since these change far less often than the date range. */}
+          <div className="relative shrink-0" ref={filtersMenuRef}>
+            <button
+              type="button"
+              onClick={() => setFiltersOpen(o => !o)}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${filtersOpen || viewMode === 'yearly' || sortMode === 'amount' ? 'bg-[#635bff] text-white' : 'bg-slate-100 dark:bg-neutral-700 text-slate-600 dark:text-neutral-300 hover:bg-slate-200 dark:hover:bg-neutral-600'}`}
+            >
+              <SlidersHorizontal size={12} />
+              Filters
+              <ChevronDown size={12} className={`transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {filtersOpen && (
+              <div className="absolute right-0 z-20 mt-1 w-52 divide-y divide-slate-100 dark:divide-neutral-700 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 rounded-xl shadow-lg p-3 space-y-3">
+                <div>
+                  <p className="text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider mb-1.5">View</p>
+                  <SegmentedControl
+                    layoutId="breakdownViewModePill"
+                    className="w-full"
+                    optionClassName="flex-1"
+                    options={[{ id: 'monthly', label: 'Monthly' }, { id: 'yearly', label: 'Yearly' }]}
+                    value={viewMode}
+                    onChange={(id) => setViewMode(id as 'monthly' | 'yearly')}
+                  />
+                </div>
+                <div className="pt-3">
+                  <p className="text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider mb-1.5">Sort</p>
+                  <SegmentedControl
+                    layoutId="breakdownSortModePill"
+                    className="w-full"
+                    optionClassName="flex-1"
+                    options={[{ id: 'custom', label: 'Custom' }, { id: 'amount', label: 'Most Spent' }]}
+                    value={sortMode}
+                    onChange={(id) => setSortMode(id as 'custom' | 'amount')}
+                  />
+                </div>
+                <div className="pt-3">
+                  <p className="text-[9px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider mb-1.5">Currency</p>
+                  <SegmentedControl
+                    layoutId="breakdownCurrencyPill"
+                    className="w-full"
+                    optionClassName="flex-1"
+                    options={[{ id: 'GBP', label: '£' }, { id: 'AED', label: 'AED' }]}
+                    value={currency}
+                    onChange={(id) => setCurrency(id as 'GBP' | 'AED')}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
