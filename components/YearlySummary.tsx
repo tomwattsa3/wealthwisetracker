@@ -460,8 +460,10 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
     }
 
     if (chartGranularity === 'weekly') {
-      // Weekly aggregation (Mon-Sun), sorted/labelled by week end (Sunday)
-      const weekMap = new Map<string, { sortKey: string; label: string; amount: number; amountAED: number }>();
+      // Weekly aggregation (Mon-Sun), sorted/labelled by week end (Sunday) — the axis label is
+      // just that Sunday, which reads ambiguously on its own (is it the week starting or ending
+      // there?), so the tooltip shows the full "Mon – Sun" range instead.
+      const weekMap = new Map<string, { sortKey: string; label: string; rangeLabel: string; amount: number; amountAED: number }>();
       const start = new Date(dateRange.start);
       const end = new Date(dateRange.end);
       const dow = (start.getDay() + 6) % 7;
@@ -475,6 +477,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         weekMap.set(weekKey, {
           sortKey: formatDateLocal(sun),
           label: `${sun.getDate()} ${MONTHS[sun.getMonth()]}`,
+          rangeLabel: `${mon.getDate()} ${MONTHS[mon.getMonth()]} – ${sun.getDate()} ${MONTHS[sun.getMonth()]}`,
           amount: 0,
           amountAED: 0,
         });
@@ -497,6 +500,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         .sort((a, b) => a[1].sortKey.localeCompare(b[1].sortKey))
         .map(([weekKey, w]) => ({
           label: w.label,
+          rangeLabel: w.rangeLabel,
           amount: Math.round(w.amount * 100) / 100,
           amountAED: Math.round(w.amountAED * 100) / 100,
           byCategory: categoryBreakdownFor(expenses.filter(t => t.date >= weekKey && t.date <= w.sortKey)),
@@ -794,15 +798,12 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                     cursor={{ stroke: '#635bff', strokeWidth: 1, strokeDasharray: '4 4' }}
                     content={({ active, payload, label }) => {
                       if (active && payload && payload.length) {
-                        const data = payload[0].payload as { amount: number; amountAED: number; byCategory?: { name: string; color: string; amount: number }[] };
+                        const data = payload[0].payload as { amount: number; rangeLabel?: string; byCategory?: { name: string; color: string; amount: number }[] };
                         return (
                           <div className="bg-slate-900 text-white px-3 py-2 rounded-lg shadow-xl text-xs min-w-[140px]">
-                            <p className="font-medium text-slate-300 text-[10px] mb-1">{label}</p>
+                            <p className="font-medium text-slate-300 text-[10px] mb-1">{data.rangeLabel || label}</p>
                             <p className="font-mono text-sm font-bold">
                               £{data.amount.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
-                            </p>
-                            <p className="font-mono text-[10px] text-slate-400 mt-0.5">
-                              AED {data.amountAED.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
                             </p>
                             {data.byCategory && data.byCategory.length > 1 && (
                               <div className="mt-1.5 pt-1.5 border-t border-white/10 space-y-1">
