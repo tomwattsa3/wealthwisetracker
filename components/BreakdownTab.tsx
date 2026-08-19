@@ -495,6 +495,16 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     const isDragging = draggingId === cat.id;
     const isDragOver = dragOverId === cat.id && draggingId !== cat.id;
 
+    // Marks whichever cell the open detail modal was opened from, so it's still visible which
+    // one you're looking at — a light dashed outline rather than a solid border/background so it
+    // doesn't compete with the sticky/zebra-striping already going on in this table.
+    const isActiveCell = (subName: string | undefined, col: ColDef) =>
+      detailModal !== null &&
+      detailModal.categoryId === cat.id &&
+      detailModal.subcategoryName === subName &&
+      detailModal.year === col.year &&
+      detailModal.monthIndex === col.monthIndex;
+
     return (
       <>
         <tr
@@ -529,7 +539,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
               <td
                 key={col.key}
                 onClick={() => amt !== 0 && setDetailModal({ categoryId: cat.id, categoryName: cat.name, year: col.year, monthIndex: col.monthIndex, isExpense })}
-                className={`px-1.5 md:px-3 py-2.5 md:py-[12.5px] text-center tabular-nums font-numeric border-l border-slate-100 dark:border-neutral-700/60 ${amountClass} ${amt !== 0 ? 'cursor-pointer hover:underline' : ''}`}
+                className={`px-1.5 md:px-3 py-2.5 md:py-[12.5px] text-center tabular-nums font-numeric border-l border-slate-100 dark:border-neutral-700/60 ${amountClass} ${amt !== 0 ? 'cursor-pointer hover:underline' : ''} ${isActiveCell(undefined, col) ? 'outline outline-1 outline-dashed outline-slate-300 dark:outline-neutral-500 outline-offset-[-2px]' : ''}`}
               >
                 {amt !== 0 ? formatAmount(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
               </td>
@@ -557,7 +567,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                     <td
                       key={col.key}
                       onClick={() => amt !== 0 && setDetailModal({ categoryId: cat.id, categoryName: cat.name, subcategoryName: subName, year: col.year, monthIndex: col.monthIndex, isExpense })}
-                      className={`px-1.5 md:px-3 py-[7.5px] md:py-2.5 text-center tabular-nums font-numeric border-l border-slate-100 dark:border-neutral-700/60 text-slate-500 dark:text-neutral-500 ${amt !== 0 ? 'cursor-pointer hover:underline' : ''}`}
+                      className={`px-1.5 md:px-3 py-[7.5px] md:py-2.5 text-center tabular-nums font-numeric border-l border-slate-100 dark:border-neutral-700/60 text-slate-500 dark:text-neutral-500 ${amt !== 0 ? 'cursor-pointer hover:underline' : ''} ${isActiveCell(subName, col) ? 'outline outline-1 outline-dashed outline-slate-300 dark:outline-neutral-500 outline-offset-[-2px]' : ''}`}
                     >
                       {amt !== 0 ? formatAmount(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
                     </td>
