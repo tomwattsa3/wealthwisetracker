@@ -260,6 +260,16 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     return `${amount < 0 ? '-' : ''}${symbol}${formatted}`;
   };
 
+  // Whole-pound version for the main grid — the exact cents rarely matter at a glance across a
+  // whole month, and the shorter string is what actually fixes rows going uneven: a wide
+  // "-£2,720.12" wraps onto two lines in a narrow column while its neighbours don't, making that
+  // row visibly taller than the rest.
+  const formatAmountRounded = (amount: number) => {
+    const symbol = currency === 'GBP' ? '£' : 'AED ';
+    const formatted = Math.round(Math.abs(amount)).toLocaleString('en-GB');
+    return `${amount < 0 ? '-' : ''}${symbol}${formatted}`;
+  };
+
   // Native <input type="month"> always renders the full month name (browser-controlled, not
   // stylable), so this formats a compact "Jan '26" label shown on top of a transparent input —
   // clicking/tapping still opens the native month picker underneath.
@@ -539,9 +549,9 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
               <td
                 key={col.key}
                 onClick={() => amt !== 0 && setDetailModal({ categoryId: cat.id, categoryName: cat.name, year: col.year, monthIndex: col.monthIndex, isExpense })}
-                className={`px-1.5 md:px-3 py-2.5 md:py-[12.5px] text-center tabular-nums font-numeric border-l border-slate-100 dark:border-neutral-700/60 ${amountClass} ${amt !== 0 ? 'cursor-pointer hover:underline' : ''} ${isActiveCell(undefined, col) ? 'outline outline-2 outline-dashed outline-slate-400 dark:outline-neutral-300 outline-offset-[-2px]' : ''}`}
+                className={`px-1.5 md:px-3 py-2.5 md:py-[12.5px] text-center tabular-nums font-numeric whitespace-nowrap border-l border-slate-100 dark:border-neutral-700/60 ${amountClass} ${amt !== 0 ? 'cursor-pointer hover:underline' : ''} ${isActiveCell(undefined, col) ? 'outline outline-2 outline-dashed outline-slate-400 dark:outline-neutral-300 outline-offset-[-2px]' : ''}`}
               >
-                {amt !== 0 ? formatAmount(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
+                {amt !== 0 ? formatAmountRounded(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
               </td>
             );
           })}
@@ -567,9 +577,9 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                     <td
                       key={col.key}
                       onClick={() => amt !== 0 && setDetailModal({ categoryId: cat.id, categoryName: cat.name, subcategoryName: subName, year: col.year, monthIndex: col.monthIndex, isExpense })}
-                      className={`px-1.5 md:px-3 py-[7.5px] md:py-2.5 text-center tabular-nums font-numeric border-l border-slate-100 dark:border-neutral-700/60 text-slate-500 dark:text-neutral-500 ${amt !== 0 ? 'cursor-pointer hover:underline' : ''} ${isActiveCell(subName, col) ? 'outline outline-2 outline-dashed outline-slate-400 dark:outline-neutral-300 outline-offset-[-2px]' : ''}`}
+                      className={`px-1.5 md:px-3 py-[7.5px] md:py-2.5 text-center tabular-nums font-numeric whitespace-nowrap border-l border-slate-100 dark:border-neutral-700/60 text-slate-500 dark:text-neutral-500 ${amt !== 0 ? 'cursor-pointer hover:underline' : ''} ${isActiveCell(subName, col) ? 'outline outline-2 outline-dashed outline-slate-400 dark:outline-neutral-300 outline-offset-[-2px]' : ''}`}
                     >
-                      {amt !== 0 ? formatAmount(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
+                      {amt !== 0 ? formatAmountRounded(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
                     </td>
                   );
                 })}
@@ -720,7 +730,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
           <div data-no-pull-refresh ref={tableScrollRef} onScroll={syncFooterScroll} className="flex-1 min-h-0 overflow-auto custom-scrollbar">
             <table
               className="border-collapse text-[10px] md:text-[13px] w-full transition-[width] duration-300"
-              style={{ tableLayout: 'fixed', minWidth: `${categoryColWidth + cols.length * 64}px`, transition: 'min-width 0.05s linear' }}
+              style={{ tableLayout: 'fixed', minWidth: `${categoryColWidth + cols.length * 76}px`, transition: 'min-width 0.05s linear' }}
             >
               <colgroup>
                 <col style={{ width: `${categoryColWidth}px` }} />
@@ -760,8 +770,8 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                     Total Income
                   </td>
                   {cols.map(col => (
-                    <td key={col.key} className="px-1.5 md:px-3 py-2.5 md:py-[12.5px] text-center tabular-nums font-numeric font-bold border-l border-emerald-100 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-400">
-                      {formatAmount(colTotal(incomeCategories, col))}
+                    <td key={col.key} className="px-1.5 md:px-3 py-2.5 md:py-[12.5px] text-center tabular-nums font-numeric font-bold whitespace-nowrap border-l border-emerald-100 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-400">
+                      {formatAmountRounded(colTotal(incomeCategories, col))}
                     </td>
                   ))}
                 </tr>
@@ -787,7 +797,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
           <div ref={footerScrollRef} className="shrink-0 mt-2 overflow-x-auto hide-scrollbar border-t border-slate-200 dark:border-neutral-700">
             <table
               className="border-collapse text-[10px] md:text-[13px] w-full"
-              style={{ tableLayout: 'fixed', minWidth: `${categoryColWidth + cols.length * 64}px` }}
+              style={{ tableLayout: 'fixed', minWidth: `${categoryColWidth + cols.length * 76}px` }}
             >
               <colgroup>
                 <col style={{ width: `${categoryColWidth}px` }} />
@@ -801,9 +811,9 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                   {cols.map(col => (
                     <td
                       key={col.key}
-                      className="px-1.5 md:px-3 py-[6.6px] text-center tabular-nums font-numeric font-bold text-[10px] md:text-xs border-l border-slate-200 dark:border-neutral-700 text-slate-800 dark:text-neutral-300"
+                      className="px-1.5 md:px-3 py-[6.6px] text-center tabular-nums font-numeric font-bold whitespace-nowrap text-[10px] md:text-xs border-l border-slate-200 dark:border-neutral-700 text-slate-800 dark:text-neutral-300"
                     >
-                      {formatAmount(-colTotal(expenseCategories, col))}
+                      {formatAmountRounded(-colTotal(expenseCategories, col))}
                     </td>
                   ))}
                 </tr>
@@ -814,8 +824,8 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                   {cols.map(col => {
                     const net = colTotal(incomeCategories, col) - colTotal(expenseCategories, col);
                     return (
-                      <td key={col.key} className="px-1.5 md:px-3 py-[6.6px] text-center tabular-nums font-numeric font-bold text-[10px] md:text-xs border-l border-white/10 text-white">
-                        {formatAmount(net)}
+                      <td key={col.key} className="px-1.5 md:px-3 py-[6.6px] text-center tabular-nums font-numeric font-bold whitespace-nowrap text-[10px] md:text-xs border-l border-white/10 text-white">
+                        {formatAmountRounded(net)}
                       </td>
                     );
                   })}
