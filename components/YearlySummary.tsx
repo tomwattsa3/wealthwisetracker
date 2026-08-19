@@ -405,6 +405,21 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
     setChartGranularity(isLongRange ? 'monthly' : 'daily');
   }, [isLongRange]);
 
+  // Per-category split for a set of transactions — used to show "which category made up this
+  // point" in the chart's hover tooltip, not just the combined total.
+  const categoryBreakdownFor = (txs: Transaction[]) => {
+    const map = new Map<string, { name: string; color: string; amount: number }>();
+    txs.forEach(t => {
+      const cat = categories.find(c => c.id === t.categoryId || c.name === t.categoryName);
+      const id = cat?.id || t.categoryId || 'uncategorized';
+      const name = cat?.name || t.categoryName || 'Uncategorized';
+      const color = cat?.color || '#94a3b8';
+      if (!map.has(id)) map.set(id, { name, color, amount: 0 });
+      map.get(id)!.amount += t.amount;
+    });
+    return Array.from(map.values()).sort((a, b) => b.amount - a.amount);
+  };
+
   const chartData = useMemo(() => {
     const expenses = filteredTransactions.filter(t => {
       if (t.type !== 'EXPENSE') return false;
@@ -439,6 +454,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
           label: `${DAYS[d.getDay()]} ${d.getDate()}`,
           amount: Math.round(data.amount * 100) / 100,
           amountAED: Math.round(data.amountAED * 100) / 100,
+          byCategory: categoryBreakdownFor(expenses.filter(t => t.date === date)),
         };
       });
     }
@@ -477,12 +493,13 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         }
       });
 
-      return Array.from(weekMap.values())
-        .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
-        .map(w => ({
+      return Array.from(weekMap.entries())
+        .sort((a, b) => a[1].sortKey.localeCompare(b[1].sortKey))
+        .map(([weekKey, w]) => ({
           label: w.label,
           amount: Math.round(w.amount * 100) / 100,
           amountAED: Math.round(w.amountAED * 100) / 100,
+          byCategory: categoryBreakdownFor(expenses.filter(t => t.date >= weekKey && t.date <= w.sortKey)),
         }));
     }
 
@@ -498,6 +515,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         label: m.month,
         amount: Math.round(monthAmount * 100) / 100,
         amountAED: Math.round(monthAmountAED * 100) / 100,
+        byCategory: categoryBreakdownFor(monthExpenses),
       };
     });
   }, [filteredTransactions, dateRange, chartGranularity, monthlyData, chartCategoryFilters, chartSubcategoryFilter, categories]);
@@ -776,9 +794,9 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                     cursor={{ stroke: '#635bff', strokeWidth: 1, strokeDasharray: '4 4' }}
                     content={({ active, payload, label }) => {
                       if (active && payload && payload.length) {
-                        const data = payload[0].payload as { amount: number; amountAED: number };
+                        const data = payload[0].payload as { amount: number; amountAED: number; byCategory?: { name: string; color: string; amount: number }[] };
                         return (
-                          <div className="bg-slate-900 text-white px-3 py-2 rounded-lg shadow-xl text-xs">
+                          <div className="bg-slate-900 text-white px-3 py-2 rounded-lg shadow-xl text-xs min-w-[140px]">
                             <p className="font-medium text-slate-300 text-[10px] mb-1">{label}</p>
                             <p className="font-mono text-sm font-bold">
                               £{data.amount.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
@@ -786,6 +804,21 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                             <p className="font-mono text-[10px] text-slate-400 mt-0.5">
                               AED {data.amountAED.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
                             </p>
+                            {data.byCategory && data.byCategory.length > 1 && (
+                              <div className="mt-1.5 pt-1.5 border-t border-white/10 space-y-1">
+                                {data.byCategory.map((cat, i) => (
+                                  <div key={i} className="flex items-center justify-between gap-3">
+                                    <span className="flex items-center gap-1 text-slate-300 truncate">
+                                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                                      {cat.name}
+                                    </span>
+                                    <span className="font-mono text-slate-200 shrink-0">
+                                      £{cat.amount.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         );
                       }
