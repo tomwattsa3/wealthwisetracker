@@ -654,6 +654,32 @@ const App: React.FC = () => {
     await supabase.from('Categories').update({ subcategories: updatedSubs }).eq('id', catId);
   };
 
+  const handleRenameSubcategory = async (catId: string, oldName: string, newName: string) => {
+    const trimmed = newName.trim();
+    const categoryToUpdate = categories.find(c => c.id === catId);
+    if (!categoryToUpdate || !trimmed || trimmed === oldName) return;
+    if (categoryToUpdate.subcategories.includes(trimmed)) return; // would collide with an existing one
+
+    const updatedSubs = categoryToUpdate.subcategories.map(s => s === oldName ? trimmed : s);
+    setCategories(prev => prev.map(c => c.id === catId ? { ...c, subcategories: updatedSubs } : c));
+    const { error } = await supabase.from('Categories').update({ subcategories: updatedSubs }).eq('id', catId);
+    if (error) console.error('Failed to rename subcategory:', error);
+
+    // Same reasoning as the category-name fix: transactions carry their own stored subcategory
+    // name rather than an ID, so leaving them as-is would make them fall out of sync with the
+    // category's own subcategory list (they'd stop matching the "All Subcategories" filter, the
+    // Breakdown/Analytics subcategory breakdowns, etc.) even though the totals wouldn't be lost.
+    setTransactions(prev => prev.map(t =>
+      (t.categoryId === catId && t.subcategoryName === oldName) ? { ...t, subcategoryName: trimmed } : t
+    ));
+    const { error: txError } = await supabase
+      .from('Transactions')
+      .update({ 'Sub-Category': trimmed })
+      .ilike('Catagory', categoryToUpdate.name)
+      .ilike('Sub-Category', oldName);
+    if (txError) console.error('Failed to rename subcategory on existing transactions:', txError);
+  };
+
   const handleDeleteCategory = async (catId: string) => {
     if (catId === 'excluded') return;
     setCategories(prev => prev.filter(c => c.id !== catId));
@@ -2761,6 +2787,7 @@ const App: React.FC = () => {
                     onUpdateCategory={handleUpdateCategory}
                     onAddSubcategory={handleAddSubcategory}
                     onDeleteSubcategory={handleDeleteSubcategory}
+                    onRenameSubcategory={handleRenameSubcategory}
                     onDeleteCategory={handleDeleteCategory}
                     getCategoryEmoji={getCategoryEmoji}
                     onEmojiChange={handleEmojiChange}

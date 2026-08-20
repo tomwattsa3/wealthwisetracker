@@ -10,6 +10,7 @@ interface CategoryManagerProps {
   onUpdateCategory: (categoryId: string, updates: { name?: string; color?: string }) => void;
   onAddSubcategory: (categoryId: string, subcategory: string) => void;
   onDeleteSubcategory: (categoryId: string, subcategory: string) => void;
+  onRenameSubcategory?: (categoryId: string, oldName: string, newName: string) => void;
   onDeleteCategory: (categoryId: string) => void;
   getCategoryEmoji?: (categoryId: string) => string;
   onEmojiChange?: (categoryId: string, emoji: string) => void;
@@ -153,6 +154,7 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
   onUpdateCategory,
   onAddSubcategory,
   onDeleteSubcategory,
+  onRenameSubcategory,
   onDeleteCategory,
   getCategoryEmoji,
   onEmojiChange,
@@ -172,6 +174,21 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editCatName, setEditCatName] = useState('');
   const [editCatColor, setEditCatColor] = useState('');
+
+  // Inline subcategory rename state — which one (if any) is currently being edited
+  const [editingSubcat, setEditingSubcat] = useState<string | null>(null);
+  const [editSubcatName, setEditSubcatName] = useState('');
+
+  const startEditingSubcat = (sub: string) => {
+    setEditingSubcat(sub);
+    setEditSubcatName(sub);
+  };
+  const saveSubcatRename = () => {
+    if (editingSubcat && selectedCategoryId) {
+      onRenameSubcategory?.(selectedCategoryId, editingSubcat, editSubcatName);
+    }
+    setEditingSubcat(null);
+  };
 
   // New Subcategory State
   const [newSubcatName, setNewSubcatName] = useState('');
@@ -477,20 +494,67 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
                  <div className="grid grid-cols-1 gap-1 sm:gap-2">
                     {selectedCategory.subcategories.map(sub => (
                        <div key={sub} className="group flex items-center justify-between p-1.5 sm:p-2.5 bg-white dark:bg-neutral-800 border border-slate-100 dark:border-neutral-700 rounded-lg hover:border-violet-200 hover:shadow-sm transition-all">
-                          <div className="flex items-center gap-2 sm:gap-3">
-                             <div className="p-1 sm:p-1.5 bg-slate-50 dark:bg-neutral-700 rounded text-slate-400 dark:text-neutral-500 group-hover:text-violet-500 transition-colors">
-                                <Tag size={12} className="sm:w-3.5 sm:h-3.5" />
-                             </div>
-                             <span className="font-medium text-xs sm:text-sm text-slate-700 dark:text-neutral-400 group-hover:text-slate-900">{sub}</span>
-                          </div>
+                          {editingSubcat === sub ? (
+                            <>
+                              <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                                 <div className="p-1 sm:p-1.5 bg-slate-50 dark:bg-neutral-700 rounded text-violet-500 shrink-0">
+                                    <Tag size={12} className="sm:w-3.5 sm:h-3.5" />
+                                 </div>
+                                 <input
+                                   type="text"
+                                   value={editSubcatName}
+                                   onChange={(e) => setEditSubcatName(e.target.value)}
+                                   onKeyDown={(e) => { if (e.key === 'Enter') saveSubcatRename(); if (e.key === 'Escape') setEditingSubcat(null); }}
+                                   autoFocus
+                                   className="flex-1 min-w-0 bg-white dark:bg-neutral-700 border border-violet-300 rounded-md px-2 py-1 text-xs sm:text-sm font-medium text-slate-700 dark:text-neutral-300 outline-none"
+                                 />
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                 <button
+                                   onClick={saveSubcatRename}
+                                   className="p-1 sm:p-1.5 text-emerald-500 hover:bg-emerald-50 rounded transition-all"
+                                   title="Save"
+                                 >
+                                    <Check size={12} className="sm:w-3.5 sm:h-3.5" />
+                                 </button>
+                                 <button
+                                   onClick={() => setEditingSubcat(null)}
+                                   className="p-1 sm:p-1.5 text-slate-300 hover:text-slate-500 hover:bg-slate-50 rounded transition-all"
+                                   title="Cancel"
+                                 >
+                                    <X size={12} className="sm:w-3.5 sm:h-3.5" />
+                                 </button>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                                 <div className="p-1 sm:p-1.5 bg-slate-50 dark:bg-neutral-700 rounded text-slate-400 dark:text-neutral-500 group-hover:text-violet-500 transition-colors shrink-0">
+                                    <Tag size={12} className="sm:w-3.5 sm:h-3.5" />
+                                 </div>
+                                 <span className="font-medium text-xs sm:text-sm text-slate-700 dark:text-neutral-400 group-hover:text-slate-900 truncate">{sub}</span>
+                              </div>
 
-                          <button
-                            onClick={() => handleSubcategoryDeleteClick(sub)}
-                            className="p-1 sm:p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded transition-all sm:opacity-0 sm:group-hover:opacity-100"
-                            title="Delete Subcategory"
-                          >
-                             <Trash2 size={12} className="sm:w-3.5 sm:h-3.5" />
-                          </button>
+                              <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-all shrink-0">
+                                 {onRenameSubcategory && (
+                                   <button
+                                     onClick={() => startEditingSubcat(sub)}
+                                     className="p-1 sm:p-1.5 text-slate-300 hover:text-violet-500 hover:bg-violet-50 rounded transition-all"
+                                     title="Rename Subcategory"
+                                   >
+                                      <Pencil size={12} className="sm:w-3.5 sm:h-3.5" />
+                                   </button>
+                                 )}
+                                 <button
+                                   onClick={() => handleSubcategoryDeleteClick(sub)}
+                                   className="p-1 sm:p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded transition-all"
+                                   title="Delete Subcategory"
+                                 >
+                                    <Trash2 size={12} className="sm:w-3.5 sm:h-3.5" />
+                                 </button>
+                              </div>
+                            </>
+                          )}
                        </div>
                     ))}
                  </div>
