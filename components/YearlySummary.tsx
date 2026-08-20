@@ -821,7 +821,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                               £{data.amount.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
                             </p>
                             {data.byCategory && data.byCategory.length > 1 && (
-                              <div className="mt-1.5 pt-1.5 border-t border-white/10 space-y-1 max-h-[130px] overflow-y-auto">
+                              <div className="mt-1.5 pt-1.5 border-t border-white/10 space-y-1 max-h-[130px] overflow-y-auto hide-scrollbar">
                                 {data.byCategory.map((cat, i) => (
                                   <div key={i} className="flex items-center justify-between gap-3">
                                     <span className="flex items-center gap-1 text-slate-300 truncate">
