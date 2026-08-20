@@ -522,15 +522,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
           className={`border-b border-slate-100 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-700/60 ${rowBg(rowIndex)} ${isDragging ? 'opacity-40' : ''} ${isDragOver ? 'border-t-2 border-t-[#635bff]' : ''}`}
         >
           <td className={`sticky left-0 z-10 px-1.5 md:px-2 py-2.5 md:py-[12.5px] border-r border-slate-200 dark:border-neutral-700 ${rowBg(rowIndex)}`}>
-            <div className="flex items-center gap-1">
-              <button
-                onPointerDown={sortMode === 'custom' ? handleGripPointerDown(cat.id, allVisibleCatIds) : undefined}
-                disabled={sortMode !== 'custom'}
-                className={`text-slate-300 dark:text-neutral-600 shrink-0 p-0.5 ${sortMode === 'custom' ? 'hover:text-slate-500 dark:hover:text-neutral-400 cursor-grab active:cursor-grabbing touch-none' : 'opacity-0 pointer-events-none'}`}
-                title="Drag to reorder"
-              >
-                <GripVertical size={13} />
-              </button>
+            <div className="flex items-center justify-between gap-1">
               <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => toggleCat(cat.id)}>
                 <ChevronRight size={12} className={`text-slate-400 dark:text-neutral-500 transition-transform shrink-0 ${isExpanded ? 'rotate-90' : ''} ${subNames.length === 0 ? 'opacity-0' : ''}`} />
                 <span
@@ -541,6 +533,14 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                 </span>
                 <span className="font-medium text-slate-700 dark:text-neutral-300 whitespace-nowrap">{cat.name}</span>
               </div>
+              <button
+                onPointerDown={sortMode === 'custom' ? handleGripPointerDown(cat.id, allVisibleCatIds) : undefined}
+                disabled={sortMode !== 'custom'}
+                className={`text-slate-300 dark:text-neutral-600 shrink-0 p-0.5 ${sortMode === 'custom' ? 'hover:text-slate-500 dark:hover:text-neutral-400 cursor-grab active:cursor-grabbing touch-none' : 'opacity-0 pointer-events-none'}`}
+                title="Drag to reorder"
+              >
+                <GripVertical size={13} />
+              </button>
             </div>
           </td>
           {cols.map(col => {
