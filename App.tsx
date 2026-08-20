@@ -18,6 +18,7 @@ import BankFeedUpload from './components/BankFeedUpload';
 import YearlySummary from './components/YearlySummary';
 import SettingsManager from './components/SettingsManager';
 import BreakdownTab from './components/BreakdownTab';
+import RecurringPayments from './components/RecurringPayments';
 import DashboardSkeleton from './components/DashboardSkeleton';
 import SegmentedControl from './components/SegmentedControl';
 import {
@@ -25,7 +26,7 @@ import {
   ChevronLeft, ChevronRight, Filter, EyeOff, TrendingUp,
   Car, Plane, Smartphone, Coffee, ShoppingBag, PoundSterling, Activity, X,
   ArrowUpDown, FolderCog, CalendarRange, Building, ArrowRightLeft, Settings,
-  RotateCcw, Loader2, LogOut, Sparkles, Sun, Moon, Table
+  RotateCcw, Loader2, LogOut, Sparkles, Sun, Moon, Table, Repeat
 } from 'lucide-react';
 
 // Helper for category icons
@@ -272,10 +273,10 @@ const App: React.FC = () => {
     return currency === 'GBP' ? `£${formatted}` : `AED ${formatted}`;
   };
 
-  const [activeTab, setActiveTab] = useState<'home' | 'history' | 'categories' | 'yearly' | 'breakdown' | 'settings'>(() => {
+  const [activeTab, setActiveTab] = useState<'home' | 'history' | 'categories' | 'yearly' | 'breakdown' | 'recurring' | 'settings'>(() => {
     const saved = localStorage.getItem('activeTab');
-    if (saved && ['home', 'history', 'categories', 'yearly', 'breakdown', 'settings'].includes(saved)) {
-      return saved as 'home' | 'history' | 'categories' | 'yearly' | 'breakdown' | 'settings';
+    if (saved && ['home', 'history', 'categories', 'yearly', 'breakdown', 'recurring', 'settings'].includes(saved)) {
+      return saved as 'home' | 'history' | 'categories' | 'yearly' | 'breakdown' | 'recurring' | 'settings';
     }
     return 'home';
   });
@@ -1596,6 +1597,7 @@ const App: React.FC = () => {
                { id: 'yearly', icon: CalendarRange, label: 'Analytics', mobileLabel: 'Analytics', mobileOnly: true },
                { id: 'history', icon: ArrowRightLeft, label: 'Transactions', mobileLabel: 'Trans', mobileOnly: true },
                { id: 'categories', icon: FolderCog, label: 'Categories', mobileLabel: 'Cats', mobileOnly: false },
+               { id: 'recurring', icon: Repeat, label: 'Recurring', mobileLabel: 'Recurring', mobileOnly: false },
                { id: 'settings', icon: Settings, label: 'Settings', mobileLabel: 'Settings', mobileOnly: false }
              ].map((item) => (
                <button
@@ -2827,6 +2829,13 @@ const App: React.FC = () => {
                     onEmojiChange={handleEmojiChange}
                     onReapplyAllEmojis={reapplyAllCategoryEmojis}
                  />
+             </div>
+          )}
+
+           {/* RECURRING PAYMENTS VIEW */}
+           {activeTab === 'recurring' && (
+             <div className="h-full">
+                 <RecurringPayments transactions={transactions} categories={categories} />
              </div>
           )}
 
