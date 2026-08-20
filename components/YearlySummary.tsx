@@ -662,8 +662,12 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         {/* Left Column: Chart + Monthly Breakdown */}
         <div className="w-full lg:w-2/3 flex flex-col gap-5">
 
-        {/* Spending Trend Chart */}
-        <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 overflow-hidden">
+        {/* Spending Trend Chart — no overflow-hidden here: the chart's hover tooltip is an
+            absolutely-positioned child of this card, and Recharts' allowEscapeViewBox only lets
+            it escape the SVG's own coordinate system, not a CSS ancestor's overflow clipping. A
+            tall/wide tooltip (many categories selected) was getting cut off by the card's own
+            rounded-corner clip instead of being free to render wherever it needs to. */}
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700">
           <div className="px-4 md:px-5 pt-4 pb-3.5 md:pt-5 md:pb-4 border-b border-slate-100 dark:border-neutral-700 space-y-3">
             {/* Two independent columns instead of one interleaved stack: everything about
                 *picking* what to look at (title, filters, category/subcategory) stays on the
@@ -796,18 +800,28 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
                   />
                   <Tooltip
                     cursor={{ stroke: '#635bff', strokeWidth: 1, strokeDasharray: '4 4' }}
-                    allowEscapeViewBox={{ x: false, y: true }}
+                    allowEscapeViewBox={{ x: true, y: true }}
+                    position={{ y: 0 }}
                     content={({ active, payload, label }) => {
                       if (active && payload && payload.length) {
                         const data = payload[0].payload as { amount: number; rangeLabel?: string; byCategory?: { name: string; color: string; amount: number }[] };
+                        // Recharts anchors the tooltip to the right of the hovered point by
+                        // default, which runs off-screen for points in the right half of the
+                        // chart — flip it to grow leftward from the point instead once past the
+                        // midpoint, so it's always on the side with room.
+                        const pointIndex = chartData.findIndex(d => d.label === label);
+                        const isRightHalf = pointIndex >= 0 && pointIndex >= chartData.length / 2;
                         return (
-                          <div className="bg-slate-900 text-white px-3 py-2 rounded-lg shadow-xl text-xs min-w-[140px]">
+                          <div
+                            className="bg-slate-900 text-white px-3 py-2 rounded-lg shadow-xl text-xs min-w-[140px]"
+                            style={isRightHalf ? { transform: 'translateX(calc(-100% - 24px))' } : undefined}
+                          >
                             <p className="font-medium text-slate-300 text-[10px] mb-1">{data.rangeLabel || label}</p>
                             <p className="font-mono text-sm font-bold">
                               £{data.amount.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
                             </p>
                             {data.byCategory && data.byCategory.length > 1 && (
-                              <div className="mt-1.5 pt-1.5 border-t border-white/10 space-y-1 max-h-[180px] overflow-y-auto">
+                              <div className="mt-1.5 pt-1.5 border-t border-white/10 space-y-1 max-h-[130px] overflow-y-auto">
                                 {data.byCategory.map((cat, i) => (
                                   <div key={i} className="flex items-center justify-between gap-3">
                                     <span className="flex items-center gap-1 text-slate-300 truncate">
