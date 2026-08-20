@@ -420,6 +420,24 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
     return Array.from(map.values()).sort((a, b) => b.amount - a.amount);
   };
 
+  // Same idea, but split by subcategory instead — used when exactly one category is selected,
+  // since "which category" would just repeat the single one already picked, but "which
+  // subcategory" (e.g. Meals Out vs Food Delivery within Food) is actually new information.
+  const subcategoryBreakdownFor = (txs: Transaction[]) => {
+    const map = new Map<string, { name: string; color: string; amount: number }>();
+    txs.forEach(t => {
+      const cat = categories.find(c => c.id === t.categoryId || c.name === t.categoryName);
+      const name = t.subcategoryName || 'Other';
+      const color = cat?.color || '#94a3b8';
+      if (!map.has(name)) map.set(name, { name, color, amount: 0 });
+      map.get(name)!.amount += t.amount;
+    });
+    return Array.from(map.values()).sort((a, b) => b.amount - a.amount);
+  };
+
+  const chartBreakdownFor = (txs: Transaction[]) =>
+    chartCategoryFilters.length === 1 ? subcategoryBreakdownFor(txs) : categoryBreakdownFor(txs);
+
   const chartData = useMemo(() => {
     const expenses = filteredTransactions.filter(t => {
       if (t.type !== 'EXPENSE') return false;
@@ -454,7 +472,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
           label: `${DAYS[d.getDay()]} ${d.getDate()}`,
           amount: Math.round(data.amount * 100) / 100,
           amountAED: Math.round(data.amountAED * 100) / 100,
-          byCategory: categoryBreakdownFor(expenses.filter(t => t.date === date)),
+          byCategory: chartBreakdownFor(expenses.filter(t => t.date === date)),
         };
       });
     }
@@ -503,7 +521,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
           rangeLabel: w.rangeLabel,
           amount: Math.round(w.amount * 100) / 100,
           amountAED: Math.round(w.amountAED * 100) / 100,
-          byCategory: categoryBreakdownFor(expenses.filter(t => t.date >= weekKey && t.date <= w.sortKey)),
+          byCategory: chartBreakdownFor(expenses.filter(t => t.date >= weekKey && t.date <= w.sortKey)),
         }));
     }
 
@@ -519,7 +537,7 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
         label: m.month,
         amount: Math.round(monthAmount * 100) / 100,
         amountAED: Math.round(monthAmountAED * 100) / 100,
-        byCategory: categoryBreakdownFor(monthExpenses),
+        byCategory: chartBreakdownFor(monthExpenses),
       };
     });
   }, [filteredTransactions, dateRange, chartGranularity, monthlyData, chartCategoryFilters, chartSubcategoryFilter, categories]);
