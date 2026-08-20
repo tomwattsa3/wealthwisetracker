@@ -362,22 +362,25 @@ const YearlySummary: React.FC<YearlySummaryProps> = ({ transactions, categories,
     return categories.filter(c => c.type === 'EXPENSE').sort((a, b) => a.name.localeCompare(b.name));
   }, [categories]);
 
-  // Category + subcategory options for chart filter
+  // Category + subcategory options for chart filter, ranked by spend so the biggest categories
+  // surface first in the dropdown instead of alphabetically.
   const expenseCategoryOptions = useMemo(() => {
-    const catMap = new Map<string, { id: string; name: string; subs: Map<string, string> }>();
+    const catMap = new Map<string, { id: string; name: string; subs: Map<string, string>; total: number }>();
     filteredTransactions
       .filter(t => t.type === 'EXPENSE')
       .forEach(t => {
         const cat = categories.find(c => c.id === t.categoryId || c.name === t.categoryName);
         const id = cat?.id || t.categoryId || 'uncategorized';
         const name = cat?.name || t.categoryName || 'Uncategorized';
-        if (!catMap.has(id)) catMap.set(id, { id, name, subs: new Map() });
+        if (!catMap.has(id)) catMap.set(id, { id, name, subs: new Map(), total: 0 });
+        const entry = catMap.get(id)!;
+        entry.total += Math.abs(t.amountGBP || t.amount || 0);
         if (t.subcategoryName) {
-          catMap.get(id)!.subs.set(t.subcategoryName, t.subcategoryName);
+          entry.subs.set(t.subcategoryName, t.subcategoryName);
         }
       });
     return Array.from(catMap.values())
-      .sort((a, b) => a.name.localeCompare(b.name))
+      .sort((a, b) => b.total - a.total)
       .map(c => ({
         id: c.id,
         name: c.name,
