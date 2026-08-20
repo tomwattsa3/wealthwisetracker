@@ -663,6 +663,8 @@ const App: React.FC = () => {
   const handleUpdateCategory = async (catId: string, updates: { name?: string; color?: string }) => {
     if (catId === 'excluded') return;
 
+    const oldCategory = categories.find(c => c.id === catId);
+
     // Optimistic update
     setCategories(prev => prev.map(c =>
       c.id === catId ? { ...c, ...updates } : c
@@ -672,6 +674,24 @@ const App: React.FC = () => {
     const { error } = await supabase.from('Categories').update(updates).eq('id', catId);
     if (error) {
       console.error('Failed to update category:', error);
+    }
+
+    // There's no real categoryId column on Transactions — fetchData links each row to a category
+    // by matching its stored 'Catagory' name string against categories.name at load time. A rename
+    // with nothing else would silently orphan every transaction under the old name into
+    // "uncategorized" on the next refresh, so every transaction currently tagged with the old
+    // name gets renamed the same way, both locally and in Supabase.
+    if (updates.name && oldCategory && updates.name !== oldCategory.name) {
+      const newName = updates.name;
+      const oldName = oldCategory.name;
+      setTransactions(prev => prev.map(t => t.categoryId === catId ? { ...t, categoryName: newName } : t));
+      const { error: txError } = await supabase
+        .from('Transactions')
+        .update({ 'Catagory': newName })
+        .ilike('Catagory', oldName);
+      if (txError) {
+        console.error('Failed to rename category on existing transactions:', txError);
+      }
     }
   };
 
