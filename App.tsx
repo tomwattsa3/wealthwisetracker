@@ -2822,6 +2822,7 @@ const App: React.FC = () => {
                     onDeleteSubcategory={handleDeleteSubcategory}
                     onRenameSubcategory={handleRenameSubcategory}
                     onDeleteCategory={handleDeleteCategory}
+                    onUpdateTransaction={updateTransaction}
                     getCategoryEmoji={getCategoryEmoji}
                     onEmojiChange={handleEmojiChange}
                     onReapplyAllEmojis={reapplyAllCategoryEmojis}

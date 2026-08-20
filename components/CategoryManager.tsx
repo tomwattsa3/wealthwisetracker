@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Category, Transaction, TransactionType } from '../types';
-import { Plus, Tag, FolderPlus, X, Check, Trash2, Search, ChevronRight, Layers, AlertTriangle, Pencil, Sparkles, ChevronDown } from 'lucide-react';
+import { Plus, Tag, FolderPlus, X, Check, Trash2, Search, ChevronRight, Layers, AlertTriangle, Pencil, Sparkles } from 'lucide-react';
 import AnimatedModal from './AnimatedModal';
 
 interface CategoryManagerProps {
@@ -13,6 +13,7 @@ interface CategoryManagerProps {
   onDeleteSubcategory: (categoryId: string, subcategory: string) => void;
   onRenameSubcategory?: (categoryId: string, oldName: string, newName: string) => void;
   onDeleteCategory: (categoryId: string, reassignToCategoryId?: string | null) => void;
+  onUpdateTransaction?: (id: string, updates: Partial<Transaction>) => void;
   getCategoryEmoji?: (categoryId: string) => string;
   onEmojiChange?: (categoryId: string, emoji: string) => void;
   onReapplyAllEmojis?: () => void;
@@ -77,69 +78,150 @@ const DeleteCategoryModal = ({
 };
 
 // Shown instead of the plain DeleteCategoryModal whenever the category being deleted still has
-// transactions under it — lets those be moved onto another category first rather than being
-// silently left to fall out of categorization (there's no real foreign key linking them; they're
-// matched by name at load time, so deleting the category out from under them orphans them).
-const ReassignAndDeleteModal = ({
+// transactions under it — lets each one be individually recategorized right here (a per-row
+// dropdown, not one bulk "move everything" choice) before the delete is allowed to go through.
+// There's no real foreign key linking transactions to categories (they're matched by name at
+// load time), so deleting the category out from under them would otherwise silently orphan them.
+const RecategorizeModal = ({
     isOpen,
     onClose,
-    onConfirm,
+    onDone,
     categoryName,
-    transactionCount,
-    otherCategories
+    excludeCategoryId,
+    transactionsToFix,
+    categories,
+    onUpdateTransaction
 }: {
     isOpen: boolean;
     onClose: () => void;
-    onConfirm: (reassignToCategoryId: string | null) => void;
+    onDone: () => void;
     categoryName: string;
-    transactionCount: number;
-    otherCategories: Category[];
+    excludeCategoryId: string;
+    transactionsToFix: Transaction[];
+    categories: Category[];
+    onUpdateTransaction?: (id: string, updates: Partial<Transaction>) => void;
 }) => {
-    const [reassignTo, setReassignTo] = useState<string>('');
+    const [selections, setSelections] = useState<Record<string, { categoryId: string; subcategoryName: string }>>({});
+    const [descriptions, setDescriptions] = useState<Record<string, string>>({});
 
     useEffect(() => {
-        if (isOpen) setReassignTo('');
+        if (isOpen) {
+            setSelections({});
+            setDescriptions(Object.fromEntries(transactionsToFix.map(t => [t.id, t.description || ''])));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
 
+    const allAssigned = transactionsToFix.length > 0 && transactionsToFix.every(t => selections[t.id]?.categoryId);
+
+    const handleCategoryPick = (txId: string, newCategoryId: string) => {
+        setSelections(prev => ({ ...prev, [txId]: { categoryId: newCategoryId, subcategoryName: '' } }));
+    };
+    const handleSubcategoryPick = (txId: string, subcategoryName: string) => {
+        setSelections(prev => ({ ...prev, [txId]: { categoryId: prev[txId]?.categoryId || '', subcategoryName } }));
+    };
+
+    const handleSave = () => {
+        transactionsToFix.forEach(t => {
+            const selection = selections[t.id];
+            const newCategory = categories.find(c => c.id === selection?.categoryId);
+            if (newCategory) {
+                onUpdateTransaction?.(t.id, {
+                    categoryId: newCategory.id,
+                    categoryName: newCategory.name,
+                    subcategoryName: selection.subcategoryName || '',
+                    description: descriptions[t.id] ?? t.description
+                });
+            }
+        });
+        onDone();
+    };
+
     return (
-        <AnimatedModal isOpen={isOpen} onClose={onClose}>
-            <div className="flex flex-col items-center text-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100">
-                    <AlertTriangle size={24} />
+        <AnimatedModal
+            isOpen={isOpen}
+            onClose={onClose}
+            panelClassName="relative bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] p-6 sm:p-7 border border-slate-100 dark:border-neutral-700 flex flex-col"
+        >
+            <div className="flex items-center gap-3 shrink-0">
+                <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100 shrink-0">
+                    <AlertTriangle size={20} />
                 </div>
-                <div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-neutral-200">Delete {categoryName}?</h3>
-                    <p className="text-sm text-slate-500 dark:text-neutral-500 mt-2 leading-relaxed">
-                        <span className="font-bold text-slate-900 dark:text-neutral-200">{transactionCount}</span> transaction{transactionCount === 1 ? '' : 's'} {transactionCount === 1 ? 'is' : 'are'} still tagged with this category. Choose where they go before it's deleted.
-                    </p>
-                </div>
-                <div className="relative w-full">
-                    <select
-                        value={reassignTo}
-                        onChange={(e) => setReassignTo(e.target.value)}
-                        className="w-full appearance-none bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-neutral-300 outline-none focus:border-violet-500 cursor-pointer"
-                    >
-                        <option value="">Leave uncategorized</option>
-                        {otherCategories.map(c => (
-                            <option key={c.id} value={c.id}>Move to {c.name}</option>
-                        ))}
-                    </select>
-                    <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
-                </div>
-                <div className="flex gap-3 w-full mt-2">
-                    <button
-                        onClick={onClose}
-                        className="flex-1 py-2.5 rounded-xl font-bold text-slate-700 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-700 hover:bg-slate-200 transition-colors active:scale-95"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={() => onConfirm(reassignTo || null)}
-                        className="flex-1 py-2.5 rounded-xl font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-200 transition-all active:scale-95"
-                    >
-                        Delete
-                    </button>
-                </div>
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-neutral-200">Recategorize before deleting {categoryName}</h3>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-neutral-500 mt-2 mb-4 shrink-0 leading-relaxed">
+                Pick a new category (and subcategory, if you like) for each transaction below — {categoryName} deletes once they're all set.
+            </p>
+            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2.5 -mx-1 px-1">
+                {transactionsToFix.map(t => {
+                    const options = categories.filter(c => c.id !== excludeCategoryId && c.id !== 'excluded' && c.type === t.type);
+                    const selection = selections[t.id];
+                    const pickedCategory = categories.find(c => c.id === selection?.categoryId);
+                    const amount = t.amountGBP || t.amount || 0;
+                    return (
+                        <div key={t.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3.5 bg-slate-50 dark:bg-neutral-700/50 rounded-xl border border-slate-100 dark:border-neutral-700">
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                    <span className={`px-1.5 py-px text-[9px] font-bold rounded-full shrink-0 ${t.type === 'INCOME' ? 'text-white bg-emerald-500' : 'text-white bg-rose-500'}`}>
+                                        {t.type === 'INCOME' ? 'IN' : 'OUT'}
+                                    </span>
+                                    <input
+                                        type="text"
+                                        value={descriptions[t.id] ?? t.description ?? ''}
+                                        onChange={(e) => setDescriptions(prev => ({ ...prev, [t.id]: e.target.value }))}
+                                        placeholder="Unknown"
+                                        className="flex-1 min-w-0 bg-transparent text-sm font-semibold text-slate-700 dark:text-neutral-300 outline-none border-b border-transparent hover:border-slate-300 focus:border-violet-500 transition-colors"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-[11px] text-slate-400 dark:text-neutral-500">{t.date}</span>
+                                    <span className="px-1.5 py-px bg-slate-200 dark:bg-neutral-600 rounded-full text-[10px] font-medium text-slate-500 dark:text-neutral-400 whitespace-nowrap truncate max-w-[140px]">{categoryName}</span>
+                                    <span className={`text-xs font-bold tabular-nums ml-auto sm:ml-0 ${t.type === 'INCOME' ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-800 dark:text-neutral-300'}`}>
+                                        £{amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                                <select
+                                    value={selection?.categoryId || ''}
+                                    onChange={(e) => handleCategoryPick(t.id, e.target.value)}
+                                    className="w-full sm:w-44 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-700 dark:text-neutral-300 outline-none focus:border-violet-500 cursor-pointer"
+                                >
+                                    <option value="">Choose category...</option>
+                                    {options.map(c => (
+                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                    ))}
+                                </select>
+                                <select
+                                    value={selection?.subcategoryName || ''}
+                                    onChange={(e) => handleSubcategoryPick(t.id, e.target.value)}
+                                    disabled={!pickedCategory || pickedCategory.subcategories.length === 0}
+                                    className="w-full sm:w-40 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-700 dark:text-neutral-300 outline-none focus:border-violet-500 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    <option value="">No subcategory</option>
+                                    {pickedCategory?.subcategories.map(sub => (
+                                        <option key={sub} value={sub}>{sub}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+            <div className="flex gap-3 w-full mt-4 shrink-0">
+                <button
+                    onClick={onClose}
+                    className="flex-1 py-2.5 rounded-xl font-bold text-slate-700 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-700 hover:bg-slate-200 transition-colors active:scale-95"
+                >
+                    Cancel
+                </button>
+                <button
+                    onClick={handleSave}
+                    disabled={!allAssigned}
+                    className="flex-1 py-2.5 rounded-xl font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-200 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
+                >
+                    Save & Delete
+                </button>
             </div>
         </AnimatedModal>
     );
@@ -227,6 +309,7 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
   onDeleteSubcategory,
   onRenameSubcategory,
   onDeleteCategory,
+  onUpdateTransaction,
   getCategoryEmoji,
   onEmojiChange,
   onReapplyAllEmojis
@@ -297,15 +380,11 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
     };
   }, [filteredCategories]);
 
-  // How many transactions are currently tagged with the category about to be deleted, and which
-  // other categories (same income/expense type) they could be moved to instead.
+  // How many transactions are currently tagged with the category about to be deleted — a
+  // non-zero count blocks the delete until they're recategorized individually.
   const transactionsUnderSelectedCategory = useMemo(() =>
     selectedCategoryId ? transactions.filter(t => t.categoryId === selectedCategoryId) : [],
   [transactions, selectedCategoryId]);
-
-  const reassignCandidates = useMemo(() =>
-    categories.filter(c => c.id !== selectedCategoryId && c.id !== 'excluded' && c.type === selectedCategory?.type),
-  [categories, selectedCategoryId, selectedCategory]);
 
   const handleCreateCategory = (e: React.FormEvent) => {
     e.preventDefault();
@@ -670,16 +749,18 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
          )}
       </div>
 
-      {/* Delete Category Confirmation Modal — the reassignment step only shows up when the
-          category actually has transactions under it; an empty one just gets the plain prompt. */}
+      {/* Delete Category Confirmation Modal — the recategorize step only shows up when the
+          category actually has transactions under it; an empty one gets the plain prompt. */}
       {transactionsUnderSelectedCategory.length > 0 ? (
-        <ReassignAndDeleteModal
+        <RecategorizeModal
            isOpen={showDeleteConfirm}
            onClose={() => setShowDeleteConfirm(false)}
-           onConfirm={handleConfirmDelete}
+           onDone={() => handleConfirmDelete(null)}
            categoryName={selectedCategory?.name || ''}
-           transactionCount={transactionsUnderSelectedCategory.length}
-           otherCategories={reassignCandidates}
+           excludeCategoryId={selectedCategoryId || ''}
+           transactionsToFix={transactionsUnderSelectedCategory}
+           categories={categories}
+           onUpdateTransaction={onUpdateTransaction}
         />
       ) : (
         <DeleteCategoryModal
