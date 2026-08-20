@@ -680,8 +680,30 @@ const App: React.FC = () => {
     if (txError) console.error('Failed to rename subcategory on existing transactions:', txError);
   };
 
-  const handleDeleteCategory = async (catId: string) => {
+  // reassignToCategoryId: when provided, every transaction currently under the deleted category
+  // is moved onto it first (both locally and in Supabase) instead of being left to silently fall
+  // out of categorization — since (as with rename) transactions are linked by matching their
+  // stored name string against the categories list, not by a real foreign key, deleting the
+  // category out from under them with nothing else would otherwise orphan them.
+  const handleDeleteCategory = async (catId: string, reassignToCategoryId?: string | null) => {
     if (catId === 'excluded') return;
+    const categoryToDelete = categories.find(c => c.id === catId);
+    if (!categoryToDelete) return;
+
+    if (reassignToCategoryId) {
+      const targetCategory = categories.find(c => c.id === reassignToCategoryId);
+      if (targetCategory) {
+        setTransactions(prev => prev.map(t =>
+          t.categoryId === catId ? { ...t, categoryId: reassignToCategoryId, categoryName: targetCategory.name, subcategoryName: '' } : t
+        ));
+        const { error: txError } = await supabase
+          .from('Transactions')
+          .update({ 'Catagory': targetCategory.name, 'Sub-Category': '' })
+          .ilike('Catagory', categoryToDelete.name);
+        if (txError) console.error('Failed to reassign transactions before deleting category:', txError);
+      }
+    }
+
     setCategories(prev => prev.filter(c => c.id !== catId));
     await supabase.from('Categories').delete().eq('id', catId);
   };
@@ -2793,6 +2815,7 @@ const App: React.FC = () => {
              <div className="h-full">
                  <CategoryManager
                     categories={categories}
+                    transactions={transactions}
                     onAddCategory={handleAddCategory}
                     onUpdateCategory={handleUpdateCategory}
                     onAddSubcategory={handleAddSubcategory}

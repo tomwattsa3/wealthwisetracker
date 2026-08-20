@@ -1,17 +1,18 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Category, TransactionType } from '../types';
-import { Plus, Tag, FolderPlus, X, Check, Trash2, Search, ChevronRight, Layers, AlertTriangle, Pencil, Sparkles } from 'lucide-react';
+import { Category, Transaction, TransactionType } from '../types';
+import { Plus, Tag, FolderPlus, X, Check, Trash2, Search, ChevronRight, Layers, AlertTriangle, Pencil, Sparkles, ChevronDown } from 'lucide-react';
 import AnimatedModal from './AnimatedModal';
 
 interface CategoryManagerProps {
   categories: Category[];
+  transactions?: Transaction[];
   onAddCategory: (category: Category) => void;
   onUpdateCategory: (categoryId: string, updates: { name?: string; color?: string }) => void;
   onAddSubcategory: (categoryId: string, subcategory: string) => void;
   onDeleteSubcategory: (categoryId: string, subcategory: string) => void;
   onRenameSubcategory?: (categoryId: string, oldName: string, newName: string) => void;
-  onDeleteCategory: (categoryId: string) => void;
+  onDeleteCategory: (categoryId: string, reassignToCategoryId?: string | null) => void;
   getCategoryEmoji?: (categoryId: string) => string;
   onEmojiChange?: (categoryId: string, emoji: string) => void;
   onReapplyAllEmojis?: () => void;
@@ -65,6 +66,75 @@ const DeleteCategoryModal = ({
                     </button>
                     <button
                         onClick={onConfirm}
+                        className="flex-1 py-2.5 rounded-xl font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-200 transition-all active:scale-95"
+                    >
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </AnimatedModal>
+    );
+};
+
+// Shown instead of the plain DeleteCategoryModal whenever the category being deleted still has
+// transactions under it — lets those be moved onto another category first rather than being
+// silently left to fall out of categorization (there's no real foreign key linking them; they're
+// matched by name at load time, so deleting the category out from under them orphans them).
+const ReassignAndDeleteModal = ({
+    isOpen,
+    onClose,
+    onConfirm,
+    categoryName,
+    transactionCount,
+    otherCategories
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: (reassignToCategoryId: string | null) => void;
+    categoryName: string;
+    transactionCount: number;
+    otherCategories: Category[];
+}) => {
+    const [reassignTo, setReassignTo] = useState<string>('');
+
+    useEffect(() => {
+        if (isOpen) setReassignTo('');
+    }, [isOpen]);
+
+    return (
+        <AnimatedModal isOpen={isOpen} onClose={onClose}>
+            <div className="flex flex-col items-center text-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100">
+                    <AlertTriangle size={24} />
+                </div>
+                <div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-neutral-200">Delete {categoryName}?</h3>
+                    <p className="text-sm text-slate-500 dark:text-neutral-500 mt-2 leading-relaxed">
+                        <span className="font-bold text-slate-900 dark:text-neutral-200">{transactionCount}</span> transaction{transactionCount === 1 ? '' : 's'} {transactionCount === 1 ? 'is' : 'are'} still tagged with this category. Choose where they go before it's deleted.
+                    </p>
+                </div>
+                <div className="relative w-full">
+                    <select
+                        value={reassignTo}
+                        onChange={(e) => setReassignTo(e.target.value)}
+                        className="w-full appearance-none bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-neutral-300 outline-none focus:border-violet-500 cursor-pointer"
+                    >
+                        <option value="">Leave uncategorized</option>
+                        {otherCategories.map(c => (
+                            <option key={c.id} value={c.id}>Move to {c.name}</option>
+                        ))}
+                    </select>
+                    <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 pointer-events-none" />
+                </div>
+                <div className="flex gap-3 w-full mt-2">
+                    <button
+                        onClick={onClose}
+                        className="flex-1 py-2.5 rounded-xl font-bold text-slate-700 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-700 hover:bg-slate-200 transition-colors active:scale-95"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={() => onConfirm(reassignTo || null)}
                         className="flex-1 py-2.5 rounded-xl font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-200 transition-all active:scale-95"
                     >
                         Delete
@@ -150,6 +220,7 @@ const EMOJI_OPTIONS = [
 
 const CategoryManager: React.FC<CategoryManagerProps> = ({
   categories,
+  transactions = [],
   onAddCategory,
   onUpdateCategory,
   onAddSubcategory,
@@ -226,6 +297,16 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
     };
   }, [filteredCategories]);
 
+  // How many transactions are currently tagged with the category about to be deleted, and which
+  // other categories (same income/expense type) they could be moved to instead.
+  const transactionsUnderSelectedCategory = useMemo(() =>
+    selectedCategoryId ? transactions.filter(t => t.categoryId === selectedCategoryId) : [],
+  [transactions, selectedCategoryId]);
+
+  const reassignCandidates = useMemo(() =>
+    categories.filter(c => c.id !== selectedCategoryId && c.id !== 'excluded' && c.type === selectedCategory?.type),
+  [categories, selectedCategoryId, selectedCategory]);
+
   const handleCreateCategory = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCatName.trim()) return;
@@ -261,9 +342,9 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
   };
 
   // Handler for confirming delete
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = (reassignToCategoryId?: string | null) => {
     if (selectedCategoryId && selectedCategoryId !== 'excluded') {
-       onDeleteCategory(selectedCategoryId);
+       onDeleteCategory(selectedCategoryId, reassignToCategoryId);
        setShowDeleteConfirm(false);
        setSelectedCategoryId(null); // Deselect after delete
     }
@@ -589,13 +670,25 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
          )}
       </div>
 
-      {/* Delete Category Confirmation Modal */}
-      <DeleteCategoryModal
-         isOpen={showDeleteConfirm}
-         onClose={() => setShowDeleteConfirm(false)}
-         onConfirm={handleConfirmDelete}
-         categoryName={selectedCategory?.name || ''}
-      />
+      {/* Delete Category Confirmation Modal — the reassignment step only shows up when the
+          category actually has transactions under it; an empty one just gets the plain prompt. */}
+      {transactionsUnderSelectedCategory.length > 0 ? (
+        <ReassignAndDeleteModal
+           isOpen={showDeleteConfirm}
+           onClose={() => setShowDeleteConfirm(false)}
+           onConfirm={handleConfirmDelete}
+           categoryName={selectedCategory?.name || ''}
+           transactionCount={transactionsUnderSelectedCategory.length}
+           otherCategories={reassignCandidates}
+        />
+      ) : (
+        <DeleteCategoryModal
+           isOpen={showDeleteConfirm}
+           onClose={() => setShowDeleteConfirm(false)}
+           onConfirm={() => handleConfirmDelete(null)}
+           categoryName={selectedCategory?.name || ''}
+        />
+      )}
 
       {/* Delete Subcategory Confirmation Modal */}
       <DeleteSubcategoryModal
