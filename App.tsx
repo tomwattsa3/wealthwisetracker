@@ -1378,12 +1378,13 @@ const App: React.FC = () => {
 
     const dailyAverage = totalAmount / daysDiff;
 
-    // Months that actually have a transaction in range, not calendar months elapsed — same
-    // reasoning as the Analytics tab's averages: dividing by elapsed months overcounts and
-    // deflates the average whenever the data doesn't yet reach the current month.
-    const monthsWithData = new Set(selectedTransactions.map(t => t.date.slice(0, 7))).size || 1;
-    const monthlyAverageGBP = totalGBP / monthsWithData;
-    const monthlyAverageAED = totalAED / monthsWithData;
+    // Number of calendar months actually spanned by the selected date range (e.g. YTD from Jan
+    // to Aug is 8 months), not how many of those months happen to have a transaction in them —
+    // this is meant to answer "average per month of the period I selected", not "average per
+    // month that had spending".
+    const monthsInSelectedRange = Math.max(1, (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth()) + 1);
+    const monthlyAverageGBP = totalGBP / monthsInSelectedRange;
+    const monthlyAverageAED = totalAED / monthsInSelectedRange;
 
     return {
       totalSpend: totalAmount,
