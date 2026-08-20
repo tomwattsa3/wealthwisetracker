@@ -1378,11 +1378,20 @@ const App: React.FC = () => {
 
     const dailyAverage = totalAmount / daysDiff;
 
+    // Months that actually have a transaction in range, not calendar months elapsed — same
+    // reasoning as the Analytics tab's averages: dividing by elapsed months overcounts and
+    // deflates the average whenever the data doesn't yet reach the current month.
+    const monthsWithData = new Set(selectedTransactions.map(t => t.date.slice(0, 7))).size || 1;
+    const monthlyAverageGBP = totalGBP / monthsWithData;
+    const monthlyAverageAED = totalAED / monthsWithData;
+
     return {
       totalSpend: totalAmount,
       totalGBP,
       totalAED,
       dailyAverage,
+      monthlyAverageGBP,
+      monthlyAverageAED,
       daysInRange: daysDiff,
       transactionCount: selectedTransactions.length,
       isIncome: targetType === 'INCOME'
@@ -2823,8 +2832,8 @@ const App: React.FC = () => {
           {/* HISTORY VIEW */}
           {activeTab === 'history' && (
             <div className="h-full overflow-y-auto flex flex-col space-y-2 md:space-y-4 px-0 sm:px-0 pb-20">
-              {/* Upload + Summary Cards - Desktop: all four cards in a single row */}
-              <div className="hidden lg:grid lg:grid-cols-10 gap-3 items-stretch">
+              {/* Upload + Summary Cards - Desktop: all five cards in a single row */}
+              <div className="hidden lg:grid lg:grid-cols-12 gap-3 items-stretch">
                 <div className="col-span-4">
                   <BankFeedUpload
                     onImport={handleImportTransactions}
@@ -2850,6 +2859,14 @@ const App: React.FC = () => {
                   </div>
                 </div>
                 <div className="col-span-2 bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-4 flex items-center gap-3">
+                  <span className="w-10 h-10 rounded-lg bg-sky-50 dark:bg-sky-950 flex items-center justify-center text-base shrink-0">📅</span>
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Avg/Mo</span>
+                    <p className="text-base font-bold text-slate-900 dark:text-neutral-200 truncate">£{dailyAverageData.monthlyAverageGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <p className="text-[11px] font-medium text-slate-400 dark:text-neutral-500 truncate">AED {dailyAverageData.monthlyAverageAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  </div>
+                </div>
+                <div className="col-span-2 bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-4 flex items-center gap-3">
                   <span className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-base shrink-0">✏️</span>
                   <div className="min-w-0">
                     <span className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Trans</span>
@@ -2859,7 +2876,7 @@ const App: React.FC = () => {
               </div>
 
               {/* Summary Cards - Mobile & Tablet (below lg, no upload card shown) */}
-              <div className="lg:hidden grid grid-cols-3 gap-2">
+              <div className="lg:hidden grid grid-cols-2 gap-2">
                 <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-2 flex flex-col items-center gap-0.5">
                   <div className="flex items-center gap-1">
                     <span className="w-5 h-5 rounded-md bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-[10px] shrink-0">💰</span>
@@ -2873,6 +2890,13 @@ const App: React.FC = () => {
                     <span className="text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Avg/Trans</span>
                   </div>
                   <span className="text-xs font-bold text-slate-900 dark:text-neutral-200">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalGBP / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</span>
+                </div>
+                <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-2 flex flex-col items-center gap-0.5">
+                  <div className="flex items-center gap-1">
+                    <span className="w-5 h-5 rounded-md bg-sky-50 dark:bg-sky-950 flex items-center justify-center text-[10px] shrink-0">📅</span>
+                    <span className="text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Avg/Mo</span>
+                  </div>
+                  <span className="text-xs font-bold text-slate-900 dark:text-neutral-200">£{dailyAverageData.monthlyAverageGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-2 flex flex-col items-center gap-0.5">
                   <div className="flex items-center gap-1">
