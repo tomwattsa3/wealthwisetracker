@@ -40,9 +40,9 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
   const now = new Date();
   const [rangeStart, setRangeStart] = useState(() => localStorage.getItem('breakdownRangeStart') || `${now.getFullYear()}-01`);
   const [rangeEnd, setRangeEnd] = useState(() => localStorage.getItem('breakdownRangeEnd') || monthInputValue(now));
-  const [rangeLabel, setRangeLabel] = useState<'Last Month' | 'YTD' | 'This Year' | 'Custom'>(() => {
+  const [rangeLabel, setRangeLabel] = useState<'MTD' | 'Last Month' | 'YTD' | 'This Year' | 'Custom'>(() => {
     const saved = localStorage.getItem('breakdownRangeLabel');
-    return saved === 'Last Month' || saved === 'YTD' || saved === 'This Year' || saved === 'Custom' ? saved : 'YTD';
+    return saved === 'MTD' || saved === 'Last Month' || saved === 'YTD' || saved === 'This Year' || saved === 'Custom' ? saved : 'YTD';
   });
   useEffect(() => {
     localStorage.setItem('breakdownRangeStart', rangeStart);
@@ -179,7 +179,14 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     window.addEventListener('pointerup', handleUp);
   };
 
-  const presets: { label: 'Last Month' | 'YTD' | 'This Year'; getRange: () => { start: string; end: string } }[] = [
+  const presets: { label: 'MTD' | 'Last Month' | 'YTD' | 'This Year'; getRange: () => { start: string; end: string } }[] = [
+    {
+      label: 'MTD',
+      getRange: () => {
+        const v = monthInputValue(now);
+        return { start: v, end: v };
+      }
+    },
     {
       label: 'Last Month',
       getRange: () => {
