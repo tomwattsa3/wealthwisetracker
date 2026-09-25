@@ -1512,6 +1512,35 @@ const App: React.FC = () => {
       return Array.from(combined).sort();
   }, [transactions, banks]);
 
+  // Most recent transaction date per bank, across ALL transactions (ignores the date/other filters)
+  // so it's clear where each bank's data currently ends and what still needs importing.
+  const latestByBank = useMemo(() => {
+      const byBank = new Map<string, { name: string; date: string; count: number }>();
+      for (const t of transactions) {
+          const name = t.bankName?.trim();
+          if (!name || !t.date) continue;
+          const key = name.toLowerCase();
+          const existing = byBank.get(key);
+          if (!existing) byBank.set(key, { name, date: t.date, count: 1 });
+          else {
+              existing.count++;
+              if (t.date > existing.date) existing.date = t.date;
+          }
+      }
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return Array.from(byBank.values())
+          .map(b => {
+              const d = new Date(`${b.date}T00:00:00`);
+              const daysAgo = isNaN(d.getTime()) ? null : Math.round((today.getTime() - d.getTime()) / 86400000);
+              const bank = banks.find(x => x.name.trim().toLowerCase() === b.name.toLowerCase());
+              const dateLabel = isNaN(d.getTime()) ? b.date : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+              const agoLabel = daysAgo === null ? '' : daysAgo <= 0 ? 'today' : daysAgo === 1 ? 'yesterday' : `${daysAgo}d ago`;
+              return { ...b, daysAgo, dateLabel, agoLabel, stale: daysAgo !== null && daysAgo > 30, icon: bank?.icon || b.name.slice(0, 2).toUpperCase() };
+          })
+          .sort((a, b) => a.date.localeCompare(b.date)); // stalest first
+  }, [transactions, banks]);
+
   // Categories available for filter dropdown (Dynamic)
   const expenseCategories = categories.filter(c => c.type === 'EXPENSE');
   const incomeCategories = categories.filter(c => c.type === 'INCOME');
@@ -2888,6 +2917,7 @@ const App: React.FC = () => {
                     webhookUrl={webhookUrl}
                     banks={banks}
                     merchantMappings={merchantMappings}
+                    latestByBank={latestByBank}
                   />
                 </div>
                 <div className="col-span-2 bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-4 flex items-center gap-3">
@@ -2954,6 +2984,28 @@ const App: React.FC = () => {
                   <span className="text-xs font-bold text-slate-900 dark:text-neutral-200">{dailyAverageData.transactionCount}</span>
                 </div>
               </div>
+
+              {/* Latest transaction per bank (below lg, where the upload card — which shows this on
+                  desktop — is hidden). Tap a bank to filter the log to it. */}
+              {latestByBank.length > 0 && (
+                <div className="lg:hidden shrink-0 flex items-center gap-1.5 overflow-x-auto hide-scrollbar px-1">
+                  <span className="text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider shrink-0">Last</span>
+                  {latestByBank.map(b => {
+                    const active = filterBank !== 'all' && filterBank.trim().toLowerCase() === b.name.toLowerCase();
+                    return (
+                      <button
+                        key={b.name}
+                        onClick={() => setFilterBank(active ? 'all' : b.name)}
+                        className={`shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] whitespace-nowrap transition-colors ${active ? 'border-[#635bff] bg-violet-50 dark:bg-violet-950/40' : 'border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-800'}`}
+                      >
+                        <span className="font-semibold text-slate-700 dark:text-neutral-300">{b.name}</span>
+                        <span className="text-slate-500 dark:text-neutral-400">{b.dateLabel.replace(/ \d{4}$/, '')}</span>
+                        <span className={`font-semibold ${b.stale ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400 dark:text-neutral-500'}`}>· {b.agoLabel}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-2 sm:p-3 animate-in fade-in shadow-sm flex flex-col flex-1 min-h-[500px] md:min-h-[600px] overflow-visible md:overflow-hidden">
                 <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-2 sm:mb-6 gap-2 sm:gap-4 border-b border-slate-100 pb-2 sm:pb-6">

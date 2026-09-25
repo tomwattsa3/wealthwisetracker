@@ -9,6 +9,8 @@ interface BankFeedUploadProps {
   webhookUrl?: string;
   banks: Bank[];
   merchantMappings?: MerchantMapping[];
+  // Most recent transaction date per bank, shown under the title for the selected bank
+  latestByBank?: { name: string; dateLabel: string; agoLabel: string; stale: boolean }[];
 }
 
 const AED_TO_GBP_RATE = 0.21;
@@ -107,7 +109,7 @@ const parseTransactionDate = (rawDate: string): string => {
   return `${today.getFullYear()}-${pad2(today.getMonth() + 1)}-${pad2(today.getDate())}`;
 };
 
-const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, banks, merchantMappings = [] }) => {
+const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, banks, merchantMappings = [], latestByBank }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedBankId, setSelectedBankId] = useState<string>(banks.length > 0 ? banks[0].id : '');
@@ -116,6 +118,7 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
   const [webhookErrorMessage, setWebhookErrorMessage] = useState<string | null>(null);
   
   const selectedBank = useMemo(() => banks.find(b => b.id === selectedBankId) || banks[0] || { name: 'Unknown', currency: 'GBP', id: 'unknown', icon: '?' }, [selectedBankId, banks]);
+  const selectedBankLatest = latestByBank?.find(b => b.name.trim().toLowerCase() === selectedBank.name.trim().toLowerCase());
 
   const handleFileUpload = (file: File) => {
     setError(null);
@@ -404,14 +407,24 @@ const BankFeedUpload: React.FC<BankFeedUploadProps> = ({ onImport, webhookUrl, b
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isDragging ? 'bg-[#635bff] text-white' : 'bg-indigo-50 text-[#635bff]'}`}>
                       <Upload size={16} />
                   </div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-neutral-200 flex items-center gap-2 flex-wrap">
-                    <span>Upload Bank Feed</span>
-                    {webhookUrl && (
-                      <span className="text-[9px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full uppercase tracking-wider font-bold flex items-center gap-1">
-                        <Webhook size={9} /> Live
-                      </span>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-neutral-200 flex items-center gap-2 flex-wrap">
+                      <span>Upload Bank Feed</span>
+                      {webhookUrl && (
+                        <span className="text-[9px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full uppercase tracking-wider font-bold flex items-center gap-1">
+                          <Webhook size={9} /> Live
+                        </span>
+                      )}
+                    </h3>
+                    {selectedBankLatest && (
+                      <p className="text-[11px] text-slate-500 dark:text-neutral-400 leading-tight mt-0.5">
+                        Last: {selectedBankLatest.dateLabel}
+                        <span className={`ml-1 font-semibold ${selectedBankLatest.stale ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400 dark:text-neutral-500'}`}>
+                          · {selectedBankLatest.agoLabel}
+                        </span>
+                      </p>
                     )}
-                  </h3>
+                  </div>
               </div>
 
               {/* Bank Selector & File Input */}
