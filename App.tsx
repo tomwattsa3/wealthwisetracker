@@ -2504,8 +2504,9 @@ const App: React.FC = () => {
               {/* ===== DESKTOP DASHBOARD (new fintech SaaS layout) ===== */}
               <div className="hidden md:block space-y-6">
 
-                {/* Desktop KPI Row */}
-                <motion.div className="grid grid-cols-3 gap-4" variants={STAGGER_CONTAINER} initial="hidden" animate="visible">
+                {/* Desktop KPI Row — three across when there's room; drops to fewer per row (rather than
+                    squeezing the amounts into "£1…") on narrow windows / iPad with the sidebar open */}
+                <motion.div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-4" variants={STAGGER_CONTAINER} initial="hidden" animate="visible">
                   <motion.div variants={STAGGER_ITEM}>
                   <StatsCard
                     label="Income"
