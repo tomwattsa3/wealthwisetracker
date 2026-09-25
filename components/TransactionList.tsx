@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Transaction, Category } from '../types';
 import { EyeOff, Eye, FileSpreadsheet, Save, AlertTriangle, Check, Trash2, ArrowUpDown, X } from 'lucide-react';
@@ -23,7 +23,25 @@ interface TransactionRowProps {
     index: number;
     selected: boolean;
     onToggleSelect: (id: string) => void;
+    isMobile: boolean;
 }
+
+// Rows rendered up front; more are added as the list scrolls near its end. Rendering every
+// transaction (hundreds of rows, each with category/subcategory selects) was producing ~50k DOM
+// nodes and freezing taps on iPhone.
+const ROW_BATCH = 50;
+
+const MOBILE_QUERY = '(max-width: 767px)';
+const useIsMobile = () => {
+    const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_QUERY).matches);
+    useEffect(() => {
+        const mql = window.matchMedia(MOBILE_QUERY);
+        const onChange = () => setIsMobile(mql.matches);
+        mql.addEventListener('change', onChange);
+        return () => mql.removeEventListener('change', onChange);
+    }, []);
+    return isMobile;
+};
 
 const DeleteConfirmationModal = ({
     isOpen,
@@ -171,7 +189,8 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     gridTemplate,
     index,
     selected,
-    onToggleSelect
+    onToggleSelect,
+    isMobile
 }) => {
     // Local state for editing fields
     const [description, setDescription] = useState(t.description);
@@ -273,7 +292,8 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
             exit={{ opacity: 0 }}
             transition={{ duration: DURATION.modal, ease: EASE_OUT, delay: Math.min(index * 0.015, 0.3) }}
         >
-            {/* Mobile Row */}
+            {/* Only one layout is mounted — CSS-hiding the other still paid its full DOM cost */}
+            {isMobile ? (
             <div className={`md:hidden grid grid-cols-[1fr_100px_76px] gap-0.5 items-center border-b border-slate-100 dark:border-neutral-700 last:border-b-0 ${isCategoryMissing ? 'bg-amber-50 dark:bg-amber-950/30' : 'bg-white dark:bg-neutral-800'} ${isExcluded ? 'opacity-40' : ''}`}>
                 <div className="px-3 py-3 min-w-0">
                     <div className="flex items-center gap-1.5 min-w-0">
@@ -299,7 +319,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 </div>
             </div>
 
-            {/* Desktop Grid View */}
+            ) : (
             <div className={`hidden md:grid ${gridTemplate} items-center border-b border-slate-100 dark:border-neutral-700 hover:bg-slate-50 dark:hover:bg-neutral-700/40 ${rowBackground} ${isExcluded ? 'opacity-50' : ''}`}>
                 {/* 1. Date */}
                 <div className="px-4 py-3.5">
@@ -423,6 +443,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                     />
                 </div>
             </div>
+            )}
         </motion.div>
     );
 };
@@ -444,6 +465,36 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
       return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
     });
   }, [transactions, sortOrder]);
+
+  const isMobile = useIsMobile();
+
+  // Incremental rendering: grow the window when the sentinel below the last row scrolls into view
+  const [visibleCount, setVisibleCount] = useState(ROW_BATCH);
+  const rowsScrollRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const hasMore = visibleCount < sortedTransactions.length;
+  const visibleTransactions = useMemo(
+    () => sortedTransactions.slice(0, visibleCount),
+    [sortedTransactions, visibleCount]
+  );
+
+  useEffect(() => {
+    setVisibleCount(ROW_BATCH);
+    rowsScrollRef.current?.scrollTo({ top: 0 });
+  }, [sortOrder]);
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || !hasMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) setVisibleCount(c => c + ROW_BATCH);
+      },
+      { root: rowsScrollRef.current, rootMargin: '600px 0px' }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, visibleCount]);
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -690,9 +741,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
         </div>
 
         {/* Rows */}
-        <div data-no-pull-refresh className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-0 py-0 pb-4 md:pb-0 min-h-[350px] md:min-h-[450px]">
+        <div data-no-pull-refresh ref={rowsScrollRef} className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-0 py-0 pb-4 md:pb-0 min-h-[350px] md:min-h-[450px]">
             <AnimatePresence initial={false}>
-            {sortedTransactions.map((t, index) => (
+            {visibleTransactions.map((t, index) => (
                 <TransactionRow
                     key={t.id}
                     t={t}
@@ -704,9 +755,11 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, categor
                     index={index}
                     selected={selectedIds.has(t.id)}
                     onToggleSelect={toggleSelect}
+                    isMobile={isMobile}
                 />
             ))}
             </AnimatePresence>
+            {hasMore && <div ref={loadMoreRef} className="h-px shrink-0" aria-hidden />}
         </div>
         </div>
 

@@ -208,17 +208,37 @@ const App: React.FC = () => {
   const [repaymentCatId, setRepaymentCatId] = useState<string>('');
   const [repaymentSubcat, setRepaymentSubcat] = useState<string>('all');
 
-  // Pull-to-refresh state
-  const [pullDistance, setPullDistance] = useState(0);
+  // Pull-to-refresh state. The drag itself is driven imperatively via refs (setIndicator) rather
+  // than React state: App is one very large component, and re-rendering it on every touchmove —
+  // or on every plain tap at scrollTop 0 — was blocking the main thread long enough on iPhone
+  // that taps felt unresponsive. Only the refreshing spinner goes through state.
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isSnappingBack, setIsSnappingBack] = useState(false);
+  const isRefreshingRef = useRef(false);
   const touchStartY = useRef(0);
   const isPulling = useRef(false);
+  const pullDistanceRef = useRef(0);
   const mainRef = useRef<HTMLElement>(null);
+  const pullIndicatorRef = useRef<HTMLDivElement>(null);
+  const pullIconRef = useRef<HTMLDivElement>(null);
   const PULL_THRESHOLD = 70;
+  // Finger travel ignored before a pull engages, so taps and small jitters never count as a pull
+  const PULL_DEADZONE = 10;
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (isRefreshing) return;
+  const setIndicator = (distance: number, animate: boolean) => {
+    pullDistanceRef.current = distance;
+    const el = pullIndicatorRef.current;
+    const icon = pullIconRef.current;
+    if (!el || !icon) return;
+    el.style.transition = animate ? 'height 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none';
+    el.style.height = `${distance}px`;
+    icon.style.transition = animate ? 'transform 0.3s ease-out, opacity 0.2s ease' : 'none';
+    icon.style.transform = `rotate(${isRefreshingRef.current ? 0 : Math.min(distance / PULL_THRESHOLD, 1) * 180}deg)`;
+    icon.style.opacity = distance > 10 || isRefreshingRef.current ? '1' : '0';
+    icon.style.color = distance >= PULL_THRESHOLD ? '#475569' : '#cbd5e1';
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (isRefreshingRef.current) return;
     // Skip pull-to-refresh for touches starting inside a nested scroll container (e.g. the
     // Breakdown table) — those scroll independently of <main>, so main.scrollTop stays at 0
     // even while the user is actively scrolling/tapping inside them, which was causing every
@@ -227,40 +247,42 @@ const App: React.FC = () => {
     if (mainRef.current && mainRef.current.scrollTop <= 0) {
       touchStartY.current = e.touches[0].clientY;
       isPulling.current = true;
-      setIsSnappingBack(false);
     }
-  }, [isRefreshing]);
+  };
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (isRefreshing || !isPulling.current) return;
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (isRefreshingRef.current || !isPulling.current) return;
     if (!mainRef.current || mainRef.current.scrollTop > 0) {
       isPulling.current = false;
-      setPullDistance(0);
+      if (pullDistanceRef.current > 0) setIndicator(0, false);
       return;
     }
-    const diff = e.touches[0].clientY - touchStartY.current;
+    const diff = e.touches[0].clientY - touchStartY.current - PULL_DEADZONE;
     if (diff > 0) {
       // Elastic damping: diminishing returns as you pull further
-      const dampened = Math.pow(diff, 0.7);
-      setPullDistance(Math.min(dampened, 130));
-    } else {
-      setPullDistance(0);
+      setIndicator(Math.min(Math.pow(diff, 0.7), 130), false);
+    } else if (pullDistanceRef.current > 0) {
+      setIndicator(0, false);
     }
-  }, [isRefreshing]);
+  };
 
-  const handleTouchEnd = useCallback(async () => {
-    if (isRefreshing || !isPulling.current) return;
+  const handleTouchEnd = async () => {
+    if (isRefreshingRef.current || !isPulling.current) return;
     isPulling.current = false;
-    if (pullDistance >= PULL_THRESHOLD) {
+    if (pullDistanceRef.current === 0) return; // plain tap — nothing to do
+    if (pullDistanceRef.current >= PULL_THRESHOLD) {
+      isRefreshingRef.current = true;
       setIsRefreshing(true);
-      setPullDistance(60);
-      await fetchData();
-      setIsRefreshing(false);
+      setIndicator(60, true);
+      try {
+        await fetchData();
+      } finally {
+        isRefreshingRef.current = false;
+        setIsRefreshing(false);
+      }
     }
-    setIsSnappingBack(true);
-    setPullDistance(0);
-    setTimeout(() => setIsSnappingBack(false), 300);
-  }, [pullDistance, isRefreshing]);
+    setIndicator(0, true);
+  };
 
   // Get transaction amount based on selected currency
   const getAmount = (t: Transaction) => {
@@ -1704,24 +1726,15 @@ const App: React.FC = () => {
         >
           {/* Pull-to-refresh indicator */}
           <div
+            ref={pullIndicatorRef}
             className="flex items-center justify-center overflow-hidden md:hidden"
-            style={{
-              height: pullDistance > 0 || isRefreshing ? (isRefreshing ? 60 : pullDistance) : 0,
-              transition: (isSnappingBack || isRefreshing) ? 'height 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
-            }}
+            style={{ height: 0 }}
           >
-            <div
-              className="flex items-center justify-center"
-              style={{
-                transform: `rotate(${isRefreshing ? 0 : Math.min(pullDistance / PULL_THRESHOLD, 1) * 180}deg)`,
-                transition: isSnappingBack ? 'transform 0.3s ease-out, opacity 0.2s ease' : 'none',
-                opacity: pullDistance > 10 || isRefreshing ? 1 : 0,
-              }}
-            >
+            <div ref={pullIconRef} className="flex items-center justify-center" style={{ opacity: 0 }}>
               {isRefreshing ? (
                 <Loader2 size={20} className="text-slate-500 animate-spin" />
               ) : (
-                <RotateCcw size={18} className={pullDistance >= PULL_THRESHOLD ? 'text-slate-600' : 'text-slate-300'} style={{ transition: 'color 0.15s ease' }} />
+                <RotateCcw size={18} style={{ transition: 'color 0.15s ease' }} />
               )}
             </div>
           </div>

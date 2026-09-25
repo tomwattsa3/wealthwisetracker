@@ -1,5 +1,6 @@
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { ChevronRight, ChevronDown, GripVertical, SlidersHorizontal, X } from 'lucide-react';
 import { Transaction, Category } from '../types';
@@ -847,7 +848,12 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
           the top of the screen, covering ~75% of it. Close via the backdrop, the X button, or by
           dragging/flicking the header upward. Uses dvh (not vh) for sizing — on iOS Safari, vh is
           based on the largest possible viewport and doesn't update as the address bar collapses
-          mid-animation, which was the likely source of a visible glitch right at the top edge. */}
+          mid-animation, which was the likely source of a visible glitch right at the top edge.
+          Portalled to <body> so it sits outside <main>: there it inherited the parent's space-y
+          margin (shifting the overlay 10px down), was caught by <main>'s pull-to-refresh touch
+          handlers on every tap (including the X), and could be re-anchored by the tab-transition
+          wrapper's transform. */}
+      {createPortal(
       <AnimatePresence>
       {detailModal && (
         // exit={{ pointerEvents: 'none' }} makes this whole overlay (including the draggable
@@ -995,7 +1001,9 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
           </motion.div>
         </motion.div>
       )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+      )}
     </div>
   );
 };
