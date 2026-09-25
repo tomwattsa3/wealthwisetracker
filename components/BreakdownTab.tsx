@@ -140,9 +140,33 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
   // Expenses above it — they're just two plain stacked rows.
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const footerScrollRef = useRef<HTMLDivElement>(null);
+  // Axis lock for the table on touch: the table scrolls both ways, and on iPhone a mostly-vertical
+  // swipe was also drifting it sideways (and vice versa), so it felt loose. Once a drag clearly
+  // favours one axis, the other axis is pinned for the rest of that touch.
+  const touchAxis = useRef<{ x: number; y: number; left: number; top: number; axis: 'x' | 'y' | null } | null>(null);
+  const handleTableTouchStart = (e: React.TouchEvent) => {
+    const el = tableScrollRef.current;
+    if (!el) return;
+    touchAxis.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, left: el.scrollLeft, top: el.scrollTop, axis: null };
+  };
+  const handleTableTouchMove = (e: React.TouchEvent) => {
+    const t = touchAxis.current;
+    if (!t || t.axis) return;
+    const dx = Math.abs(e.touches[0].clientX - t.x);
+    const dy = Math.abs(e.touches[0].clientY - t.y);
+    if (Math.max(dx, dy) < 8) return;
+    t.axis = dx > dy ? 'x' : 'y';
+  };
+  const handleTableTouchEnd = () => { touchAxis.current = null; };
+
   const syncFooterScroll = () => {
-    if (tableScrollRef.current && footerScrollRef.current) {
-      footerScrollRef.current.scrollLeft = tableScrollRef.current.scrollLeft;
+    const el = tableScrollRef.current;
+    if (!el) return;
+    const t = touchAxis.current;
+    if (t?.axis === 'y' && el.scrollLeft !== t.left) el.scrollLeft = t.left;
+    else if (t?.axis === 'x' && el.scrollTop !== t.top) el.scrollTop = t.top;
+    if (footerScrollRef.current) {
+      footerScrollRef.current.scrollLeft = el.scrollLeft;
     }
   };
 
@@ -735,7 +759,18 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
           style={{ animation: 'breakdownFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)' }}
         >
           <style>{`@keyframes breakdownFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
-          <div data-no-pull-refresh ref={tableScrollRef} onScroll={syncFooterScroll} className="flex-1 min-h-0 overflow-auto custom-scrollbar">
+          <div
+            data-no-pull-refresh
+            ref={tableScrollRef}
+            onScroll={syncFooterScroll}
+            onTouchStart={handleTableTouchStart}
+            onTouchMove={handleTableTouchMove}
+            onTouchEnd={handleTableTouchEnd}
+            onTouchCancel={handleTableTouchEnd}
+            // overscroll-none: no rubber-band bounce past the table's edges, and scrolling doesn't
+            // chain out to the page once the table hits an edge
+            className="flex-1 min-h-0 overflow-auto overscroll-none custom-scrollbar"
+          >
             <table
               className="border-collapse text-[10px] md:text-[13px] w-full transition-[width] duration-300"
               style={{ tableLayout: 'fixed', minWidth: `${categoryColWidth + cols.length * 76}px`, transition: 'min-width 0.05s linear' }}

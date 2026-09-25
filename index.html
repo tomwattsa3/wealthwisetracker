@@ -22,6 +22,10 @@
       body {
         font-family: 'Poppins', sans-serif;
       }
+      /* Stop the whole app rubber-banding on iOS when a gesture hits the edge of the page */
+      html, body {
+        overscroll-behavior: none;
+      }
       .hide-scrollbar::-webkit-scrollbar {
         display: none;
       }
