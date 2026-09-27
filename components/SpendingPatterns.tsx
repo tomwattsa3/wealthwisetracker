@@ -27,6 +27,10 @@ const PERIODS = [
 type PeriodId = typeof PERIODS[number]['id'];
 
 const STORAGE_KEY = 'spendingPatterns';
+const NO_SUB = 'No subcategory';
+// Subcategories are switched off individually as "Category › Sub" keys, alongside whole
+// categories (plain names) in the same `unselected` set.
+const subKey = (cat: string, sub: string) => `${cat} › ${sub}`;
 
 // "YYYY-MM" month index, used as a sortable key.
 const monthKey = (date: string) => date.slice(0, 7);
@@ -69,6 +73,7 @@ const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
 
 interface Spend {
   cat: string;
+  sub: string;
   catId: string;
   date: string;
   monthIdx: number;
@@ -90,7 +95,7 @@ interface RegularPayment {
 const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categories, currency, getCategoryEmoji }) => {
   const saved = useMemo(() => {
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as { period?: PeriodId; unselected?: string[]; view?: 'total' | 'category' };
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as { period?: PeriodId; unselected?: string[]; view?: 'total' | 'category'; level?: 'category' | 'subcategory' };
     } catch {
       return {};
     }
@@ -102,14 +107,18 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   // Chart style: one bar per month/day (click one for its breakdown), or a category × time table.
   const [view, setView] = useState<'total' | 'category'>(saved.view === 'category' ? 'category' : 'total');
   const [focusKey, setFocusKey] = useState<number | null>(null);
+  // Whether the breakdown list and by-category table group by category or by subcategory.
+  const [level, setLevel] = useState<'category' | 'subcategory'>(saved.level === 'subcategory' ? 'subcategory' : 'category');
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [pickerOpen, setPickerOpen] = useState(false); // phone only; always open on desktop
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ period, unselected: Array.from(unselected), view }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ period, unselected: Array.from(unselected), view, level }));
     } catch {
       /* storage unavailable — selection just won't persist */
     }
-  }, [period, unselected, view]);
+  }, [period, unselected, view, level]);
 
   const fmt = (v: number, decimals = 0) => {
     const n = Math.abs(v).toLocaleString('en-GB', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -124,6 +133,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
       .filter(t => t.type === 'EXPENSE' && !t.excluded && t.categoryName && /^\d{4}-\d{2}-\d{2}/.test(t.date))
       .map(t => ({
         cat: t.categoryName.trim().replace(/Fee's/i, 'Fees'),
+        sub: (t.subcategoryName || '').trim() || NO_SUB,
         catId: t.categoryId,
         date: t.date,
         monthIdx: keyToIndex(monthKey(t.date)),
@@ -192,23 +202,58 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   const monthIdxs = win.monthIdxs;
 
   const catStats = useMemo(() => {
-    const map = new Map<string, { name: string; catId: string; total: number }>();
+    const map = new Map<string, { name: string; catId: string; total: number; subs: Map<string, number> }>();
     for (const s of inRange) {
-      const e = map.get(s.cat) || { name: s.cat, catId: s.catId, total: 0 };
+      const e = map.get(s.cat) || { name: s.cat, catId: s.catId, total: 0, subs: new Map<string, number>() };
       e.total += s.amount;
+      e.subs.set(s.sub, (e.subs.get(s.sub) || 0) + s.amount);
       map.set(s.cat, e);
     }
     return Array.from(map.values())
       .sort((a, b) => b.total - a.total)
-
+      .map(c => ({ ...c, subs: Array.from(c.subs.entries()).map(([name, total]) => ({ name, total })).sort((a, b) => b.total - a.total) }));
   }, [inRange]);
 
-  const selected = useMemo(() => new Set(catStats.map(c => c.name).filter(n => !unselected.has(n))), [catStats, unselected]);
-  const chosen = useMemo(() => inRange.filter(s => selected.has(s.cat)), [inRange, selected]);
+  const isIncluded = (s: { cat: string; sub: string }) => !unselected.has(s.cat) && !unselected.has(subKey(s.cat, s.sub));
+  // 'on' = every subcategory ticked, 'some' = only some, 'off' = none.
+  const catState = (c: { name: string; subs: { name: string }[] }): 'on' | 'some' | 'off' => {
+    if (unselected.has(c.name)) return 'off';
+    const offSubs = c.subs.filter(sb => unselected.has(subKey(c.name, sb.name))).length;
+    return offSubs === 0 ? 'on' : offSubs === c.subs.length ? 'off' : 'some';
+  };
+  const selected = useMemo(() => new Set(catStats.filter(c => catState(c) !== 'off').map(c => c.name)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [catStats, unselected]);
+  const chosen = useMemo(() => inRange.filter(isIncluded),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [inRange, unselected]);
 
+  // Clears any per-subcategory choices for a category, so it's either fully on or fully off.
+  const withoutSubs = (set: Set<string>, cat: string) => new Set(Array.from(set).filter(k => !k.startsWith(`${cat} › `)));
   const toggle = (name: string) => setUnselected(prev => {
+    const c = catStats.find(x => x.name === name);
+    const state = c ? catState(c) : 'on';
+    const next = withoutSubs(prev, name);
+    if (state === 'on') next.add(name); else next.delete(name);
+    return next;
+  });
+  const toggleSub = (cat: string, sub: string) => setUnselected(prev => {
+    const c = catStats.find(x => x.name === cat);
+    let next = new Set(prev);
+    if (next.has(cat)) {
+      // Category was off entirely: turn on just this subcategory.
+      next = withoutSubs(next, cat);
+      next.delete(cat);
+      c?.subs.forEach(sb => { if (sb.name !== sub) next.add(subKey(cat, sb.name)); });
+    } else {
+      const k = subKey(cat, sub);
+      if (next.has(k)) next.delete(k); else next.add(k);
+    }
+    return next;
+  });
+  const toggleExpanded = (cat: string) => setExpanded(prev => {
     const next = new Set(prev);
-    if (next.has(name)) next.delete(name); else next.add(name);
+    if (next.has(cat)) next.delete(cat); else next.add(cat);
     return next;
   });
   const selectOnly = (names: string[]) => setUnselected(new Set(catStats.map(c => c.name).filter(n => !names.includes(n))));
@@ -219,7 +264,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
     ...(top ? [{ label: `Without ${top}`, names: catStats.slice(1).map(c => c.name) }] : []),
     { label: 'Top 3', names: catStats.slice(0, 3).map(c => c.name) },
   ];
-  const presetActive = (names: string[]) => names.length === selected.size && names.every(n => selected.has(n));
+  const presetActive = (names: string[]) => catStats.every(c => catState(c) === (names.includes(c.name) ? 'on' : 'off'));
 
   // --- Chart buckets, stacked by category: days for a single month, otherwise months ---
   const buckets = useMemo(() => {
@@ -256,7 +301,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
     // Uses "not switched off" rather than `selected`, which only lists categories with spending in
     // this period — otherwise a category you spent on last month but not this month would be
     // silently dropped from the comparison.
-    const prevTotal = win.prev ? sum(spends.filter(s => !unselected.has(s.cat) && inWindow(s.date, win.prev!)).map(s => s.amount)) : 0;
+    const prevTotal = win.prev ? sum(spends.filter(s => isIncluded(s) && inWindow(s.date, win.prev!)).map(s => s.amount)) : 0;
     if (prevTotal > 0) return { trend: (total - prevTotal) / prevTotal, trendLabel: `vs ${win.prev!.label}` };
     const dm = monthIdxs.filter(mi => inRange.some(s => s.monthIdx === mi));
     const h = Math.floor(dm.length / 2);
@@ -358,12 +403,21 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   // Breakdown under the Totals chart: the whole period by default, or one month/day once you
   // click its bar (click it again, or "Show all", to go back).
   const focus = buckets.find(b => b.key === focusKey && b.total > 0) || null;
-  const periodRows = useMemo(() => {
-    const byCat = new Map<string, number>();
-    chosen.forEach(s => byCat.set(s.cat, (byCat.get(s.cat) || 0) + s.amount));
-    return Array.from(byCat.entries()).map(([cat, value]) => ({ cat, value }));
-  }, [chosen]);
-  const focusRows = [...(focus ? focus.segs : periodRows)].sort((a, b) => b.value - a.value);
+  const groupOf = (s: Spend) => (level === 'category' ? s.cat : subKey(s.cat, s.sub));
+  const focusRows = useMemo(() => {
+    const inFocus = focus
+      ? chosen.filter(s => (win.single ? Number(s.date.slice(8, 10)) === focus.key : s.monthIdx === focus.key))
+      : chosen;
+    const map = new Map<string, { key: string; cat: string; sub: string | null; value: number }>();
+    inFocus.forEach(s => {
+      const k = groupOf(s);
+      const e = map.get(k) || { key: k, cat: s.cat, sub: level === 'category' ? null : s.sub, value: 0 };
+      e.value += s.amount;
+      map.set(k, e);
+    });
+    return Array.from(map.values()).sort((a, b) => b.value - a.value);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chosen, focus?.key, win.single, level]);
   const focusTotal = focus ? focus.total : total;
   const focusName = focus ? (win.single ? focus.longLabel : `${FULL_MONTHS[focus.key % 12]} ${Math.floor(focus.key / 12)}`) : win.label;
   const allLabel = win.single ? 'all days' : 'all months';
@@ -380,14 +434,23 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
       const d = Number(s.date.slice(8, 10));
       return d <= 7 ? 0 : d <= 14 ? 1 : d <= 21 ? 2 : 3;
     };
-    const rows = catStats
-      .filter(c => selected.has(c.name))
-      .map(c => {
-        const cells = cols.map(col => sum(chosen.filter(s => s.cat === c.name && colOf(s) === col.key).map(s => s.amount)));
-        return { name: c.name, catId: c.catId, cells, total: sum(cells), max: Math.max(...cells, 1) };
-      });
+    const groups = new Map<string, { name: string; cat: string; sub: string | null; catId: string; rows: Spend[] }>();
+    chosen.forEach(s => {
+      const k = level === 'category' ? s.cat : subKey(s.cat, s.sub);
+      const g = groups.get(k) || { name: k, cat: s.cat, sub: level === 'category' ? null : s.sub, catId: s.catId, rows: [] };
+      g.rows.push(s);
+      groups.set(k, g);
+    });
+    // Keep categories in spend order, and subcategories grouped under their category.
+    const catRank = new Map(catStats.map((c, i) => [c.name, i]));
+    const rows = Array.from(groups.values())
+      .map(g => {
+        const cells = cols.map(col => sum(g.rows.filter(s => colOf(s) === col.key).map(s => s.amount)));
+        return { name: g.name, cat: g.cat, sub: g.sub, catId: g.catId, cells, total: sum(cells), max: Math.max(...cells, 1) };
+      })
+      .sort((a, b) => (catRank.get(a.cat)! - catRank.get(b.cat)!) || b.total - a.total);
     return { cols, rows };
-  }, [win, monthIdxs, catStats, selected, chosen]);
+  }, [win, monthIdxs, catStats, chosen, level]);
   const compact = (v: number) => (v >= 1000 ? `${currency === 'GBP' ? '£' : 'AED '}${(v / 1000).toFixed(1)}k` : fmt(v));
 
   const renderDots = (p: RegularPayment, color: string) => (
@@ -442,7 +505,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
       )}
 
       {inRange.length > 0 && (
-      <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-4 md:gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[290px_minmax(0,1fr)] gap-4 md:gap-6 items-start">
         {/* Category picker */}
         <section aria-label="Choose categories" className={`${card} p-3 md:p-4 flex flex-col gap-3`}>
           <div>
@@ -464,26 +527,69 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
             </div>
           </div>
           <div>
-            <h2 className={`${label} mb-1 px-1`}>Categories</h2>
-            <div className="flex flex-wrap lg:flex-col gap-1">
+            <div className="flex items-center justify-between px-1 mb-1">
+              <h2 className={label}>Categories</h2>
+              <button onClick={() => setPickerOpen(o => !o)} aria-expanded={pickerOpen} className="lg:hidden text-xs font-medium text-indigo-700 dark:text-indigo-300">
+                {pickerOpen ? 'Hide' : `Choose (${selected.size} of ${catStats.length})`}
+              </button>
+            </div>
+            <div className={`${pickerOpen ? 'flex' : 'hidden'} lg:flex flex-col gap-0.5`}>
               {catStats.map(c => {
-                const on = selected.has(c.name);
+                const state = catState(c);
+                const on = state !== 'off';
                 const emoji = getCategoryEmoji && c.catId ? getCategoryEmoji(c.catId) : '';
+                const hasSubs = c.subs.length > 1 || (c.subs.length === 1 && c.subs[0].name !== NO_SUB);
+                const open = expanded.has(c.name);
                 return (
-                  <button
-                    key={c.name}
-                    onClick={() => toggle(c.name)}
-                    aria-pressed={on}
-                    className={`flex items-center gap-2 lg:gap-2.5 px-2.5 py-1.5 lg:py-2 rounded-lg text-left transition-colors border lg:border-0 ${on ? 'bg-slate-50 dark:bg-neutral-700/60 border-slate-200 dark:border-neutral-600' : 'border-slate-100 dark:border-neutral-700 hover:bg-slate-50 dark:hover:bg-neutral-700/40'}`}
-                  >
-                    <span aria-hidden className={`w-4 h-4 rounded-[5px] shrink-0 border-2 flex items-center justify-center ${on ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 dark:border-neutral-500'}`}>
-                      {on && <svg viewBox="0 0 12 12" className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M2.5 6.2 5 8.5l4.5-5" /></svg>}
-                    </span>
-                    <span className={`flex-1 text-xs lg:text-[13px] ${on ? 'font-semibold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'}`}>
-                      {emoji && <span className="mr-1">{emoji}</span>}{c.name}
-                    </span>
-                    <span className="hidden lg:inline text-xs text-slate-500 dark:text-neutral-400">{fmt(c.total)}</span>
-                  </button>
+                  <div key={c.name}>
+                    <div className={`flex items-center rounded-lg transition-colors ${on ? 'bg-slate-50 dark:bg-neutral-700/60' : 'hover:bg-slate-50 dark:hover:bg-neutral-700/40'}`}>
+                      <button
+                        onClick={() => toggle(c.name)}
+                        aria-pressed={state === 'on' ? true : state === 'some' ? 'mixed' : false}
+                        className="flex-1 min-w-0 flex items-center gap-2.5 pl-2.5 pr-1 py-2 text-left"
+                      >
+                        <span aria-hidden className={`w-4 h-4 rounded-[5px] shrink-0 border-2 flex items-center justify-center ${on ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 dark:border-neutral-500'}`}>
+                          {state === 'on' && <svg viewBox="0 0 12 12" className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M2.5 6.2 5 8.5l4.5-5" /></svg>}
+                          {state === 'some' && <span className="block w-2 h-0.5 rounded bg-white" />}
+                        </span>
+                        <span className={`flex-1 truncate text-[13px] ${on ? 'font-semibold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'}`}>
+                          {emoji && <span className="mr-1">{emoji}</span>}{c.name}
+                        </span>
+                        <span className="text-xs text-slate-500 dark:text-neutral-400">{fmt(c.total)}</span>
+                      </button>
+                      {hasSubs ? (
+                        <button
+                          onClick={() => toggleExpanded(c.name)}
+                          aria-expanded={open}
+                          aria-label={`${open ? 'Hide' : 'Show'} ${c.name} subcategories`}
+                          className="w-8 h-8 shrink-0 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-neutral-200"
+                        >
+                          <svg viewBox="0 0 12 12" className={`w-3 h-3 transition-transform ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4.5 2.5 8 6l-3.5 3.5" /></svg>
+                        </button>
+                      ) : <span className="w-8 shrink-0" />}
+                    </div>
+                    {hasSubs && open && (
+                      <div className="ml-6 pl-2 border-l border-slate-200 dark:border-neutral-700 flex flex-col my-0.5">
+                        {c.subs.map(sb => {
+                          const subOn = isIncluded({ cat: c.name, sub: sb.name });
+                          return (
+                            <button
+                              key={sb.name}
+                              onClick={() => toggleSub(c.name, sb.name)}
+                              aria-pressed={subOn}
+                              className="flex items-center gap-2 px-2 py-1.5 rounded-md text-left hover:bg-slate-50 dark:hover:bg-neutral-700/40"
+                            >
+                              <span aria-hidden className={`w-3.5 h-3.5 rounded shrink-0 border-2 flex items-center justify-center ${subOn ? 'bg-indigo-500 border-indigo-500' : 'border-slate-300 dark:border-neutral-500'}`}>
+                                {subOn && <svg viewBox="0 0 12 12" className="w-2 h-2 text-white" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M2.5 6.2 5 8.5l4.5-5" /></svg>}
+                              </span>
+                              <span className={`flex-1 truncate text-xs ${subOn ? 'text-slate-800 dark:text-neutral-200' : 'text-slate-400 dark:text-neutral-500'}`}>{sb.name}</span>
+                              <span className="text-[11px] text-slate-500 dark:text-neutral-400">{fmt(sb.total)}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -510,7 +616,20 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
           <section className={`${card} p-4 md:p-6`}>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
               <h2 className="text-base md:text-lg font-semibold text-slate-900 dark:text-neutral-100">{win.single ? 'Day by day' : 'Month by month'}</h2>
-              <div role="group" aria-label="Chart view" className="flex gap-1 p-1 bg-slate-100 dark:bg-neutral-700/60 rounded-lg self-start">
+              <div className="flex flex-wrap gap-2 self-start">
+              <div role="group" aria-label="Group by" className="flex gap-1 p-1 bg-slate-100 dark:bg-neutral-700/60 rounded-lg">
+                {([['category', 'Categories'], ['subcategory', 'Subcategories']] as const).map(([id, l]) => (
+                  <button
+                    key={id}
+                    onClick={() => setLevel(id)}
+                    aria-pressed={level === id}
+                    className={`px-3 py-1 rounded-md text-xs transition-colors ${level === id ? 'bg-white dark:bg-neutral-600 font-semibold text-slate-900 dark:text-neutral-100 shadow-sm' : 'text-slate-600 dark:text-neutral-400'}`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+              <div role="group" aria-label="Chart view" className="flex gap-1 p-1 bg-slate-100 dark:bg-neutral-700/60 rounded-lg">
                 {([['total', 'Totals'], ['category', 'By category']] as const).map(([id, l]) => (
                   <button
                     key={id}
@@ -521,6 +640,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                     {l}
                   </button>
                 ))}
+              </div>
               </div>
             </div>
             <p className="text-xs md:text-sm text-slate-600 dark:text-neutral-300 mt-1 mb-4">{sentence}</p>
@@ -590,8 +710,10 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                     </div>
                     <div className="flex flex-col">
                       {focusRows.map(r => (
-                        <div key={r.cat} className="grid grid-cols-[minmax(0,140px)_minmax(0,1fr)_44px_84px] md:grid-cols-[180px_minmax(0,1fr)_52px_100px] items-center gap-3 py-1.5">
-                          <span className="text-xs md:text-[13px] text-slate-800 dark:text-neutral-200 truncate">{r.cat}</span>
+                        <div key={r.key} className="grid grid-cols-[minmax(0,140px)_minmax(0,1fr)_44px_84px] md:grid-cols-[180px_minmax(0,1fr)_52px_100px] items-center gap-3 py-1.5">
+                          <span className="text-xs md:text-[13px] text-slate-800 dark:text-neutral-200 truncate">
+                            {r.sub ? <>{r.sub} <span className="text-slate-400 dark:text-neutral-500">· {r.cat}</span></> : r.cat}
+                          </span>
                           <span className="h-2 rounded bg-slate-100 dark:bg-neutral-700 overflow-hidden">
                             <span className="block h-full rounded bg-indigo-500" style={{ width: `${(r.value / focusRows[0].value) * 100}%` }} />
                           </span>
@@ -619,7 +741,8 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                     {matrix.rows.map(r => (
                       <tr key={r.name}>
                         <th scope="row" className="text-left text-xs md:text-[13px] font-medium text-slate-800 dark:text-neutral-200 pr-2 whitespace-nowrap">
-                          {getCategoryEmoji && r.catId ? <span className="mr-1">{getCategoryEmoji(r.catId)}</span> : null}{r.name}
+                          {getCategoryEmoji && r.catId ? <span className="mr-1">{getCategoryEmoji(r.catId)}</span> : null}
+                          {r.sub ? <>{r.sub} <span className="text-slate-400 dark:text-neutral-500 font-normal">· {r.cat}</span></> : r.name}
                         </th>
                         {r.cells.map((v, i) => {
                           const ratio = v / r.max;
