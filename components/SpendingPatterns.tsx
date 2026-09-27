@@ -446,6 +446,25 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
     return { tone: 'warn' as const, icon: '✗', text: 'not paid this month', amount: null };
   };
   const billChecks = checkMonth === null ? [] : bills.map(b => ({ b, st: billStatus(b) }));
+
+  // "vs your average" card: the selected month (or single-month period, or else the latest month
+  // in the period) against your average of the OTHER imported months, for the ticked categories.
+  // MTD compares with the average scaled to the same number of days.
+  const vsAvg = useMemo(() => {
+    const dataMonths = Array.from(new Set(spends.map(s => s.monthIdx)));
+    const byMonth = new Map<number, number>();
+    spends.filter(isIncluded).forEach(s => byMonth.set(s.monthIdx, (byMonth.get(s.monthIdx) || 0) + s.amount));
+    const inPeriod = inRange.map(s => s.monthIdx);
+    const subject = win.single ? monthIdxs[0] : focusBucket ? focusBucket.key : (inPeriod.length ? Math.max(...inPeriod) : null);
+    if (subject === null) return null;
+    const others = dataMonths.filter(m => m !== subject && m <= lastIdx);
+    if (others.length === 0) return null;
+    const partial = period === 'mtd' ? win.dayLimit / daysIn(subject) : 1;
+    const base = (sum(others.map(m => byMonth.get(m) || 0)) / others.length) * partial;
+    const now = win.single ? total : byMonth.get(subject) || 0;
+    return { subject, now, base, diff: base > 0 ? (now - base) / base : null, partial: partial < 1 };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spends, unselected, inRange, win, monthIdxs, focusBucket?.key, lastIdx, period, total]);
   const billsPaid = billChecks.filter(x => x.st.tone === 'ok');
   const habitChecks = checkMonth === null ? [] : habits.map(h => {
     const now = checkMonth > lastIdx ? null : sum(paymentsIn(h.key, checkMonth).map(r => r.amount));
@@ -669,11 +688,19 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
               { l: 'Total', v: fmt(total) },
               { l: `Per ${unit}`, v: fmt(avg) },
               { l: `Busiest ${unit}`, v: selected.size && peak.total > 0 ? `${peak.longLabel} · ${fmt(peak.total)}` : '–' },
-              { l: trendLabel || 'Trend', v: !selected.size || trend === null ? '–' : Math.abs(trend) < 0.05 ? 'Flat' : `${trend > 0 ? '↑' : '↓'} ${Math.round(Math.abs(trend) * 100)}%`, c: trend === null || Math.abs(trend) < 0.05 ? '' : trend > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400' },
-            ].map(k => (
+              vsAvg && selected.size
+                ? {
+                    l: `${FULL_MONTHS[vsAvg.subject % 12]}${vsAvg.partial ? ' so far' : ''} vs your average`,
+                    v: vsAvg.diff === null ? '–' : Math.abs(vsAvg.diff) < 0.05 ? 'About average' : `${vsAvg.diff > 0 ? '↑' : '↓'} ${Math.round(Math.abs(vsAvg.diff) * 100)}% ${vsAvg.diff > 0 ? 'above' : 'below'}`,
+                    c: vsAvg.diff === null || Math.abs(vsAvg.diff) < 0.05 ? '' : vsAvg.diff > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400',
+                    sub: `${fmt(vsAvg.now)} vs ${fmt(vsAvg.base)}${vsAvg.partial ? ' by this point' : ' a month'}`,
+                  }
+                : { l: 'Vs your average', v: '–' },
+            ].map((k: { l: string; v: string; c?: string; sub?: string }) => (
               <div key={k.l} className={`${card} px-4 py-3 md:px-5 md:py-4`}>
                 <div className={label}>{k.l}</div>
                 <div className={`text-lg md:text-2xl font-semibold mt-1 text-slate-900 dark:text-neutral-100 ${k.c || ''}`}>{k.v}</div>
+                {k.sub && <div className="text-[11px] md:text-xs text-slate-500 dark:text-neutral-400 mt-0.5">{k.sub}</div>}
               </div>
             ))}
           </div>
