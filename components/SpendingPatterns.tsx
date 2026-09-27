@@ -15,9 +15,6 @@ const DOW_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satur
 const TOM = ['1–7', '8–14', '15–21', '22–end'];
 const TOM_LONG = ['the first week', 'the second week', 'the third week', 'the last week'];
 
-// Assigned by spend rank rather than taken from Category.color, because several categories share
-// similar colours and the stacked chart needs neighbouring segments to be told apart.
-const PALETTE = ['#312e81', '#f59e0b', '#6366f1', '#0ea5e9', '#7c3aed', '#f97316', '#14b8a6', '#64748b', '#ec4899', '#ca8a04', '#22c55e', '#84cc16', '#94a3b8', '#cbd5e1'];
 const PERIODS = [
   { id: 'mtd', label: 'MTD' },
   { id: 'thisMonth', label: 'This month' },
@@ -93,7 +90,7 @@ interface RegularPayment {
 const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categories, currency, getCategoryEmoji }) => {
   const saved = useMemo(() => {
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as { period?: PeriodId; unselected?: string[] };
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as { period?: PeriodId; unselected?: string[]; view?: 'total' | 'category' };
     } catch {
       return {};
     }
@@ -102,14 +99,17 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   // Stored as the categories that are switched OFF, so a category that appears later (a new
   // import) shows up selected by default instead of silently missing from the chart.
   const [unselected, setUnselected] = useState<Set<string>>(() => new Set(saved.unselected || []));
+  // Chart style: one bar per month/day (click one for its breakdown), or a category × time table.
+  const [view, setView] = useState<'total' | 'category'>(saved.view === 'category' ? 'category' : 'total');
+  const [focusKey, setFocusKey] = useState<number | null>(null);
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ period, unselected: Array.from(unselected) }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ period, unselected: Array.from(unselected), view }));
     } catch {
       /* storage unavailable — selection just won't persist */
     }
-  }, [period, unselected]);
+  }, [period, unselected, view]);
 
   const fmt = (v: number, decimals = 0) => {
     const n = Math.abs(v).toLocaleString('en-GB', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -200,9 +200,8 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
     }
     return Array.from(map.values())
       .sort((a, b) => b.total - a.total)
-      .map((c, i) => ({ ...c, color: PALETTE[i] || PALETTE[PALETTE.length - 1] }));
+
   }, [inRange]);
-  const colorOf = useMemo(() => Object.fromEntries(catStats.map(c => [c.name, c.color])), [catStats]);
 
   const selected = useMemo(() => new Set(catStats.map(c => c.name).filter(n => !unselected.has(n))), [catStats, unselected]);
   const chosen = useMemo(() => inRange.filter(s => selected.has(s.cat)), [inRange, selected]);
@@ -354,6 +353,33 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   const label = 'text-[10px] md:text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-neutral-400';
   const BAR_H = 190;
 
+  // The bar whose breakdown is shown under the Totals chart: the one you clicked, else the latest
+  // with spending.
+  const focus = buckets.find(b => b.key === focusKey && b.total > 0) || [...buckets].reverse().find(b => b.total > 0) || null;
+  const focusRows = focus ? [...focus.segs].sort((a, b) => b.value - a.value) : [];
+
+  // By-category table: a row per selected category, a column per month (or per week for a
+  // single month). Cells are shaded relative to that row's own busiest column, so each row
+  // reads as that category's pattern over time.
+  const matrix = useMemo(() => {
+    const cols = win.single
+      ? TOM.map((l, i) => ({ key: i, label: l }))
+      : monthIdxs.map(mi => ({ key: mi, label: indexLabel(mi) }));
+    const colOf = (s: Spend) => {
+      if (!win.single) return s.monthIdx;
+      const d = Number(s.date.slice(8, 10));
+      return d <= 7 ? 0 : d <= 14 ? 1 : d <= 21 ? 2 : 3;
+    };
+    const rows = catStats
+      .filter(c => selected.has(c.name))
+      .map(c => {
+        const cells = cols.map(col => sum(chosen.filter(s => s.cat === c.name && colOf(s) === col.key).map(s => s.amount)));
+        return { name: c.name, catId: c.catId, cells, total: sum(cells), max: Math.max(...cells, 1) };
+      });
+    return { cols, rows };
+  }, [win, monthIdxs, catStats, selected, chosen]);
+  const compact = (v: number) => (v >= 1000 ? `${currency === 'GBP' ? '£' : 'AED '}${(v / 1000).toFixed(1)}k` : fmt(v));
+
   const renderDots = (p: RegularPayment, color: string) => (
     <div className="flex gap-1" aria-label={`Paid in ${p.months.map(m => MONTHS[m % 12]).join(', ')}`}>
       {regMonths.map(mi => (
@@ -440,7 +466,9 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                     aria-pressed={on}
                     className={`flex items-center gap-2 lg:gap-2.5 px-2.5 py-1.5 lg:py-2 rounded-lg text-left transition-colors border lg:border-0 ${on ? 'bg-slate-50 dark:bg-neutral-700/60 border-slate-200 dark:border-neutral-600' : 'border-slate-100 dark:border-neutral-700 hover:bg-slate-50 dark:hover:bg-neutral-700/40'}`}
                   >
-                    <span aria-hidden className="w-4 h-4 rounded-[5px] shrink-0 border-2" style={{ borderColor: c.color, background: on ? c.color : 'transparent' }} />
+                    <span aria-hidden className={`w-4 h-4 rounded-[5px] shrink-0 border-2 flex items-center justify-center ${on ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 dark:border-neutral-500'}`}>
+                      {on && <svg viewBox="0 0 12 12" className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M2.5 6.2 5 8.5l4.5-5" /></svg>}
+                    </span>
                     <span className={`flex-1 text-xs lg:text-[13px] ${on ? 'font-semibold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'}`}>
                       {emoji && <span className="mr-1">{emoji}</span>}{c.name}
                     </span>
@@ -470,35 +498,119 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
 
           {/* Month by month */}
           <section className={`${card} p-4 md:p-6`}>
-            <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-1">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
               <h2 className="text-base md:text-lg font-semibold text-slate-900 dark:text-neutral-100">{win.single ? 'Day by day' : 'Month by month'}</h2>
-              <span className="text-[11px] md:text-xs text-slate-500 dark:text-neutral-400">Dashed line = your average for this selection</span>
-            </div>
-            <p className="text-xs md:text-sm text-slate-600 dark:text-neutral-300 mt-1 mb-4">{sentence}</p>
-            <div className="relative overflow-x-auto">
-              <div
-                className={`relative grid items-end ${win.single ? 'gap-[2px] md:gap-1' : 'gap-2 md:gap-6 px-1 md:px-4'}`}
-                style={{ gridTemplateColumns: `repeat(${buckets.length}, minmax(${win.single ? 6 : monthIdxs.length >= 12 ? 28 : 40}px, 1fr))`, height: BAR_H + 50 }}
-              >
-                {selected.size > 0 && total > 0 && (
-                  <div aria-hidden className="absolute left-0 right-0 border-t-[1.5px] border-dashed border-slate-400" style={{ bottom: Math.round((avg / maxBucket) * BAR_H) + 22 }} />
-                )}
-                {buckets.map(b => (
-                  <div key={b.key} className="flex flex-col items-center justify-end gap-1.5 h-full" title={`${b.longLabel}: ${fmt(b.total, 2)}`}>
-                    {!win.single && (
-                      <span className="text-[10px] md:text-xs font-semibold text-slate-800 dark:text-neutral-200 whitespace-nowrap">{b.total > 0 ? fmt(b.total) : '–'}</span>
-                    )}
-                    <div className={`w-full flex flex-col-reverse rounded-sm overflow-hidden ${win.single ? '' : 'max-w-[64px]'}`}>
-                      {b.segs.map(s => (
-                        <div key={s.cat} title={`${s.cat}: ${fmt(s.value, 2)}`} style={{ height: Math.max(1, Math.round((s.value / maxBucket) * BAR_H)), background: colorOf[s.cat] }} />
-                      ))}
-                      {b.total === 0 && <div className="h-[2px] bg-slate-200 dark:bg-neutral-700" />}
-                    </div>
-                    <span className={`text-[9px] md:text-xs text-slate-500 dark:text-neutral-400 ${win.single && b.key !== 1 && Number(b.key) % 5 !== 0 ? 'invisible md:visible' : ''}`}>{b.label}</span>
-                  </div>
+              <div role="group" aria-label="Chart view" className="flex gap-1 p-1 bg-slate-100 dark:bg-neutral-700/60 rounded-lg self-start">
+                {([['total', 'Totals'], ['category', 'By category']] as const).map(([id, l]) => (
+                  <button
+                    key={id}
+                    onClick={() => setView(id)}
+                    aria-pressed={view === id}
+                    className={`px-3 py-1 rounded-md text-xs transition-colors ${view === id ? 'bg-white dark:bg-neutral-600 font-semibold text-slate-900 dark:text-neutral-100 shadow-sm' : 'text-slate-600 dark:text-neutral-400'}`}
+                  >
+                    {l}
+                  </button>
                 ))}
               </div>
             </div>
+            <p className="text-xs md:text-sm text-slate-600 dark:text-neutral-300 mt-1 mb-4">{sentence}</p>
+
+            {view === 'total' ? (
+              <>
+                <div className="relative overflow-x-auto">
+                  <div
+                    className={`relative grid items-end ${win.single ? 'gap-[2px] md:gap-1' : 'gap-2 md:gap-6 px-1 md:px-4'}`}
+                    style={{ gridTemplateColumns: `repeat(${buckets.length}, minmax(${win.single ? 6 : monthIdxs.length >= 12 ? 28 : 40}px, 1fr))`, height: BAR_H + 50 }}
+                  >
+                    {selected.size > 0 && total > 0 && (
+                      <div aria-hidden className="absolute left-0 right-0 border-t-[1.5px] border-dashed border-slate-400 pointer-events-none" style={{ bottom: Math.round((avg / maxBucket) * BAR_H) + 22 }} />
+                    )}
+                    {buckets.map(b => {
+                      const isFocus = focus?.key === b.key;
+                      return (
+                        <button
+                          key={b.key}
+                          onClick={() => b.total > 0 && setFocusKey(b.key)}
+                          disabled={b.total === 0}
+                          aria-pressed={isFocus}
+                          aria-label={`${b.longLabel}: ${fmt(b.total, 2)}`}
+                          className="flex flex-col items-center justify-end gap-1.5 h-full group disabled:cursor-default"
+                        >
+                          {!win.single && (
+                            <span className={`text-[10px] md:text-xs font-semibold whitespace-nowrap ${isFocus ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-800 dark:text-neutral-200'}`}>{b.total > 0 ? fmt(b.total) : '–'}</span>
+                          )}
+                          <div
+                            className={`w-full rounded-t transition-colors ${win.single ? '' : 'max-w-[64px]'} ${b.total === 0 ? 'bg-slate-200 dark:bg-neutral-700' : isFocus ? 'bg-indigo-600' : 'bg-indigo-300 dark:bg-indigo-800 group-hover:bg-indigo-400'}`}
+                            style={{ height: b.total > 0 ? Math.max(2, Math.round((b.total / maxBucket) * BAR_H)) : 2 }}
+                          />
+                          <span className={`text-[9px] md:text-xs ${isFocus ? 'font-semibold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'} ${win.single && b.key !== 1 && Number(b.key) % 5 !== 0 && !isFocus ? 'invisible md:visible' : ''}`}>{b.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-neutral-400 mt-2">Dashed line = your average for this selection. Click a bar to see what made it up.</p>
+
+                {focus && (
+                  <div className="mt-4 pt-4 border-t border-slate-100 dark:border-neutral-700">
+                    <div className="flex items-baseline justify-between mb-2">
+                      <h3 className="text-sm font-semibold text-slate-900 dark:text-neutral-100">{win.single ? focus.longLabel : `${FULL_MONTHS[focus.key % 12]} ${Math.floor(focus.key / 12)}`}</h3>
+                      <span className="text-sm font-semibold text-slate-900 dark:text-neutral-100">{fmt(focus.total, 2)}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      {focusRows.map(r => (
+                        <div key={r.cat} className="grid grid-cols-[minmax(0,140px)_minmax(0,1fr)_44px_84px] md:grid-cols-[180px_minmax(0,1fr)_52px_100px] items-center gap-3 py-1.5">
+                          <span className="text-xs md:text-[13px] text-slate-800 dark:text-neutral-200 truncate">{r.cat}</span>
+                          <span className="h-2 rounded bg-slate-100 dark:bg-neutral-700 overflow-hidden">
+                            <span className="block h-full rounded bg-indigo-500" style={{ width: `${(r.value / focusRows[0].value) * 100}%` }} />
+                          </span>
+                          <span className="text-[11px] md:text-xs text-slate-500 dark:text-neutral-400 text-right">{Math.round((r.value / focus.total) * 100)}%</span>
+                          <span className="text-xs md:text-[13px] font-semibold text-right text-slate-900 dark:text-neutral-100">{fmt(r.value, 2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-separate" style={{ borderSpacing: '3px' }}>
+                  <thead>
+                    <tr>
+                      <th className="text-left text-[10px] md:text-[11px] font-medium text-slate-500 dark:text-neutral-400 pb-1 min-w-[110px]"></th>
+                      {matrix.cols.map(c => (
+                        <th key={c.key} className="text-[10px] md:text-[11px] font-medium text-slate-500 dark:text-neutral-400 pb-1 min-w-[44px]">{c.label}</th>
+                      ))}
+                      <th className="text-right text-[10px] md:text-[11px] font-medium text-slate-500 dark:text-neutral-400 pb-1 pl-2">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {matrix.rows.map(r => (
+                      <tr key={r.name}>
+                        <th scope="row" className="text-left text-xs md:text-[13px] font-medium text-slate-800 dark:text-neutral-200 pr-2 whitespace-nowrap">
+                          {getCategoryEmoji && r.catId ? <span className="mr-1">{getCategoryEmoji(r.catId)}</span> : null}{r.name}
+                        </th>
+                        {r.cells.map((v, i) => {
+                          const ratio = v / r.max;
+                          return (
+                            <td
+                              key={i}
+                              title={`${r.name}, ${matrix.cols[i].label}: ${fmt(v, 2)}`}
+                              className={`h-8 md:h-9 rounded-md text-center text-[10px] md:text-[11px] font-medium ${v === 0 ? 'bg-slate-50 dark:bg-neutral-700/40 text-slate-400' : ratio > 0.55 ? 'text-white' : 'text-slate-800 dark:text-neutral-100'}`}
+                              style={v > 0 ? { background: `rgba(79, 70, 229, ${0.12 + 0.78 * ratio})` } : undefined}
+                            >
+                              {v > 0 ? compact(v) : '–'}
+                            </td>
+                          );
+                        })}
+                        <td className="text-right text-xs md:text-[13px] font-semibold text-slate-900 dark:text-neutral-100 pl-2 whitespace-nowrap">{fmt(r.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="text-[11px] text-slate-500 dark:text-neutral-400 mt-2">Each row is shaded against its own busiest {win.single ? 'week' : 'month'}, so darker = more than usual for that category.</p>
+              </div>
+            )}
           </section>
 
           {/* Patterns */}
@@ -533,9 +645,9 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
               {merchants.length === 0 && <p className="text-xs text-slate-500">Nothing selected.</p>}
               {merchants.map(m => (
                 <div key={m.name} className="flex items-center justify-between gap-2 py-1.5 border-t border-slate-100 dark:border-neutral-700">
-                  <span className="flex items-center gap-2 min-w-0">
-                    <span aria-hidden className="w-2 h-2 rounded-sm shrink-0" style={{ background: colorOf[m.cat] }} />
+                  <span className="flex flex-col min-w-0">
                     <span className="text-xs md:text-[13px] truncate text-slate-800 dark:text-neutral-200">{m.name}</span>
+                    <span className="text-[10px] md:text-[11px] text-slate-500 dark:text-neutral-400 truncate">{m.cat}</span>
                   </span>
                   <span className="text-xs md:text-[13px] font-semibold whitespace-nowrap text-slate-900 dark:text-neutral-100">{fmt(m.total)}</span>
                 </div>
