@@ -359,11 +359,9 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
       .sort((a, b) => b.total - a.total)
       .slice(0, 40);
   }, [chosen, cols, colOf]);
-  // Split merchants by how you pay them: regular (spread across several months/weeks) vs
-  // one-offs. With only 3–4 columns in the period, two active columns already counts as regular.
-  const regularMin = cols.length <= 4 ? 2 : 3;
-  const regularMerchants = merchants.filter(m => m.activeCols >= regularMin);
-  const oneOffMerchants = merchants.filter(m => m.activeCols < regularMin);
+  // One ranked list, flowed across two columns on desktop (#1–8 left, #9–16 right).
+  const merchantsShown = merchants.slice(0, moreMerchants ? 32 : 16);
+  const merchantHalf = Math.ceil(merchantsShown.length / 2);
   const shortDate = (d: string) => `${Number(d.slice(8, 10))} ${MONTHS[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}`;
 
   // --- Regular payments, detected from repeat payments across all categories ---
@@ -791,12 +789,12 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
             )}
           </section>
 
-          {/* Biggest merchants, split by how you pay them */}
+          {/* Biggest merchants: one ranked list across two columns */}
           <section className={`${card} p-4 md:p-6`}>
-            <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-1 mb-3">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3">
               <h2 className="text-base md:text-lg font-semibold text-slate-900 dark:text-neutral-100">Biggest merchants</h2>
               <div className="flex items-center gap-3 self-start md:self-auto">
-                <span className="hidden md:inline text-[11px] md:text-xs text-slate-500 dark:text-neutral-400">Split by how you pay</span>
+                <span className="hidden md:inline text-[11px] md:text-xs text-slate-500 dark:text-neutral-400">Ranked by total · bars show each {win.single ? 'week' : 'month'}</span>
                 <div role="group" aria-label="Merchant amounts" className="flex gap-1 p-1 bg-slate-100 dark:bg-neutral-700/60 rounded-lg">
                   {([['month', win.single ? 'Per week' : 'Per month'], ['total', 'Total']] as const).map(([id, l]) => (
                     <button
@@ -815,53 +813,44 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
               <p className="text-sm text-slate-500 py-4">Nothing selected.</p>
             ) : (
               <>
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 xl:gap-8">
-                  <div>
-                    <div className="flex justify-between items-baseline pb-2">
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-neutral-100">Regular · paid in {regularMin}+ {win.single ? 'weeks' : 'months'}</h3>
-                      <span className="text-[11px] text-slate-500 dark:text-neutral-400">{merchantAmount === 'month' ? `per ${win.single ? 'week' : 'month'} when active` : 'total'}</span>
-                    </div>
-                    {regularMerchants.length === 0 && <p className="text-xs text-slate-500 py-2 border-t border-slate-100 dark:border-neutral-700">No regular merchants in this selection.</p>}
-                    {regularMerchants.slice(0, moreMerchants ? 20 : 8).map(m => (
-                      <div key={m.name} className="grid grid-cols-[minmax(0,1fr)_84px_86px] gap-3 items-center py-2.5 border-t border-slate-100 dark:border-neutral-700">
-                        <div className="min-w-0">
-                          <div className="text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={m.name}>{m.name}</div>
-                          <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">
-                            {m.cat} · {m.count} payments · {merchantAmount === 'month' ? `${fmt(m.total)} total` : `${fmt(m.total / Math.max(1, m.activeCols))}/${win.single ? 'week' : 'month'}`}
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-8">
+                  {[merchantsShown.slice(0, merchantHalf), merchantsShown.slice(merchantHalf)].map((colRows, ci0) => (
+                    <div key={ci0}>
+                      {colRows.map((m, j) => {
+                        const rank = ci0 * merchantHalf + j + 1;
+                        const perUnit = m.total / Math.max(1, m.activeCols);
+                        return (
+                          <div key={m.name} className="grid grid-cols-[22px_minmax(0,1fr)_86px] sm:grid-cols-[22px_minmax(0,1fr)_76px_86px] gap-3 items-center py-2.5 border-t border-slate-100 dark:border-neutral-700">
+                            <span className="text-xs text-slate-400">{rank}</span>
+                            <div className="min-w-0">
+                              <div className="text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={m.name}>{m.name}</div>
+                              <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">
+                                {m.cat} · {m.count} {m.count === 1 ? 'payment' : 'payments'}
+                                {m.activeCols > 1 && ` · ${merchantAmount === 'month' ? `${fmt(m.total)} total` : `${fmt(perUnit)}/${win.single ? 'week' : 'month'}`}`}
+                              </div>
+                            </div>
+                            <div aria-label={`${m.name} by ${win.single ? 'week' : 'month'}`} className="hidden sm:flex items-end gap-[3px] h-[26px]">
+                              {m.cells.map((v, ci) => (
+                                <span key={cols[ci].key} title={`${cols[ci].label}: ${fmt(v, 2)}`} className={`flex-1 rounded-[2px] ${v > 0 ? 'bg-indigo-500' : 'bg-slate-100 dark:bg-neutral-700'}`} style={{ height: v > 0 ? Math.max(3, Math.round((v / m.cellMax) * 26)) : 2 }} />
+                              ))}
+                            </div>
+                            <span className="text-[13px] font-semibold text-right text-slate-900 dark:text-neutral-100">
+                              {merchantAmount === 'month' ? fmt(perUnit) : fmt(m.total, 2)}
+                            </span>
                           </div>
-                        </div>
-                        <div aria-label={`${m.name} by ${win.single ? 'week' : 'month'}`} className="flex items-end gap-[3px] h-[26px]">
-                          {m.cells.map((v, ci) => (
-                            <span key={cols[ci].key} title={`${cols[ci].label}: ${fmt(v, 2)}`} className={`flex-1 rounded-[2px] ${v > 0 ? 'bg-indigo-500' : 'bg-slate-100 dark:bg-neutral-700'}`} style={{ height: v > 0 ? Math.max(3, Math.round((v / m.cellMax) * 26)) : 2 }} />
-                          ))}
-                        </div>
-                        <span className="text-[13px] font-semibold text-right text-slate-900 dark:text-neutral-100">{merchantAmount === 'month' ? fmt(m.total / Math.max(1, m.activeCols)) : fmt(m.total, 2)}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div>
-                    <div className="flex justify-between items-baseline pb-2">
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-neutral-100">One-offs · paid in {regularMin === 2 ? '1 ' + (win.single ? 'week' : 'month') : '1–2 months'}</h3>
-                      <span className="text-[11px] text-slate-500 dark:text-neutral-400">when</span>
+                        );
+                      })}
                     </div>
-                    {oneOffMerchants.length === 0 && <p className="text-xs text-slate-500 py-2 border-t border-slate-100 dark:border-neutral-700">No one-off payments in this selection.</p>}
-                    {oneOffMerchants.slice(0, moreMerchants ? 20 : 8).map(m => (
-                      <div key={m.name} className="grid grid-cols-[minmax(0,1fr)_64px_86px] gap-3 items-center py-2.5 border-t border-slate-100 dark:border-neutral-700">
-                        <div className="min-w-0">
-                          <div className="text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={m.name}>{m.name}</div>
-                          <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">{m.cat}{m.sub ? ` · ${m.sub}` : ''}{m.count > 1 ? ` · ${m.count} payments` : ''}</div>
-                        </div>
-                        <span className="text-xs text-slate-600 dark:text-neutral-300 text-right whitespace-nowrap">{shortDate(m.last).replace(/ \d{4}$/, '')}</span>
-                        <span className="text-[13px] font-semibold text-right text-slate-900 dark:text-neutral-100">{fmt(m.total, 2)}</span>
-                      </div>
-                    ))}
-                  </div>
+                  ))}
                 </div>
-                {(regularMerchants.length > 8 || oneOffMerchants.length > 8) && (
-                  <button onClick={() => setMoreMerchants(v => !v)} className="mt-3 text-sm font-medium text-indigo-700 dark:text-indigo-300 hover:underline">
-                    {moreMerchants ? 'Show fewer' : 'Show more merchants'}
-                  </button>
-                )}
+                <div className="flex items-center justify-between mt-3">
+                  {merchants.length > 16 ? (
+                    <button onClick={() => setMoreMerchants(v => !v)} className="text-sm font-medium text-indigo-700 dark:text-indigo-300 hover:underline">
+                      {moreMerchants ? 'Show fewer' : `Show ${Math.min(16, merchants.length - 16)} more`}
+                    </button>
+                  ) : <span />}
+                  <span className="text-[11px] text-slate-500 dark:text-neutral-400">{merchantAmount === 'month' ? `Per ${win.single ? 'week' : 'month'} = average across the ${win.single ? 'weeks' : 'months'} it was paid` : 'Total for the period'}</span>
+                </div>
               </>
             )}
           </section>
