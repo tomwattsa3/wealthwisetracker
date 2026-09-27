@@ -355,10 +355,18 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
 
   // The bar whose breakdown is shown under the Totals chart: the one you clicked, else the latest
   // with spending.
-  const focus = buckets.find(b => b.key === focusKey && b.total > 0) || [...buckets].reverse().find(b => b.total > 0) || null;
-  const focusRows = focus ? [...focus.segs].sort((a, b) => b.value - a.value) : [];
-  const focusName = focus ? (win.single ? focus.longLabel : `${FULL_MONTHS[focus.key % 12]} ${Math.floor(focus.key / 12)}`) : '';
-  const focusShort = focus ? (win.single ? focus.longLabel : FULL_MONTHS[focus.key % 12]) : '';
+  // Breakdown under the Totals chart: the whole period by default, or one month/day once you
+  // click its bar (click it again, or "Show all", to go back).
+  const focus = buckets.find(b => b.key === focusKey && b.total > 0) || null;
+  const periodRows = useMemo(() => {
+    const byCat = new Map<string, number>();
+    chosen.forEach(s => byCat.set(s.cat, (byCat.get(s.cat) || 0) + s.amount));
+    return Array.from(byCat.entries()).map(([cat, value]) => ({ cat, value }));
+  }, [chosen]);
+  const focusRows = [...(focus ? focus.segs : periodRows)].sort((a, b) => b.value - a.value);
+  const focusTotal = focus ? focus.total : total;
+  const focusName = focus ? (win.single ? focus.longLabel : `${FULL_MONTHS[focus.key % 12]} ${Math.floor(focus.key / 12)}`) : win.label;
+  const allLabel = win.single ? 'all days' : 'all months';
 
   // By-category table: a row per selected category, a column per month (or per week for a
   // single month). Cells are shaded relative to that row's own busiest column, so each row
@@ -532,7 +540,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                       return (
                         <button
                           key={b.key}
-                          onClick={() => b.total > 0 && setFocusKey(b.key)}
+                          onClick={() => b.total > 0 && setFocusKey(isFocus ? null : b.key)}
                           disabled={b.total === 0}
                           aria-pressed={isFocus}
                           aria-label={`${b.longLabel}: ${fmt(b.total, 2)}`}
@@ -545,7 +553,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                             <span className={`text-[10px] md:text-xs font-semibold whitespace-nowrap ${isFocus ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-800 dark:text-neutral-200'}`}>{b.total > 0 ? fmt(b.total) : '–'}</span>
                           )}
                           <div
-                            className={`w-full rounded-t transition-colors ${win.single ? '' : 'max-w-[64px]'} ${b.total === 0 ? 'bg-slate-200 dark:bg-neutral-700' : isFocus ? 'bg-indigo-600' : 'bg-indigo-300 dark:bg-indigo-800 group-hover:bg-indigo-400'}`}
+                            className={`w-full rounded-t transition-colors ${win.single ? '' : 'max-w-[64px]'} ${b.total === 0 ? 'bg-slate-200 dark:bg-neutral-700' : isFocus ? 'bg-indigo-600' : focus ? 'bg-indigo-200 dark:bg-indigo-900 group-hover:bg-indigo-300' : 'bg-indigo-400 dark:bg-indigo-700 group-hover:bg-indigo-500'}`}
                             style={{ height: b.total > 0 ? Math.max(2, Math.round((b.total / maxBucket) * BAR_H)) : 2 }}
                           />
                           <span className={`text-[9px] md:text-xs ${isFocus ? 'font-semibold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'} ${win.single && b.key !== 1 && Number(b.key) % 5 !== 0 && !isFocus ? 'invisible md:visible' : ''}`}>{b.label}</span>
@@ -554,21 +562,30 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                     })}
                   </div>
                 </div>
-                <p className="text-[11px] text-slate-500 dark:text-neutral-400 mt-2">Dashed line = your average for this selection. {focus ? <>Showing <strong className="text-slate-700 dark:text-neutral-200">{focusName}</strong> below. Click another bar to switch.</> : 'Click a bar to see what made it up.'}</p>
+                <p className="text-[11px] text-slate-500 dark:text-neutral-400 mt-2">Dashed line = your average for this selection. {focus
+                  ? <>Showing <strong className="text-slate-700 dark:text-neutral-200">{focusName}</strong> below. Click another bar to switch, or click it again to show {allLabel}.</>
+                  : <>Showing <strong className="text-slate-700 dark:text-neutral-200">{allLabel}</strong> below. Click a bar to see just that {win.single ? 'day' : 'month'}.</>}</p>
 
-                {focus && (
+                {focusRows.length > 0 && (
                   <div className="mt-4 rounded-xl border border-indigo-100 dark:border-indigo-900/60 bg-indigo-50/40 dark:bg-indigo-950/20 p-3 md:p-4">
                     <div className="flex items-end justify-between gap-3 mb-3 pb-3 border-b border-indigo-100 dark:border-indigo-900/60">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span aria-hidden className="w-3 h-3 rounded-sm bg-indigo-600 shrink-0" />
                         <div className="min-w-0">
-                          <div className="text-[10px] md:text-[11px] font-semibold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">Breakdown for selected {win.single ? 'day' : 'month'}</div>
+                          <div className="text-[10px] md:text-[11px] font-semibold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
+                            {focus ? `Breakdown for selected ${win.single ? 'day' : 'month'}` : `Breakdown for ${allLabel}`}
+                          </div>
                           <h3 className="text-sm md:text-base font-semibold text-slate-900 dark:text-neutral-100 truncate">{focusName}</h3>
+                          {focus && (
+                            <button onClick={() => setFocusKey(null)} className="mt-1 text-[11px] md:text-xs font-medium text-indigo-700 dark:text-indigo-300 hover:underline">
+                              ← Show {allLabel}
+                            </button>
+                          )}
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <div className="text-[10px] md:text-[11px] text-slate-500 dark:text-neutral-400">Total spent in {focusShort}</div>
-                        <div className="text-base md:text-lg font-semibold text-slate-900 dark:text-neutral-100">{fmt(focus.total, 2)}</div>
+                        <div className="text-[10px] md:text-[11px] text-slate-500 dark:text-neutral-400">{focus ? `Total spent in ${win.single ? focus.longLabel : FULL_MONTHS[focus.key % 12]}` : 'Total spent in this period'}</div>
+                        <div className="text-base md:text-lg font-semibold text-slate-900 dark:text-neutral-100">{fmt(focusTotal, 2)}</div>
                       </div>
                     </div>
                     <div className="flex flex-col">
@@ -578,7 +595,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                           <span className="h-2 rounded bg-slate-100 dark:bg-neutral-700 overflow-hidden">
                             <span className="block h-full rounded bg-indigo-500" style={{ width: `${(r.value / focusRows[0].value) * 100}%` }} />
                           </span>
-                          <span className="text-[11px] md:text-xs text-slate-500 dark:text-neutral-400 text-right">{Math.round((r.value / focus.total) * 100)}%</span>
+                          <span className="text-[11px] md:text-xs text-slate-500 dark:text-neutral-400 text-right">{Math.round((r.value / focusTotal) * 100)}%</span>
                           <span className="text-xs md:text-[13px] font-semibold text-right text-slate-900 dark:text-neutral-100">{fmt(r.value, 2)}</span>
                         </div>
                       ))}
