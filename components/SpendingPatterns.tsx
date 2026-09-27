@@ -447,6 +447,55 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   };
   const billChecks = checkMonth === null ? [] : bills.map(b => ({ b, st: billStatus(b) }));
 
+  // --- Money in: income for the period (or the selected month/day). Not affected by the
+  // spending category ticks.
+  const incomeRows = useMemo(() => transactions
+    .filter(t => t.type === 'INCOME' && !t.excluded && (t.categoryName || '').trim().toLowerCase() !== 'excluded' && /^\d{4}-\d{2}-\d{2}/.test(t.date))
+    .map(t => ({
+      date: t.date.slice(0, 10),
+      monthIdx: keyToIndex(monthKey(t.date)),
+      desc: (t.description || 'Unknown').trim(),
+      type: (t.subcategoryName || '').trim() || (t.categoryName || '').trim() || 'Other',
+      amount: Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED) || 0,
+    }))
+    .filter(r => r.amount > 0 && inWindow(r.date, win)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [transactions, currency, win]);
+  const income = useMemo(() => {
+    const colOfDate = (d: string, mi: number) => {
+      if (!win.single) return mi;
+      const day = Number(d.slice(8, 10));
+      return day <= 7 ? 0 : day <= 14 ? 1 : day <= 21 ? 2 : 3;
+    };
+    const perCol = cols.map(c => sum(incomeRows.filter(r => colOfDate(r.date, r.monthIdx) === c.key).map(r => r.amount)));
+    const scoped = focusBucket
+      ? incomeRows.filter(r => (win.single ? Number(r.date.slice(8, 10)) === focusBucket.key : r.monthIdx === focusBucket.key))
+      : incomeRows;
+    const byType = new Map<string, number>();
+    scoped.forEach(r => byType.set(r.type, (byType.get(r.type) || 0) + r.amount));
+    const bySource = new Map<string, { name: string; type: string; total: number; count: number; months: Set<number> }>();
+    scoped.forEach(r => {
+      const k = merchantKey(r.desc);
+      const e = bySource.get(k) || { name: r.desc, type: r.type, total: 0, count: 0, months: new Set<number>() };
+      e.total += r.amount; e.count++; e.months.add(r.monthIdx);
+      bySource.set(k, e);
+    });
+    const scopedTotal = sum(scoped.map(r => r.amount));
+    // Coverage is against all spending in the same window (every category), not just the ticked ones.
+    const spendAll = sum(inRange.filter(s => !focusBucket || (win.single ? Number(s.date.slice(8, 10)) === focusBucket.key : s.monthIdx === focusBucket.key)).map(s => s.amount));
+    const dataCols = perCol.filter((_, i) => win.single || inRange.some(s => s.monthIdx === cols[i].key)).length || 1;
+    return {
+      perCol,
+      avg: sum(perCol) / dataCols,
+      total: scopedTotal,
+      count: scoped.length,
+      coverage: spendAll > 0 ? scopedTotal / spendAll : null,
+      types: Array.from(byType.entries()).map(([name, v]) => ({ name, v })).sort((a, b) => b.v - a.v),
+      sources: Array.from(bySource.values()).sort((a, b) => b.total - a.total).slice(0, 8),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incomeRows, cols, focusBucket?.key, win, inRange]);
+
   // "vs your average" card: the selected month (or single-month period, or else the latest month
   // in the period) against your average of the OTHER imported months, for the ticked categories.
   // MTD compares with the average scaled to the same number of days.
@@ -936,6 +985,87 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
           </section>
         </div>
       </div>
+      )}
+
+      {/* Money in */}
+      {inRange.length > 0 && (
+        <section className={`${card} p-4 md:p-6`}>
+          <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-1">
+            <h2 className="text-base md:text-lg font-semibold text-slate-900 dark:text-neutral-100">
+              Money in{focusBucket && <> · <span className="text-emerald-700 dark:text-emerald-400">{win.single ? focusBucket.longLabel : `${FULL_MONTHS[focusBucket.key % 12]} ${Math.floor(focusBucket.key / 12)}`}</span></>}
+            </h2>
+            <span className="text-xs md:text-sm text-slate-600 dark:text-neutral-300">
+              <strong className="text-base text-emerald-700 dark:text-emerald-400">{fmt(income.total)}</strong>
+              {' '}· {income.count} {income.count === 1 ? 'payment' : 'payments'}
+              {income.coverage !== null && <> · covered {Math.round(income.coverage * 100)}% of spending</>}
+            </span>
+          </div>
+          {incomeRows.length === 0 ? (
+            <p className="text-sm text-slate-500 py-4">No income recorded in this period.</p>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr_1.3fr] gap-6 lg:gap-8 mt-4">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-neutral-100 mb-2">By type</h3>
+                {income.types.length === 0 && <p className="text-xs text-slate-500 py-2 border-t border-slate-100 dark:border-neutral-700">None this {win.single ? 'day' : 'month'}.</p>}
+                {income.types.map(t => (
+                  <div key={t.name} className="py-2.5 border-t border-slate-100 dark:border-neutral-700">
+                    <div className="flex justify-between text-[13px]">
+                      <span className="font-medium text-slate-900 dark:text-neutral-100 capitalize">{t.name}</span>
+                      <span className="font-semibold text-slate-900 dark:text-neutral-100">
+                        {fmt(t.v, 2)} <span className="font-normal text-[11px] text-slate-500 dark:text-neutral-400">{income.total > 0 ? (t.v / income.total < 0.005 ? '<1' : Math.round((t.v / income.total) * 100)) : 0}%</span>
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded bg-slate-100 dark:bg-neutral-700 mt-1.5 overflow-hidden">
+                      <div className="h-full rounded bg-emerald-500" style={{ width: `${(t.v / income.types[0].v) * 100}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-neutral-100">Each {win.single ? 'week' : 'month'}</h3>
+                <p className="text-[11px] text-slate-500 dark:text-neutral-400 mb-3">Dashed line = {fmt(income.avg)} average</p>
+                <div className="relative grid gap-2 md:gap-3 items-end h-44" style={{ gridTemplateColumns: `repeat(${cols.length}, minmax(0, 1fr))` }}>
+                  {(() => {
+                    const mx = Math.max(...income.perCol, 1);
+                    const H = 120;
+                    return (
+                      <>
+                        <div aria-hidden className="absolute left-0 right-0 border-t-[1.5px] border-dashed border-slate-400 pointer-events-none" style={{ bottom: Math.round((income.avg / mx) * H) + 20 }} />
+                        {income.perCol.map((v, i) => {
+                          const on = focusCol === null || cols[i].key === focusCol;
+                          return (
+                            <div key={cols[i].key} className="flex flex-col items-center justify-end gap-1 h-full" title={`${cols[i].label}: ${fmt(v, 2)}`}>
+                              <span className={`text-[10px] font-semibold whitespace-nowrap ${on ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-400'}`}>{v > 0 ? fmt(v) : '–'}</span>
+                              <div className={`w-full max-w-[44px] rounded-t ${v <= 0 ? 'bg-slate-100 dark:bg-neutral-700' : on ? 'bg-emerald-400' : 'bg-emerald-100 dark:bg-emerald-950'}`} style={{ height: v > 0 ? Math.max(3, Math.round((v / mx) * H)) : 2 }} />
+                              <span className={`text-[10px] ${cols[i].key === focusCol ? 'font-semibold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'}`}>{cols[i].label}</span>
+                            </div>
+                          );
+                        })}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-neutral-100 mb-2">Where it came from</h3>
+                {income.sources.length === 0 && <p className="text-xs text-slate-500 py-2 border-t border-slate-100 dark:border-neutral-700">No income this {win.single ? 'day' : 'month'}.</p>}
+                {income.sources.map(src => (
+                  <div key={src.name} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 items-center py-2 border-t border-slate-100 dark:border-neutral-700">
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={src.name}>{src.name}</div>
+                      <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate capitalize">
+                        {src.type} · {src.count > 1 ? `${src.count} payments` : Array.from(src.months).map(m => MONTHS[m % 12]).join(', ')}
+                      </div>
+                    </div>
+                    <span className="text-[13px] font-semibold text-emerald-700 dark:text-emerald-400">{fmt(src.total, 2)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
       )}
 
       {/* Regular payments: a 6-month overview, or a check of the selected month */}
