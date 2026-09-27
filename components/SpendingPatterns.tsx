@@ -357,6 +357,8 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   // with spending.
   const focus = buckets.find(b => b.key === focusKey && b.total > 0) || [...buckets].reverse().find(b => b.total > 0) || null;
   const focusRows = focus ? [...focus.segs].sort((a, b) => b.value - a.value) : [];
+  const focusName = focus ? (win.single ? focus.longLabel : `${FULL_MONTHS[focus.key % 12]} ${Math.floor(focus.key / 12)}`) : '';
+  const focusShort = focus ? (win.single ? focus.longLabel : FULL_MONTHS[focus.key % 12]) : '';
 
   // By-category table: a row per selected category, a column per month (or per week for a
   // single month). Cells are shaded relative to that row's own busiest column, so each row
@@ -520,7 +522,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                 <div className="relative overflow-x-auto">
                   <div
                     className={`relative grid items-end ${win.single ? 'gap-[2px] md:gap-1' : 'gap-2 md:gap-6 px-1 md:px-4'}`}
-                    style={{ gridTemplateColumns: `repeat(${buckets.length}, minmax(${win.single ? 6 : monthIdxs.length >= 12 ? 28 : 40}px, 1fr))`, height: BAR_H + 50 }}
+                    style={{ gridTemplateColumns: `repeat(${buckets.length}, minmax(${win.single ? 6 : monthIdxs.length >= 12 ? 28 : 40}px, 1fr))`, height: BAR_H + (win.single ? 50 : 74) }}
                   >
                     {selected.size > 0 && total > 0 && (
                       <div aria-hidden className="absolute left-0 right-0 border-t-[1.5px] border-dashed border-slate-400 pointer-events-none" style={{ bottom: Math.round((avg / maxBucket) * BAR_H) + 22 }} />
@@ -536,6 +538,9 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                           aria-label={`${b.longLabel}: ${fmt(b.total, 2)}`}
                           className="flex flex-col items-center justify-end gap-1.5 h-full group disabled:cursor-default"
                         >
+                          {!win.single && isFocus && (
+                            <span className="text-[9px] md:text-[10px] font-semibold uppercase tracking-wider text-white bg-indigo-600 rounded px-1.5 py-0.5">Selected</span>
+                          )}
                           {!win.single && (
                             <span className={`text-[10px] md:text-xs font-semibold whitespace-nowrap ${isFocus ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-800 dark:text-neutral-200'}`}>{b.total > 0 ? fmt(b.total) : '–'}</span>
                           )}
@@ -549,13 +554,22 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                     })}
                   </div>
                 </div>
-                <p className="text-[11px] text-slate-500 dark:text-neutral-400 mt-2">Dashed line = your average for this selection. Click a bar to see what made it up.</p>
+                <p className="text-[11px] text-slate-500 dark:text-neutral-400 mt-2">Dashed line = your average for this selection. {focus ? <>Showing <strong className="text-slate-700 dark:text-neutral-200">{focusName}</strong> below. Click another bar to switch.</> : 'Click a bar to see what made it up.'}</p>
 
                 {focus && (
-                  <div className="mt-4 pt-4 border-t border-slate-100 dark:border-neutral-700">
-                    <div className="flex items-baseline justify-between mb-2">
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-neutral-100">{win.single ? focus.longLabel : `${FULL_MONTHS[focus.key % 12]} ${Math.floor(focus.key / 12)}`}</h3>
-                      <span className="text-sm font-semibold text-slate-900 dark:text-neutral-100">{fmt(focus.total, 2)}</span>
+                  <div className="mt-4 rounded-xl border border-indigo-100 dark:border-indigo-900/60 bg-indigo-50/40 dark:bg-indigo-950/20 p-3 md:p-4">
+                    <div className="flex items-end justify-between gap-3 mb-3 pb-3 border-b border-indigo-100 dark:border-indigo-900/60">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span aria-hidden className="w-3 h-3 rounded-sm bg-indigo-600 shrink-0" />
+                        <div className="min-w-0">
+                          <div className="text-[10px] md:text-[11px] font-semibold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">Breakdown for selected {win.single ? 'day' : 'month'}</div>
+                          <h3 className="text-sm md:text-base font-semibold text-slate-900 dark:text-neutral-100 truncate">{focusName}</h3>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-[10px] md:text-[11px] text-slate-500 dark:text-neutral-400">Total spent in {focusShort}</div>
+                        <div className="text-base md:text-lg font-semibold text-slate-900 dark:text-neutral-100">{fmt(focus.total, 2)}</div>
+                      </div>
                     </div>
                     <div className="flex flex-col">
                       {focusRows.map(r => (
