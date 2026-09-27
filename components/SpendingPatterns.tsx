@@ -18,8 +18,16 @@ const TOM_LONG = ['the first week', 'the second week', 'the third week', 'the la
 // Assigned by spend rank rather than taken from Category.color, because several categories share
 // similar colours and the stacked chart needs neighbouring segments to be told apart.
 const PALETTE = ['#312e81', '#f59e0b', '#6366f1', '#0ea5e9', '#7c3aed', '#f97316', '#14b8a6', '#64748b', '#ec4899', '#ca8a04', '#22c55e', '#84cc16', '#94a3b8', '#cbd5e1'];
-const RANGES = [3, 6, 12] as const;
-type Range = typeof RANGES[number];
+const PERIODS = [
+  { id: 'mtd', label: 'MTD' },
+  { id: 'thisMonth', label: 'This month' },
+  { id: 'lastMonth', label: 'Last month' },
+  { id: '3m', label: '3 months' },
+  { id: '6m', label: '6 months' },
+  { id: 'ytd', label: 'Year to date' },
+  { id: '12m', label: '12 months' },
+] as const;
+type PeriodId = typeof PERIODS[number]['id'];
 
 const STORAGE_KEY = 'spendingPatterns';
 
@@ -27,6 +35,23 @@ const STORAGE_KEY = 'spendingPatterns';
 const monthKey = (date: string) => date.slice(0, 7);
 const keyToIndex = (key: string) => Number(key.slice(0, 4)) * 12 + Number(key.slice(5, 7)) - 1;
 const indexLabel = (i: number) => MONTHS[i % 12];
+const indexToKey = (i: number) => `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, '0')}`;
+const daysIn = (i: number) => new Date(Math.floor(i / 12), (i % 12) + 1, 0).getDate();
+const localToday = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+interface PeriodWindow {
+  start: string; // inclusive YYYY-MM-DD
+  end: string;   // inclusive YYYY-MM-DD
+  monthIdxs: number[];
+  single: boolean; // one calendar month → day-by-day view
+  dayLimit: number; // days of that month shown / counted (MTD stops at today)
+  label: string;
+  name: string; // plain period name for messages ("September 2026")
+  prev: { start: string; end: string; label: string } | null; // equal-length period before it
+}
 
 // Groups merchant descriptions that are the same payee written slightly differently
 // ("Motor city llc - Parking" / "Motor city llc Parking", "Subscription fee for Jan 2026" /
@@ -68,23 +93,23 @@ interface RegularPayment {
 const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categories, currency, getCategoryEmoji }) => {
   const saved = useMemo(() => {
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as { range?: Range; unselected?: string[] };
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as { period?: PeriodId; unselected?: string[] };
     } catch {
       return {};
     }
   }, []);
-  const [range, setRange] = useState<Range>(saved.range && RANGES.includes(saved.range) ? saved.range : 6);
+  const [period, setPeriod] = useState<PeriodId>(PERIODS.some(p => p.id === saved.period) ? saved.period! : '6m');
   // Stored as the categories that are switched OFF, so a category that appears later (a new
   // import) shows up selected by default instead of silently missing from the chart.
   const [unselected, setUnselected] = useState<Set<string>>(() => new Set(saved.unselected || []));
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ range, unselected: Array.from(unselected) }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ period, unselected: Array.from(unselected) }));
     } catch {
       /* storage unavailable — selection just won't persist */
     }
-  }, [range, unselected]);
+  }, [period, unselected]);
 
   const fmt = (v: number, decimals = 0) => {
     const n = Math.abs(v).toLocaleString('en-GB', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -108,11 +133,63 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
       .filter(s => s.amount > 0);
   }, [transactions, categories, currency]);
 
-  // The window ends at the latest month that actually has data, so un-imported months at the
-  // end of the year don't drag every average down.
-  const lastIdx = useMemo(() => (spends.length ? Math.max(...spends.map(s => s.monthIdx)) : keyToIndex(monthKey(new Date().toISOString()))), [spends]);
-  const monthIdxs = useMemo(() => Array.from({ length: range }, (_, i) => lastIdx - range + 1 + i), [lastIdx, range]);
-  const inRange = useMemo(() => spends.filter(s => s.monthIdx >= monthIdxs[0] && s.monthIdx <= lastIdx), [spends, monthIdxs, lastIdx]);
+  const today = localToday();
+  const curIdx = keyToIndex(monthKey(today));
+  // Latest month with any imported spending.
+  const lastIdx = useMemo(() => (spends.length ? Math.max(...spends.map(s => s.monthIdx)) : curIdx), [spends, curIdx]);
+
+  // Calendar periods (MTD, this/last month, YTD) follow today's date; the rolling 3/6/12-month
+  // windows end at the latest imported month instead, so un-imported months don't drag every
+  // average down.
+  const win = useMemo<PeriodWindow>(() => {
+    const monthSpan = (idx: number, lastDay = daysIn(idx)) => ({ start: `${indexToKey(idx)}-01`, end: `${indexToKey(idx)}-${String(lastDay).padStart(2, '0')}` });
+    const monthName = (idx: number) => `${FULL_MONTHS[idx % 12]} ${Math.floor(idx / 12)}`;
+    const day = Number(today.slice(8, 10));
+    if (period === 'mtd' || period === 'thisMonth' || period === 'lastMonth') {
+      const idx = period === 'lastMonth' ? curIdx - 1 : curIdx;
+      const limit = period === 'mtd' ? day : daysIn(idx);
+      const prevLimit = period === 'mtd' ? Math.min(day, daysIn(idx - 1)) : daysIn(idx - 1);
+      return {
+        ...monthSpan(idx, limit),
+        monthIdxs: [idx],
+        single: true,
+        dayLimit: limit,
+        label: period === 'mtd' ? `${monthName(idx)} so far` : monthName(idx),
+        name: monthName(idx),
+        prev: { ...monthSpan(idx - 1, prevLimit), label: period === 'mtd' ? `the same days of ${FULL_MONTHS[(idx - 1) % 12]}` : FULL_MONTHS[(idx - 1) % 12] },
+      };
+    }
+    if (period === 'ytd') {
+      const y = Math.floor(curIdx / 12);
+      const first = y * 12;
+      return {
+        start: `${y}-01-01`,
+        end: today,
+        monthIdxs: Array.from({ length: curIdx - first + 1 }, (_, i) => first + i),
+        single: false,
+        dayLimit: 0,
+        label: `1 Jan – ${day} ${MONTHS[curIdx % 12]} ${y}`,
+        name: `${y} so far`,
+        prev: { start: `${y - 1}-01-01`, end: `${y - 1}${today.slice(4)}`, label: 'the same time last year' },
+      };
+    }
+    const n = period === '3m' ? 3 : period === '6m' ? 6 : 12;
+    const first = lastIdx - n + 1;
+    return {
+      start: monthSpan(first).start,
+      end: monthSpan(lastIdx).end,
+      monthIdxs: Array.from({ length: n }, (_, i) => first + i),
+      single: false,
+      dayLimit: 0,
+      label: `${monthName(first)} – ${monthName(lastIdx)}`,
+      name: `${monthName(first)} – ${monthName(lastIdx)}`,
+      prev: { start: monthSpan(first - n).start, end: monthSpan(first - 1).end, label: `the previous ${n} months` },
+    };
+  }, [period, today, curIdx, lastIdx]);
+
+  const inWindow = (d: string, w: { start: string; end: string }) => d.slice(0, 10) >= w.start && d.slice(0, 10) <= w.end;
+  const inRange = useMemo(() => spends.filter(s => inWindow(s.date, win)), [spends, win]);
+  const monthIdxs = win.monthIdxs;
 
   const catStats = useMemo(() => {
     const map = new Map<string, { name: string; catId: string; total: number }>();
@@ -145,26 +222,53 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   ];
   const presetActive = (names: string[]) => names.length === selected.size && names.every(n => selected.has(n));
 
-  // --- Month by month, stacked by category ---
-  const months = useMemo(() => monthIdxs.map(mi => {
-    const rows = chosen.filter(s => s.monthIdx === mi);
-    const byCat = new Map<string, number>();
-    rows.forEach(r => byCat.set(r.cat, (byCat.get(r.cat) || 0) + r.amount));
-    return { mi, total: sum(rows.map(r => r.amount)), segs: catStats.filter(c => byCat.has(c.name)).map(c => ({ cat: c.name, value: byCat.get(c.name)! })) };
-  }), [chosen, monthIdxs, catStats]);
-  const monthTotals = months.map(m => m.total);
-  const total = sum(monthTotals);
-  // Average over months that have any imported spending, so a 12-month window reaching back
-  // before your first import isn't diluted by empty months.
+  // --- Chart buckets, stacked by category: days for a single month, otherwise months ---
+  const buckets = useMemo(() => {
+    const keys = win.single
+      ? Array.from({ length: win.dayLimit }, (_, i) => i + 1)
+      : monthIdxs;
+    return keys.map(k => {
+      const rows = chosen.filter(s => (win.single ? Number(s.date.slice(8, 10)) === k : s.monthIdx === k));
+      const byCat = new Map<string, number>();
+      rows.forEach(r => byCat.set(r.cat, (byCat.get(r.cat) || 0) + r.amount));
+      return {
+        key: k,
+        label: win.single ? String(k) : indexLabel(k),
+        longLabel: win.single ? `${k} ${MONTHS[monthIdxs[0] % 12]}` : indexLabel(k),
+        total: sum(rows.map(r => r.amount)),
+        segs: catStats.filter(c => byCat.has(c.name)).map(c => ({ cat: c.name, value: byCat.get(c.name)! })),
+      };
+    });
+  }, [chosen, monthIdxs, catStats, win]);
+  const bucketTotals = buckets.map(b => b.total);
+  const total = sum(bucketTotals);
+  // Per-month average counts only months with imported spending (so a window reaching back
+  // before your first import isn't diluted); per-day average counts the days elapsed.
   const dataMonths = Math.max(1, monthIdxs.filter(mi => inRange.some(s => s.monthIdx === mi)).length);
-  const avg = total / dataMonths;
-  const maxMonth = Math.max(...monthTotals, 1);
-  const peak = months.reduce((a, b) => (b.total > a.total ? b : a), months[0]);
-  const half = Math.floor(range / 2);
-  const firstHalf = sum(monthTotals.slice(0, half));
-  const secondHalf = sum(monthTotals.slice(range - half));
-  const trend = firstHalf > 0 ? (secondHalf - firstHalf) / firstHalf : 0;
-  const trendLabel = `${indexLabel(monthIdxs[range - half])}–${indexLabel(lastIdx)} vs ${indexLabel(monthIdxs[0])}–${indexLabel(monthIdxs[half - 1])}`;
+  const avg = win.single ? total / Math.max(1, win.dayLimit) : total / dataMonths;
+  const unit = win.single ? 'day' : 'month';
+  const maxBucket = Math.max(...bucketTotals, 1);
+  const peak = buckets.reduce((a, b) => (b.total > a.total ? b : a), buckets[0]);
+
+  // Trend: against the equal-length period just before this one. If there's no data there
+  // (e.g. before your first import), fall back to comparing the later half of this period's
+  // data months with the earlier half.
+  const { trend, trendLabel } = useMemo(() => {
+    // Uses "not switched off" rather than `selected`, which only lists categories with spending in
+    // this period — otherwise a category you spent on last month but not this month would be
+    // silently dropped from the comparison.
+    const prevTotal = win.prev ? sum(spends.filter(s => !unselected.has(s.cat) && inWindow(s.date, win.prev!)).map(s => s.amount)) : 0;
+    if (prevTotal > 0) return { trend: (total - prevTotal) / prevTotal, trendLabel: `vs ${win.prev!.label}` };
+    const dm = monthIdxs.filter(mi => inRange.some(s => s.monthIdx === mi));
+    const h = Math.floor(dm.length / 2);
+    if (win.single || h === 0) return { trend: null as number | null, trendLabel: win.prev ? `vs ${win.prev.label}` : '' };
+    const span = (a: number[]) => (a.length === 1 ? indexLabel(a[0]) : `${indexLabel(a[0])}–${indexLabel(a[a.length - 1])}`);
+    const early = dm.slice(0, h), late = dm.slice(dm.length - h);
+    const e = sum(chosen.filter(s => early.includes(s.monthIdx)).map(s => s.amount));
+    const l = sum(chosen.filter(s => late.includes(s.monthIdx)).map(s => s.amount));
+    return { trend: e > 0 ? (l - e) / e : null, trendLabel: `${span(late)} vs ${span(early)}` };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spends, unselected, win, total, monthIdxs, inRange, chosen]);
 
   // --- When the money goes out ---
   const dow = useMemo(() => {
@@ -192,9 +296,13 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   }, [chosen]);
 
   // --- Regular payments, detected from repeat payments across all categories ---
+  // Always based on the last 6 imported months, whatever period is picked above — a single
+  // month can't show whether something repeats.
+  const regMonths = useMemo(() => Array.from({ length: 6 }, (_, i) => lastIdx - 5 + i), [lastIdx]);
   const { bills, habits, billsPerMonth } = useMemo(() => {
+    const regRows = spends.filter(s => s.monthIdx >= regMonths[0] && s.monthIdx <= lastIdx);
     const groups = new Map<string, Spend[]>();
-    inRange.forEach(s => { const k = merchantKey(s.desc); groups.set(k, [...(groups.get(k) || []), s]); });
+    regRows.forEach(s => { const k = merchantKey(s.desc); groups.set(k, [...(groups.get(k) || []), s]); });
     const bills: RegularPayment[] = [];
     const habits: RegularPayment[] = [];
     groups.forEach(rows => {
@@ -226,15 +334,21 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
     });
     bills.sort((a, b) => b.avg - a.avg);
     habits.sort((a, b) => b.total - a.total);
-    const dataMonths = Math.max(1, new Set(inRange.map(s => s.monthIdx)).size);
+    const dataMonths = Math.max(1, new Set(regRows.map(s => s.monthIdx)).size);
     return { bills: bills.slice(0, 8), habits: habits.slice(0, 6), billsPerMonth: sum(bills.map(b => b.total)) / dataMonths };
     // fmt depends only on currency
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inRange, lastIdx, range, currency]);
+  }, [spends, regMonths, lastIdx, currency]);
 
+  const trendText = trend === null ? '' : Math.abs(trend) < 0.05 ? 'about the same' : `${trend > 0 ? 'up' : 'down'} ${Math.round(Math.abs(trend) * 100)}%`;
+  const trendClause = trend === null ? '' : trendLabel.startsWith('vs ')
+    ? ` That's ${trendText} ${trendLabel.replace('vs ', Math.abs(trend) < 0.05 ? 'as ' : 'on ')}.`
+    : ` It's ${trendText} in ${trendLabel.replace(' vs ', ' compared with ')}.`;
   const sentence = selected.size === 0
     ? 'Pick at least one category to see its patterns.'
-    : `You spend ${fmt(avg)} a month on this. Most of it goes out on ${DOW_FULL[dowPeak]}s and in ${TOM_LONG[tomPeak]} of the month, and it's ${Math.abs(trend) < 0.05 ? 'been flat' : `${trend > 0 ? 'up' : 'down'} ${Math.round(Math.abs(trend) * 100)}%`} in ${trendLabel.replace(' vs ', ' compared with ')}.`;
+    : win.single
+      ? `You've spent ${fmt(total)} on this in ${win.label}, about ${fmt(avg)} a day. Most of it went out on ${DOW_FULL[dowPeak]}s.${trendClause}`
+      : `You spend ${fmt(avg)} a month on this. Most of it goes out on ${DOW_FULL[dowPeak]}s and in ${TOM_LONG[tomPeak]} of the month.${trendClause}`;
 
   const card = 'bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-2xl';
   const label = 'text-[10px] md:text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-neutral-400';
@@ -242,7 +356,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
 
   const renderDots = (p: RegularPayment, color: string) => (
     <div className="flex gap-1" aria-label={`Paid in ${p.months.map(m => MONTHS[m % 12]).join(', ')}`}>
-      {monthIdxs.map(mi => (
+      {regMonths.map(mi => (
         <span key={mi} className="flex flex-col items-center gap-0.5">
           <span
             className={`w-3.5 h-3.5 md:w-4 md:h-4 rounded ${p.months.includes(mi) ? '' : 'bg-slate-100 dark:bg-neutral-700'}`}
@@ -265,23 +379,33 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-neutral-100">Spending patterns</h1>
           <p className="text-xs md:text-sm text-slate-500 dark:text-neutral-400 mt-0.5">
-            {FULL_MONTHS[monthIdxs[0] % 12]} {Math.floor(monthIdxs[0] / 12)} – {FULL_MONTHS[lastIdx % 12]} {Math.floor(lastIdx / 12)} · up to your latest imported month
+            {win.label}{period.endsWith('m') ? ' · up to your latest imported month' : ''}
           </p>
         </div>
-        <div role="group" aria-label="Range" className="flex gap-1 p-1 bg-slate-200/70 dark:bg-neutral-800 rounded-xl self-start">
-          {RANGES.map(r => (
+        <div role="group" aria-label="Period" className="flex gap-1 p-1 bg-slate-200/70 dark:bg-neutral-800 rounded-xl self-start max-w-full overflow-x-auto hide-scrollbar">
+          {PERIODS.map(p => (
             <button
-              key={r}
-              onClick={() => setRange(r)}
-              aria-pressed={range === r}
-              className={`px-3 py-1.5 rounded-lg text-xs md:text-sm transition-colors ${range === r ? 'bg-white dark:bg-neutral-600 font-semibold text-slate-900 dark:text-neutral-100 shadow-sm' : 'text-slate-600 dark:text-neutral-400'}`}
+              key={p.id}
+              onClick={() => setPeriod(p.id)}
+              aria-pressed={period === p.id}
+              className={`px-3 py-1.5 rounded-lg text-xs md:text-sm whitespace-nowrap transition-colors ${period === p.id ? 'bg-white dark:bg-neutral-600 font-semibold text-slate-900 dark:text-neutral-100 shadow-sm' : 'text-slate-600 dark:text-neutral-400'}`}
             >
-              {r} months
+              {p.label}
             </button>
           ))}
         </div>
       </div>
 
+      {inRange.length === 0 && (
+        <div className={`${card} p-6 md:p-8 text-center`}>
+          <p className="text-sm md:text-base font-semibold text-slate-900 dark:text-neutral-100">No spending imported for {win.name} yet</p>
+          <p className="text-xs md:text-sm text-slate-500 dark:text-neutral-400 mt-1">
+            Your latest transactions are from {FULL_MONTHS[lastIdx % 12]} {Math.floor(lastIdx / 12)}. Import newer statements on the Transactions tab, or pick a longer period.
+          </p>
+        </div>
+      )}
+
+      {inRange.length > 0 && (
       <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-4 md:gap-6 items-start">
         {/* Category picker */}
         <section aria-label="Choose categories" className={`${card} p-3 md:p-4 flex flex-col gap-3`}>
@@ -332,10 +456,10 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
           {/* Summary */}
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
             {[
-              { l: `Total, ${range} months`, v: fmt(total) },
-              { l: 'Per month', v: fmt(avg) },
-              { l: 'Busiest month', v: selected.size ? `${indexLabel(peak.mi)} · ${fmt(peak.total)}` : '–' },
-              { l: trendLabel, v: !selected.size ? '–' : Math.abs(trend) < 0.05 ? 'Flat' : `${trend > 0 ? '↑' : '↓'} ${Math.round(Math.abs(trend) * 100)}%`, c: Math.abs(trend) < 0.05 ? '' : trend > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400' },
+              { l: 'Total', v: fmt(total) },
+              { l: `Per ${unit}`, v: fmt(avg) },
+              { l: `Busiest ${unit}`, v: selected.size && peak.total > 0 ? `${peak.longLabel} · ${fmt(peak.total)}` : '–' },
+              { l: trendLabel || 'Trend', v: !selected.size || trend === null ? '–' : Math.abs(trend) < 0.05 ? 'Flat' : `${trend > 0 ? '↑' : '↓'} ${Math.round(Math.abs(trend) * 100)}%`, c: trend === null || Math.abs(trend) < 0.05 ? '' : trend > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400' },
             ].map(k => (
               <div key={k.l} className={`${card} px-4 py-3 md:px-5 md:py-4`}>
                 <div className={label}>{k.l}</div>
@@ -347,24 +471,30 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
           {/* Month by month */}
           <section className={`${card} p-4 md:p-6`}>
             <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-1">
-              <h2 className="text-base md:text-lg font-semibold text-slate-900 dark:text-neutral-100">Month by month</h2>
+              <h2 className="text-base md:text-lg font-semibold text-slate-900 dark:text-neutral-100">{win.single ? 'Day by day' : 'Month by month'}</h2>
               <span className="text-[11px] md:text-xs text-slate-500 dark:text-neutral-400">Dashed line = your average for this selection</span>
             </div>
             <p className="text-xs md:text-sm text-slate-600 dark:text-neutral-300 mt-1 mb-4">{sentence}</p>
             <div className="relative overflow-x-auto">
-              <div className="relative grid gap-2 md:gap-6 items-end px-1 md:px-4" style={{ gridTemplateColumns: `repeat(${range}, minmax(${range === 12 ? 28 : 40}px, 1fr))`, height: BAR_H + 50 }}>
-                {selected.size > 0 && (
-                  <div aria-hidden className="absolute left-0 right-0 border-t-[1.5px] border-dashed border-slate-400" style={{ bottom: Math.round((avg / maxMonth) * BAR_H) + 22 }} />
+              <div
+                className={`relative grid items-end ${win.single ? 'gap-[2px] md:gap-1' : 'gap-2 md:gap-6 px-1 md:px-4'}`}
+                style={{ gridTemplateColumns: `repeat(${buckets.length}, minmax(${win.single ? 6 : monthIdxs.length >= 12 ? 28 : 40}px, 1fr))`, height: BAR_H + 50 }}
+              >
+                {selected.size > 0 && total > 0 && (
+                  <div aria-hidden className="absolute left-0 right-0 border-t-[1.5px] border-dashed border-slate-400" style={{ bottom: Math.round((avg / maxBucket) * BAR_H) + 22 }} />
                 )}
-                {months.map(m => (
-                  <div key={m.mi} className="flex flex-col items-center justify-end gap-1.5 h-full">
-                    <span className="text-[10px] md:text-xs font-semibold text-slate-800 dark:text-neutral-200 whitespace-nowrap">{m.total > 0 ? fmt(m.total) : '–'}</span>
-                    <div className="w-full max-w-[64px] flex flex-col-reverse rounded overflow-hidden">
-                      {m.segs.map(s => (
-                        <div key={s.cat} title={`${s.cat}: ${fmt(s.value, 2)}`} style={{ height: Math.max(1, Math.round((s.value / maxMonth) * BAR_H)), background: colorOf[s.cat] }} />
+                {buckets.map(b => (
+                  <div key={b.key} className="flex flex-col items-center justify-end gap-1.5 h-full" title={`${b.longLabel}: ${fmt(b.total, 2)}`}>
+                    {!win.single && (
+                      <span className="text-[10px] md:text-xs font-semibold text-slate-800 dark:text-neutral-200 whitespace-nowrap">{b.total > 0 ? fmt(b.total) : '–'}</span>
+                    )}
+                    <div className={`w-full flex flex-col-reverse rounded-sm overflow-hidden ${win.single ? '' : 'max-w-[64px]'}`}>
+                      {b.segs.map(s => (
+                        <div key={s.cat} title={`${s.cat}: ${fmt(s.value, 2)}`} style={{ height: Math.max(1, Math.round((s.value / maxBucket) * BAR_H)), background: colorOf[s.cat] }} />
                       ))}
+                      {b.total === 0 && <div className="h-[2px] bg-slate-200 dark:bg-neutral-700" />}
                     </div>
-                    <span className="text-[10px] md:text-xs text-slate-500 dark:text-neutral-400">{indexLabel(m.mi)}</span>
+                    <span className={`text-[9px] md:text-xs text-slate-500 dark:text-neutral-400 ${win.single && b.key !== 1 && Number(b.key) % 5 !== 0 ? 'invisible md:visible' : ''}`}>{b.label}</span>
                   </div>
                 ))}
               </div>
@@ -414,12 +544,13 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
           </div>
         </div>
       </div>
+      )}
 
       {/* Regular payments */}
       <section className={`${card} p-4 md:p-6`}>
         <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-1">
           <h2 className="text-base md:text-lg font-semibold text-slate-900 dark:text-neutral-100">Regular payments we spotted</h2>
-          <span className="text-[11px] md:text-xs text-slate-500 dark:text-neutral-400">Found automatically from repeat payments. Nothing to tag.</span>
+          <span className="text-[11px] md:text-xs text-slate-500 dark:text-neutral-400">Found automatically from repeat payments in your last 6 months of data. Nothing to tag.</span>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 mt-4">
           {[
@@ -438,7 +569,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                     <div className="text-[13px] md:text-sm font-medium truncate text-slate-900 dark:text-neutral-100">{p.name}</div>
                     <div className={`text-[11px] md:text-xs truncate ${p.stale ? 'text-amber-700 dark:text-amber-400' : 'text-slate-500 dark:text-neutral-400'}`}>{p.note}</div>
                   </div>
-                  <div className={range === 12 ? 'hidden md:block' : ''}>{renderDots(p, col.color)}</div>
+                  <div>{renderDots(p, col.color)}</div>
                   <span className="text-[13px] md:text-sm font-semibold text-right text-slate-900 dark:text-neutral-100">{fmt(p.avg, 2)}</span>
                 </div>
               ))}
