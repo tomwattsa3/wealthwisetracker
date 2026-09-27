@@ -9,13 +9,13 @@ import { supabase } from './supabaseClient';
 import LoginPage from './components/LoginPage';
 import TransactionForm from './components/TransactionForm';
 import TransactionList from './components/TransactionList';
+import SpendingPatterns from './components/SpendingPatterns';
 import StatsCard from './components/StatsCard';
 import DashboardDateFilter, { DateRange } from './components/DashboardDateFilter';
 import CategoryTrendWidget from './components/CategoryTrendWidget';
 import AllocationSidebar from './components/AllocationSidebar';
 import CategoryManager from './components/CategoryManager';
 import BankFeedUpload from './components/BankFeedUpload';
-import YearlySummary from './components/YearlySummary';
 import SettingsManager from './components/SettingsManager';
 import BreakdownTab from './components/BreakdownTab';
 import RecurringPayments from './components/RecurringPayments';
@@ -2844,7 +2844,7 @@ const App: React.FC = () => {
           {/* YEARLY VIEW */}
           {activeTab === 'yearly' && (
              <div className="h-full">
-                <YearlySummary transactions={transactions} categories={categories} getCategoryEmoji={getCategoryEmoji} />
+                <SpendingPatterns transactions={transactions} categories={categories} currency={currency} getCategoryEmoji={getCategoryEmoji} />
              </div>
           )}
 
