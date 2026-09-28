@@ -1013,7 +1013,9 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
         const idx = monthCols.findIndex(m => m.year === detailModal.year && m.monthIndex === detailModal.monthIndex);
         const prevCol = detailModal.monthIndex !== undefined && idx > 0 ? monthCols[idx - 1] : null;
         const nextCol = detailModal.monthIndex !== undefined && idx >= 0 && idx < monthCols.length - 1 ? monthCols[idx + 1] : null;
-        const goTo = (m: { year: number; monthIndex: number }) => setDetailModal({ ...detailModal, year: m.year, monthIndex: m.monthIndex });
+        // Keeps the chosen subcategory chip when moving between months.
+        const goTo = (m: { year: number; monthIndex: number }) =>
+          setDetailModal({ ...detailModal, year: m.year, monthIndex: m.monthIndex, subcategoryName: modalSubFilter === 'all' ? undefined : modalSubFilter });
         const amt = (t: Transaction) => Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED);
         const catTotal = detailModalCategoryTransactions.reduce((sum, t) => sum + amt(t), 0);
         const subTotals = new Map<string, number>();
@@ -1059,6 +1061,39 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                   {sign}{formatAmount(detailModalTotal)}
                 </span>
               </div>
+              {/* Month-by-month bars for this category (or the chosen subcategory) across the
+                  whole range: the open month is highlighted, click any bar to jump to it. */}
+              {monthCols.length > 1 && (() => {
+                const vals = monthCols.map(m => (modalSubFilter === 'all' ? getCell(detailModal.categoryId, m.key) : getSubCell(detailModal.categoryId, modalSubFilter, m.key)));
+                const mx = Math.max(...vals, 1);
+                return (
+                  <div className="grid gap-1.5 items-end h-[92px]" style={{ gridTemplateColumns: `repeat(${monthCols.length}, minmax(0, 1fr))` }}>
+                    {monthCols.map((m, i) => {
+                      const v = vals[i];
+                      const on = m.year === detailModal.year && m.monthIndex === detailModal.monthIndex;
+                      return (
+                        <button
+                          key={m.key}
+                          onClick={() => goTo(m)}
+                          aria-pressed={on}
+                          aria-label={`${MONTHS[m.monthIndex]} ${m.year}: ${formatAmount(v)}`}
+                          title={`${MONTHS[m.monthIndex]} ${m.year}: ${formatAmount(v)}`}
+                          className="flex flex-col items-center justify-end gap-1 h-full group"
+                        >
+                          <span className={`text-[10px] font-semibold whitespace-nowrap ${on ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-500 dark:text-neutral-400'} ${monthCols.length > 9 ? 'hidden' : ''}`}>
+                            {v > 0 ? formatAmountRounded(v) : '–'}
+                          </span>
+                          <span
+                            className={`w-full rounded-t ${v <= 0 ? 'bg-slate-100 dark:bg-neutral-700' : on ? (detailModal.isExpense ? 'bg-indigo-600' : 'bg-emerald-600') : detailModal.isExpense ? 'bg-indigo-200 dark:bg-indigo-900 group-hover:bg-indigo-300' : 'bg-emerald-200 dark:bg-emerald-900 group-hover:bg-emerald-300'}`}
+                            style={{ height: v > 0 ? Math.max(3, Math.round((v / mx) * 52)) : 2 }}
+                          />
+                          <span className={`text-[10px] ${on ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'}`}>{MONTHS[m.monthIndex]}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
               {detailModalSubcategories.length > 1 && (
                 <div className="flex flex-wrap gap-1.5">
                   {[['all', catTotal] as [string, number], ...Array.from(subTotals.entries()).sort((a, b) => b[1] - a[1])].map(([k, v]) => {
