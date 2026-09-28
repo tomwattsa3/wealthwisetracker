@@ -603,12 +603,14 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
     return <div className={`${card} p-10 text-center text-sm text-slate-500`}>No spending to analyse yet.</div>;
   }
 
+  // Scrolls with the page (<main>) rather than inside its own box, so pull-to-refresh and the
+  // sticky category picker both work off the same scroll position.
   return (
-    <div className="h-full overflow-y-auto pb-24 md:pb-6 flex flex-col gap-4 md:gap-6" style={{ fontVariantNumeric: 'tabular-nums' }}>
+    <div className="pb-24 md:pb-6 flex flex-col gap-4 md:gap-6" style={{ fontVariantNumeric: 'tabular-nums' }}>
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-neutral-100">Spending patterns</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-neutral-100">Dashboard</h1>
           <p className="text-xs md:text-sm text-slate-500 dark:text-neutral-400 mt-0.5">
             {win.label}{period.endsWith('m') ? ' · up to your latest imported month' : ''}
           </p>
@@ -641,7 +643,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
         {/* Category picker */}
         {/* Sticky on desktop: follows the page down while the chart and pattern cards scroll past, and
             is pushed up with the rest of this row when the regular-payments section arrives. */}
-        <section aria-label="Choose categories" className={`${card} p-3 md:p-4 flex flex-col gap-3 lg:sticky lg:top-0 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto`}>
+        <section aria-label="Choose categories" className={`${card} p-3 md:p-4 flex flex-col gap-3 lg:sticky lg:top-4 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto`}>
           <div>
             <h2 className={`${label} mb-2 px-1`}>Quick picks</h2>
             <div className="flex flex-wrap gap-1.5">

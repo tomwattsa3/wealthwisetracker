@@ -25,7 +25,7 @@ import {
   LayoutDashboard, Plus, Home, ListFilter, Search,
   ChevronLeft, ChevronRight, Filter, EyeOff, TrendingUp,
   Car, Plane, Smartphone, Coffee, ShoppingBag, PoundSterling, Activity, X,
-  ArrowUpDown, FolderCog, CalendarRange, Building, ArrowRightLeft, Settings,
+  ArrowUpDown, FolderCog, CalendarRange, LayoutGrid, Building, ArrowRightLeft, Settings,
   RotateCcw, Loader2, LogOut, Sparkles, Sun, Moon, Table, Repeat
 } from 'lucide-react';
 
@@ -295,10 +295,14 @@ const App: React.FC = () => {
     return currency === 'GBP' ? `£${formatted}` : `AED ${formatted}`;
   };
 
-  const [activeTab, setActiveTab] = useState<'home' | 'history' | 'categories' | 'yearly' | 'breakdown' | 'recurring' | 'settings'>(() => {
+  // 'home' is the Dashboard (spending patterns); 'sheets' is Category Sheets, the per-category
+  // merchant cards that used to be the dashboard.
+  const [activeTab, setActiveTab] = useState<'home' | 'history' | 'categories' | 'sheets' | 'breakdown' | 'recurring' | 'settings'>(() => {
     const saved = localStorage.getItem('activeTab');
-    if (saved && ['home', 'history', 'categories', 'yearly', 'breakdown', 'recurring', 'settings'].includes(saved)) {
-      return saved as 'home' | 'history' | 'categories' | 'yearly' | 'breakdown' | 'recurring' | 'settings';
+    // 'yearly' was the old Analytics tab, now the Dashboard.
+    if (saved === 'yearly') return 'home';
+    if (saved && ['home', 'history', 'categories', 'sheets', 'breakdown', 'recurring', 'settings'].includes(saved)) {
+      return saved as 'home' | 'history' | 'categories' | 'sheets' | 'breakdown' | 'recurring' | 'settings';
     }
     return 'home';
   });
@@ -1645,7 +1649,7 @@ const App: React.FC = () => {
              {[
                { id: 'home', icon: Home, label: 'Dashboard', mobileLabel: 'Home', mobileOnly: true },
                { id: 'breakdown', icon: Table, label: 'Breakdown', mobileLabel: 'Breakdown', mobileOnly: true },
-               { id: 'yearly', icon: CalendarRange, label: 'Analytics', mobileLabel: 'Analytics', mobileOnly: true },
+               { id: 'sheets', icon: LayoutGrid, label: 'Category Sheets', mobileLabel: 'Sheets', mobileOnly: true },
                { id: 'history', icon: ArrowRightLeft, label: 'Transactions', mobileLabel: 'Trans', mobileOnly: true },
                { id: 'categories', icon: FolderCog, label: 'Categories', mobileLabel: 'Cats', mobileOnly: false },
                { id: 'recurring', icon: Repeat, label: 'Recurring', mobileLabel: 'Recurring', mobileOnly: false },
@@ -1769,13 +1773,13 @@ const App: React.FC = () => {
           </div>
 
           {/* Top Bar with Filter & Search (Hidden in Cat/Yearly View) */}
-          {activeTab !== 'categories' && activeTab !== 'yearly' && activeTab !== 'breakdown' && activeTab !== 'settings' && (
+          {activeTab !== 'categories' && activeTab !== 'home' && activeTab !== 'breakdown' && activeTab !== 'settings' && (
             <div className="flex flex-col gap-2 mb-1 md:gap-4 md:mb-8">
 
                 {/* Mobile Dashboard Headline */}
                 <div className="md:hidden pt-1 flex justify-between items-center">
                    <h1 className="text-2xl font-bold text-slate-900 dark:text-neutral-200">
-                     {activeTab === 'home' ? 'Dashboard' : 'Transactions'}
+                     {activeTab === 'sheets' ? 'Category Sheets' : 'Transactions'}
                    </h1>
                    <div className="flex items-center gap-2">
                      <button
@@ -1789,7 +1793,7 @@ const App: React.FC = () => {
                 </div>
 
                 {/* Mobile Header - Hidden on home tab */}
-                {activeTab !== 'home' && (
+                {activeTab !== 'sheets' && (
                 <div className="flex flex-col md:hidden gap-2 w-full px-1">
                     {activeTab === 'history' ? (
                       <>
@@ -1853,7 +1857,7 @@ const App: React.FC = () => {
                 <div className="hidden md:flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
                   <div className="flex-1">
                     <h2 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-neutral-200 tracking-tight">
-                        {activeTab === 'home' && 'Overview'}
+                        {activeTab === 'sheets' && 'Category Sheets'}
                         {activeTab === 'history' && 'Transactions'}
                     </h2>
                     <p className="text-slate-500 dark:text-neutral-500 text-sm mt-1 font-medium">
@@ -1971,7 +1975,7 @@ const App: React.FC = () => {
             transition={{ duration: DURATION.page, ease: EASE_OUT }}
           >
           {/* DASHBOARD VIEW */}
-          {activeTab === 'home' && (
+          {activeTab === 'sheets' && (
             <div className="animate-in fade-in duration-500">
 
               {/* ===== MOBILE DASHBOARD (fintech SaaS style) ===== */}
@@ -2841,9 +2845,9 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* YEARLY VIEW */}
-          {activeTab === 'yearly' && (
-             <div className="h-full">
+          {/* DASHBOARD: spending patterns */}
+          {activeTab === 'home' && (
+             <div>
                 <SpendingPatterns transactions={transactions} categories={categories} currency={currency} getCategoryEmoji={getCategoryEmoji} />
              </div>
           )}
