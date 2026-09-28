@@ -7,6 +7,11 @@ import { Transaction, Category } from '../types';
 import SegmentedControl from './SegmentedControl';
 import { MODAL_TRANSITION, SHEET_TRANSITION } from '../lib/motion';
 
+// Widths of the Total and Share / vs-usual columns added after the month columns.
+const TOTAL_COL_W = 96;
+const LAST_COL_W = 130;
+const EXTRA_COLS_W = TOTAL_COL_W + LAST_COL_W;
+
 interface BreakdownTabProps {
   transactions: Transaction[];
   categories: Category[];
@@ -434,7 +439,24 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     }));
   }, [monthCols]);
 
-  const cols = viewMode === 'yearly' ? yearColDefs : monthColDefs;
+  // A single month shows week-of-month columns instead of one lonely column.
+  const weekMode = viewMode === 'monthly' && monthCols.length === 1;
+  const weekColDefs: ColDef[] = useMemo(() => {
+    if (monthCols.length !== 1) return [];
+    const m = monthCols[0];
+    const days = new Date(m.year, m.monthIndex + 1, 0).getDate();
+    const ranges = [[1, 7], [8, 14], [15, 21], [22, 28], [29, days]].filter(([a]) => a <= days);
+    return ranges.map(([a, b], i) => ({
+      key: `${m.key}-w${i + 1}`,
+      label: i === 0 ? `${a}–${b} ${MONTHS[m.monthIndex]}` : `${a}–${b}`,
+      year: m.year,
+      monthIndex: m.monthIndex,
+      monthKeys: [`${m.key}-w${i + 1}`],
+    }));
+  }, [monthCols]);
+
+  const cols = viewMode === 'yearly' ? yearColDefs : weekMode ? weekColDefs : monthColDefs;
+  const weekOf = (day: number) => (day <= 7 ? 1 : day <= 14 ? 2 : day <= 21 ? 3 : day <= 28 ? 4 : 5);
 
   // categoryId -> monthKey -> amount
   // Uses Math.abs because stored amountGBP/amountAED is supposed to always be a positive
@@ -451,6 +473,9 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
       if (!map.has(t.categoryId)) map.set(t.categoryId, new Map());
       const catMap = map.get(t.categoryId)!;
       catMap.set(monthKey, (catMap.get(monthKey) || 0) + amount);
+      // Also bucketed by week of the month, for the single-month (weekly) view.
+      const weekKey = `${monthKey}-w${weekOf(d.getDate())}`;
+      catMap.set(weekKey, (catMap.get(weekKey) || 0) + amount);
     });
     return map;
   }, [activeTransactions, currency]);
@@ -466,6 +491,8 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
       if (!map.has(subKey)) map.set(subKey, new Map());
       const catMap = map.get(subKey)!;
       catMap.set(monthKey, (catMap.get(monthKey) || 0) + amount);
+      const weekKey = `${monthKey}-w${weekOf(d.getDate())}`;
+      catMap.set(weekKey, (catMap.get(weekKey) || 0) + amount);
     });
     return map;
   }, [activeTransactions, currency]);
@@ -503,6 +530,29 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
   // Total across every month in the current range (not just the visible cols, so this stays
   // stable whether you're looking at the Monthly or Yearly view).
   const categoryTotal = (catId: string) => monthCols.reduce((sum, m) => sum + getCell(catId, m.key), 0);
+  const subTotal = (catId: string, subName: string) => monthCols.reduce((sum, m) => sum + getSubCell(catId, subName, m.key), 0);
+
+  // "Usual month" for the weekly view: the category's average over every other month that has
+  // any imported data.
+  const dataMonthKeys = useMemo(() => {
+    const keys = new Set<string>();
+    activeTransactions.forEach(t => { const d = new Date(t.date); keys.add(`${d.getFullYear()}-${d.getMonth()}`); });
+    return Array.from(keys);
+  }, [activeTransactions]);
+  const usualMonth = (catId: string) => {
+    const others = dataMonthKeys.filter(k => !monthCols.some(m => m.key === k));
+    return others.length ? others.reduce((sum, k) => sum + getCell(catId, k), 0) / others.length : 0;
+  };
+
+  // Heat shading: each row is shaded against its own busiest column, so darker = a heavier
+  // month (or week) for that category. Indigo for spending, green for income.
+  const heat = (amt: number, rowMax: number, isExpense: boolean) => {
+    const ratio = rowMax > 0 ? amt / rowMax : 0;
+    return {
+      style: { backgroundColor: `rgba(${isExpense ? '79, 70, 229' : '22, 163, 74'}, ${(0.1 + 0.8 * ratio).toFixed(2)})` },
+      text: ratio > 0.55 ? 'text-white' : isExpense ? 'text-slate-800 dark:text-neutral-100' : 'text-emerald-900 dark:text-emerald-100',
+    };
+  };
 
   const sortCategories = (cats: Category[]) => {
     if (sortMode === 'amount') {
@@ -519,6 +569,8 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     () => sortCategories(categories.filter(c => c.type === 'EXPENSE' && catHasData(c.id))),
     [categories, grid, monthCols, categoryOrder, sortMode]
   );
+  const expenseGrandTotal = expenseCategories.reduce((sum, c) => sum + categoryTotal(c.id), 0);
+  const incomeGrandTotal = incomeCategories.reduce((sum, c) => sum + categoryTotal(c.id), 0);
   const allVisibleCatIds = useMemo(
     () => [...incomeCategories, ...expenseCategories].map(c => c.id),
     [incomeCategories, expenseCategories]
@@ -531,7 +583,9 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     const sign = isExpense ? -1 : 1;
     const amountClass = isExpense ? 'text-slate-800 dark:text-neutral-300' : 'text-emerald-700 dark:text-emerald-400';
 
-    const rowBg = (i: number) => (i % 2 === 1 ? 'bg-slate-50 dark:bg-neutral-700' : 'bg-white dark:bg-neutral-800');
+    const rowBg = (_i: number) => 'bg-white dark:bg-neutral-800';
+    const rowMax = Math.max(...cols.map(c => getColCell(cat.id, c)), 0);
+    const total = categoryTotal(cat.id);
 
     const rowIndex = zebraRef.i++;
     const isDragging = draggingId === cat.id;
@@ -541,6 +595,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     // one you're looking at — a light dashed outline rather than a solid border/background so it
     // doesn't compete with the sticky/zebra-striping already going on in this table.
     const isActiveCell = (subName: string | undefined, col: ColDef) =>
+      !weekMode &&
       detailModal !== null &&
       detailModal.categoryId === cat.id &&
       detailModal.subcategoryName === subName &&
@@ -577,16 +632,48 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
           </td>
           {cols.map(col => {
             const amt = getColCell(cat.id, col);
+            const h = heat(amt, rowMax, isExpense);
             return (
-              <td
-                key={col.key}
-                onClick={() => amt !== 0 && setDetailModal({ categoryId: cat.id, categoryName: cat.name, year: col.year, monthIndex: col.monthIndex, isExpense })}
-                className={`px-1.5 md:px-3 py-2.5 md:py-[12.5px] text-center tabular-nums font-numeric whitespace-nowrap border-l border-slate-100 dark:border-neutral-700/60 ${amountClass} ${amt !== 0 ? 'cursor-pointer hover:underline' : ''} ${isActiveCell(undefined, col) ? 'outline outline-2 outline-dashed outline-slate-400 dark:outline-neutral-300 outline-offset-[-2px]' : ''}`}
-              >
-                {amt !== 0 ? formatAmountRounded(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
+              <td key={col.key} className="p-[3px] md:p-1">
+                {amt !== 0 ? (
+                  <button
+                    onClick={() => setDetailModal({ categoryId: cat.id, categoryName: cat.name, year: col.year, monthIndex: col.monthIndex, isExpense })}
+                    style={h.style}
+                    title={`${cat.name}, ${col.label}: ${formatAmount(amt)}`}
+                    className={`w-full h-7 md:h-8 rounded-md md:rounded-lg flex items-center justify-center tabular-nums font-numeric font-medium whitespace-nowrap hover:ring-2 hover:ring-slate-900/20 dark:hover:ring-white/30 ${h.text} ${isActiveCell(undefined, col) ? 'ring-2 ring-slate-900 dark:ring-white' : ''}`}
+                  >
+                    {formatAmountRounded(amt)}
+                  </button>
+                ) : (
+                  <span className="w-full h-7 md:h-8 rounded-md md:rounded-lg flex items-center justify-center bg-slate-50 dark:bg-neutral-700/40 text-slate-300 dark:text-neutral-600">·</span>
+                )}
               </td>
             );
           })}
+          <td className={`px-2 md:px-3 text-right tabular-nums font-numeric font-bold whitespace-nowrap border-l border-slate-100 dark:border-neutral-700/60 ${isExpense ? 'text-slate-900 dark:text-neutral-100' : 'text-emerald-700 dark:text-emerald-400'}`}>
+            {formatAmountRounded(total)}
+          </td>
+          <td className="px-2 md:px-3">
+            {isExpense && !weekMode && expenseGrandTotal > 0 && (
+              <span className="flex items-center justify-end gap-2">
+                <span className="hidden md:block w-16 h-1.5 rounded bg-slate-100 dark:bg-neutral-700 overflow-hidden">
+                  <span className="block h-full rounded bg-indigo-500" style={{ width: `${(total / expenseGrandTotal) * 100}%` }} />
+                </span>
+                <span className="text-slate-500 dark:text-neutral-400 tabular-nums">{((total / expenseGrandTotal) * 100).toFixed(1)}%</span>
+              </span>
+            )}
+            {isExpense && weekMode && (() => {
+              const usual = usualMonth(cat.id);
+              if (usual <= 0) return <span className="block text-right text-slate-400">New</span>;
+              const d = (total - usual) / usual;
+              return (
+                <span className={`block text-right font-semibold whitespace-nowrap ${Math.abs(d) < 0.15 ? 'text-slate-500 dark:text-neutral-400' : d > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                  {Math.abs(d) < 0.15 ? 'About usual' : `${d > 0 ? '↑' : '↓'} ${formatAmountRounded(Math.abs(total - usual))}`}
+                  <span className="hidden md:inline font-normal text-slate-400"> vs {formatAmountRounded(usual)}</span>
+                </span>
+              );
+            })()}
+          </td>
         </tr>
         <AnimatePresence initial={false}>
           {isExpanded && subNames.map(subName => {
@@ -611,10 +698,14 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                       onClick={() => amt !== 0 && setDetailModal({ categoryId: cat.id, categoryName: cat.name, subcategoryName: subName, year: col.year, monthIndex: col.monthIndex, isExpense })}
                       className={`px-1.5 md:px-3 py-[7.5px] md:py-2.5 text-center tabular-nums font-numeric whitespace-nowrap border-l border-slate-100 dark:border-neutral-700/60 text-slate-500 dark:text-neutral-500 ${amt !== 0 ? 'cursor-pointer hover:underline' : ''} ${isActiveCell(subName, col) ? 'outline outline-2 outline-dashed outline-slate-400 dark:outline-neutral-300 outline-offset-[-2px]' : ''}`}
                     >
-                      {amt !== 0 ? formatAmountRounded(sign * amt) : <span className="text-slate-300 dark:text-neutral-600">–</span>}
+                      {amt !== 0 ? formatAmountRounded(amt) : <span className="text-slate-300 dark:text-neutral-600">·</span>}
                     </td>
                   );
                 })}
+                <td className="px-2 md:px-3 text-right tabular-nums font-numeric whitespace-nowrap border-l border-slate-100 dark:border-neutral-700/60 text-slate-500 dark:text-neutral-400">
+                  {formatAmountRounded(subTotal(cat.id, subName))}
+                </td>
+                <td />
               </motion.tr>
             );
           })}
@@ -773,11 +864,13 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
           >
             <table
               className="border-collapse text-[10px] md:text-[13px] w-full transition-[width] duration-300"
-              style={{ tableLayout: 'fixed', minWidth: `${categoryColWidth + cols.length * 76}px`, transition: 'min-width 0.05s linear' }}
+              style={{ tableLayout: 'fixed', minWidth: `${categoryColWidth + cols.length * 76 + EXTRA_COLS_W}px`, transition: 'min-width 0.05s linear' }}
             >
               <colgroup>
                 <col style={{ width: `${categoryColWidth}px` }} />
                 {cols.map(col => <col key={col.key} />)}
+                <col style={{ width: `${TOTAL_COL_W}px` }} />
+                <col style={{ width: `${LAST_COL_W}px` }} />
               </colgroup>
               <thead>
                 <tr>
@@ -799,6 +892,8 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                       {col.label}
                     </th>
                   ))}
+                  <th className="sticky top-0 z-30 px-2 md:px-3 py-2.5 md:py-[12.5px] text-right font-semibold text-slate-600 dark:text-neutral-300 uppercase tracking-wider whitespace-nowrap border-b border-l bg-slate-50 dark:bg-neutral-700 border-slate-200 dark:border-neutral-700">Total</th>
+                  <th className="sticky top-0 z-30 px-2 md:px-3 py-2.5 md:py-[12.5px] text-right font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap border-b bg-slate-50 dark:bg-neutral-700 border-slate-200 dark:border-neutral-700">{weekMode ? 'vs usual' : 'Share'}</th>
                 </tr>
               </thead>
               <tbody>
@@ -817,10 +912,14 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                       {formatAmountRounded(colTotal(incomeCategories, col))}
                     </td>
                   ))}
+                  <td className="px-2 md:px-3 text-right tabular-nums font-numeric font-bold whitespace-nowrap border-l border-emerald-100 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-400">
+                    {formatAmountRounded(incomeGrandTotal)}
+                  </td>
+                  <td />
                 </tr>
 
                 {/* spacer */}
-                <tr><td colSpan={cols.length + 1} className="h-3 bg-white dark:bg-neutral-800" /></tr>
+                <tr><td colSpan={cols.length + 3} className="h-3 bg-white dark:bg-neutral-800" /></tr>
 
                 {/* Expense rows */}
                 {expenseCategories.map(cat => (
@@ -840,11 +939,13 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
           <div ref={footerScrollRef} className="shrink-0 mt-2 overflow-x-auto hide-scrollbar border-t border-slate-200 dark:border-neutral-700">
             <table
               className="border-collapse text-[10px] md:text-[13px] w-full"
-              style={{ tableLayout: 'fixed', minWidth: `${categoryColWidth + cols.length * 76}px` }}
+              style={{ tableLayout: 'fixed', minWidth: `${categoryColWidth + cols.length * 76 + EXTRA_COLS_W}px` }}
             >
               <colgroup>
                 <col style={{ width: `${categoryColWidth}px` }} />
                 {cols.map(col => <col key={col.key} />)}
+                <col style={{ width: `${TOTAL_COL_W}px` }} />
+                <col style={{ width: `${LAST_COL_W}px` }} />
               </colgroup>
               <tbody>
                 <tr className="bg-slate-50 dark:bg-neutral-700 border-b border-slate-200 dark:border-neutral-700">
@@ -856,22 +957,32 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                       key={col.key}
                       className="px-1.5 md:px-3 py-[6.6px] text-center tabular-nums font-numeric font-bold whitespace-nowrap text-[10px] md:text-xs border-l border-slate-200 dark:border-neutral-700 text-slate-800 dark:text-neutral-300"
                     >
-                      {formatAmountRounded(-colTotal(expenseCategories, col))}
+                      {formatAmountRounded(colTotal(expenseCategories, col))}
                     </td>
                   ))}
+                  <td className="px-2 md:px-3 py-[6.6px] text-right tabular-nums font-numeric font-bold whitespace-nowrap text-[10px] md:text-xs border-l border-slate-200 dark:border-neutral-700 text-slate-900 dark:text-neutral-100">
+                    {formatAmountRounded(expenseGrandTotal)}
+                  </td>
+                  <td />
                 </tr>
-                <tr className="bg-[#635bff]">
-                  <td className="sticky left-0 z-10 bg-[#635bff] px-2 md:px-4 py-[6.6px] font-bold text-[10px] md:text-xs text-white border-r border-[#5348e0] whitespace-nowrap">
+                <tr className="bg-white dark:bg-neutral-800">
+                  <td className="sticky left-0 z-10 bg-white dark:bg-neutral-800 px-2 md:px-4 py-[6.6px] font-bold text-[10px] md:text-xs text-slate-900 dark:text-neutral-100 border-r border-slate-200 dark:border-neutral-700 whitespace-nowrap">
                     Net
                   </td>
                   {cols.map(col => {
                     const net = colTotal(incomeCategories, col) - colTotal(expenseCategories, col);
                     return (
-                      <td key={col.key} className="px-1.5 md:px-3 py-[6.6px] text-center tabular-nums font-numeric font-bold whitespace-nowrap text-[10px] md:text-xs border-l border-white/10 text-white">
-                        {formatAmountRounded(net)}
+                      <td key={col.key} className="p-[3px] md:p-1">
+                        <span className={`w-full py-1 rounded-md md:rounded-lg flex items-center justify-center tabular-nums font-numeric font-bold whitespace-nowrap text-[10px] md:text-xs ${net < 0 ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400'}`}>
+                          {net < 0 ? '−' : '+'}{formatAmountRounded(Math.abs(net))}
+                        </span>
                       </td>
                     );
                   })}
+                  <td className={`px-2 md:px-3 py-[6.6px] text-right tabular-nums font-numeric font-bold whitespace-nowrap text-[10px] md:text-xs border-l border-slate-200 dark:border-neutral-700 ${incomeGrandTotal - expenseGrandTotal < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                    {incomeGrandTotal - expenseGrandTotal < 0 ? '−' : '+'}{formatAmountRounded(Math.abs(incomeGrandTotal - expenseGrandTotal))}
+                  </td>
+                  <td />
                 </tr>
               </tbody>
             </table>
