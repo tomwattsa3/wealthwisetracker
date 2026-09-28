@@ -10,6 +10,7 @@ import LoginPage from './components/LoginPage';
 import TransactionForm from './components/TransactionForm';
 import TransactionList from './components/TransactionList';
 import SpendingPatterns from './components/SpendingPatterns';
+import MobileHome from './components/MobileHome';
 import CategorySheets from './components/CategorySheets';
 import StatsCard from './components/StatsCard';
 import DashboardDateFilter, { DateRange } from './components/DashboardDateFilter';
@@ -321,6 +322,15 @@ const App: React.FC = () => {
   // a plain effect keyed on activeTab can fire a render early relative to that, before real
   // content (and therefore real scrollable height) exists.
   const scrollPositions = useRef<Record<string, number>>({});
+  // Phones get a simpler one-screen Home; tablets and desktops keep the full Dashboard.
+  const [isPhone, setIsPhone] = useState(() => window.matchMedia('(max-width: 767px)').matches);
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 767px)');
+    const onChange = () => setIsPhone(mql.matches);
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
+
   const handleTabChange = useCallback((newTab: typeof activeTab) => {
     if (mainRef.current) {
       scrollPositions.current[activeTab] = mainRef.current.scrollTop;
@@ -1993,7 +2003,22 @@ const App: React.FC = () => {
           {/* DASHBOARD: spending patterns */}
           {activeTab === 'home' && (
              <div>
-                <SpendingPatterns transactions={transactions} categories={categories} currency={currency} getCategoryEmoji={getCategoryEmoji} />
+                {isPhone ? (
+                  <MobileHome
+                    transactions={transactions}
+                    currency={currency}
+                    getCategoryEmoji={getCategoryEmoji}
+                    onOpenBreakdown={() => handleTabChange('breakdown')}
+                    onViewTransactions={(categoryId, subcategory, start, end) => {
+                      setFilterCategory(categoryId);
+                      setFilterSubcategory(subcategory ?? 'all');
+                      setDateRange({ start, end, label: 'Custom Range' });
+                      handleTabChange('history');
+                    }}
+                  />
+                ) : (
+                  <SpendingPatterns transactions={transactions} categories={categories} currency={currency} getCategoryEmoji={getCategoryEmoji} />
+                )}
              </div>
           )}
 

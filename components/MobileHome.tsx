@@ -1,0 +1,197 @@
+import React, { useMemo, useState } from 'react';
+import { Transaction } from '../types';
+import { MONTHS, FULL_MONTHS, monthKey, keyToIndex, indexToKey, daysIn, localToday } from '../lib/periods';
+
+// The phone Home screen: one month at a time, fitting on a single screen. How much went out vs
+// your usual month, money in and net, six month bars to jump between, and the top categories.
+// The full Dashboard (SpendingPatterns) stays on tablet and desktop.
+
+interface MobileHomeProps {
+  transactions: Transaction[];
+  currency: 'GBP' | 'AED';
+  getCategoryEmoji?: (categoryId: string) => string;
+  onOpenBreakdown?: () => void;
+  onViewTransactions?: (categoryId: string, subcategory: string | null, start: string, end: string) => void;
+}
+
+const TOP_N = 6;
+
+const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCategoryEmoji, onOpenBreakdown, onViewTransactions }) => {
+  const amt = (t: Transaction) => Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED) || 0;
+  const valid = (t: Transaction) => !t.excluded && /^\d{4}-\d{2}-\d{2}/.test(t.date);
+
+  // Same rule as the Dashboard: spending = every money-out row that isn't excluded.
+  const { outByMonth, inByMonth, catByMonth, catInfo, firstIdx, lastIdx } = useMemo(() => {
+    const outByMonth = new Map<number, number>();
+    const inByMonth = new Map<number, number>();
+    const catByMonth = new Map<string, Map<number, number>>();
+    const catInfo = new Map<string, { name: string; id: string }>();
+    let firstIdx = Infinity, lastIdx = -Infinity;
+    transactions.forEach(t => {
+      if (!valid(t)) return;
+      const a = amt(t);
+      if (!a) return;
+      const idx = keyToIndex(monthKey(t.date));
+      if (t.type === 'EXPENSE' && t.categoryName) {
+        outByMonth.set(idx, (outByMonth.get(idx) || 0) + a);
+        const name = t.categoryName.trim().replace(/Fee's/i, 'Fees');
+        if (!catInfo.has(name)) catInfo.set(name, { name, id: t.categoryId });
+        const m = catByMonth.get(name) || new Map<number, number>();
+        m.set(idx, (m.get(idx) || 0) + a);
+        catByMonth.set(name, m);
+        firstIdx = Math.min(firstIdx, idx);
+        lastIdx = Math.max(lastIdx, idx);
+      } else if (t.type === 'INCOME' && (t.categoryName || '').trim().toLowerCase() !== 'excluded') {
+        inByMonth.set(idx, (inByMonth.get(idx) || 0) + a);
+      }
+    });
+    return { outByMonth, inByMonth, catByMonth, catInfo, firstIdx, lastIdx };
+  }, [transactions, currency]);
+
+  const hasData = Number.isFinite(lastIdx);
+  const [picked, setPicked] = useState<number | null>(null);
+  const sel = picked ?? (hasData ? lastIdx : keyToIndex(monthKey(localToday())));
+
+  const fmt = (v: number) => (currency === 'GBP' ? '£' : 'AED ') + Math.round(v).toLocaleString('en-GB');
+  const kfmt = (v: number) => (v >= 1000 ? `${currency === 'GBP' ? '£' : 'AED '}${(v / 1000).toFixed(1)}k` : fmt(v));
+
+  if (!hasData) {
+    return (
+      <div className="pb-24 pt-2">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-neutral-100">Home</h1>
+        <p className="mt-6 text-sm text-slate-500 dark:text-neutral-400 text-center">No spending imported yet. Add statements on the Transactions tab.</p>
+      </div>
+    );
+  }
+
+  // "Usual" = average of the other months with spending in the 12 up to your latest import.
+  const usualMonths = Array.from({ length: 12 }, (_, i) => lastIdx - 11 + i).filter(i => i !== sel && (outByMonth.get(i) || 0) > 0);
+  const out = outByMonth.get(sel) || 0;
+  const inc = inByMonth.get(sel) || 0;
+  const usual = usualMonths.length ? usualMonths.reduce((s, i) => s + (outByMonth.get(i) || 0), 0) / usualMonths.length : 0;
+  const diff = usual ? (out - usual) / usual : 0;
+  const near = Math.abs(diff) < 0.05;
+  const net = inc - out;
+
+  // Six bars ending at the latest month, sliding back when you step further than that.
+  const barEnd = Math.max(sel, Math.min(lastIdx, sel + 5));
+  const barIdxs = Array.from({ length: 6 }, (_, i) => barEnd - 5 + i);
+  const barMax = Math.max(...barIdxs.map(i => outByMonth.get(i) || 0), 1);
+
+  const cats = Array.from(catByMonth.entries())
+    .map(([name, m]) => {
+      const v = m.get(sel) || 0;
+      const others = usualMonths.map(i => m.get(i) || 0).filter(x => x > 0);
+      const u = others.length ? others.reduce((a, b) => a + b, 0) / others.length : 0;
+      return { name, id: catInfo.get(name)!.id, v, u };
+    })
+    .filter(c => c.v > 0)
+    .sort((a, b) => b.v - a.v);
+  const top = cats.slice(0, TOP_N);
+  const rest = cats.slice(TOP_N);
+  const catMax = top.length ? top[0].v : 1;
+
+  const start = `${indexToKey(sel)}-01`;
+  const end = `${indexToKey(sel)}-${String(daysIn(sel)).padStart(2, '0')}`;
+  const year = Math.floor(sel / 12);
+
+  const card = 'bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-2xl';
+
+  return (
+    <div className="pb-24 flex flex-col gap-3" style={{ fontVariantNumeric: 'tabular-nums' }}>
+      <div className="flex items-center justify-between pt-1">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-neutral-100">Home</h1>
+        <div className="flex items-center gap-0.5 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl p-0.5">
+          <button onClick={() => setPicked(sel - 1)} disabled={sel <= firstIdx} aria-label="Previous month" className="w-8 h-8 rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">‹</button>
+          <span className="min-w-[84px] text-center text-[13px] font-semibold text-slate-900 dark:text-neutral-100">{MONTHS[sel % 12]} {year}</span>
+          <button onClick={() => setPicked(sel + 1)} disabled={sel >= lastIdx} aria-label="Next month" className="w-8 h-8 rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">›</button>
+        </div>
+      </div>
+
+      <section className={`${card} p-4 flex flex-col gap-3.5`}>
+        <div className="flex justify-between items-start gap-3">
+          <div className="min-w-0">
+            <div className="text-xs text-slate-500 dark:text-neutral-400">Spent in {FULL_MONTHS[sel % 12]}</div>
+            <div className="text-[34px] leading-tight font-bold text-slate-900 dark:text-neutral-100">{fmt(out)}</div>
+            <div className={`text-[12.5px] font-semibold mt-0.5 ${!usual || near ? 'text-slate-500 dark:text-neutral-400' : diff > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+              {!usual ? 'Your first month' : near ? 'About your usual month' : `${diff > 0 ? '↑' : '↓'} ${fmt(Math.abs(out - usual))} vs your usual ${fmt(usual)}`}
+            </div>
+          </div>
+          <div className="text-right text-xs leading-relaxed text-slate-500 dark:text-neutral-400 shrink-0">
+            In <strong className="text-emerald-700 dark:text-emerald-400">{fmt(inc)}</strong>
+            <br />
+            Net <strong className={net < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}>{net < 0 ? '−' : '+'}{fmt(Math.abs(net))}</strong>
+          </div>
+        </div>
+        <div className="flex items-end gap-2 h-24">
+          {barIdxs.map(i => {
+            const v = outByMonth.get(i) || 0;
+            const on = i === sel;
+            const inRange = i >= firstIdx && i <= lastIdx;
+            return (
+              <button
+                key={i}
+                onClick={() => inRange && setPicked(i)}
+                disabled={!inRange}
+                aria-pressed={on}
+                aria-label={`${FULL_MONTHS[i % 12]} ${Math.floor(i / 12)}: ${fmt(v)}`}
+                className="flex-1 h-full flex flex-col justify-end gap-1.5"
+              >
+                <span
+                  className={`block rounded-md ${on ? 'bg-indigo-600' : v ? 'bg-indigo-100 dark:bg-indigo-900/60' : 'bg-slate-100 dark:bg-neutral-700'}`}
+                  style={{ height: v ? Math.max(4, Math.round((v / barMax) * 72)) : 4 }}
+                />
+                <span className={`text-[11px] ${on ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-400 dark:text-neutral-500'}`}>{MONTHS[i % 12]}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className={`${card} px-4 py-1.5`}>
+        <div className="flex justify-between items-baseline pt-2.5 pb-1">
+          <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100">Where it went</h2>
+          <span className="text-[11.5px] text-slate-500 dark:text-neutral-400">vs usual</span>
+        </div>
+        {top.length === 0 && <p className="py-6 text-center text-sm text-slate-400">No spending this month</p>}
+        {top.map(c => {
+          const d = c.u ? (c.v - c.u) / c.u : 0;
+          const usualish = !c.u || Math.abs(d) < 0.15;
+          return (
+            <button
+              key={c.name}
+              onClick={() => onViewTransactions?.(c.id, null, start, end)}
+              className="w-full grid grid-cols-[30px_minmax(0,1fr)_auto] gap-2.5 items-center py-2 border-t border-slate-100 dark:border-neutral-700 text-left"
+            >
+              <span className="w-[30px] h-[30px] rounded-[9px] bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-[15px]">
+                {(getCategoryEmoji && c.id && getCategoryEmoji(c.id)) || '•'}
+              </span>
+              <span className="min-w-0 flex flex-col gap-1">
+                <span className="flex justify-between gap-2">
+                  <span className="text-[13.5px] font-medium text-slate-900 dark:text-neutral-100 truncate">{c.name}</span>
+                  <span className="text-[13.5px] font-bold text-slate-900 dark:text-neutral-100">{fmt(c.v)}</span>
+                </span>
+                <span className="block h-1 rounded bg-slate-100 dark:bg-neutral-700">
+                  <span className="block h-1 rounded bg-indigo-500" style={{ width: `${(c.v / catMax) * 100}%` }} />
+                </span>
+              </span>
+              <span className={`min-w-[56px] text-right text-[11.5px] font-semibold ${usualish ? 'text-slate-400 dark:text-neutral-500' : d > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                {!c.u ? 'New' : Math.abs(d) < 0.15 ? 'Usual' : `${d > 0 ? '↑' : '↓'} ${kfmt(Math.abs(c.v - c.u))}`}
+              </span>
+            </button>
+          );
+        })}
+        <div className="border-t border-slate-100 dark:border-neutral-700 py-3 flex justify-between text-[12.5px]">
+          <span className="text-slate-500 dark:text-neutral-400">
+            {rest.length ? `+${rest.length} more · ${fmt(rest.reduce((s, c) => s + c.v, 0))}` : 'All categories shown'}
+          </span>
+          {onOpenBreakdown && (
+            <button onClick={onOpenBreakdown} className="font-semibold text-indigo-700 dark:text-indigo-300">Full breakdown →</button>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+};
+
+export default MobileHome;
