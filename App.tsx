@@ -2000,7 +2000,17 @@ const App: React.FC = () => {
           {/* BREAKDOWN VIEW */}
           {activeTab === 'breakdown' && (
              <div className="h-full">
-                <BreakdownTab transactions={transactions} categories={categories} getCategoryEmoji={getCategoryEmoji} />
+                <BreakdownTab
+                  transactions={transactions}
+                  categories={categories}
+                  getCategoryEmoji={getCategoryEmoji}
+                  onViewTransactions={(categoryId, subcategory, start, end) => {
+                    setFilterCategory(categoryId);
+                    setFilterSubcategory(subcategory ?? 'all');
+                    setDateRange({ start, end, label: 'Custom Range' });
+                    handleTabChange('history');
+                  }}
+                />
              </div>
           )}
 

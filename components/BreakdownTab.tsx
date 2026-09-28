@@ -16,13 +16,24 @@ interface BreakdownTabProps {
   transactions: Transaction[];
   categories: Category[];
   getCategoryEmoji: (categoryId: string) => string;
+  // Jump to the Transactions tab filtered to this category (and subcategory) over this date range.
+  onViewTransactions?: (categoryId: string, subcategory: string | null, start: string, end: string) => void;
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const monthInputValue = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
-const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, getCategoryEmoji }) => {
+const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, getCategoryEmoji, onViewTransactions }) => {
+  // On desktop a cell's transactions open in a panel docked beside the table (so the grid stays
+  // visible and other cells can be clicked straight away); phones keep the slide-down popup.
+  const [isDesktop, setIsDesktop] = useState(() => window.matchMedia('(min-width: 768px)').matches);
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 768px)');
+    const onChange = () => setIsDesktop(mql.matches);
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
   // Currency and date-range selections are persisted to localStorage (same mechanism already
   // used below for category order/width) so a page refresh doesn't reset them back to defaults.
   const [currency, setCurrency] = useState<'GBP' | 'AED'>(() => {
@@ -122,6 +133,12 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
   // AnimatePresence (below, where the modal renders) plays the exit animation automatically
   // before this actually unmounts the modal — no manual setTimeout/closing-state dance needed.
   const closeDetailModal = () => setDetailModal(null);
+  useEffect(() => {
+    if (!detailModal) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setDetailModal(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [detailModal]);
 
   // Drag-to-dismiss is restricted to the header (via dragListener={false} + this controls
   // object) rather than the whole modal panel, so swiping through the transaction list below
@@ -839,14 +856,15 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
         </div>
       </div>
 
+      <div className="flex-1 min-h-0 flex gap-4">
       {monthCols.length === 0 ? (
-        <div className="-mx-3 md:mx-0 bg-white dark:bg-neutral-800 rounded-none md:rounded-2xl border-y md:border border-slate-200 dark:border-neutral-700 p-10 text-center text-slate-400 dark:text-neutral-500 text-sm">
+        <div className="flex-1 -mx-3 md:mx-0 bg-white dark:bg-neutral-800 rounded-none md:rounded-2xl border-y md:border border-slate-200 dark:border-neutral-700 p-10 text-center text-slate-400 dark:text-neutral-500 text-sm">
           No transactions in this range
         </div>
       ) : (
         <div
           key={`${rangeStart}_${rangeEnd}_${currency}_${viewMode}`}
-          className="flex-1 min-h-0 flex flex-col -mx-3 md:mx-0 bg-white dark:bg-neutral-800 rounded-none md:rounded-2xl border-y md:border border-slate-200 dark:border-neutral-700 overflow-hidden"
+          className="flex-1 min-h-0 min-w-0 flex flex-col -mx-3 md:mx-0 bg-white dark:bg-neutral-800 rounded-none md:rounded-2xl border-y md:border border-slate-200 dark:border-neutral-700 overflow-hidden"
           style={{ animation: 'breakdownFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)' }}
         >
           <style>{`@keyframes breakdownFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
@@ -990,6 +1008,141 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
         </div>
       )}
 
+      {/* Desktop: transactions for the clicked cell, docked beside the table */}
+      {isDesktop && detailModal && (() => {
+        const idx = monthCols.findIndex(m => m.year === detailModal.year && m.monthIndex === detailModal.monthIndex);
+        const prevCol = detailModal.monthIndex !== undefined && idx > 0 ? monthCols[idx - 1] : null;
+        const nextCol = detailModal.monthIndex !== undefined && idx >= 0 && idx < monthCols.length - 1 ? monthCols[idx + 1] : null;
+        const goTo = (m: { year: number; monthIndex: number }) => setDetailModal({ ...detailModal, year: m.year, monthIndex: m.monthIndex });
+        const amt = (t: Transaction) => Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED);
+        const catTotal = detailModalCategoryTransactions.reduce((sum, t) => sum + amt(t), 0);
+        const subTotals = new Map<string, number>();
+        detailModalCategoryTransactions.forEach(t => { const k = t.subcategoryName || 'Other'; subTotals.set(k, (subTotals.get(k) || 0) + amt(t)); });
+        // "Usual" = this category's average over the other months in the range that had any.
+        const others = monthCols.filter((m, i) => i !== idx).map(m => getCell(detailModal.categoryId, m.key)).filter(v => v > 0);
+        const usual = detailModal.monthIndex !== undefined && others.length ? others.reduce((a, b) => a + b, 0) / others.length : 0;
+        const diff = usual ? (catTotal - usual) / usual : 0;
+        const good = detailModal.isExpense ? diff < 0 : diff > 0;
+        const monthLabel = detailModal.monthIndex !== undefined ? `${MONTHS[detailModal.monthIndex]} ${detailModal.year}` : String(detailModal.year);
+        const sign = detailModal.isExpense ? '' : '+';
+        const start = detailModal.monthIndex !== undefined ? `${detailModal.year}-${String(detailModal.monthIndex + 1).padStart(2, '0')}-01` : `${detailModal.year}-01-01`;
+        const end = detailModal.monthIndex !== undefined
+          ? `${detailModal.year}-${String(detailModal.monthIndex + 1).padStart(2, '0')}-${String(new Date(detailModal.year, detailModal.monthIndex + 1, 0).getDate()).padStart(2, '0')}`
+          : `${detailModal.year}-12-31`;
+        const shortDate = (d: string) => { const dt = new Date(d); return `${dt.getDate()} ${MONTHS[dt.getMonth()]}`; };
+        return (
+          <aside
+            aria-label={`${detailModal.categoryName}, ${monthLabel}`}
+            className="w-[400px] xl:w-[440px] shrink-0 flex flex-col bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 shadow-[-8px_0_30px_rgba(15,23,42,0.06)] overflow-hidden animate-in slide-in-from-right-4 fade-in duration-200"
+          >
+            <div className="px-5 pt-4 pb-3 flex flex-col gap-3 border-b border-slate-100 dark:border-neutral-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => prevCol && goTo(prevCol)} disabled={!prevCol} aria-label="Previous month" className="w-8 h-8 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 disabled:opacity-30">‹</button>
+                  <span className="min-w-[84px] text-center text-[13px] font-semibold text-indigo-700 dark:text-indigo-300">{monthLabel}</span>
+                  <button onClick={() => nextCol && goTo(nextCol)} disabled={!nextCol} aria-label="Next month" className="w-8 h-8 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 disabled:opacity-30">›</button>
+                </div>
+                <button onClick={closeDetailModal} aria-label="Close panel" className="w-8 h-8 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 flex items-center justify-center"><X size={15} /></button>
+              </div>
+              <div className="flex justify-between items-end gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-neutral-100 truncate"><span className="mr-1.5">{getCategoryEmoji(detailModal.categoryId)}</span>{detailModal.categoryName}</h2>
+                  <p className={`text-xs mt-0.5 ${!usual || Math.abs(diff) < 0.15 ? 'text-slate-500 dark:text-neutral-400' : good ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'}`}>
+                    {!usual
+                      ? `${detailModalCategoryTransactions.length} transactions`
+                      : Math.abs(diff) < 0.15
+                        ? `About your usual month (${formatAmountRounded(usual)})`
+                        : `${diff > 0 ? '↑' : '↓'} ${Math.round(Math.abs(diff) * 100)}% vs your usual ${formatAmountRounded(usual)}`}
+                  </p>
+                </div>
+                <span className={`text-2xl font-bold whitespace-nowrap ${detailModal.isExpense ? 'text-slate-900 dark:text-neutral-100' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                  {sign}{formatAmount(detailModalTotal)}
+                </span>
+              </div>
+              {detailModalSubcategories.length > 1 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {[['all', catTotal] as [string, number], ...Array.from(subTotals.entries()).sort((a, b) => b[1] - a[1])].map(([k, v]) => {
+                    const on = modalSubFilter === k;
+                    return (
+                      <button
+                        key={k}
+                        onClick={() => setModalSubFilter(k)}
+                        aria-pressed={on}
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${on ? 'bg-slate-900 border-slate-900 text-white dark:bg-neutral-100 dark:text-neutral-900' : 'bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-600 text-slate-700 dark:text-neutral-300'}`}
+                      >
+                        {k === 'all' ? 'All' : k} · {formatAmountRounded(v)}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="flex justify-between items-center">
+                <SegmentedControl
+                  layoutId="breakdownPanelSortPill"
+                  options={[{ id: 'date', label: 'Date' }, { id: 'amount', label: 'Amount' }]}
+                  value={detailSortBy}
+                  onChange={(id) => setDetailSortBy(id as 'date' | 'amount')}
+                  activeTextClassName="text-[#635bff] dark:text-[#8b85ff]"
+                  inactiveTextClassName="text-slate-500 dark:text-neutral-400 hover:text-slate-700 dark:hover:text-neutral-300"
+                  optionClassName="text-[11px]"
+                />
+                {detailModalTransactions.length > 1 && (
+                  <button
+                    onClick={() => setSummarise(v => !v)}
+                    aria-pressed={summarise}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${summarise ? 'bg-[#635bff] border-[#635bff] text-white' : 'bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-600 text-slate-700 dark:text-neutral-300'}`}
+                  >
+                    Summarise by merchant
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5">
+              {detailModalTransactions.length === 0 && <p className="py-10 text-center text-sm text-slate-400">No transactions</p>}
+              {summarise
+                ? detailModalGrouped.map(g => (
+                    <div key={g.key} className="grid grid-cols-[44px_minmax(0,1fr)_90px] gap-3 items-center py-2.5 border-b border-slate-100 dark:border-neutral-700">
+                      <span className="text-xs text-slate-500 dark:text-neutral-400">×{g.count}</span>
+                      <div className="min-w-0">
+                        <div className="text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={g.description}>{g.description}</div>
+                        {g.subcategoryName && <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">{g.subcategoryName}</div>}
+                      </div>
+                      <span className={`text-[13px] font-semibold text-right tabular-nums ${detailModal.isExpense ? 'text-slate-900 dark:text-neutral-100' : 'text-emerald-700 dark:text-emerald-400'}`}>{sign}{formatAmount(g.total)}</span>
+                    </div>
+                  ))
+                : detailModalTransactions.map(t => (
+                    <div key={t.id} className="grid grid-cols-[52px_minmax(0,1fr)_90px] gap-3 items-center py-2.5 border-b border-slate-100 dark:border-neutral-700">
+                      <span className="text-xs text-slate-500 dark:text-neutral-400 whitespace-nowrap">{shortDate(t.date)}</span>
+                      <div className="min-w-0">
+                        <div className="text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={t.description}>{t.description || 'Unknown'}</div>
+                        {t.subcategoryName && <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">{t.subcategoryName}</div>}
+                      </div>
+                      <span className={`text-[13px] font-semibold text-right tabular-nums ${detailModal.isExpense ? 'text-slate-900 dark:text-neutral-100' : 'text-emerald-700 dark:text-emerald-400'}`}>{sign}{formatAmount(amt(t))}</span>
+                    </div>
+                  ))}
+            </div>
+
+            <div className="px-5 py-3 border-t border-slate-200 dark:border-neutral-700 flex items-center justify-between gap-3">
+              <span className="text-xs text-slate-500 dark:text-neutral-400">
+                {detailModalTransactions.length} {detailModalTransactions.length === 1 ? 'transaction' : 'transactions'}
+                {summarise && ` · ${detailModalGrouped.length} merchants`}
+              </span>
+              {onViewTransactions && (
+                <button
+                  onClick={() => onViewTransactions(detailModal.categoryId, modalSubFilter === 'all' || modalSubFilter === 'Other' ? null : modalSubFilter, start, end)}
+                  className="text-[13px] font-semibold text-indigo-700 dark:text-indigo-300 hover:underline"
+                >
+                  Open in Transactions →
+                </button>
+              )}
+            </div>
+          </aside>
+        );
+      })()}
+      </div>
+
+
       {/* Transaction detail modal — opened by tapping a category's month cell. Slides down from
           the top of the screen, covering ~75% of it. Close via the backdrop, the X button, or by
           dragging/flicking the header upward. Uses dvh (not vh) for sizing — on iOS Safari, vh is
@@ -1001,7 +1154,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
           wrapper's transform. */}
       {createPortal(
       <AnimatePresence>
-      {detailModal && (
+      {detailModal && !isDesktop && (
         // exit={{ pointerEvents: 'none' }} makes this whole overlay (including the draggable
         // panel below) stop intercepting touches the instant it starts closing, not just once
         // AnimatePresence finishes unmounting it — on iOS Safari the exit-complete callback that
