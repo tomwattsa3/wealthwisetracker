@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Transaction } from '../types';
 import {
-  MONTHS, FULL_MONTHS, TOM, PERIODS, PeriodId, keyToIndex, monthKey, indexLabel, localToday,
+  MONTHS, FULL_MONTHS, TOM, PERIODS, PeriodId, keyToIndex, monthKey, indexLabel, indexToKey, daysIn, localToday,
   inWindow, computeWindow, merchantKey, sum,
 } from '../lib/periods';
 
@@ -77,7 +77,33 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
   const lastIdx = useMemo(() => (rows.length ? Math.max(...rows.map(r => r.monthIdx)) : keyToIndex(monthKey(today))), [rows, today]);
   const win = useMemo(() => computeWindow(period, today, lastIdx), [period, today, lastIdx]);
   const inRange = useMemo(() => rows.filter(r => inWindow(r.date, win)), [rows, win]);
-  const total = sum(inRange.map(r => r.amount));
+
+  // Months picked from the month strip (empty = every month in the period). Any combination,
+  // not just a continuous range; cleared whenever the period changes.
+  const [selMonths, setSelMonths] = useState<Set<number>>(new Set());
+  useEffect(() => { setSelMonths(new Set()); }, [period]);
+  const toggleMonth = (mi: number) => setSelMonths(prev => {
+    const next = new Set(prev);
+    if (next.has(mi)) next.delete(mi); else next.add(mi);
+    return next;
+  });
+  const monthTotals = useMemo(() => win.monthIdxs.map(mi => sum(inRange.filter(r => r.monthIdx === mi).map(r => r.amount))), [inRange, win]);
+  const scoped = useMemo(() => (selMonths.size ? inRange.filter(r => selMonths.has(r.monthIdx)) : inRange), [inRange, selMonths]);
+  const total = sum(scoped.map(r => r.amount));
+  const selSorted = Array.from(selMonths).sort((a, b) => a - b);
+  const isContiguous = selSorted.every((m, i) => i === 0 || m === selSorted[i - 1] + 1);
+  const scopeLabel = !selSorted.length
+    ? win.label
+    : selSorted.length === 1
+      ? `${FULL_MONTHS[selSorted[0] % 12]} ${Math.floor(selSorted[0] / 12)}`
+      : isContiguous
+        ? `${MONTHS[selSorted[0] % 12]} – ${MONTHS[selSorted[selSorted.length - 1] % 12]} ${Math.floor(selSorted[selSorted.length - 1] / 12)}`
+        : `${selSorted.map(m => MONTHS[m % 12]).join(', ')} ${Math.floor(selSorted[selSorted.length - 1] / 12)}`;
+  // Date range handed to the Transactions tab: the span of the picked months (Transactions can
+  // only filter one continuous range, so a gap-y selection opens the full span).
+  const scopeStart = selSorted.length ? `${indexToKey(selSorted[0])}-01` : win.start;
+  const scopeEndRaw = selSorted.length ? `${indexToKey(selSorted[selSorted.length - 1])}-${String(daysIn(selSorted[selSorted.length - 1])).padStart(2, '0')}` : win.end;
+  const scopeEnd = scopeEndRaw > win.end ? win.end : scopeEndRaw;
 
   // Month columns for the panel's mini chart (weeks of the month for a single-month period).
   const cols = win.single
@@ -105,12 +131,12 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
 
   const sheets = useMemo(() => {
     const byCat = new Map<string, Row[]>();
-    inRange.forEach(r => byCat.set(r.cat, [...(byCat.get(r.cat) || []), r]));
+    scoped.forEach(r => byCat.set(r.cat, [...(byCat.get(r.cat) || []), r]));
     return Array.from(byCat.entries())
       .map(([cat, list]) => ({ cat, catId: list[0].catId, list, total: sum(list.map(r => r.amount)), top: groupMerchants(list).slice(0, 3) }))
       .sort((a, b) => b.total - a.total);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inRange]);
+  }, [scoped]);
 
   const sheet = open ? sheets.find(s => s.cat === open) || null : null;
   const panel = useMemo(() => {
@@ -118,7 +144,9 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
     const subs = new Map<string, number>();
     sheet.list.forEach(r => subs.set(r.sub, (subs.get(r.sub) || 0) + r.amount));
     const filtered = sheet.list.filter(r => sub === 'all' || r.sub === sub);
-    const perCol = cols.map(c => sum(sheet.list.filter(r => colOf(r) === c.key).map(r => r.amount)));
+    // Whole period for context; picked months are highlighted in the chart.
+    const catAll = inRange.filter(r => r.cat === sheet.cat);
+    const perCol = cols.map(c => sum(catAll.filter(r => colOf(r) === c.key).map(r => r.amount)));
     return {
       subs: Array.from(subs.entries()).sort((a, b) => b[1] - a[1]),
       merchants: groupMerchants(filtered),
@@ -127,7 +155,7 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
       filteredTotal: sum(filtered.map(r => r.amount)),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sheet, sub, win]);
+  }, [sheet, sub, win, inRange]);
 
   const card = 'bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-2xl';
   const pct = (v: number) => (total > 0 ? `${((v / total) * 100).toFixed(1)}%` : '0%');
@@ -140,7 +168,7 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-neutral-100">Category Sheets</h1>
           <p className="text-xs md:text-sm text-slate-500 dark:text-neutral-400 mt-0.5">
-            {win.label} · {fmt(total)} spent
+            {scopeLabel} · {fmt(total)} spent
           </p>
         </div>
         <div role="group" aria-label="Period" className="flex gap-1 p-1 bg-slate-200/70 dark:bg-neutral-800 rounded-xl self-start max-w-full overflow-x-auto hide-scrollbar">
@@ -156,6 +184,39 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
           ))}
         </div>
       </div>
+
+      {/* Month strip: pick any months within the period */}
+      {!win.single && win.monthIdxs.length > 1 && (
+        <div className={`${card} p-2 md:p-3 flex items-center gap-2 overflow-x-auto hide-scrollbar`}>
+          <button
+            onClick={() => setSelMonths(new Set())}
+            aria-pressed={selMonths.size === 0}
+            className={`shrink-0 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${selMonths.size === 0 ? 'bg-slate-900 text-white dark:bg-neutral-100 dark:text-neutral-900' : 'text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-700'}`}
+          >
+            All months
+          </button>
+          <span aria-hidden className="w-px h-8 bg-slate-200 dark:bg-neutral-700 shrink-0" />
+          <div role="group" aria-label="Months" className="flex gap-1.5 flex-1">
+            {win.monthIdxs.map((mi, i) => {
+              const on = selMonths.has(mi);
+              const empty = monthTotals[i] === 0;
+              return (
+                <button
+                  key={mi}
+                  onClick={() => toggleMonth(mi)}
+                  disabled={empty}
+                  aria-pressed={on}
+                  title={empty ? `${FULL_MONTHS[mi % 12]}: nothing imported` : `${FULL_MONTHS[mi % 12]}: ${fmt(monthTotals[i], 2)}`}
+                  className={`flex-1 min-w-[58px] flex flex-col items-center px-2 py-1.5 rounded-xl border transition-colors disabled:opacity-40 disabled:cursor-default ${on ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-transparent text-slate-700 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-700'}`}
+                >
+                  <span className="text-xs font-semibold">{MONTHS[mi % 12]}</span>
+                  <span className={`text-[10px] ${on ? 'text-indigo-100' : 'text-slate-500 dark:text-neutral-400'}`}>{empty ? '–' : fmt(monthTotals[i])}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {sheets.length === 0 ? (
         <div className={`${card} p-6 md:p-8 text-center`}>
@@ -213,7 +274,7 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                     {getCategoryEmoji && sheet.catId ? <span className="mr-1.5">{getCategoryEmoji(sheet.catId)}</span> : null}{sheet.cat}
                   </h2>
                   <div className="text-xs md:text-[13px] text-slate-500 dark:text-neutral-400 mt-0.5">
-                    {sheet.list.length} transactions · {pct(sheet.total)} of spending · {win.label}
+                    {sheet.list.length} transactions · {pct(sheet.total)} of spending · {scopeLabel}
                   </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
@@ -229,8 +290,8 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                   return panel.perCol.map((v, i) => (
                     <div key={cols[i].key} className="flex flex-col items-center justify-end gap-1 h-full" title={`${cols[i].label}: ${fmt(v, 2)}`}>
                       <span className="text-[10px] font-semibold text-slate-600 dark:text-neutral-300 whitespace-nowrap">{v > 0 ? fmt(v) : '–'}</span>
-                      <div className={`w-full rounded-t ${v > 0 ? 'bg-indigo-400' : 'bg-slate-100 dark:bg-neutral-700'}`} style={{ height: v > 0 ? Math.max(3, Math.round((v / mx) * 44)) : 2 }} />
-                      <span className="text-[10px] text-slate-500 dark:text-neutral-400">{cols[i].label}</span>
+                      <div className={`w-full rounded-t ${v <= 0 ? 'bg-slate-100 dark:bg-neutral-700' : !selMonths.size || win.single || selMonths.has(cols[i].key) ? 'bg-indigo-400' : 'bg-indigo-100 dark:bg-indigo-950'}`} style={{ height: v > 0 ? Math.max(3, Math.round((v / mx) * 44)) : 2 }} />
+                      <span className={`text-[10px] ${!win.single && selMonths.has(cols[i].key) ? 'font-semibold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'}`}>{cols[i].label}</span>
                     </div>
                   ));
                 })()}
@@ -302,11 +363,13 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
 
             <div className="px-5 md:px-7 py-4 border-t border-slate-200 dark:border-neutral-700">
               <button
-                onClick={() => { onViewTransactions(sheet.catId, sub === 'all' ? null : sub, win.start, win.end); setOpen(null); }}
+                onClick={() => { onViewTransactions(sheet.catId, sub === 'all' ? null : sub, scopeStart, scopeEnd); setOpen(null); }}
                 disabled={!sheet.catId}
                 className="text-[13px] font-semibold text-indigo-700 dark:text-indigo-300 hover:underline disabled:opacity-50"
               >
-                View {sub === 'all' ? `all ${sheet.list.length}` : `${panel.tx.length} ${sub}`} transactions in Transactions →
+                {selSorted.length > 1 && !isContiguous
+                  ? `View ${sub === 'all' ? sheet.cat : sub} for ${MONTHS[selSorted[0] % 12]}–${MONTHS[selSorted[selSorted.length - 1] % 12]} in Transactions →`
+                  : `View ${sub === 'all' ? `all ${sheet.list.length}` : `${panel.tx.length} ${sub}`} transactions in Transactions →`}
               </button>
             </div>
           </aside>
