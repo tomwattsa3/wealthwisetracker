@@ -105,6 +105,14 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
   // pill rows — they change far less often than the date range, so keeping them tucked away is
   // more compact without losing anything (Tailwind UI's dropdown-menu pattern, applied here with
   // plain state instead of headlessui since that isn't a project dependency).
+  // Phones only: the heat grid, or a category list (tap a row for its bottom sheet).
+  const [mobileLayout, setMobileLayout] = useState<'grid' | 'list'>(() => {
+    try { return localStorage.getItem('breakdownMobileLayout') === 'list' ? 'list' : 'grid'; } catch { return 'grid'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('breakdownMobileLayout', mobileLayout); } catch { /* storage unavailable */ }
+  }, [mobileLayout]);
+
   const [filtersOpen, setFiltersOpen] = useState(false);
   const filtersMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -731,6 +739,258 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     );
   };
 
+  // The transactions behind a clicked cell. Desktop docks this beside the table; phones show it
+  // in a bottom sheet. Same content either way: month bars, subcategory chips, the list.
+  type DetailTarget = NonNullable<typeof detailModal>;
+  const renderDetailPanel = (detailModal: DetailTarget, sheet = false) => {
+  const idx = monthCols.findIndex(m => m.year === detailModal.year && m.monthIndex === detailModal.monthIndex);
+  const prevCol = detailModal.monthIndex !== undefined && idx > 0 ? monthCols[idx - 1] : null;
+  const nextCol = detailModal.monthIndex !== undefined && idx >= 0 && idx < monthCols.length - 1 ? monthCols[idx + 1] : null;
+  // Keeps the chosen subcategory chip when moving between months.
+  const goTo = (m: { year: number; monthIndex: number }) =>
+    setDetailModal({ ...detailModal, year: m.year, monthIndex: m.monthIndex, subcategoryName: modalSubFilter === 'all' ? undefined : modalSubFilter });
+  const amt = (t: Transaction) => Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED);
+  const catTotal = detailModalCategoryTransactions.reduce((sum, t) => sum + amt(t), 0);
+  const subTotals = new Map<string, number>();
+  detailModalCategoryTransactions.forEach(t => { const k = t.subcategoryName || 'Other'; subTotals.set(k, (subTotals.get(k) || 0) + amt(t)); });
+  // "Usual" = this category's average over the other months in the range that had any.
+  const others = monthCols.filter((m, i) => i !== idx).map(m => getCell(detailModal.categoryId, m.key)).filter(v => v > 0);
+  const usual = detailModal.monthIndex !== undefined && others.length ? others.reduce((a, b) => a + b, 0) / others.length : 0;
+  const diff = usual ? (catTotal - usual) / usual : 0;
+  const good = detailModal.isExpense ? diff < 0 : diff > 0;
+  const monthLabel = detailModal.monthIndex !== undefined ? `${MONTHS[detailModal.monthIndex]} ${detailModal.year}` : String(detailModal.year);
+  const sign = detailModal.isExpense ? '' : '+';
+  const start = detailModal.monthIndex !== undefined ? `${detailModal.year}-${String(detailModal.monthIndex + 1).padStart(2, '0')}-01` : `${detailModal.year}-01-01`;
+  const end = detailModal.monthIndex !== undefined
+    ? `${detailModal.year}-${String(detailModal.monthIndex + 1).padStart(2, '0')}-${String(new Date(detailModal.year, detailModal.monthIndex + 1, 0).getDate()).padStart(2, '0')}`
+    : `${detailModal.year}-12-31`;
+  const shortDate = (d: string) => { const dt = new Date(d); return `${dt.getDate()} ${MONTHS[dt.getMonth()]}`; };
+    return (
+      <>
+      <div className={`px-5 ${sheet ? 'pt-1' : 'pt-4'} pb-3 flex flex-col gap-3 border-b border-slate-100 dark:border-neutral-700`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => prevCol && goTo(prevCol)} disabled={!prevCol} aria-label="Previous month" className="w-8 h-8 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 disabled:opacity-30">‹</button>
+            <span className="min-w-[84px] text-center text-[13px] font-semibold text-indigo-700 dark:text-indigo-300">{monthLabel}</span>
+            <button onClick={() => nextCol && goTo(nextCol)} disabled={!nextCol} aria-label="Next month" className="w-8 h-8 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 disabled:opacity-30">›</button>
+          </div>
+          <button onClick={closeDetailModal} aria-label="Close panel" className="w-8 h-8 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 flex items-center justify-center"><X size={15} /></button>
+        </div>
+        <div className="flex justify-between items-end gap-3">
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-neutral-100 truncate"><span className="mr-1.5">{getCategoryEmoji(detailModal.categoryId)}</span>{detailModal.categoryName}</h2>
+            <p className={`text-xs mt-0.5 ${!usual || Math.abs(diff) < 0.15 ? 'text-slate-500 dark:text-neutral-400' : good ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'}`}>
+              {!usual
+                ? `${detailModalCategoryTransactions.length} transactions`
+                : Math.abs(diff) < 0.15
+                  ? `About your usual month (${formatAmountRounded(usual)})`
+                  : `${diff > 0 ? '↑' : '↓'} ${Math.round(Math.abs(diff) * 100)}% vs your usual ${formatAmountRounded(usual)}`}
+            </p>
+          </div>
+          <span className={`text-2xl font-bold whitespace-nowrap ${detailModal.isExpense ? 'text-slate-900 dark:text-neutral-100' : 'text-emerald-700 dark:text-emerald-400'}`}>
+            {sign}{formatAmount(detailModalTotal)}
+          </span>
+        </div>
+        {/* Month-by-month bars for this category (or the chosen subcategory) across the
+            whole range: the open month is highlighted, click any bar to jump to it. */}
+        {monthCols.length > 1 && (() => {
+          const vals = monthCols.map(m => (modalSubFilter === 'all' ? getCell(detailModal.categoryId, m.key) : getSubCell(detailModal.categoryId, modalSubFilter, m.key)));
+          const mx = Math.max(...vals, 1);
+          return (
+            <div className="grid gap-1.5 items-end h-[92px]" style={{ gridTemplateColumns: `repeat(${monthCols.length}, minmax(0, 1fr))` }}>
+              {monthCols.map((m, i) => {
+                const v = vals[i];
+                const on = m.year === detailModal.year && m.monthIndex === detailModal.monthIndex;
+                return (
+                  <button
+                    key={m.key}
+                    onClick={() => goTo(m)}
+                    aria-pressed={on}
+                    aria-label={`${MONTHS[m.monthIndex]} ${m.year}: ${formatAmount(v)}`}
+                    title={`${MONTHS[m.monthIndex]} ${m.year}: ${formatAmount(v)}`}
+                    className="flex flex-col items-center justify-end gap-1 h-full group"
+                  >
+                    <span className={`text-[10px] font-semibold whitespace-nowrap ${on ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-500 dark:text-neutral-400'} ${monthCols.length > 9 ? 'hidden' : ''}`}>
+                      {v > 0 ? formatAmountRounded(v) : '–'}
+                    </span>
+                    <span
+                      className={`w-full rounded-t ${v <= 0 ? 'bg-slate-100 dark:bg-neutral-700' : on ? (detailModal.isExpense ? 'bg-indigo-600' : 'bg-emerald-600') : detailModal.isExpense ? 'bg-indigo-200 dark:bg-indigo-900 group-hover:bg-indigo-300' : 'bg-emerald-200 dark:bg-emerald-900 group-hover:bg-emerald-300'}`}
+                      style={{ height: v > 0 ? Math.max(3, Math.round((v / mx) * 52)) : 2 }}
+                    />
+                    <span className={`text-[10px] ${on ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'}`}>{MONTHS[m.monthIndex]}</span>
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })()}
+        {detailModalSubcategories.length > 1 && (
+          <div className="flex flex-wrap gap-1.5">
+            {[['all', catTotal] as [string, number], ...Array.from(subTotals.entries()).sort((a, b) => b[1] - a[1])].map(([k, v]) => {
+              const on = modalSubFilter === k;
+              return (
+                <button
+                  key={k}
+                  onClick={() => setModalSubFilter(k)}
+                  aria-pressed={on}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${on ? 'bg-slate-900 border-slate-900 text-white dark:bg-neutral-100 dark:text-neutral-900' : 'bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-600 text-slate-700 dark:text-neutral-300'}`}
+                >
+                  {k === 'all' ? 'All' : k} · {formatAmountRounded(v)}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <div className="flex justify-between items-center">
+          <SegmentedControl
+            layoutId="breakdownPanelSortPill"
+            options={[{ id: 'date', label: 'Date' }, { id: 'amount', label: 'Amount' }]}
+            value={detailSortBy}
+            onChange={(id) => setDetailSortBy(id as 'date' | 'amount')}
+            activeTextClassName="text-[#635bff] dark:text-[#8b85ff]"
+            inactiveTextClassName="text-slate-500 dark:text-neutral-400 hover:text-slate-700 dark:hover:text-neutral-300"
+            optionClassName="text-[11px]"
+          />
+          {detailModalTransactions.length > 1 && (
+            <button
+              onClick={() => setSummarise(v => !v)}
+              aria-pressed={summarise}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${summarise ? 'bg-[#635bff] border-[#635bff] text-white' : 'bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-600 text-slate-700 dark:text-neutral-300'}`}
+            >
+              Summarise by merchant
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5">
+        {detailModalTransactions.length === 0 && <p className="py-10 text-center text-sm text-slate-400">No transactions</p>}
+        {summarise
+          ? detailModalGrouped.map(g => (
+              <div key={g.key} className="grid grid-cols-[44px_minmax(0,1fr)_90px] gap-3 items-center py-2.5 border-b border-slate-100 dark:border-neutral-700">
+                <span className="text-xs text-slate-500 dark:text-neutral-400">×{g.count}</span>
+                <div className="min-w-0">
+                  <div className="text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={g.description}>{g.description}</div>
+                  {g.subcategoryName && <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">{g.subcategoryName}</div>}
+                </div>
+                <span className={`text-[13px] font-semibold text-right tabular-nums ${detailModal.isExpense ? 'text-slate-900 dark:text-neutral-100' : 'text-emerald-700 dark:text-emerald-400'}`}>{sign}{formatAmount(g.total)}</span>
+              </div>
+            ))
+          : detailModalTransactions.map(t => (
+              <div key={t.id} className="grid grid-cols-[52px_minmax(0,1fr)_90px] gap-3 items-center py-2.5 border-b border-slate-100 dark:border-neutral-700">
+                <span className="text-xs text-slate-500 dark:text-neutral-400 whitespace-nowrap">{shortDate(t.date)}</span>
+                <div className="min-w-0">
+                  <div className="text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={t.description}>{t.description || 'Unknown'}</div>
+                  {t.subcategoryName && <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">{t.subcategoryName}</div>}
+                </div>
+                <span className={`text-[13px] font-semibold text-right tabular-nums ${detailModal.isExpense ? 'text-slate-900 dark:text-neutral-100' : 'text-emerald-700 dark:text-emerald-400'}`}>{sign}{formatAmount(amt(t))}</span>
+              </div>
+            ))}
+      </div>
+
+      <div className={`px-5 pt-3 border-t border-slate-200 dark:border-neutral-700 flex items-center justify-between gap-3 ${sheet ? 'pb-[max(12px,env(safe-area-inset-bottom))]' : 'pb-3'}`}>
+        <span className="text-xs text-slate-500 dark:text-neutral-400">
+          {detailModalTransactions.length} {detailModalTransactions.length === 1 ? 'transaction' : 'transactions'}
+          {summarise && ` · ${detailModalGrouped.length} merchants`}
+        </span>
+        {onViewTransactions && (
+          <button
+            onClick={() => onViewTransactions(detailModal.categoryId, modalSubFilter === 'all' || modalSubFilter === 'Other' ? null : modalSubFilter, start, end)}
+            className="text-[13px] font-semibold text-indigo-700 dark:text-indigo-300 hover:underline"
+          >
+            Open in Transactions →
+          </button>
+        )}
+      </div>
+      </>
+    );
+  };
+
+  // Phone list view: one row per category with a strip of heat squares (one per column) and its
+  // total. Tapping a row opens the bottom sheet on the latest column that has any money in it.
+  const renderMobileList = () => {
+    const sq = Math.max(4, Math.min(14, Math.floor(120 / cols.length) - 3));
+    const colLabel = (c: ColDef, i: number) =>
+      viewMode === 'yearly' ? `'${String(c.year).slice(2)}` : weekMode ? `W${i + 1}` : MONTHS[c.monthIndex ?? 0][0];
+    const net = incomeGrandTotal - expenseGrandTotal;
+    const open = (cat: Category, isExpense: boolean) => {
+      const col = [...cols].reverse().find(c => getColCell(cat.id, c) !== 0);
+      if (col) setDetailModal({ categoryId: cat.id, categoryName: cat.name, year: col.year, monthIndex: col.monthIndex, isExpense });
+    };
+    const row = (cat: Category, isExpense: boolean) => {
+      const vals = cols.map(c => getColCell(cat.id, c));
+      const rowMax = Math.max(...vals, 0);
+      const total = categoryTotal(cat.id);
+      let meta = `${formatAmountRounded(total / monthCols.length)}/mo avg`;
+      let metaClass = 'text-slate-500 dark:text-neutral-400';
+      if (weekMode) {
+        const usual = usualMonth(cat.id);
+        const d = usual ? (total - usual) / usual : 0;
+        meta = !usual ? 'New this month' : Math.abs(d) < 0.15 ? 'About usual' : `${d > 0 ? '↑' : '↓'} ${formatAmountRounded(Math.abs(total - usual))} vs usual`;
+        if (usual && Math.abs(d) >= 0.15) metaClass = (d > 0) === isExpense ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400';
+      } else if (isExpense && expenseGrandTotal > 0) {
+        meta += ` · ${((total / expenseGrandTotal) * 100).toFixed(0)}%`;
+      }
+      const active = detailModal?.categoryId === cat.id;
+      return (
+        <button
+          key={cat.id}
+          onClick={() => open(cat, isExpense)}
+          className={`w-full grid grid-cols-[minmax(0,1fr)_auto_68px] gap-2.5 items-center px-3 py-2.5 border-b border-slate-100 dark:border-neutral-700 text-left active:bg-slate-50 dark:active:bg-neutral-700/60 ${active ? 'bg-indigo-50/70 dark:bg-indigo-950/30' : ''}`}
+        >
+          <span className="min-w-0 flex flex-col">
+            <span className="text-[13px] font-semibold truncate text-slate-800 dark:text-neutral-200"><span className="mr-1.5">{getCategoryEmoji(cat.id)}</span>{cat.name}</span>
+            <span className={`text-[10.5px] truncate ${metaClass}`}>{meta}</span>
+          </span>
+          <span className="flex gap-[3px]">
+            {vals.map((v, i) => (
+              <span
+                key={cols[i].key}
+                className={`rounded-[3px] ${v === 0 ? 'bg-slate-100 dark:bg-neutral-700' : ''}`}
+                style={{ width: sq, height: sq, ...(v !== 0 ? heat(v, rowMax, isExpense).style : {}) }}
+              />
+            ))}
+          </span>
+          <span className={`text-right text-[13px] font-bold tabular-nums font-numeric ${isExpense ? 'text-slate-900 dark:text-neutral-100' : 'text-emerald-700 dark:text-emerald-400'}`}>
+            {formatAmountRounded(total)}
+          </span>
+        </button>
+      );
+    };
+    const section = (label: string) => (
+      <div className="px-3 pt-3 pb-1.5 text-[9.5px] font-semibold uppercase tracking-wider text-slate-400 dark:text-neutral-500 bg-slate-50/80 dark:bg-neutral-900/30 border-b border-slate-100 dark:border-neutral-700">{label}</div>
+    );
+    return (
+      <div className="flex-1 min-h-0 flex flex-col gap-2">
+        <div className="shrink-0 grid grid-cols-3 gap-1.5">
+          {([
+            ['Spent', formatAmountRounded(expenseGrandTotal), 'text-slate-900 dark:text-neutral-100'],
+            ['In', formatAmountRounded(incomeGrandTotal), 'text-emerald-700 dark:text-emerald-400'],
+            ['Net', `${net < 0 ? '−' : '+'}${formatAmountRounded(Math.abs(net))}`, net < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'],
+          ] as const).map(([label, value, cls]) => (
+            <div key={label} className="bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl px-2.5 py-2">
+              <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 dark:text-neutral-500">{label}</div>
+              <div className={`text-sm font-bold tabular-nums font-numeric ${cls}`}>{value}</div>
+            </div>
+          ))}
+        </div>
+        <div data-no-pull-refresh className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700">
+          <div className="sticky top-0 z-10 grid grid-cols-[minmax(0,1fr)_auto_68px] gap-2.5 items-center px-3 py-2 bg-slate-50 dark:bg-neutral-700 border-b border-slate-200 dark:border-neutral-700 text-[9px] font-semibold uppercase tracking-wider text-slate-400 dark:text-neutral-500">
+            <span>Category</span>
+            <span className="flex gap-[3px]">
+              {cols.map((c, i) => <span key={c.key} className="text-center overflow-visible whitespace-nowrap" style={{ width: sq }}>{sq >= 10 ? colLabel(c, i) : ''}</span>)}
+            </span>
+            <span className="text-right">Total</span>
+          </div>
+          {incomeCategories.length > 0 && section('Money in')}
+          {incomeCategories.map(c => row(c, false))}
+          {expenseCategories.length > 0 && section('Spending')}
+          {expenseCategories.map(c => row(c, true))}
+        </div>
+      </div>
+    );
+  };
+
   const incomeZebra = { i: 0 };
   const expenseZebra = { i: 0 };
 
@@ -769,6 +1029,14 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
               </div>
             </div>
           </div>
+          <SegmentedControl
+            layoutId="breakdownMobileLayoutPill"
+            className="md:hidden ml-auto"
+            optionClassName="text-[10px] px-2"
+            options={[{ id: 'grid', label: 'Grid' }, { id: 'list', label: 'List' }]}
+            value={mobileLayout}
+            onChange={(id) => setMobileLayout(id as 'grid' | 'list')}
+          />
         </div>
         <div className="flex flex-wrap items-center justify-center md:justify-end gap-2">
           <SegmentedControl
@@ -861,6 +1129,8 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
         <div className="flex-1 -mx-3 md:mx-0 bg-white dark:bg-neutral-800 rounded-none md:rounded-2xl border-y md:border border-slate-200 dark:border-neutral-700 p-10 text-center text-slate-400 dark:text-neutral-500 text-sm">
           No transactions in this range
         </div>
+      ) : !isDesktop && mobileLayout === 'list' ? (
+        renderMobileList()
       ) : (
         <div
           key={`${rangeStart}_${rangeEnd}_${currency}_${viewMode}`}
@@ -1009,194 +1279,29 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
       )}
 
       {/* Desktop: transactions for the clicked cell, docked beside the table */}
-      {isDesktop && detailModal && (() => {
-        const idx = monthCols.findIndex(m => m.year === detailModal.year && m.monthIndex === detailModal.monthIndex);
-        const prevCol = detailModal.monthIndex !== undefined && idx > 0 ? monthCols[idx - 1] : null;
-        const nextCol = detailModal.monthIndex !== undefined && idx >= 0 && idx < monthCols.length - 1 ? monthCols[idx + 1] : null;
-        // Keeps the chosen subcategory chip when moving between months.
-        const goTo = (m: { year: number; monthIndex: number }) =>
-          setDetailModal({ ...detailModal, year: m.year, monthIndex: m.monthIndex, subcategoryName: modalSubFilter === 'all' ? undefined : modalSubFilter });
-        const amt = (t: Transaction) => Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED);
-        const catTotal = detailModalCategoryTransactions.reduce((sum, t) => sum + amt(t), 0);
-        const subTotals = new Map<string, number>();
-        detailModalCategoryTransactions.forEach(t => { const k = t.subcategoryName || 'Other'; subTotals.set(k, (subTotals.get(k) || 0) + amt(t)); });
-        // "Usual" = this category's average over the other months in the range that had any.
-        const others = monthCols.filter((m, i) => i !== idx).map(m => getCell(detailModal.categoryId, m.key)).filter(v => v > 0);
-        const usual = detailModal.monthIndex !== undefined && others.length ? others.reduce((a, b) => a + b, 0) / others.length : 0;
-        const diff = usual ? (catTotal - usual) / usual : 0;
-        const good = detailModal.isExpense ? diff < 0 : diff > 0;
-        const monthLabel = detailModal.monthIndex !== undefined ? `${MONTHS[detailModal.monthIndex]} ${detailModal.year}` : String(detailModal.year);
-        const sign = detailModal.isExpense ? '' : '+';
-        const start = detailModal.monthIndex !== undefined ? `${detailModal.year}-${String(detailModal.monthIndex + 1).padStart(2, '0')}-01` : `${detailModal.year}-01-01`;
-        const end = detailModal.monthIndex !== undefined
-          ? `${detailModal.year}-${String(detailModal.monthIndex + 1).padStart(2, '0')}-${String(new Date(detailModal.year, detailModal.monthIndex + 1, 0).getDate()).padStart(2, '0')}`
-          : `${detailModal.year}-12-31`;
-        const shortDate = (d: string) => { const dt = new Date(d); return `${dt.getDate()} ${MONTHS[dt.getMonth()]}`; };
-        return (
-          <aside
-            aria-label={`${detailModal.categoryName}, ${monthLabel}`}
-            className="w-[400px] xl:w-[440px] shrink-0 flex flex-col bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 shadow-[-8px_0_30px_rgba(15,23,42,0.06)] overflow-hidden animate-in slide-in-from-right-4 fade-in duration-200"
-          >
-            <div className="px-5 pt-4 pb-3 flex flex-col gap-3 border-b border-slate-100 dark:border-neutral-700">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <button onClick={() => prevCol && goTo(prevCol)} disabled={!prevCol} aria-label="Previous month" className="w-8 h-8 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 disabled:opacity-30">‹</button>
-                  <span className="min-w-[84px] text-center text-[13px] font-semibold text-indigo-700 dark:text-indigo-300">{monthLabel}</span>
-                  <button onClick={() => nextCol && goTo(nextCol)} disabled={!nextCol} aria-label="Next month" className="w-8 h-8 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 disabled:opacity-30">›</button>
-                </div>
-                <button onClick={closeDetailModal} aria-label="Close panel" className="w-8 h-8 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 flex items-center justify-center"><X size={15} /></button>
-              </div>
-              <div className="flex justify-between items-end gap-3">
-                <div className="min-w-0">
-                  <h2 className="text-xl font-bold text-slate-900 dark:text-neutral-100 truncate"><span className="mr-1.5">{getCategoryEmoji(detailModal.categoryId)}</span>{detailModal.categoryName}</h2>
-                  <p className={`text-xs mt-0.5 ${!usual || Math.abs(diff) < 0.15 ? 'text-slate-500 dark:text-neutral-400' : good ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'}`}>
-                    {!usual
-                      ? `${detailModalCategoryTransactions.length} transactions`
-                      : Math.abs(diff) < 0.15
-                        ? `About your usual month (${formatAmountRounded(usual)})`
-                        : `${diff > 0 ? '↑' : '↓'} ${Math.round(Math.abs(diff) * 100)}% vs your usual ${formatAmountRounded(usual)}`}
-                  </p>
-                </div>
-                <span className={`text-2xl font-bold whitespace-nowrap ${detailModal.isExpense ? 'text-slate-900 dark:text-neutral-100' : 'text-emerald-700 dark:text-emerald-400'}`}>
-                  {sign}{formatAmount(detailModalTotal)}
-                </span>
-              </div>
-              {/* Month-by-month bars for this category (or the chosen subcategory) across the
-                  whole range: the open month is highlighted, click any bar to jump to it. */}
-              {monthCols.length > 1 && (() => {
-                const vals = monthCols.map(m => (modalSubFilter === 'all' ? getCell(detailModal.categoryId, m.key) : getSubCell(detailModal.categoryId, modalSubFilter, m.key)));
-                const mx = Math.max(...vals, 1);
-                return (
-                  <div className="grid gap-1.5 items-end h-[92px]" style={{ gridTemplateColumns: `repeat(${monthCols.length}, minmax(0, 1fr))` }}>
-                    {monthCols.map((m, i) => {
-                      const v = vals[i];
-                      const on = m.year === detailModal.year && m.monthIndex === detailModal.monthIndex;
-                      return (
-                        <button
-                          key={m.key}
-                          onClick={() => goTo(m)}
-                          aria-pressed={on}
-                          aria-label={`${MONTHS[m.monthIndex]} ${m.year}: ${formatAmount(v)}`}
-                          title={`${MONTHS[m.monthIndex]} ${m.year}: ${formatAmount(v)}`}
-                          className="flex flex-col items-center justify-end gap-1 h-full group"
-                        >
-                          <span className={`text-[10px] font-semibold whitespace-nowrap ${on ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-500 dark:text-neutral-400'} ${monthCols.length > 9 ? 'hidden' : ''}`}>
-                            {v > 0 ? formatAmountRounded(v) : '–'}
-                          </span>
-                          <span
-                            className={`w-full rounded-t ${v <= 0 ? 'bg-slate-100 dark:bg-neutral-700' : on ? (detailModal.isExpense ? 'bg-indigo-600' : 'bg-emerald-600') : detailModal.isExpense ? 'bg-indigo-200 dark:bg-indigo-900 group-hover:bg-indigo-300' : 'bg-emerald-200 dark:bg-emerald-900 group-hover:bg-emerald-300'}`}
-                            style={{ height: v > 0 ? Math.max(3, Math.round((v / mx) * 52)) : 2 }}
-                          />
-                          <span className={`text-[10px] ${on ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'}`}>{MONTHS[m.monthIndex]}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-              {detailModalSubcategories.length > 1 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {[['all', catTotal] as [string, number], ...Array.from(subTotals.entries()).sort((a, b) => b[1] - a[1])].map(([k, v]) => {
-                    const on = modalSubFilter === k;
-                    return (
-                      <button
-                        key={k}
-                        onClick={() => setModalSubFilter(k)}
-                        aria-pressed={on}
-                        className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${on ? 'bg-slate-900 border-slate-900 text-white dark:bg-neutral-100 dark:text-neutral-900' : 'bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-600 text-slate-700 dark:text-neutral-300'}`}
-                      >
-                        {k === 'all' ? 'All' : k} · {formatAmountRounded(v)}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              <div className="flex justify-between items-center">
-                <SegmentedControl
-                  layoutId="breakdownPanelSortPill"
-                  options={[{ id: 'date', label: 'Date' }, { id: 'amount', label: 'Amount' }]}
-                  value={detailSortBy}
-                  onChange={(id) => setDetailSortBy(id as 'date' | 'amount')}
-                  activeTextClassName="text-[#635bff] dark:text-[#8b85ff]"
-                  inactiveTextClassName="text-slate-500 dark:text-neutral-400 hover:text-slate-700 dark:hover:text-neutral-300"
-                  optionClassName="text-[11px]"
-                />
-                {detailModalTransactions.length > 1 && (
-                  <button
-                    onClick={() => setSummarise(v => !v)}
-                    aria-pressed={summarise}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${summarise ? 'bg-[#635bff] border-[#635bff] text-white' : 'bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-600 text-slate-700 dark:text-neutral-300'}`}
-                  >
-                    Summarise by merchant
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5">
-              {detailModalTransactions.length === 0 && <p className="py-10 text-center text-sm text-slate-400">No transactions</p>}
-              {summarise
-                ? detailModalGrouped.map(g => (
-                    <div key={g.key} className="grid grid-cols-[44px_minmax(0,1fr)_90px] gap-3 items-center py-2.5 border-b border-slate-100 dark:border-neutral-700">
-                      <span className="text-xs text-slate-500 dark:text-neutral-400">×{g.count}</span>
-                      <div className="min-w-0">
-                        <div className="text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={g.description}>{g.description}</div>
-                        {g.subcategoryName && <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">{g.subcategoryName}</div>}
-                      </div>
-                      <span className={`text-[13px] font-semibold text-right tabular-nums ${detailModal.isExpense ? 'text-slate-900 dark:text-neutral-100' : 'text-emerald-700 dark:text-emerald-400'}`}>{sign}{formatAmount(g.total)}</span>
-                    </div>
-                  ))
-                : detailModalTransactions.map(t => (
-                    <div key={t.id} className="grid grid-cols-[52px_minmax(0,1fr)_90px] gap-3 items-center py-2.5 border-b border-slate-100 dark:border-neutral-700">
-                      <span className="text-xs text-slate-500 dark:text-neutral-400 whitespace-nowrap">{shortDate(t.date)}</span>
-                      <div className="min-w-0">
-                        <div className="text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={t.description}>{t.description || 'Unknown'}</div>
-                        {t.subcategoryName && <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">{t.subcategoryName}</div>}
-                      </div>
-                      <span className={`text-[13px] font-semibold text-right tabular-nums ${detailModal.isExpense ? 'text-slate-900 dark:text-neutral-100' : 'text-emerald-700 dark:text-emerald-400'}`}>{sign}{formatAmount(amt(t))}</span>
-                    </div>
-                  ))}
-            </div>
-
-            <div className="px-5 py-3 border-t border-slate-200 dark:border-neutral-700 flex items-center justify-between gap-3">
-              <span className="text-xs text-slate-500 dark:text-neutral-400">
-                {detailModalTransactions.length} {detailModalTransactions.length === 1 ? 'transaction' : 'transactions'}
-                {summarise && ` · ${detailModalGrouped.length} merchants`}
-              </span>
-              {onViewTransactions && (
-                <button
-                  onClick={() => onViewTransactions(detailModal.categoryId, modalSubFilter === 'all' || modalSubFilter === 'Other' ? null : modalSubFilter, start, end)}
-                  className="text-[13px] font-semibold text-indigo-700 dark:text-indigo-300 hover:underline"
-                >
-                  Open in Transactions →
-                </button>
-              )}
-            </div>
-          </aside>
-        );
-      })()}
+      {isDesktop && detailModal && (
+        <aside
+          aria-label={detailModal.categoryName}
+          className="w-[400px] xl:w-[440px] shrink-0 flex flex-col bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 shadow-[-8px_0_30px_rgba(15,23,42,0.06)] overflow-hidden animate-in slide-in-from-right-4 fade-in duration-200"
+        >
+          {renderDetailPanel(detailModal)}
+        </aside>
+      )}
       </div>
 
 
-      {/* Transaction detail modal — opened by tapping a category's month cell. Slides down from
-          the top of the screen, covering ~75% of it. Close via the backdrop, the X button, or by
-          dragging/flicking the header upward. Uses dvh (not vh) for sizing — on iOS Safari, vh is
-          based on the largest possible viewport and doesn't update as the address bar collapses
-          mid-animation, which was the likely source of a visible glitch right at the top edge.
-          Portalled to <body> so it sits outside <main>: there it inherited the parent's space-y
-          margin (shifting the overlay 10px down), was caught by <main>'s pull-to-refresh touch
-          handlers on every tap (including the X), and could be re-anchored by the tab-transition
-          wrapper's transform. */}
+      {/* Phones: the same panel as a bottom sheet, covering most of the screen. Close via the
+          backdrop, the X, or by dragging the handle down. Portalled to <body> so it sits outside
+          <main>: there it was caught by <main>'s pull-to-refresh touch handlers and could be
+          re-anchored by the tab-transition wrapper's transform. dvh (not vh) because iOS Safari's
+          vh ignores the collapsing address bar. */}
       {createPortal(
       <AnimatePresence>
       {detailModal && !isDesktop && (
-        // exit={{ pointerEvents: 'none' }} makes this whole overlay (including the draggable
-        // panel below) stop intercepting touches the instant it starts closing, not just once
-        // AnimatePresence finishes unmounting it — on iOS Safari the exit-complete callback that
-        // normally does that unmount can occasionally never fire, which otherwise leaves an
-        // invisible full-screen layer eating every subsequent tap until the page is reloaded.
+        // exit={{ pointerEvents: 'none' }}: stop intercepting touches the moment it starts closing,
+        // since on iOS Safari the exit-complete unmount can occasionally never fire.
         <motion.div
-          className="fixed inset-0 z-[100] md:flex md:items-center md:justify-center md:p-4"
+          className="fixed inset-0 z-[100]"
           initial={{ pointerEvents: 'auto' }}
           animate={{ pointerEvents: 'auto' }}
           exit={{ pointerEvents: 'none' }}
@@ -1210,128 +1315,29 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
             onClick={closeDetailModal}
           />
           <motion.div
-            className="relative bg-white dark:bg-neutral-800 rounded-b-2xl md:rounded-2xl shadow-2xl w-full h-[75dvh] md:w-[620px] md:h-[520px] md:max-h-[80dvh] flex flex-col border-b border-x md:border border-slate-100 dark:border-neutral-700"
-            initial={{ y: '-100%' }}
+            role="dialog"
+            aria-label={detailModal.categoryName}
+            className="absolute inset-x-0 bottom-0 h-[86dvh] bg-white dark:bg-neutral-800 rounded-t-2xl shadow-2xl flex flex-col overflow-hidden"
+            initial={{ y: '100%' }}
             animate={{ y: 0 }}
-            exit={{ y: '-100%' }}
+            exit={{ y: '100%' }}
             transition={SHEET_TRANSITION}
             drag="y"
             dragListener={false}
             dragControls={detailModalDragControls}
             dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={{ top: 0.5, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.6 }}
             onDragEnd={(_, info) => {
-              if (info.offset.y < -80 || info.velocity.y < -600) {
-                closeDetailModal();
-              }
+              if (info.offset.y > 80 || info.velocity.y > 600) closeDetailModal();
             }}
           >
-            <div className="order-1 px-5 py-4 border-b border-slate-100 dark:border-neutral-700 shrink-0 flex flex-col gap-2">
-              <div className="flex items-center justify-between gap-2">
-                <div
-                  onPointerDown={(e) => detailModalDragControls.start(e)}
-                  className="min-w-0 touch-none cursor-grab active:cursor-grabbing"
-                >
-                  <h3 className="text-sm md:text-lg font-bold text-slate-900 dark:text-neutral-200 truncate">
-                    {detailModal.categoryName}{modalSubFilter !== 'all' ? ` · ${modalSubFilter}` : ''}
-                  </h3>
-                  <p className="text-xs md:text-sm text-slate-400 dark:text-neutral-500 mt-0.5">{detailModal.monthIndex !== undefined ? `${MONTHS[detailModal.monthIndex]} ${detailModal.year}` : detailModal.year}</p>
-                </div>
-                <SegmentedControl
-                  layoutId="breakdownDetailSortPill"
-                  options={[{ id: 'date', label: 'Date' }, { id: 'amount', label: 'Amount' }]}
-                  value={detailSortBy}
-                  onChange={(id) => setDetailSortBy(id as 'date' | 'amount')}
-                  activeTextClassName="text-[#635bff] dark:text-[#8b85ff]"
-                  inactiveTextClassName="text-slate-500 dark:text-neutral-400 hover:text-slate-700 dark:hover:text-neutral-300"
-                  optionClassName="md:px-2.5 text-[9px] md:text-[11px]"
-                />
-              </div>
-              {(detailModalSubcategories.length > 1 || detailModalTransactions.length > 1) && (
-                <div className="flex items-center gap-2">
-                  {detailModalSubcategories.length > 1 && (
-                    <select
-                      value={modalSubFilter}
-                      onChange={(e) => setModalSubFilter(e.target.value)}
-                      className="flex-1 min-w-0 text-[11px] md:text-xs font-semibold bg-slate-100 dark:bg-neutral-700 text-slate-700 dark:text-neutral-300 rounded-lg px-2.5 py-1.5 outline-none border-none cursor-pointer"
-                    >
-                      <option value="all">All subcategories</option>
-                      {detailModalSubcategories.map(name => (
-                        <option key={name} value={name}>{name}</option>
-                      ))}
-                    </select>
-                  )}
-                  {detailModalTransactions.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => setSummarise(s => !s)}
-                      className={`shrink-0 text-[11px] md:text-xs font-semibold rounded-lg px-2.5 py-1.5 transition-colors active:scale-95 ${summarise ? 'bg-[#635bff] text-white' : 'bg-slate-100 dark:bg-neutral-700 text-slate-700 dark:text-neutral-300'}`}
-                    >
-                      Summarise
-                    </button>
-                  )}
-                </div>
-              )}
+            <div
+              onPointerDown={(e) => detailModalDragControls.start(e)}
+              className="shrink-0 flex justify-center pt-2.5 pb-2 touch-none cursor-grab active:cursor-grabbing"
+            >
+              <span className="w-10 h-1 rounded-full bg-slate-300 dark:bg-neutral-600" />
             </div>
-            <div className="order-3 md:order-2 flex-1 overflow-y-auto custom-scrollbar">
-              {detailModalTransactions.length === 0 ? (
-                <div className="py-10 text-center text-slate-400 dark:text-neutral-500 text-xs md:text-sm">No transactions</div>
-              ) : summarise ? (
-                detailModalGrouped.map(g => (
-                  <div key={g.key} className="flex items-center gap-2.5 md:gap-3 px-5 py-3.5 md:py-2.5 border-b border-slate-100 dark:border-neutral-700 last:border-b-0 text-[10px] md:text-sm">
-                    <span className="flex-1 min-w-0 truncate font-medium text-slate-700 dark:text-neutral-300">{g.description}</span>
-                    {g.subcategoryName && (
-                      <span className="shrink-0 max-w-[70px] md:max-w-[100px] truncate px-1.5 py-px bg-slate-100 dark:bg-neutral-700 rounded-full text-[7px] md:text-[10px] font-medium text-slate-500 dark:text-neutral-500 leading-tight">
-                        {g.subcategoryName}
-                      </span>
-                    )}
-                    <span className="shrink-0 px-1.5 py-px bg-slate-100 dark:bg-neutral-700 rounded-full text-[7px] md:text-[10px] font-medium text-slate-500 dark:text-neutral-500 leading-tight">
-                      ×{g.count}
-                    </span>
-                    <span className={`shrink-0 font-bold tabular-nums font-numeric whitespace-nowrap ${detailModal.isExpense ? 'text-slate-800 dark:text-neutral-300' : 'text-emerald-700 dark:text-emerald-400'}`}>
-                      {formatAmount((detailModal.isExpense ? -1 : 1) * g.total)}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                detailModalTransactions.map(t => (
-                  <div key={t.id} className="flex items-center gap-2.5 md:gap-3 px-5 py-3.5 md:py-2.5 border-b border-slate-100 dark:border-neutral-700 last:border-b-0 text-[10px] md:text-sm">
-                    <span className="shrink-0 whitespace-nowrap text-[7px] md:text-sm text-slate-400 dark:text-neutral-500">{t.date}</span>
-                    <span className="flex-1 min-w-0 truncate font-medium text-slate-700 dark:text-neutral-300">{t.description || 'Unknown'}</span>
-                    {/* Mobile: subcategory only — the category is already shown at the top of the modal */}
-                    <span className="md:hidden shrink-0 w-[70px] mr-2.5 text-left truncate">
-                      {t.subcategoryName && (
-                        <span className="px-1.5 py-px bg-slate-100 dark:bg-neutral-700 rounded-full text-[7px] font-medium text-slate-500 dark:text-neutral-500 leading-tight">
-                          {t.subcategoryName}
-                        </span>
-                      )}
-                    </span>
-                    <span className="hidden md:block shrink-0 max-w-[120px] truncate text-slate-400 dark:text-neutral-500">
-                      {detailModal.categoryName}{t.subcategoryName ? `/${t.subcategoryName}` : ''}
-                    </span>
-                    <span className={`shrink-0 font-bold tabular-nums font-numeric whitespace-nowrap ${detailModal.isExpense ? 'text-slate-800 dark:text-neutral-300' : 'text-emerald-700 dark:text-emerald-400'}`}>
-                      {formatAmount((detailModal.isExpense ? -1 : 1) * Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED))}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="order-2 md:order-3 px-5 py-3 border-b md:border-t md:border-b-0 border-slate-100 dark:border-neutral-700 flex items-center justify-between bg-slate-50 dark:bg-neutral-900/40 shrink-0">
-              <span className="text-xs md:text-sm font-semibold text-slate-500 dark:text-neutral-400">Total</span>
-              <span className="text-sm md:text-base font-bold text-slate-900 dark:text-neutral-200">
-                {formatAmount((detailModal.isExpense ? -1 : 1) * detailModalTotal)}
-              </span>
-            </div>
-            {/* Close button at the bottom */}
-            <div className="order-4 px-5 py-3 border-t border-slate-100 dark:border-neutral-700 flex justify-center shrink-0">
-              <button
-                onClick={closeDetailModal}
-                className="w-10 h-10 rounded-full bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-slate-500 dark:text-neutral-400 hover:bg-slate-200 dark:hover:bg-neutral-600 transition-colors"
-                title="Close"
-              >
-                <X size={18} />
-              </button>
-            </div>
+            {renderDetailPanel(detailModal, true)}
           </motion.div>
         </motion.div>
       )}
