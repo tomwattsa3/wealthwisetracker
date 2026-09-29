@@ -136,7 +136,14 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     monthIndex?: number;
     isExpense: boolean;
   } | null>(null);
-  const [detailSortBy, setDetailSortBy] = useState<'date' | 'amount'>('date');
+  // Date/Amount and Summarise stick: kept when you open another cell or month, and remembered
+  // between visits.
+  const [detailSortBy, setDetailSortBy] = useState<'date' | 'amount'>(() => {
+    try { return localStorage.getItem('breakdownDetailSort') === 'amount' ? 'amount' : 'date'; } catch { return 'date'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('breakdownDetailSort', detailSortBy); } catch { /* storage unavailable */ }
+  }, [detailSortBy]);
 
   // AnimatePresence (below, where the modal renders) plays the exit animation automatically
   // before this actually unmounts the modal — no manual setTimeout/closing-state dance needed.
@@ -372,10 +379,14 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
   // Which subcategory the list is narrowed to — defaults to whichever the user tapped into
   // (a subcategory row vs. the category row), but is then freely changeable via the dropdown.
   const [modalSubFilter, setModalSubFilter] = useState<string>('all');
-  const [summarise, setSummarise] = useState(false);
+  const [summarise, setSummarise] = useState(() => {
+    try { return localStorage.getItem('breakdownSummarise') === '1'; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('breakdownSummarise', summarise ? '1' : '0'); } catch { /* storage unavailable */ }
+  }, [summarise]);
   useEffect(() => {
     setModalSubFilter(detailModal?.subcategoryName || 'all');
-    setSummarise(false);
   }, [detailModal]);
 
   const detailModalTransactions = useMemo(() => {
