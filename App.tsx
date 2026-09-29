@@ -8,7 +8,7 @@ import { INITIAL_CATEGORIES, INITIAL_BANKS } from './constants';
 import { supabase } from './supabaseClient';
 import LoginPage from './components/LoginPage';
 import TransactionForm from './components/TransactionForm';
-import TransactionList from './components/TransactionList';
+import TransactionsView from './components/TransactionsView';
 import SpendingPatterns from './components/SpendingPatterns';
 import MobileHome from './components/MobileHome';
 import CategorySheets from './components/CategorySheets';
@@ -17,17 +17,17 @@ import DashboardDateFilter, { DateRange } from './components/DashboardDateFilter
 import CategoryTrendWidget from './components/CategoryTrendWidget';
 import AllocationSidebar from './components/AllocationSidebar';
 import CategoryManager from './components/CategoryManager';
-import BankFeedUpload from './components/BankFeedUpload';
+import ImportCsvModal from './components/ImportCsvModal';
 import SettingsManager from './components/SettingsManager';
 import BreakdownTab from './components/BreakdownTab';
 import RecurringPayments from './components/RecurringPayments';
 import DashboardSkeleton from './components/DashboardSkeleton';
 import SegmentedControl from './components/SegmentedControl';
 import {
-  LayoutDashboard, Plus, Home, ListFilter, Search,
-  ChevronLeft, ChevronRight, Filter, EyeOff, TrendingUp,
+  LayoutDashboard, Plus, Home,
+  ChevronLeft, ChevronRight, EyeOff, TrendingUp,
   Car, Plane, Smartphone, Coffee, ShoppingBag, PoundSterling, Activity, X,
-  ArrowUpDown, FolderCog, CalendarRange, LayoutGrid, Building, ArrowRightLeft, Settings,
+  FolderCog, CalendarRange, LayoutGrid, ArrowRightLeft, Settings,
   RotateCcw, Loader2, LogOut, Sparkles, Sun, Moon, Table, Repeat
 } from 'lucide-react';
 
@@ -246,6 +246,9 @@ const App: React.FC = () => {
     // even while the user is actively scrolling/tapping inside them, which was causing every
     // touch there to be misread as a pull-to-refresh drag.
     if ((e.target as HTMLElement).closest('[data-no-pull-refresh]')) return;
+    // Tabs that scroll inside their own container (Transactions): only pull when it's at the top.
+    const scroller = (e.target as HTMLElement).closest('[data-scroll-root]');
+    if (scroller && scroller.scrollTop > 0) return;
     if (mainRef.current && mainRef.current.scrollTop <= 0) {
       touchStartY.current = e.touches[0].clientY;
       isPulling.current = true;
@@ -991,6 +994,26 @@ const App: React.FC = () => {
     }
   };
 
+  const [importOpen, setImportOpen] = useState(false);
+
+  // Same fields as updateTransaction, applied to many rows in one request (used by "Remember"
+  // to re-file every earlier payment at a merchant).
+  const updateTransactionsBulk = async (ids: string[], updates: Partial<Transaction>) => {
+    if (ids.length === 0) return;
+    const idSet = new Set(ids);
+    setTransactions(prev => prev.map(t => idSet.has(t.id) ? { ...t, ...updates } : t));
+    const dbUpdates: Record<string, any> = {};
+    if (updates.categoryName !== undefined) dbUpdates['Catagory'] = updates.categoryName;
+    if (updates.subcategoryName !== undefined) dbUpdates['Sub-Category'] = updates.subcategoryName;
+    if (Object.keys(dbUpdates).length === 0) return;
+    const numericIds = ids.map(id => parseInt(id, 10)).filter(n => !isNaN(n));
+    const { error } = await supabase.from('Transactions').update(dbUpdates).in('id', numericIds);
+    if (error) {
+      console.error('Bulk update failed:', error);
+      alert('Failed to save: ' + error.message);
+    }
+  };
+
   const deleteTransaction = async (id: string) => {
     setTransactions(prev => prev.filter(t => t.id !== id));
     const numericId = parseInt(id, 10);
@@ -1141,6 +1164,29 @@ const App: React.FC = () => {
     } catch (err) {
       console.error('Exception saving merchant mapping:', err);
     }
+  };
+
+  // "Remember for <merchant>": file future imports from this merchant straight away, instead of
+  // waiting for MAPPING_THRESHOLD matching categorisations.
+  const rememberMerchant = async (merchantPattern: string, categoryId: string, categoryName: string, subcategoryName: string) => {
+    if (!merchantPattern || !categoryId) return;
+    const existing = merchantMappings.find(m => m.merchant_pattern.toLowerCase() === merchantPattern.toLowerCase());
+    const count = Math.max(MAPPING_THRESHOLD, existing && existing.category_id === categoryId && existing.subcategory_name === subcategoryName ? existing.count || 0 : 0);
+    const pattern = existing?.merchant_pattern || merchantPattern;
+    const { error } = await supabase
+      .from('merchant_mappings')
+      .upsert(
+        { merchant_pattern: pattern, category_id: categoryId, category_name: categoryName, subcategory_name: subcategoryName, count, updated_at: new Date().toISOString(), user_id: session?.user?.id },
+        { onConflict: 'merchant_pattern' }
+      );
+    if (error) {
+      console.error('Failed to remember merchant:', error);
+      return;
+    }
+    setMerchantMappings(prev => {
+      const rest = prev.filter(m => m.merchant_pattern.toLowerCase() !== pattern.toLowerCase());
+      return [...rest, { ...(existing || {}), merchant_pattern: pattern, category_id: categoryId, category_name: categoryName, subcategory_name: subcategoryName, count }];
+    });
   };
 
   // Backfill merchant mappings from existing categorized transactions
@@ -1414,50 +1460,6 @@ const App: React.FC = () => {
       { totalIncome: 0, totalExpense: 0, balance: 0 }
     );
   }, [activeTransactions, currency]);
-
-  // Daily Average Calculation - uses the same filters as transaction log including type filter
-  const dailyAverageData = useMemo(() => {
-    // Filter transactions based on type filter selection
-    // If 'all' or 'EXPENSE' selected, show expenses. If 'INCOME' selected, show income.
-    const targetType = filterType === 'INCOME' ? 'INCOME' : 'EXPENSE';
-
-    const selectedTransactions = filteredTransactions.filter(t =>
-      t.type === targetType &&
-      !t.excluded &&
-      t.categoryId !== 'excluded'
-    );
-
-    const totalGBP = selectedTransactions.reduce((sum, t) => sum + t.amountGBP, 0);
-    const totalAED = selectedTransactions.reduce((sum, t) => sum + t.amountAED, 0);
-    const totalAmount = currency === 'GBP' ? totalGBP : totalAED;
-
-    // Calculate number of days in the selected date range
-    const startDate = new Date(dateRange.start);
-    const endDate = new Date(dateRange.end);
-    const daysDiff = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-
-    const dailyAverage = totalAmount / daysDiff;
-
-    // Number of calendar months actually spanned by the selected date range (e.g. YTD from Jan
-    // to Aug is 8 months), not how many of those months happen to have a transaction in them —
-    // this is meant to answer "average per month of the period I selected", not "average per
-    // month that had spending".
-    const monthsInSelectedRange = Math.max(1, (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth()) + 1);
-    const monthlyAverageGBP = totalGBP / monthsInSelectedRange;
-    const monthlyAverageAED = totalAED / monthsInSelectedRange;
-
-    return {
-      totalSpend: totalAmount,
-      totalGBP,
-      totalAED,
-      dailyAverage,
-      monthlyAverageGBP,
-      monthlyAverageAED,
-      daysInRange: daysDiff,
-      transactionCount: selectedTransactions.length,
-      isIncome: targetType === 'INCOME'
-    };
-  }, [filteredTransactions, dateRange, filterType, currency]);
 
   // Main Category Breakdown (respects date filter and currency)
   const categoryBreakdown = useMemo(() => {
@@ -1791,7 +1793,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Top Bar with Filter & Search (Hidden in Cat/Yearly View) */}
-          {activeTab !== 'categories' && activeTab !== 'home' && activeTab !== 'sheets' && activeTab !== 'breakdown' && activeTab !== 'settings' && (
+          {activeTab !== 'categories' && activeTab !== 'home' && activeTab !== 'sheets' && activeTab !== 'breakdown' && activeTab !== 'settings' && activeTab !== 'history' && (
             <div className="flex flex-col gap-2 mb-1 md:gap-4 md:mb-8">
 
                 {/* Mobile Dashboard Headline */}
@@ -1812,68 +1814,12 @@ const App: React.FC = () => {
 
                 {/* Mobile Header */}
                 <div className="flex flex-col md:hidden gap-2 w-full px-1">
-                    {activeTab === 'history' ? (
-                      <>
-                        {/* Timeframe Selector - same style as dashboard */}
-                        <div className="flex items-center justify-between gap-2">
-                          <SegmentedControl
-                            layoutId="historyMobileDatePresetPill"
-                            className="overflow-x-auto hide-scrollbar"
-                            options={[
-                              ...mobileHistoryPresets.map(p => ({ id: p.fullLabel, label: p.label })),
-                              { id: 'Custom Range', label: 'Custom' },
-                            ]}
-                            value={showMobileCustomDates ? 'Custom Range' : dateRange.label}
-                            onChange={(id) => {
-                              if (id === 'Custom Range') { setShowMobileCustomDates(!showMobileCustomDates); return; }
-                              const preset = mobileHistoryPresets.find(p => p.fullLabel === id);
-                              if (!preset) return;
-                              const { start, end } = preset.getValue();
-                              setDateRange({ start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0], label: preset.fullLabel });
-                              setShowMobileCustomDates(false);
-                            }}
-                          />
-                        </div>
-                        {/* Custom Date Range Picker */}
-                        {showMobileCustomDates && (
-                          <div className="flex items-center gap-2 bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-600 p-2.5">
-                            <input
-                              type="date"
-                              value={mobileCustomStart}
-                              onChange={(e) => setMobileCustomStart(e.target.value)}
-                              className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] font-semibold text-slate-700 outline-none focus:border-[#635bff]"
-                            />
-                            <span className="text-slate-300 text-xs font-bold">–</span>
-                            <input
-                              type="date"
-                              value={mobileCustomEnd}
-                              onChange={(e) => setMobileCustomEnd(e.target.value)}
-                              className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] font-semibold text-slate-700 outline-none focus:border-[#635bff]"
-                            />
-                            <button
-                              onClick={() => {
-                                if (mobileCustomStart && mobileCustomEnd) {
-                                  setDateRange({ start: mobileCustomStart, end: mobileCustomEnd, label: 'Custom Range' });
-                                  setShowMobileCustomDates(false);
-                                }
-                              }}
-                              disabled={!mobileCustomStart || !mobileCustomEnd}
-                              className="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-[10px] font-bold disabled:opacity-40 shrink-0"
-                            >
-                              Go
-                            </button>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <DashboardDateFilter range={dateRange} onRangeChange={setDateRange} />
-                    )}
+                    <DashboardDateFilter range={dateRange} onRangeChange={setDateRange} />
                 </div>
 
                 <div className="hidden md:flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
                   <div className="flex-1">
                     <h2 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-neutral-200 tracking-tight">
-                        {activeTab === 'history' && 'Transactions'}
                     </h2>
                     <p className="text-slate-500 dark:text-neutral-500 text-sm mt-1 font-medium">
                         Manage your finances with confidence.
@@ -1881,34 +1827,6 @@ const App: React.FC = () => {
                   </div>
                   
                   <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto items-center">
-                    {/* Global Search - Only show in history tab */}
-                    {activeTab === 'history' && (
-                        <div className="flex items-center gap-2 w-full sm:w-auto">
-                            <div className="relative group flex-1 sm:flex-none">
-                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 dark:group-focus-within:text-neutral-200 transition-colors">
-                                <Search size={16} />
-                                </div>
-                                <input
-                                type="text"
-                                placeholder="Search transactions..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full sm:w-64 pl-9 pr-4 py-2 bg-white dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-lg text-sm text-slate-900 dark:text-neutral-200 outline-none focus:border-slate-900 dark:focus:border-neutral-500 focus:ring-1 focus:ring-slate-900 dark:focus:ring-neutral-500 transition-all shadow-sm placeholder:text-slate-400"
-                                />
-                            </div>
-                            {/* Apply Merchant Memory Button - Always visible */}
-                            <button
-                              onClick={() => applyMerchantMemory(filteredTransactions)}
-                              disabled={applyingMemory}
-                              className="flex items-center gap-1.5 px-3 py-2 bg-violet-50 dark:bg-violet-950 border border-violet-200 dark:border-violet-800 rounded-lg text-violet-700 dark:text-violet-300 text-sm font-medium hover:bg-violet-100 dark:hover:bg-violet-900 hover:border-violet-300 transition-all shadow-sm disabled:opacity-50"
-                              title="Apply learned categorizations to uncategorized transactions"
-                            >
-                              <Sparkles size={14} />
-                              <span>{applyingMemory ? 'Applying...' : 'Apply Memory'}</span>
-                            </button>
-                        </div>
-                    )}
-                    
                     {/* Desktop Date Filter */}
                     <div className="hidden md:flex items-center gap-2">
                       <SegmentedControl
@@ -2097,243 +2015,57 @@ const App: React.FC = () => {
              </div>
           )}
 
-          {/* HISTORY VIEW */}
+          {/* TRANSACTIONS VIEW */}
           {activeTab === 'history' && (
-            <div className="h-full overflow-y-auto flex flex-col space-y-2 md:space-y-4 px-0 sm:px-0 pb-20">
-              {/* Upload + Summary Cards - Desktop: all five cards in a single row */}
-              <div className="hidden lg:grid lg:grid-cols-12 gap-3 items-stretch">
-                <div className="col-span-4">
-                  <BankFeedUpload
-                    onImport={handleImportTransactions}
-                    webhookUrl={webhookUrl}
-                    banks={banks}
-                    merchantMappings={merchantMappings}
-                    latestByBank={latestByBank}
-                  />
-                </div>
-                <div className="col-span-2 bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-4 flex items-center gap-3">
-                  <span className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-base shrink-0">💰</span>
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Total</span>
-                    <p className="text-base font-bold text-slate-900 dark:text-neutral-200 truncate">£{dailyAverageData.totalGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                    <p className="text-[11px] font-medium text-slate-400 dark:text-neutral-500 truncate">AED {dailyAverageData.totalAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                  </div>
-                </div>
-                <div className="col-span-2 bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-4 flex items-center gap-3">
-                  <span className="w-10 h-10 rounded-lg bg-violet-50 dark:bg-violet-950 flex items-center justify-center text-base shrink-0">📊</span>
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Avg/Trans</span>
-                    <p className="text-base font-bold text-slate-900 dark:text-neutral-200 truncate">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalGBP / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</p>
-                    <p className="text-[11px] font-medium text-slate-400 dark:text-neutral-500 truncate">AED {dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalAED / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</p>
-                  </div>
-                </div>
-                <div className="col-span-2 bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-4 flex items-center gap-3">
-                  <span className="w-10 h-10 rounded-lg bg-sky-50 dark:bg-sky-950 flex items-center justify-center text-base shrink-0">📅</span>
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Avg/Mo</span>
-                    <p className="text-base font-bold text-slate-900 dark:text-neutral-200 truncate">£{dailyAverageData.monthlyAverageGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                    <p className="text-[11px] font-medium text-slate-400 dark:text-neutral-500 truncate">AED {dailyAverageData.monthlyAverageAED.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                  </div>
-                </div>
-                <div className="col-span-2 bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-4 flex items-center gap-3">
-                  <span className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-base shrink-0">✏️</span>
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Trans</span>
-                    <p className="text-base font-bold text-slate-900 dark:text-neutral-200 truncate">{dailyAverageData.transactionCount}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Summary Cards - Mobile & Tablet (below lg, no upload card shown) */}
-              <div className="lg:hidden grid grid-cols-2 gap-2">
-                <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-2 flex flex-col items-center gap-0.5">
-                  <div className="flex items-center gap-1">
-                    <span className="w-5 h-5 rounded-md bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-[10px] shrink-0">💰</span>
-                    <span className="text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Total</span>
-                  </div>
-                  <span className="text-xs font-bold text-slate-900 dark:text-neutral-200">£{dailyAverageData.totalGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </div>
-                <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-2 flex flex-col items-center gap-0.5">
-                  <div className="flex items-center gap-1">
-                    <span className="w-5 h-5 rounded-md bg-violet-50 dark:bg-violet-950 flex items-center justify-center text-[10px] shrink-0">📊</span>
-                    <span className="text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Avg/Trans</span>
-                  </div>
-                  <span className="text-xs font-bold text-slate-900 dark:text-neutral-200">£{dailyAverageData.transactionCount > 0 ? (dailyAverageData.totalGBP / dailyAverageData.transactionCount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</span>
-                </div>
-                <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-2 flex flex-col items-center gap-0.5">
-                  <div className="flex items-center gap-1">
-                    <span className="w-5 h-5 rounded-md bg-sky-50 dark:bg-sky-950 flex items-center justify-center text-[10px] shrink-0">📅</span>
-                    <span className="text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Avg/Mo</span>
-                  </div>
-                  <span className="text-xs font-bold text-slate-900 dark:text-neutral-200">£{dailyAverageData.monthlyAverageGBP.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </div>
-                <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-slate-200 dark:border-neutral-700 p-2 flex flex-col items-center gap-0.5">
-                  <div className="flex items-center gap-1">
-                    <span className="w-5 h-5 rounded-md bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-[10px] shrink-0">✏️</span>
-                    <span className="text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Trans</span>
-                  </div>
-                  <span className="text-xs font-bold text-slate-900 dark:text-neutral-200">{dailyAverageData.transactionCount}</span>
-                </div>
-              </div>
-
-              {/* Latest transaction per bank (below lg, where the upload card — which shows this on
-                  desktop — is hidden). Tap a bank to filter the log to it. */}
-              {latestByBank.length > 0 && (
-                <div className="lg:hidden shrink-0 flex items-center gap-1.5 overflow-x-auto hide-scrollbar px-1">
-                  <span className="text-[8px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider shrink-0">Last</span>
-                  {latestByBank.map(b => {
-                    const active = filterBank !== 'all' && filterBank.trim().toLowerCase() === b.name.toLowerCase();
-                    return (
-                      <button
-                        key={b.name}
-                        onClick={() => setFilterBank(active ? 'all' : b.name)}
-                        className={`shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] whitespace-nowrap transition-colors ${active ? 'border-[#635bff] bg-violet-50 dark:bg-violet-950/40' : 'border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-800'}`}
-                      >
-                        <span className="font-semibold text-slate-700 dark:text-neutral-300">{b.name}</span>
-                        <span className="text-slate-500 dark:text-neutral-400">{b.dateLabel.replace(/ \d{4}$/, '')}</span>
-                        <span className={`font-semibold ${b.stale ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400 dark:text-neutral-500'}`}>· {b.agoLabel}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-2 sm:p-3 animate-in fade-in shadow-sm flex flex-col flex-1 min-h-[500px] md:min-h-[600px] overflow-visible md:overflow-hidden">
-                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-2 sm:mb-6 gap-2 sm:gap-4 border-b border-slate-100 pb-2 sm:pb-6">
-                  <div className="flex items-center justify-between gap-2 w-full lg:w-auto">
-                      <div className="flex items-center gap-2">
-                          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-violet-50 flex items-center justify-center text-[#635bff] shrink-0">
-                              <ListFilter size={16} className="sm:w-5 sm:h-5" />
-                          </div>
-                          <div>
-                              <h3 className="font-bold text-slate-800 text-sm sm:text-lg">Transaction Log</h3>
-                              <p className="text-[10px] sm:text-xs text-slate-500 font-medium mt-0.5">{filteredTransactions.length} records found</p>
-                          </div>
-                      </div>
-
-                      {/* Compact mobile search, next to the title */}
-                      <div className="md:hidden relative group flex-1 max-w-[130px]">
-                          <div className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors">
-                              <Search size={11} />
-                          </div>
-                          <input
-                              type="text"
-                              placeholder="Search..."
-                              value={searchQuery}
-                              onChange={(e) => setSearchQuery(e.target.value)}
-                              className="w-full pl-6 pr-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all placeholder:text-slate-400"
-                          />
-                      </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-1 sm:gap-2 w-full lg:w-auto">
-                      {/* Bank Filter */}
-                      <div className="relative">
-                          <select
-                              value={filterBank}
-                              onChange={(e) => setFilterBank(e.target.value)}
-                              className="appearance-none pl-2 sm:pl-3 pr-6 sm:pr-8 py-1 sm:py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] sm:text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors"
-                          >
-                              <option value="all">Bank: All</option>
-                              {availableBanks.map(bank => (
-                                  <option key={bank} value={bank}>{bank}</option>
-                              ))}
-                          </select>
-                          <Building size={10} className="sm:w-3 sm:h-3 absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                      </div>
-
-                      {/* Type Filter */}
-                      <div className="relative">
-                          <select
-                              value={filterType}
-                              onChange={(e) => setFilterType(e.target.value as any)}
-                              className="appearance-none pl-2 sm:pl-3 pr-6 sm:pr-8 py-1 sm:py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] sm:text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors"
-                          >
-                              <option value="all">Type: All</option>
-                              <option value="INCOME">Income</option>
-                              <option value="EXPENSE">Expense</option>
-                          </select>
-                          <ArrowUpDown size={10} className="sm:w-3 sm:h-3 absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                      </div>
-
-                      {/* Category Filter */}
-                      <div className="relative">
-                          <select
-                              value={filterCategory}
-                              onChange={(e) => {
-                                  setFilterCategory(e.target.value);
-                                  setFilterSubcategory('all');
-                              }}
-                              className="appearance-none pl-2 sm:pl-3 pr-6 sm:pr-8 py-1 sm:py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] sm:text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors"
-                          >
-                              <option value="all">Category: All</option>
-                              {allCategories.map(cat => (
-                                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                              ))}
-                          </select>
-                          <Filter size={10} className="sm:w-3 sm:h-3 absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                      </div>
-
-                      {/* Subcategory Filter */}
-                      <div className="relative">
-                          <select
-                              value={filterSubcategory}
-                              onChange={(e) => setFilterSubcategory(e.target.value)}
-                              className="appearance-none pl-2 sm:pl-3 pr-6 sm:pr-8 py-1 sm:py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] sm:text-xs font-bold text-slate-700 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer hover:bg-slate-100 transition-colors"
-                          >
-                              <option value="all">Sub: All</option>
-                              {availableSubcategories.map(sub => (
-                                  <option key={sub} value={sub}>{sub}</option>
-                              ))}
-                          </select>
-                          <Filter size={10} className="sm:w-3 sm:h-3 absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                      </div>
-
-                      {/* Recently Added Filter */}
-                      <div className="relative">
-                          <select
-                              value={filterRecentlyAdded}
-                              onChange={(e) => setFilterRecentlyAdded(e.target.value as 'all' | 'today' | 'week' | 'uncategorized')}
-                              className="appearance-none pl-2 sm:pl-3 pr-6 sm:pr-8 py-1 sm:py-2 bg-violet-50 border border-violet-200 rounded-lg text-[10px] sm:text-xs font-bold text-violet-700 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 cursor-pointer hover:bg-violet-100 transition-colors"
-                          >
-                              <option value="all">Added: All</option>
-                              <option value="today">Added Today</option>
-                              <option value="week">Added This Week</option>
-                              <option value="uncategorized">Uncategorized</option>
-                          </select>
-                          <Sparkles size={10} className="sm:w-3 sm:h-3 absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-violet-400 pointer-events-none" />
-                      </div>
-
-                      {/* Reset Button */}
-                      {(filterCategory !== 'all' || filterSubcategory !== 'all' || filterType !== 'all' || filterBank !== 'all' || filterRecentlyAdded !== 'all') && (
-                          <button
-                              onClick={handleResetFilters}
-                              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-2 text-[10px] sm:text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors"
-                          >
-                              <X size={10} className="sm:w-3 sm:h-3" />
-                              Reset
-                          </button>
-                      )}
-                  </div>
-
-                </div>
-
-                <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                  <TransactionList
-                      transactions={filteredTransactions}
-                      categories={categories}
-                      onUpdate={updateTransaction}
-                      onDelete={deleteTransaction}
-                    />
-                </div>
-              </div>
-            </div>
+            <TransactionsView
+              transactions={filteredTransactions}
+              periodTransactions={dateFilteredTransactions}
+              allTransactions={transactions}
+              categories={categories}
+              getCategoryEmoji={getCategoryEmoji}
+              searchQuery={searchQuery}
+              onSearch={setSearchQuery}
+              dateRange={dateRange}
+              onDateRange={setDateRange}
+              availableBanks={availableBanks}
+              filterBank={filterBank}
+              onFilterBank={setFilterBank}
+              filterType={filterType}
+              onFilterType={setFilterType}
+              filterCategory={filterCategory}
+              onFilterCategory={setFilterCategory}
+              filterSubcategory={filterSubcategory}
+              onFilterSubcategory={setFilterSubcategory}
+              filterRecentlyAdded={filterRecentlyAdded}
+              onFilterRecentlyAdded={setFilterRecentlyAdded}
+              onResetFilters={handleResetFilters}
+              latestByBank={latestByBank}
+              onOpenImport={() => setImportOpen(true)}
+              onUpdate={updateTransaction}
+              onBulkUpdate={updateTransactionsBulk}
+              onDelete={deleteTransaction}
+              onRemember={rememberMerchant}
+              onApplyMemory={applyMerchantMemory}
+              applyingMemory={applyingMemory}
+              onLogout={handleLogout}
+            />
           )}
           </motion.div>
           </AnimatePresence>
 
         </main>
       </div>
+
+      <ImportCsvModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        banks={banks}
+        latestByBank={latestByBank}
+        merchantMappings={merchantMappings}
+        existing={transactions}
+        webhookUrl={webhookUrl}
+        onImport={handleImportTransactions}
+      />
 
       <TransactionForm
         isOpen={isModalOpen}
