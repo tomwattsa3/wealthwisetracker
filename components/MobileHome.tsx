@@ -14,6 +14,7 @@ interface MobileHomeProps {
   getCategoryEmoji?: (categoryId: string) => string;
   onOpenBreakdown?: () => void;
   onViewTransactions?: (categoryId: string, subcategory: string | null, start: string, end: string) => void;
+  onImport?: () => void;
 }
 
 const TOP_N = 6;
@@ -29,7 +30,7 @@ const TINTS = [
 
 interface Place { name: string; total: number; count: number; cats: Map<string, { id: string; amount: number }> }
 
-const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCategoryEmoji, onOpenBreakdown, onViewTransactions }) => {
+const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCategoryEmoji, onOpenBreakdown, onViewTransactions, onImport }) => {
   const amt = (t: Transaction) => Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED) || 0;
   const valid = (t: Transaction) => !t.excluded && /^\d{4}-\d{2}-\d{2}/.test(t.date);
 
@@ -167,6 +168,31 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const canPrev = ytd ? year * 12 > firstIdx : sel > firstIdx;
   const canNext = ytd ? year * 12 + 11 < lastIdx : sel < lastIdx;
   const step = (dir: -1 | 1) => setPicked(ytd ? Math.min(lastIdx, Math.max(firstIdx, sel + dir * 12)) : sel + dir);
+
+  // ---- Month by month (money in vs out for every month of the selected year) ----
+  const todayIdx = keyToIndex(monthKey(localToday()));
+  const yearIdxs = Array.from({ length: 12 }, (_, i) => year * 12 + i);
+  const yearCols = yearIdxs.map(i => {
+    const vin = inByMonth.get(i) || 0, vout = outByMonth.get(i) || 0;
+    const imported = i >= firstIdx && i <= lastIdx;
+    return { i, vin, vout, imported, missing: !imported && i > lastIdx && i <= todayIdx, future: i > todayIdx };
+  });
+  const chartRaw = Math.max(...yearCols.map(c => Math.max(c.vin, c.vout)), 1);
+  // Three even steps up to a round number, e.g. £2k / £4k / £6k.
+  const nice = (v: number) => { const p = 10 ** Math.floor(Math.log10(v)); const m = v / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * p; };
+  const chartStep = nice(chartRaw / 3);
+  const chartTop = chartStep * 3;
+  const CHART_H = 132;
+  const axis = (v: number) => (v === 0 ? '£0' : v >= 1000 ? `£${+(v / 1000).toFixed(1)}k` : `£${Math.round(v)}`);
+  const missingCols = yearCols.filter(c => c.missing);
+  const missingLabel = missingCols.length
+    ? missingCols.length === 1 ? FULL_MONTHS[missingCols[0].i % 12].slice(0, 3) : `${FULL_MONTHS[missingCols[0].i % 12].slice(0, 3)} – ${FULL_MONTHS[missingCols[missingCols.length - 1].i % 12].slice(0, 3)}`
+    : '';
+  const yearImported = yearCols.filter(c => c.imported);
+  const detail = ytd
+    ? { title: `${year} so far${yearImported.length ? ` (${FULL_MONTHS[yearImported[0].i % 12].slice(0, 3)} – ${FULL_MONTHS[yearImported[yearImported.length - 1].i % 12].slice(0, 3)})` : ''}`, vin: inc, vout: out }
+    : { title: `${FULL_MONTHS[sel % 12]} ${year}`, vin: inc, vout: out };
+  const detailNet = detail.vin - detail.vout;
 
   const card = 'bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-2xl';
 
@@ -313,6 +339,80 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
           </div>
         </section>
       )}
+
+      <section className={`${card} px-4 pt-3.5 pb-3 flex flex-col gap-3`}>
+        <div className="flex justify-between items-start">
+          <div>
+            <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100">Month by month</h2>
+            <p className="text-[11.5px] text-slate-500 dark:text-neutral-400">{year} · tap a month</p>
+          </div>
+          <div className="flex gap-2.5 text-[11.5px] text-slate-600 dark:text-neutral-300">
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-[3px] bg-green-600" />In</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-[3px] bg-slate-900 dark:bg-neutral-200" />Out</span>
+          </div>
+        </div>
+        <div className="flex gap-1.5">
+          {/* £ axis */}
+          <div className="relative w-8 shrink-0" style={{ height: CHART_H }}>
+            {[3, 2, 1, 0].map(k => (
+              <span key={k} className="absolute right-0 -translate-y-1/2 text-[9.5px] text-slate-400 dark:text-neutral-500 tabular-nums" style={{ top: CHART_H - (k / 3) * CHART_H }}>{axis(chartStep * k)}</span>
+            ))}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="relative" style={{ height: CHART_H }}>
+              {[3, 2, 1, 0].map(k => (
+                <span key={k} className={`absolute left-0 right-0 border-t ${k === 0 ? 'border-slate-200 dark:border-neutral-600' : 'border-dashed border-slate-100 dark:border-neutral-700'}`} style={{ top: CHART_H - (k / 3) * CHART_H }} />
+              ))}
+              <div className="absolute inset-0 grid grid-cols-12 gap-0.5 items-end">
+                {yearCols.map(c => {
+                  const on = !ytd && c.i === sel;
+                  const faded = !ytd && !on && c.imported;
+                  return (
+                    <button
+                      key={c.i}
+                      onClick={() => { if (c.imported) { setPicked(c.i); setMode('month'); } }}
+                      disabled={!c.imported}
+                      aria-pressed={on}
+                      aria-label={`${FULL_MONTHS[c.i % 12]} ${year}: ${c.imported ? `in ${fmt(c.vin)}, out ${fmt(c.vout)}` : c.missing ? 'not imported' : 'no data'}`}
+                      className={`h-full flex items-end justify-center rounded-md ${on ? 'bg-indigo-50 dark:bg-indigo-950/40' : ''} ${faded ? 'opacity-45' : ''}`}
+                    >
+                      {c.imported ? (
+                        <span className="flex items-end gap-[2px]">
+                          <span className="w-[7px] rounded-t-[3px] bg-green-600" style={{ height: c.vin > 0 ? Math.max(3, Math.round((c.vin / chartTop) * CHART_H)) : 0 }} />
+                          <span className="w-[7px] rounded-t-[3px] bg-slate-900 dark:bg-neutral-200" style={{ height: c.vout > 0 ? Math.max(3, Math.round((c.vout / chartTop) * CHART_H)) : 0 }} />
+                        </span>
+                      ) : c.missing ? (
+                        <span className="w-[18px] h-[70px] rounded-md border-[1.5px] border-dashed border-amber-300 bg-amber-50/70 dark:bg-amber-950/20" />
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="grid grid-cols-12 gap-0.5 mt-1.5">
+              {yearCols.map(c => (
+                <span key={c.i} className={`text-center text-[10.5px] ${!ytd && c.i === sel ? 'font-bold text-slate-900 dark:text-neutral-100' : c.missing ? 'font-medium text-amber-700 dark:text-amber-400' : c.imported ? 'text-slate-500 dark:text-neutral-400' : 'text-slate-300 dark:text-neutral-600'}`}>
+                  {FULL_MONTHS[c.i % 12][0]}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className={`rounded-xl px-3 py-2.5 ${ytd ? 'bg-slate-50 dark:bg-neutral-700/50' : 'bg-indigo-50/70 dark:bg-indigo-950/30'}`}>
+          <div className="text-xs font-semibold text-slate-600 dark:text-neutral-300">{detail.title}</div>
+          <div className="flex flex-wrap gap-x-3.5 text-[13px] mt-0.5 text-slate-700 dark:text-neutral-300">
+            <span>In <strong className="text-emerald-700 dark:text-emerald-400">{fmt(detail.vin)}</strong></span>
+            <span>Out <strong className="text-slate-900 dark:text-neutral-100">{fmt(detail.vout)}</strong></span>
+            <span>Net <strong className={detailNet < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}>{detailNet < 0 ? '−' : '+'}{fmt(Math.abs(detailNet))}</strong></span>
+          </div>
+        </div>
+        {missingLabel && (
+          <button onClick={onImport} disabled={!onImport} className="flex justify-between items-center gap-2 rounded-xl border border-dashed border-amber-300 bg-amber-50/70 dark:bg-amber-950/20 px-3 py-2.5 text-xs text-amber-800 dark:text-amber-300 text-left">
+            <span><strong>{missingLabel}</strong> not imported yet</span>
+            {onImport && <span className="font-semibold text-indigo-700 dark:text-indigo-300 whitespace-nowrap">Import CSV →</span>}
+          </button>
+        )}
+      </section>
     </div>
   );
 };

@@ -1934,6 +1934,7 @@ const App: React.FC = () => {
                     currency={currency}
                     getCategoryEmoji={getCategoryEmoji}
                     onOpenBreakdown={() => handleTabChange('breakdown')}
+                    onImport={() => setImportOpen(true)}
                     onViewTransactions={(categoryId, subcategory, start, end) => {
                       setFilterCategory(categoryId);
                       setFilterSubcategory(subcategory ?? 'all');
