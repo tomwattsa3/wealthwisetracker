@@ -307,8 +307,8 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
           ))}
           <div className="border-t border-slate-100 dark:border-neutral-700 py-3 flex justify-between text-[12.5px]">
             <span className="text-slate-500 dark:text-neutral-400">{monthPlaces.length} {monthPlaces.length === 1 ? 'place' : 'places'} in {periodShort}</span>
-            {onViewTransactions && (
-              <button onClick={() => onViewTransactions('all', null, start, end)} className="font-semibold text-indigo-700 dark:text-indigo-300">All transactions →</button>
+            {onOpenBreakdown && (
+              <button onClick={onOpenBreakdown} className="font-semibold text-indigo-700 dark:text-indigo-300">Full breakdown →</button>
             )}
           </div>
         </section>

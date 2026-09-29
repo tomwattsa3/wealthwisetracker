@@ -28,6 +28,7 @@ interface Row {
 }
 
 const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency, getCategoryEmoji, onViewTransactions }) => {
+  const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
   const [period, setPeriod] = useState<PeriodId>(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}').period;
@@ -164,14 +165,45 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
   return (
     <div className="pb-24 md:pb-6 flex flex-col gap-4 md:gap-6" style={{ fontVariantNumeric: 'tabular-nums' }}>
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div>
+      <div className="flex flex-row md:items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-neutral-100">Category Sheets</h1>
           <p className="text-xs md:text-sm text-slate-500 dark:text-neutral-400 mt-0.5">
             {scopeLabel} · {fmt(total)} spent
           </p>
         </div>
-        <div role="group" aria-label="Period" className="flex gap-1 p-1 bg-slate-200/70 dark:bg-neutral-800 rounded-xl self-start max-w-full overflow-x-auto hide-scrollbar">
+        {/* Phones: one compact button that opens the period list, instead of a row of pills */}
+        <div className="md:hidden relative shrink-0 self-start mt-1">
+          <button
+            onClick={() => setPeriodMenuOpen(o => !o)}
+            aria-haspopup="listbox"
+            aria-expanded={periodMenuOpen}
+            className="flex items-center gap-1.5 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900 dark:text-neutral-100 shadow-sm"
+          >
+            {PERIODS.find(p => p.id === period)?.label}
+            <svg viewBox="0 0 12 12" className={`w-3 h-3 text-slate-400 transition-transform ${periodMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m2.5 4.5 3.5 3.5 3.5-3.5" /></svg>
+          </button>
+          {periodMenuOpen && (
+            <>
+              <button aria-label="Close period list" className="fixed inset-0 z-40 cursor-default" onClick={() => setPeriodMenuOpen(false)} />
+              <div role="listbox" aria-label="Period" className="absolute right-0 z-50 mt-1.5 w-44 p-1 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl shadow-lg">
+                {PERIODS.map(p => (
+                  <button
+                    key={p.id}
+                    role="option"
+                    aria-selected={period === p.id}
+                    onClick={() => { setPeriod(p.id); setPeriodMenuOpen(false); }}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] text-left ${period === p.id ? 'bg-indigo-50 dark:bg-indigo-950/40 font-semibold text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-neutral-300'}`}
+                  >
+                    {p.label}
+                    {period === p.id && <span aria-hidden>✓</span>}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+        <div role="group" aria-label="Period" className="hidden md:flex gap-1 p-1 bg-slate-200/70 dark:bg-neutral-800 rounded-xl self-start max-w-full overflow-x-auto hide-scrollbar">
           {PERIODS.map(p => (
             <button
               key={p.id}
