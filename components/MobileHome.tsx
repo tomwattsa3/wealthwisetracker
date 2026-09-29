@@ -4,7 +4,8 @@ import { MONTHS, FULL_MONTHS, monthKey, keyToIndex, indexToKey, daysIn, localTod
 
 // The phone Home screen: one month at a time, fitting on a single screen. How much went out vs
 // your usual month, money in and net, six month bars to jump between, and the top categories
-// with their share of the month, then the places you went most (or spent most at).
+// with their share of the month, then the places you went most (or spent most at). A Month / YTD
+// switch shows the same cards for the whole year so far.
 // The full Dashboard (SpendingPatterns) stays on tablet and desktop.
 
 interface MobileHomeProps {
@@ -76,6 +77,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const hasData = Number.isFinite(lastIdx);
   const [picked, setPicked] = useState<number | null>(null);
   const [placeRank, setPlaceRank] = useState<'visits' | 'spent'>('visits');
+  const [mode, setMode] = useState<'month' | 'ytd'>('month');
   const sel = picked ?? (hasData ? lastIdx : keyToIndex(monthKey(localToday())));
 
   const fmt = (v: number) => (currency === 'GBP' ? '£' : 'AED ') + Math.round(v).toLocaleString('en-GB');
@@ -89,30 +91,66 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
     );
   }
 
-  // "Usual" = average of the other months with spending in the 12 up to your latest import.
-  const usualMonths = Array.from({ length: 12 }, (_, i) => lastIdx - 11 + i).filter(i => i !== sel && (outByMonth.get(i) || 0) > 0);
-  const out = outByMonth.get(sel) || 0;
-  const inc = inByMonth.get(sel) || 0;
-  const usual = usualMonths.length ? usualMonths.reduce((s, i) => s + (outByMonth.get(i) || 0), 0) / usualMonths.length : 0;
-  const diff = usual ? (out - usual) / usual : 0;
-  const near = Math.abs(diff) < 0.05;
+  const ytd = mode === 'ytd';
+  const year = Math.floor(sel / 12);
+  // The months being summed: just the picked month, or every imported month of its year so far.
+  const idxs = ytd
+    ? Array.from({ length: 12 }, (_, i) => year * 12 + i).filter(i => i >= firstIdx && i <= lastIdx)
+    : [sel];
+  const sumOver = (m: Map<number, number> | undefined, list: number[]) => list.reduce((s, i) => s + (m?.get(i) || 0), 0);
+  const out = sumOver(outByMonth, idxs);
+  const inc = sumOver(inByMonth, idxs);
   const net = inc - out;
 
-  // Six bars ending at the latest month, sliding back when you step further than that.
+  // Month: vs the average of the other months with spending in the 12 up to your latest import.
+  // YTD: vs the same months last year, when those were imported too.
+  const usualMonths = Array.from({ length: 12 }, (_, i) => lastIdx - 11 + i).filter(i => i !== sel && (outByMonth.get(i) || 0) > 0);
+  const prevYearIdxs = idxs.map(i => i - 12);
+  const hasPrevYear = ytd && prevYearIdxs.every(i => i >= firstIdx);
+  const usual = ytd
+    ? (hasPrevYear ? sumOver(outByMonth, prevYearIdxs) : 0)
+    : usualMonths.length ? usualMonths.reduce((s, i) => s + (outByMonth.get(i) || 0), 0) / usualMonths.length : 0;
+  const diff = usual ? (out - usual) / usual : 0;
+  const near = Math.abs(diff) < 0.05;
+  const partialYear = ytd && idxs.length > 0 && idxs[idxs.length - 1] % 12 !== 11;
+  const compareLine = ytd
+    ? !usual
+      ? `Avg ${fmt(out / Math.max(idxs.length, 1))} a month`
+      : near
+        ? 'About the same as last year'
+        : `${diff > 0 ? '↑' : '↓'} ${fmt(Math.abs(out - usual))} vs ${partialYear ? 'this point ' : ''}last year (${fmt(usual)})`
+    : !usual ? 'Your first month' : near ? 'About your usual month' : `${diff > 0 ? '↑' : '↓'} ${fmt(Math.abs(out - usual))} vs your usual ${fmt(usual)}`;
+  const compareTone = !usual || near ? 'text-slate-500 dark:text-neutral-400' : diff > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400';
+
+  // Month: six bars ending at the latest month, sliding back when you step further than that.
+  // YTD: one bar per month of the year; tapping one opens that month.
   const barEnd = Math.max(sel, Math.min(lastIdx, sel + 5));
-  const barIdxs = Array.from({ length: 6 }, (_, i) => barEnd - 5 + i);
+  const barIdxs = ytd ? idxs : Array.from({ length: 6 }, (_, i) => barEnd - 5 + i);
   const barMax = Math.max(...barIdxs.map(i => outByMonth.get(i) || 0), 1);
 
   const cats = Array.from(catByMonth.entries())
-    .map(([name, m]) => ({ name, id: catInfo.get(name)!.id, v: m.get(sel) || 0 }))
+    .map(([name, m]) => ({ name, id: catInfo.get(name)!.id, v: sumOver(m, idxs) }))
     .filter(c => c.v > 0)
     .sort((a, b) => b.v - a.v);
   const top = cats.slice(0, TOP_N);
   const rest = cats.slice(TOP_N);
   const catMax = top.length ? top[0].v : 1;
 
+  // Merge each month's places across the selected months.
+  const merged = new Map<string, Place>();
+  idxs.forEach(i => placesByMonth.get(i)?.forEach((p, key) => {
+    const m = merged.get(key) || { name: p.name, total: 0, count: 0, cats: new Map() };
+    m.total += p.total;
+    m.count += p.count;
+    p.cats.forEach((c, name) => {
+      const mc = m.cats.get(name) || { id: c.id, amount: 0 };
+      mc.amount += c.amount;
+      m.cats.set(name, mc);
+    });
+    merged.set(key, m);
+  }));
+  const monthPlaces = Array.from(merged.values());
   // Most visits breaks ties by money, so a 4× utility bill still ranks above 4 coffees.
-  const monthPlaces = Array.from(placesByMonth.get(sel)?.values() || []);
   const places = [...monthPlaces]
     .sort((a, b) => (placeRank === 'visits' ? b.count - a.count || b.total - a.total : b.total - a.total))
     .slice(0, TOP_PLACES)
@@ -121,31 +159,48 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
       return { ...p, catName, catId: cat.id };
     });
 
-  const start = `${indexToKey(sel)}-01`;
-  const end = `${indexToKey(sel)}-${String(daysIn(sel)).padStart(2, '0')}`;
-  const year = Math.floor(sel / 12);
+  const firstSel = idxs[0] ?? sel;
+  const lastSel = idxs[idxs.length - 1] ?? sel;
+  const start = `${indexToKey(firstSel)}-01`;
+  const end = `${indexToKey(lastSel)}-${String(daysIn(lastSel)).padStart(2, '0')}`;
+  const periodShort = ytd ? String(year) : MONTHS[sel % 12];
+  const canPrev = ytd ? year * 12 > firstIdx : sel > firstIdx;
+  const canNext = ytd ? year * 12 + 11 < lastIdx : sel < lastIdx;
+  const step = (dir: -1 | 1) => setPicked(ytd ? Math.min(lastIdx, Math.max(firstIdx, sel + dir * 12)) : sel + dir);
 
   const card = 'bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-2xl';
 
   return (
     <div className="pb-24 flex flex-col gap-3" style={{ fontVariantNumeric: 'tabular-nums' }}>
-      <div className="flex items-center justify-between pt-1">
+      <div className="flex items-center justify-between gap-2 pt-1">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-neutral-100">Home</h1>
-        <div className="flex items-center gap-0.5 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl p-0.5">
-          <button onClick={() => setPicked(sel - 1)} disabled={sel <= firstIdx} aria-label="Previous month" className="w-8 h-8 rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">‹</button>
-          <span className="min-w-[84px] text-center text-[13px] font-semibold text-slate-900 dark:text-neutral-100">{MONTHS[sel % 12]} {year}</span>
-          <button onClick={() => setPicked(sel + 1)} disabled={sel >= lastIdx} aria-label="Next month" className="w-8 h-8 rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">›</button>
+        <div className="flex items-center gap-1.5">
+          <div role="group" aria-label="Period" className="flex gap-0.5 p-[3px] bg-slate-200/70 dark:bg-neutral-800 rounded-[10px]">
+            {([['month', 'Month'], ['ytd', 'YTD']] as const).map(([id, l]) => (
+              <button
+                key={id}
+                onClick={() => setMode(id)}
+                aria-pressed={mode === id}
+                className={`px-2.5 py-1.5 rounded-[7px] text-[11.5px] transition-colors ${mode === id ? 'bg-white dark:bg-neutral-600 font-semibold text-slate-900 dark:text-neutral-100 shadow-sm' : 'text-slate-500 dark:text-neutral-400'}`}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl p-0.5">
+            <button onClick={() => step(-1)} disabled={!canPrev} aria-label={ytd ? 'Previous year' : 'Previous month'} className="w-7 h-8 rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">‹</button>
+            <span className="min-w-[70px] text-center text-[13px] font-semibold text-slate-900 dark:text-neutral-100">{ytd ? year : `${MONTHS[sel % 12]} ${year}`}</span>
+            <button onClick={() => step(1)} disabled={!canNext} aria-label={ytd ? 'Next year' : 'Next month'} className="w-7 h-8 rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">›</button>
+          </div>
         </div>
       </div>
 
       <section className={`${card} p-4 flex flex-col gap-3.5`}>
         <div className="flex justify-between items-start gap-3">
           <div className="min-w-0">
-            <div className="text-xs text-slate-500 dark:text-neutral-400">Spent in {FULL_MONTHS[sel % 12]}</div>
+            <div className="text-xs text-slate-500 dark:text-neutral-400">Spent in {ytd ? `${year}${partialYear ? ' so far' : ''}` : FULL_MONTHS[sel % 12]}</div>
             <div className="text-[34px] leading-tight font-bold text-slate-900 dark:text-neutral-100">{fmt(out)}</div>
-            <div className={`text-[12.5px] font-semibold mt-0.5 ${!usual || near ? 'text-slate-500 dark:text-neutral-400' : diff > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
-              {!usual ? 'Your first month' : near ? 'About your usual month' : `${diff > 0 ? '↑' : '↓'} ${fmt(Math.abs(out - usual))} vs your usual ${fmt(usual)}`}
-            </div>
+            <div className={`text-[12.5px] font-semibold mt-0.5 ${compareTone}`}>{compareLine}</div>
           </div>
           <div className="text-right text-xs leading-relaxed text-slate-500 dark:text-neutral-400 shrink-0">
             In <strong className="text-emerald-700 dark:text-emerald-400">{fmt(inc)}</strong>
@@ -153,25 +208,25 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
             Net <strong className={net < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}>{net < 0 ? '−' : '+'}{fmt(Math.abs(net))}</strong>
           </div>
         </div>
-        <div className="flex items-end gap-2 h-24">
+        <div className={`flex items-end h-24 ${barIdxs.length > 6 ? 'gap-1' : 'gap-2'}`}>
           {barIdxs.map(i => {
             const v = outByMonth.get(i) || 0;
-            const on = i === sel;
+            const on = ytd || i === sel;
             const inRange = i >= firstIdx && i <= lastIdx;
             return (
               <button
                 key={i}
-                onClick={() => inRange && setPicked(i)}
+                onClick={() => { if (!inRange) return; setPicked(i); setMode('month'); }}
                 disabled={!inRange}
                 aria-pressed={on}
                 aria-label={`${FULL_MONTHS[i % 12]} ${Math.floor(i / 12)}: ${fmt(v)}`}
                 className="flex-1 h-full flex flex-col justify-end gap-1.5"
               >
                 <span
-                  className={`block rounded-md ${on ? 'bg-indigo-600' : v ? 'bg-indigo-100 dark:bg-indigo-900/60' : 'bg-slate-100 dark:bg-neutral-700'}`}
+                  className={`block rounded-md ${on ? (ytd ? 'bg-indigo-500' : 'bg-indigo-600') : v ? 'bg-indigo-100 dark:bg-indigo-900/60' : 'bg-slate-100 dark:bg-neutral-700'}`}
                   style={{ height: v ? Math.max(4, Math.round((v / barMax) * 72)) : 4 }}
                 />
-                <span className={`text-[11px] ${on ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-400 dark:text-neutral-500'}`}>{MONTHS[i % 12]}</span>
+                <span className={`${barIdxs.length > 6 ? 'text-[10px]' : 'text-[11px]'} ${on && !ytd ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-400 dark:text-neutral-500'}`}>{MONTHS[i % 12]}</span>
               </button>
             );
           })}
@@ -182,7 +237,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         <div className="flex justify-between items-baseline pt-2.5 pb-1">
           <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100">Where it went</h2>
         </div>
-        {top.length === 0 && <p className="py-6 text-center text-sm text-slate-400">No spending this month</p>}
+        {top.length === 0 && <p className="py-6 text-center text-sm text-slate-400">No spending {ytd ? 'this year' : 'this month'}</p>}
         {top.map(c => (
           <button
             key={c.name}
@@ -251,7 +306,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
             </div>
           ))}
           <div className="border-t border-slate-100 dark:border-neutral-700 py-3 flex justify-between text-[12.5px]">
-            <span className="text-slate-500 dark:text-neutral-400">{monthPlaces.length} {monthPlaces.length === 1 ? 'place' : 'places'} in {MONTHS[sel % 12]}</span>
+            <span className="text-slate-500 dark:text-neutral-400">{monthPlaces.length} {monthPlaces.length === 1 ? 'place' : 'places'} in {periodShort}</span>
             {onViewTransactions && (
               <button onClick={() => onViewTransactions('all', null, start, end)} className="font-semibold text-indigo-700 dark:text-indigo-300">All transactions →</button>
             )}
