@@ -1,5 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { AnimatePresence, motion, useDragControls } from 'framer-motion';
+import { X } from 'lucide-react';
 import { Transaction } from '../types';
+import SegmentedControl from './SegmentedControl';
+import { MODAL_TRANSITION, SHEET_TRANSITION } from '../lib/motion';
 import {
   MONTHS, FULL_MONTHS, TOM, PERIODS, PeriodId, keyToIndex, monthKey, indexLabel, indexToKey, daysIn, localToday,
   inWindow, computeWindow, merchantKey, sum,
@@ -41,11 +46,27 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ period })); } catch { /* not persisted */ }
   }, [period]);
 
-  // The open "See all" panel and its filters.
+  // The open "See all" panel and its filters. Laid out like the Breakdown panel: a side panel on
+  // desktop, a bottom sheet on phones. `pm` narrows it to one month (null = the whole scope).
   const [open, setOpen] = useState<string | null>(null);
   const [sub, setSub] = useState<string>('all');
-  const [mode, setMode] = useState<'merchant' | 'tx'>('merchant');
-  const openSheet = (cat: string) => { setOpen(cat); setSub('all'); setMode('merchant'); };
+  const [pm, setPm] = useState<number | null>(null);
+  // Date/Amount and Summarise share the Breakdown panel's saved choices.
+  const [sortBy, setSortBy] = useState<'date' | 'amount'>(() => {
+    try { return localStorage.getItem('breakdownDetailSort') === 'amount' ? 'amount' : 'date'; } catch { return 'date'; }
+  });
+  const [summarise, setSummarise] = useState(() => {
+    try { return localStorage.getItem('breakdownSummarise') === '1'; } catch { return false; }
+  });
+  useEffect(() => { try { localStorage.setItem('breakdownDetailSort', sortBy); localStorage.setItem('breakdownSummarise', summarise ? '1' : '0'); } catch { /* not persisted */ } }, [sortBy, summarise]);
+  const [isPhone, setIsPhone] = useState(() => window.matchMedia('(max-width: 767px)').matches);
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 767px)');
+    const on = () => setIsPhone(mql.matches);
+    mql.addEventListener('change', on);
+    return () => mql.removeEventListener('change', on);
+  }, []);
+  const dragControls = useDragControls();
 
   useEffect(() => {
     if (!open) return;
@@ -139,24 +160,35 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scoped]);
 
+  const openSheet = (cat: string) => { setOpen(cat); setSub('all'); setPm(selSorted.length === 1 ? selSorted[0] : null); };
   const sheet = open ? sheets.find(s => s.cat === open) || null : null;
   const panel = useMemo(() => {
     if (!sheet) return null;
-    const subs = new Map<string, number>();
-    sheet.list.forEach(r => subs.set(r.sub, (subs.get(r.sub) || 0) + r.amount));
-    const filtered = sheet.list.filter(r => sub === 'all' || r.sub === sub);
-    // Whole period for context; picked months are highlighted in the chart.
     const catAll = inRange.filter(r => r.cat === sheet.cat);
-    const perCol = cols.map(c => sum(catAll.filter(r => colOf(r) === c.key).map(r => r.amount)));
+    // One month when picked, otherwise whatever the page is scoped to.
+    const base = pm !== null ? catAll.filter(r => r.monthIdx === pm) : sheet.list;
+    const subs = new Map<string, number>();
+    base.forEach(r => subs.set(r.sub, (subs.get(r.sub) || 0) + r.amount));
+    const filtered = base.filter(r => sub === 'all' || r.sub === sub);
+    const perCol = cols.map(c => sum(catAll.filter(r => (sub === 'all' || r.sub === sub) && colOf(r) === c.key).map(r => r.amount)));
+    const tx = [...filtered].sort((a, b) => (sortBy === 'amount' ? b.amount - a.amount : b.date.localeCompare(a.date)));
+    const merchants = groupMerchants(filtered);
+    if (sortBy === 'date') {
+      const latest = new Map<string, string>();
+      filtered.forEach(r => { const k = merchantKey(r.desc); if (!latest.has(k) || r.date > latest.get(k)!) latest.set(k, r.date); });
+      merchants.sort((a, b) => (latest.get(merchantKey(b.name)) || '').localeCompare(latest.get(merchantKey(a.name)) || ''));
+    }
+    // "Usual" for a single month: the average of the other months in the period that had any.
+    const monthTotal = (mi: number) => sum(catAll.filter(r => r.monthIdx === mi).map(r => r.amount));
+    const others = pm !== null ? win.monthIdxs.filter(mi => mi !== pm).map(monthTotal).filter(v => v > 0) : [];
+    const usual = others.length ? sum(others) / others.length : 0;
     return {
-      subs: Array.from(subs.entries()).sort((a, b) => b[1] - a[1]),
-      merchants: groupMerchants(filtered),
-      tx: [...filtered].sort((a, b) => b.date.localeCompare(a.date)),
-      perCol,
-      filteredTotal: sum(filtered.map(r => r.amount)),
+      base, subs: Array.from(subs.entries()).sort((a, b) => b[1] - a[1]),
+      merchants, tx, perCol, baseTotal: sum(base.map(r => r.amount)), filteredTotal: sum(filtered.map(r => r.amount)),
+      usual, diff: usual ? (monthTotal(pm as number) - usual) / usual : 0,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sheet, sub, win, inRange]);
+  }, [sheet, sub, win, inRange, pm, sortBy]);
 
   const card = 'bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-2xl';
   const pct = (v: number) => (total > 0 ? `${((v / total) * 100).toFixed(1)}%` : '0%');
@@ -288,124 +320,171 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
         </div>
       )}
 
-      {/* See all panel */}
-      {sheet && panel && (
-        <div className="fixed inset-0 z-[100]">
-          <button aria-label="Close panel" onClick={() => setOpen(null)} className="absolute inset-0 w-full h-full bg-slate-900/40 cursor-default" />
-          <aside
-            role="dialog"
-            aria-modal="true"
-            aria-label={`${sheet.cat} details`}
-            className="absolute top-0 right-0 bottom-0 w-full sm:w-[560px] bg-white dark:bg-neutral-800 shadow-2xl flex flex-col animate-in slide-in-from-right duration-200"
-          >
-            <div className="p-5 md:p-7 pb-4 flex flex-col gap-4 border-b border-slate-100 dark:border-neutral-700">
-              <div className="flex justify-between items-start gap-3">
-                <div className="min-w-0">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-300">Category sheet</div>
-                  <h2 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-neutral-100 truncate">
-                    {getCategoryEmoji && sheet.catId ? <span className="mr-1.5">{getCategoryEmoji(sheet.catId)}</span> : null}{sheet.cat}
-                  </h2>
-                  <div className="text-xs md:text-[13px] text-slate-500 dark:text-neutral-400 mt-0.5">
-                    {sheet.list.length} transactions · {pct(sheet.total)} of spending · {scopeLabel}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-xl md:text-2xl font-bold text-slate-900 dark:text-neutral-100">{fmt(sheet.total, 2)}</span>
-                  <button onClick={() => setOpen(null)} aria-label="Close" className="w-9 h-9 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 flex items-center justify-center">✕</button>
-                </div>
-              </div>
-
-              {/* Spend over the period */}
-              <div className="grid gap-2 items-end h-20" style={{ gridTemplateColumns: `repeat(${cols.length}, minmax(0, 1fr))` }}>
-                {(() => {
-                  const mx = Math.max(...panel.perCol, 1);
-                  return panel.perCol.map((v, i) => (
-                    <div key={cols[i].key} className="flex flex-col items-center justify-end gap-1 h-full" title={`${cols[i].label}: ${fmt(v, 2)}`}>
-                      <span className="text-[10px] font-semibold text-slate-600 dark:text-neutral-300 whitespace-nowrap">{v > 0 ? fmt(v) : '–'}</span>
-                      <div className={`w-full rounded-t ${v <= 0 ? 'bg-slate-100 dark:bg-neutral-700' : !selMonths.size || win.single || selMonths.has(cols[i].key) ? 'bg-indigo-400' : 'bg-indigo-100 dark:bg-indigo-950'}`} style={{ height: v > 0 ? Math.max(3, Math.round((v / mx) * 44)) : 2 }} />
-                      <span className={`text-[10px] ${!win.single && selMonths.has(cols[i].key) ? 'font-semibold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'}`}>{cols[i].label}</span>
-                    </div>
-                  ));
-                })()}
-              </div>
-
-              {/* Subcategory filter */}
-              {panel.subs.length > 1 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {[['all', sheet.total] as [string, number], ...panel.subs].map(([k, v]) => {
-                    const on = sub === k;
-                    return (
-                      <button
-                        key={k}
-                        onClick={() => setSub(k)}
-                        aria-pressed={on}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${on ? 'bg-slate-900 border-slate-900 text-white dark:bg-neutral-100 dark:text-neutral-900' : 'bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-600 text-slate-700 dark:text-neutral-300'}`}
-                      >
-                        {k === 'all' ? 'All' : k} · {fmt(v)}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div className="flex justify-between items-center">
-                <div role="group" aria-label="Show as" className="flex gap-1 p-1 bg-slate-100 dark:bg-neutral-700/60 rounded-lg">
-                  {([['merchant', 'By merchant'], ['tx', 'Transactions']] as const).map(([id, l]) => (
-                    <button
-                      key={id}
-                      onClick={() => setMode(id)}
-                      aria-pressed={mode === id}
-                      className={`px-3 py-1 rounded-md text-xs transition-colors ${mode === id ? 'bg-white dark:bg-neutral-600 font-semibold text-slate-900 dark:text-neutral-100 shadow-sm' : 'text-slate-600 dark:text-neutral-400'}`}
-                    >
-                      {l}
-                    </button>
-                  ))}
-                </div>
-                <span className="text-[11px] text-slate-500 dark:text-neutral-400">
-                  {mode === 'merchant' ? `${panel.merchants.length} merchants` : `${panel.tx.length} transactions · latest first`}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto overscroll-contain px-5 md:px-7">
-              {mode === 'merchant'
-                ? panel.merchants.map(m => (
-                    <div key={m.name} className="grid grid-cols-[minmax(0,1fr)_80px_92px] gap-3 items-center py-2.5 border-b border-slate-100 dark:border-neutral-700">
-                      <div className="min-w-0">
-                        <div className="text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={m.name}>{m.name}</div>
-                        <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">{m.sub === NO_SUB ? '' : `${m.sub} · `}{m.count} {m.count === 1 ? 'payment' : 'payments'}</div>
-                      </div>
-                      <div className="h-1.5 rounded bg-slate-100 dark:bg-neutral-700 overflow-hidden">
-                        <div className="h-full rounded bg-indigo-500" style={{ width: `${(m.total / (panel.merchants[0]?.total || 1)) * 100}%` }} />
-                      </div>
-                      <span className="text-[13px] font-semibold text-right text-slate-900 dark:text-neutral-100">{fmt(m.total, 2)}</span>
-                    </div>
-                  ))
-                : panel.tx.map(r => (
-                    <div key={r.id} className="grid grid-cols-[52px_minmax(0,1fr)_84px] gap-3 items-center py-2.5 border-b border-slate-100 dark:border-neutral-700">
-                      <span className="text-xs text-slate-500 dark:text-neutral-400">{shortDate(r.date)}</span>
-                      <div className="min-w-0">
-                        <div className="text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={r.desc}>{r.desc}</div>
-                        {r.sub !== NO_SUB && <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">{r.sub}</div>}
-                      </div>
-                      <span className="text-[13px] font-semibold text-right text-slate-900 dark:text-neutral-100">{fmt(r.amount, 2)}</span>
-                    </div>
-                  ))}
-            </div>
-
-            <div className="px-5 md:px-7 py-4 border-t border-slate-200 dark:border-neutral-700">
-              <button
-                onClick={() => { onViewTransactions(sheet.catId, sub === 'all' ? null : sub, scopeStart, scopeEnd); setOpen(null); }}
-                disabled={!sheet.catId}
-                className="text-[13px] font-semibold text-indigo-700 dark:text-indigo-300 hover:underline disabled:opacity-50"
+      {/* See all: side panel on desktop, bottom sheet on phones (same content as Breakdown's) */}
+      {createPortal(
+        <AnimatePresence>
+          {sheet && panel && (
+            <motion.div className="fixed inset-0 z-[100]" initial={{ pointerEvents: 'auto' }} animate={{ pointerEvents: 'auto' }} exit={{ pointerEvents: 'none' }}>
+              <motion.div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={MODAL_TRANSITION} onClick={() => setOpen(null)} />
+              <motion.aside
+                role="dialog"
+                aria-modal="true"
+                aria-label={`${sheet.cat} details`}
+                className={isPhone
+                  ? 'absolute inset-x-0 bottom-0 h-[86dvh] bg-white dark:bg-neutral-800 rounded-t-2xl shadow-2xl flex flex-col overflow-hidden'
+                  : 'absolute top-0 right-0 bottom-0 w-[480px] bg-white dark:bg-neutral-800 shadow-2xl flex flex-col'}
+                initial={isPhone ? { y: '100%' } : { x: '100%' }}
+                animate={isPhone ? { y: 0 } : { x: 0 }}
+                exit={isPhone ? { y: '100%' } : { x: '100%' }}
+                transition={SHEET_TRANSITION}
+                drag={isPhone ? 'y' : false}
+                dragListener={false}
+                dragControls={dragControls}
+                dragConstraints={{ top: 0, bottom: 0 }}
+                dragElastic={{ top: 0, bottom: 0.6 }}
+                onDragEnd={(_, info) => { if (info.offset.y > 80 || info.velocity.y > 600) setOpen(null); }}
               >
-                {selSorted.length > 1 && !isContiguous
-                  ? `View ${sub === 'all' ? sheet.cat : sub} for ${MONTHS[selSorted[0] % 12]}–${MONTHS[selSorted[selSorted.length - 1] % 12]} in Transactions →`
-                  : `View ${sub === 'all' ? `all ${sheet.list.length}` : `${panel.tx.length} ${sub}`} transactions in Transactions →`}
-              </button>
-            </div>
-          </aside>
-        </div>
+                {isPhone && (
+                  <div onPointerDown={(e) => dragControls.start(e)} className="shrink-0 flex justify-center pt-2.5 pb-2 touch-none cursor-grab">
+                    <span className="w-10 h-1 rounded-full bg-slate-300 dark:bg-neutral-600" />
+                  </div>
+                )}
+                {(() => {
+                  const idx = pm !== null ? win.monthIdxs.indexOf(pm) : -1;
+                  const months = win.single ? [] : win.monthIdxs;
+                  const prev = pm === null ? months[months.length - 1] : idx > 0 ? months[idx - 1] : undefined;
+                  const next = pm !== null && idx < months.length - 1 ? months[idx + 1] : undefined;
+                  const title = pm !== null ? `${MONTHS[pm % 12]} ${Math.floor(pm / 12)}` : scopeLabel;
+                  const near = Math.abs(panel.diff) < 0.15;
+                  const start = pm !== null ? `${indexToKey(pm)}-01` : scopeStart;
+                  const end = pm !== null ? `${indexToKey(pm)}-${String(daysIn(pm)).padStart(2, '0')}` : scopeEnd;
+                  const mx = Math.max(...panel.perCol, 1);
+                  return (
+                    <>
+                      <div className={`px-5 ${isPhone ? 'pt-1' : 'pt-5'} pb-3 flex flex-col gap-3 border-b border-slate-100 dark:border-neutral-700`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            {months.length > 1 && <button onClick={() => prev !== undefined && setPm(prev)} disabled={prev === undefined} aria-label="Previous month" className="w-8 h-8 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 disabled:opacity-30">‹</button>}
+                            <button onClick={() => setPm(null)} disabled={pm === null} className="min-w-[84px] px-1 text-center text-[13px] font-semibold text-indigo-700 dark:text-indigo-300" title={pm !== null ? 'Show the whole period' : undefined}>{title}</button>
+                            {months.length > 1 && <button onClick={() => next !== undefined && setPm(next)} disabled={next === undefined} aria-label="Next month" className="w-8 h-8 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 disabled:opacity-30">›</button>}
+                          </div>
+                          <button onClick={() => setOpen(null)} aria-label="Close" className="w-8 h-8 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 flex items-center justify-center"><X size={15} /></button>
+                        </div>
+                        <div className="flex justify-between items-end gap-3">
+                          <div className="min-w-0">
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-neutral-100 truncate">
+                              {getCategoryEmoji && sheet.catId ? <span className="mr-1.5">{getCategoryEmoji(sheet.catId)}</span> : null}{sheet.cat}
+                            </h2>
+                            <p className={`text-xs mt-0.5 ${pm !== null && panel.usual && !near ? (panel.diff > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400') : 'text-slate-500 dark:text-neutral-400'}`}>
+                              {pm === null
+                                ? `${panel.base.length} transactions · ${pct(panel.baseTotal)} of spending`
+                                : !panel.usual
+                                  ? `${panel.base.length} transactions`
+                                  : near
+                                    ? `About your usual month (${fmt(panel.usual)})`
+                                    : `${panel.diff > 0 ? '↑' : '↓'} ${Math.round(Math.abs(panel.diff) * 100)}% vs your usual ${fmt(panel.usual)}`}
+                            </p>
+                          </div>
+                          <span className="text-2xl font-bold whitespace-nowrap text-slate-900 dark:text-neutral-100">{fmt(panel.filteredTotal, 2)}</span>
+                        </div>
+
+                        {/* Month bars across the period: tap one to look at just that month, tap again for all */}
+                        <div className="grid gap-1.5 items-end h-[92px]" style={{ gridTemplateColumns: `repeat(${cols.length}, minmax(0, 1fr))` }}>
+                          {panel.perCol.map((v, i) => {
+                            const on = !win.single && pm === cols[i].key;
+                            const inScope = win.single || (pm === null && (!selMonths.size || selMonths.has(cols[i].key)));
+                            return (
+                              <button
+                                key={cols[i].key}
+                                onClick={() => { if (!win.single) setPm(on ? null : cols[i].key); }}
+                                aria-pressed={on}
+                                aria-label={`${cols[i].label}: ${fmt(v, 2)}`}
+                                className="flex flex-col items-center justify-end gap-1 h-full group"
+                              >
+                                <span className={`text-[10px] font-semibold whitespace-nowrap ${on ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-500 dark:text-neutral-400'} ${cols.length > 9 ? 'hidden' : ''}`}>{v > 0 ? fmt(v) : '–'}</span>
+                                <span className={`w-full rounded-t ${v <= 0 ? 'bg-slate-100 dark:bg-neutral-700' : on || (inScope && pm === null) ? 'bg-indigo-600' : 'bg-indigo-200 dark:bg-indigo-900 group-hover:bg-indigo-300'}`} style={{ height: v > 0 ? Math.max(3, Math.round((v / mx) * 52)) : 2 }} />
+                                <span className={`text-[10px] ${on ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'}`}>{cols[i].label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {panel.subs.length > 1 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {[['all', panel.baseTotal] as [string, number], ...panel.subs].map(([k, v]) => {
+                              const on = sub === k;
+                              return (
+                                <button key={k} onClick={() => setSub(k)} aria-pressed={on} className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${on ? 'bg-slate-900 border-slate-900 text-white dark:bg-neutral-100 dark:text-neutral-900' : 'bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-600 text-slate-700 dark:text-neutral-300'}`}>
+                                  {k === 'all' ? 'All' : k} · {fmt(v)}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        <div className="flex justify-between items-center">
+                          <SegmentedControl
+                            layoutId="sheetsPanelSortPill"
+                            options={[{ id: 'date', label: 'Date' }, { id: 'amount', label: 'Amount' }]}
+                            value={sortBy}
+                            onChange={(id) => setSortBy(id as 'date' | 'amount')}
+                            activeTextClassName="text-[#635bff] dark:text-[#8b85ff]"
+                            inactiveTextClassName="text-slate-500 dark:text-neutral-400 hover:text-slate-700 dark:hover:text-neutral-300"
+                            optionClassName="text-[11px]"
+                          />
+                          {panel.tx.length > 1 && (
+                            <button onClick={() => setSummarise(v => !v)} aria-pressed={summarise} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${summarise ? 'bg-[#635bff] border-[#635bff] text-white' : 'bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-600 text-slate-700 dark:text-neutral-300'}`}>
+                              Summarise by merchant
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5">
+                        {panel.tx.length === 0 && <p className="py-10 text-center text-sm text-slate-400">No transactions</p>}
+                        {summarise
+                          ? panel.merchants.map(m => (
+                              <div key={m.name} className="grid grid-cols-[44px_minmax(0,1fr)_90px] gap-3 items-center py-2.5 border-b border-slate-100 dark:border-neutral-700">
+                                <span className="text-xs text-slate-500 dark:text-neutral-400">×{m.count}</span>
+                                <div className="min-w-0">
+                                  <div className="text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={m.name}>{m.name}</div>
+                                  {m.sub !== NO_SUB && <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">{m.sub}</div>}
+                                </div>
+                                <span className="text-[13px] font-semibold text-right text-slate-900 dark:text-neutral-100">{fmt(m.total, 2)}</span>
+                              </div>
+                            ))
+                          : panel.tx.map(r => (
+                              <div key={r.id} className="grid grid-cols-[52px_minmax(0,1fr)_90px] gap-3 items-center py-2.5 border-b border-slate-100 dark:border-neutral-700">
+                                <span className="text-xs text-slate-500 dark:text-neutral-400 whitespace-nowrap">{shortDate(r.date)}</span>
+                                <div className="min-w-0">
+                                  <div className="text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={r.desc}>{r.desc}</div>
+                                  {r.sub !== NO_SUB && <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">{r.sub}</div>}
+                                </div>
+                                <span className="text-[13px] font-semibold text-right text-slate-900 dark:text-neutral-100">{fmt(r.amount, 2)}</span>
+                              </div>
+                            ))}
+                      </div>
+
+                      <div className="px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] border-t border-slate-200 dark:border-neutral-700 flex items-center justify-between gap-3">
+                        <span className="text-xs text-slate-500 dark:text-neutral-400">
+                          {panel.tx.length} {panel.tx.length === 1 ? 'transaction' : 'transactions'}{summarise ? ` · ${panel.merchants.length} merchants` : ''}
+                        </span>
+                        <button
+                          onClick={() => { onViewTransactions(sheet.catId, sub === 'all' || sub === NO_SUB ? null : sub, start, end); setOpen(null); }}
+                          disabled={!sheet.catId}
+                          className="text-[13px] font-semibold text-indigo-700 dark:text-indigo-300 hover:underline disabled:opacity-50"
+                        >
+                          Open in Transactions →
+                        </button>
+                      </div>
+                    </>
+                  );
+                })()}
+              </motion.aside>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
       )}
     </div>
   );
