@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { Transaction } from '../types';
-import { MONTHS, FULL_MONTHS, monthKey, keyToIndex, indexToKey, daysIn, localToday } from '../lib/periods';
+import { MONTHS, FULL_MONTHS, monthKey, keyToIndex, indexToKey, daysIn, localToday, merchantKey } from '../lib/periods';
 
 // The phone Home screen: one month at a time, fitting on a single screen. How much went out vs
-// your usual month, money in and net, six month bars to jump between, and the top categories.
+// your usual month, money in and net, six month bars to jump between, and the top categories
+// with their share of the month, then the places you went most (or spent most at).
 // The full Dashboard (SpendingPatterns) stays on tablet and desktop.
 
 interface MobileHomeProps {
@@ -15,17 +16,30 @@ interface MobileHomeProps {
 }
 
 const TOP_N = 6;
+const TOP_PLACES = 5;
+// Initial-badge tints for the Top places rows, in rank order.
+const TINTS = [
+  'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300',
+  'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300',
+  'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+  'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+  'bg-pink-50 text-pink-700 dark:bg-pink-950/60 dark:text-pink-300',
+];
+
+interface Place { name: string; total: number; count: number; cats: Map<string, { id: string; amount: number }> }
 
 const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCategoryEmoji, onOpenBreakdown, onViewTransactions }) => {
   const amt = (t: Transaction) => Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED) || 0;
   const valid = (t: Transaction) => !t.excluded && /^\d{4}-\d{2}-\d{2}/.test(t.date);
 
   // Same rule as the Dashboard: spending = every money-out row that isn't excluded.
-  const { outByMonth, inByMonth, catByMonth, catInfo, firstIdx, lastIdx } = useMemo(() => {
+  const { outByMonth, inByMonth, catByMonth, catInfo, placesByMonth, firstIdx, lastIdx } = useMemo(() => {
     const outByMonth = new Map<number, number>();
     const inByMonth = new Map<number, number>();
     const catByMonth = new Map<string, Map<number, number>>();
     const catInfo = new Map<string, { name: string; id: string }>();
+    // month -> merchant -> totals, grouped the same way the Dashboard groups merchants
+    const placesByMonth = new Map<number, Map<string, Place>>();
     let firstIdx = Infinity, lastIdx = -Infinity;
     transactions.forEach(t => {
       if (!valid(t)) return;
@@ -39,21 +53,32 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         const m = catByMonth.get(name) || new Map<number, number>();
         m.set(idx, (m.get(idx) || 0) + a);
         catByMonth.set(name, m);
+        const desc = (t.description || 'Unknown').trim();
+        const key = merchantKey(desc) || desc.toLowerCase();
+        const pm = placesByMonth.get(idx) || new Map<string, Place>();
+        const pl = pm.get(key) || { name: desc, total: 0, count: 0, cats: new Map() };
+        pl.total += a;
+        pl.count += 1;
+        const pc = pl.cats.get(name) || { id: t.categoryId, amount: 0 };
+        pc.amount += a;
+        pl.cats.set(name, pc);
+        pm.set(key, pl);
+        placesByMonth.set(idx, pm);
         firstIdx = Math.min(firstIdx, idx);
         lastIdx = Math.max(lastIdx, idx);
       } else if (t.type === 'INCOME' && (t.categoryName || '').trim().toLowerCase() !== 'excluded') {
         inByMonth.set(idx, (inByMonth.get(idx) || 0) + a);
       }
     });
-    return { outByMonth, inByMonth, catByMonth, catInfo, firstIdx, lastIdx };
+    return { outByMonth, inByMonth, catByMonth, catInfo, placesByMonth, firstIdx, lastIdx };
   }, [transactions, currency]);
 
   const hasData = Number.isFinite(lastIdx);
   const [picked, setPicked] = useState<number | null>(null);
+  const [placeRank, setPlaceRank] = useState<'visits' | 'spent'>('visits');
   const sel = picked ?? (hasData ? lastIdx : keyToIndex(monthKey(localToday())));
 
   const fmt = (v: number) => (currency === 'GBP' ? '£' : 'AED ') + Math.round(v).toLocaleString('en-GB');
-  const kfmt = (v: number) => (v >= 1000 ? `${currency === 'GBP' ? '£' : 'AED '}${(v / 1000).toFixed(1)}k` : fmt(v));
 
   if (!hasData) {
     return (
@@ -79,17 +104,22 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const barMax = Math.max(...barIdxs.map(i => outByMonth.get(i) || 0), 1);
 
   const cats = Array.from(catByMonth.entries())
-    .map(([name, m]) => {
-      const v = m.get(sel) || 0;
-      const others = usualMonths.map(i => m.get(i) || 0).filter(x => x > 0);
-      const u = others.length ? others.reduce((a, b) => a + b, 0) / others.length : 0;
-      return { name, id: catInfo.get(name)!.id, v, u };
-    })
+    .map(([name, m]) => ({ name, id: catInfo.get(name)!.id, v: m.get(sel) || 0 }))
     .filter(c => c.v > 0)
     .sort((a, b) => b.v - a.v);
   const top = cats.slice(0, TOP_N);
   const rest = cats.slice(TOP_N);
   const catMax = top.length ? top[0].v : 1;
+
+  // Most visits breaks ties by money, so a 4× utility bill still ranks above 4 coffees.
+  const monthPlaces = Array.from(placesByMonth.get(sel)?.values() || []);
+  const places = [...monthPlaces]
+    .sort((a, b) => (placeRank === 'visits' ? b.count - a.count || b.total - a.total : b.total - a.total))
+    .slice(0, TOP_PLACES)
+    .map(p => {
+      const [catName, cat] = Array.from(p.cats.entries()).sort((a, b) => b[1].amount - a[1].amount)[0];
+      return { ...p, catName, catId: cat.id };
+    });
 
   const start = `${indexToKey(sel)}-01`;
   const end = `${indexToKey(sel)}-${String(daysIn(sel)).padStart(2, '0')}`;
@@ -151,36 +181,31 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
       <section className={`${card} px-4 py-1.5`}>
         <div className="flex justify-between items-baseline pt-2.5 pb-1">
           <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100">Where it went</h2>
-          <span className="text-[11.5px] text-slate-500 dark:text-neutral-400">vs usual</span>
         </div>
         {top.length === 0 && <p className="py-6 text-center text-sm text-slate-400">No spending this month</p>}
-        {top.map(c => {
-          const d = c.u ? (c.v - c.u) / c.u : 0;
-          const usualish = !c.u || Math.abs(d) < 0.15;
-          return (
-            <button
-              key={c.name}
-              onClick={() => onViewTransactions?.(c.id, null, start, end)}
-              className="w-full grid grid-cols-[30px_minmax(0,1fr)_auto] gap-2.5 items-center py-2 border-t border-slate-100 dark:border-neutral-700 text-left"
-            >
-              <span className="w-[30px] h-[30px] rounded-[9px] bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-[15px]">
-                {(getCategoryEmoji && c.id && getCategoryEmoji(c.id)) || '•'}
+        {top.map(c => (
+          <button
+            key={c.name}
+            onClick={() => onViewTransactions?.(c.id, null, start, end)}
+            className="w-full grid grid-cols-[30px_minmax(0,1fr)_auto] gap-2.5 items-center py-2 border-t border-slate-100 dark:border-neutral-700 text-left"
+          >
+            <span className="w-[30px] h-[30px] rounded-[9px] bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-[15px]">
+              {(getCategoryEmoji && c.id && getCategoryEmoji(c.id)) || '•'}
+            </span>
+            <span className="min-w-0 flex flex-col gap-1">
+              <span className="flex justify-between gap-2">
+                <span className="text-[13.5px] font-medium text-slate-900 dark:text-neutral-100 truncate">{c.name}</span>
+                <span className="text-[13.5px] font-bold text-slate-900 dark:text-neutral-100">{fmt(c.v)}</span>
               </span>
-              <span className="min-w-0 flex flex-col gap-1">
-                <span className="flex justify-between gap-2">
-                  <span className="text-[13.5px] font-medium text-slate-900 dark:text-neutral-100 truncate">{c.name}</span>
-                  <span className="text-[13.5px] font-bold text-slate-900 dark:text-neutral-100">{fmt(c.v)}</span>
-                </span>
-                <span className="block h-1 rounded bg-slate-100 dark:bg-neutral-700">
-                  <span className="block h-1 rounded bg-indigo-500" style={{ width: `${(c.v / catMax) * 100}%` }} />
-                </span>
+              <span className="block h-1 rounded bg-slate-100 dark:bg-neutral-700">
+                <span className="block h-1 rounded bg-indigo-500" style={{ width: `${(c.v / catMax) * 100}%` }} />
               </span>
-              <span className={`min-w-[56px] text-right text-[11.5px] font-semibold ${usualish ? 'text-slate-400 dark:text-neutral-500' : d > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
-                {!c.u ? 'New' : Math.abs(d) < 0.15 ? 'Usual' : `${d > 0 ? '↑' : '↓'} ${kfmt(Math.abs(c.v - c.u))}`}
-              </span>
-            </button>
-          );
-        })}
+            </span>
+            <span className="min-w-[40px] text-right text-[12px] font-semibold text-slate-500 dark:text-neutral-400">
+              {out ? `${Math.round((c.v / out) * 100)}%` : ''}
+            </span>
+          </button>
+        ))}
         <div className="border-t border-slate-100 dark:border-neutral-700 py-3 flex justify-between text-[12.5px]">
           <span className="text-slate-500 dark:text-neutral-400">
             {rest.length ? `+${rest.length} more · ${fmt(rest.reduce((s, c) => s + c.v, 0))}` : 'All categories shown'}
@@ -190,6 +215,49 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
           )}
         </div>
       </section>
+
+      {places.length > 0 && (
+        <section className={`${card} px-4 py-1.5`}>
+          <div className="flex justify-between items-center pt-2.5 pb-1.5">
+            <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100">Top places</h2>
+            <div role="group" aria-label="Rank places by" className="flex gap-0.5 p-[3px] bg-slate-100 dark:bg-neutral-700/60 rounded-[9px]">
+              {([['visits', 'Most visits'], ['spent', 'Most spent']] as const).map(([id, l]) => (
+                <button
+                  key={id}
+                  onClick={() => setPlaceRank(id)}
+                  aria-pressed={placeRank === id}
+                  className={`px-2.5 py-1 rounded-[7px] text-[11px] transition-colors ${placeRank === id ? 'bg-white dark:bg-neutral-600 font-semibold text-slate-900 dark:text-neutral-100 shadow-sm' : 'text-slate-500 dark:text-neutral-400'}`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+          {places.map((p, i) => (
+            <div key={p.name} className="grid grid-cols-[30px_minmax(0,1fr)_auto] gap-2.5 items-center py-2 border-t border-slate-100 dark:border-neutral-700">
+              <span className={`w-[30px] h-[30px] rounded-[9px] flex items-center justify-center text-[13px] font-bold ${TINTS[i % TINTS.length]}`}>
+                {p.name.replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || '•'}
+              </span>
+              <span className="min-w-0 flex flex-col">
+                <span className="text-[13.5px] font-medium text-slate-900 dark:text-neutral-100 truncate">{p.name}</span>
+                <span className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">
+                  {(getCategoryEmoji && p.catId && getCategoryEmoji(p.catId)) || ''} {p.catName}{p.count > 1 ? ` · avg ${fmt(p.total / p.count)}` : ''}
+                </span>
+              </span>
+              <span className="flex flex-col items-end">
+                <span className="text-[13.5px] font-bold text-slate-900 dark:text-neutral-100">{fmt(p.total)}</span>
+                <span className="text-[10.5px] font-semibold text-slate-500 dark:text-neutral-400">{p.count === 1 ? 'once' : `${p.count}×`}</span>
+              </span>
+            </div>
+          ))}
+          <div className="border-t border-slate-100 dark:border-neutral-700 py-3 flex justify-between text-[12.5px]">
+            <span className="text-slate-500 dark:text-neutral-400">{monthPlaces.length} {monthPlaces.length === 1 ? 'place' : 'places'} in {MONTHS[sel % 12]}</span>
+            {onViewTransactions && (
+              <button onClick={() => onViewTransactions('all', null, start, end)} className="font-semibold text-indigo-700 dark:text-indigo-300">All transactions →</button>
+            )}
+          </div>
+        </section>
+      )}
     </div>
   );
 };
