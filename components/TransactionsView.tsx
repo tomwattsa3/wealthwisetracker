@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
-import { Search, Upload, X, LogOut, ChevronDown, Sparkles, RotateCcw } from 'lucide-react';
+import { Search, Upload, X, LogOut, ChevronDown, Sparkles, RotateCcw, Trash2 } from 'lucide-react';
 import { Transaction, Category } from '../types';
 import { DateRange } from './DashboardDateFilter';
 import SegmentedControl from './SegmentedControl';
@@ -117,6 +117,10 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
   const [customOpen, setCustomOpen] = useState(false);
   const [customStart, setCustomStart] = useState(dateRange.start);
   const [customEnd, setCustomEnd] = useState(dateRange.end);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  useEffect(() => { if (!toast) return; const id = setTimeout(() => setToast(null), 3500); return () => clearTimeout(id); }, [toast]);
 
   const list = useMemo(() => (reviewOnly ? transactions.filter(needsReview) : transactions), [transactions, reviewOnly]);
   useEffect(() => { setVisible(PAGE); }, [list]);
@@ -218,8 +222,8 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
   const pillOff = 'border-slate-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-slate-700 dark:text-neutral-300';
   const pillOn = 'border-slate-900 bg-slate-900 text-white dark:bg-neutral-100 dark:text-neutral-900 dark:border-neutral-100';
 
-  const SelectPill: React.FC<{ value: string; on: boolean; onChange: (v: string) => void; label: string; children: React.ReactNode }> = ({ value, on, onChange, label, children }) => (
-    <span className="relative shrink-0">
+  const SelectPill: React.FC<{ value: string; on: boolean; onChange: (v: string) => void; label: string; className?: string; children: React.ReactNode }> = ({ value, on, onChange, label, className = '', children }) => (
+    <span className={`relative shrink-0 ${className}`}>
       <select aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} className={`${pill} ${on ? pillOn : pillOff}`}>{children}</select>
       <ChevronDown size={12} className={`absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${on ? 'text-white dark:text-neutral-900' : 'text-slate-400'}`} />
     </span>
@@ -234,14 +238,71 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
       style={{ fontVariantNumeric: 'tabular-nums' }}
       onDragEnter={(e) => { if (Array.from(e.dataTransfer.types).includes('Files')) onOpenImport(); }}
     >
-      {/* Header */}
-      <div className="shrink-0 flex flex-col xl:flex-row xl:items-start justify-between gap-3">
+      {/* Phones: compact header — title with search and import, then period and totals */}
+      <div className="md:hidden shrink-0 flex flex-col gap-2.5">
+        <div className="flex items-center gap-2">
+          <h1 className="flex-1 text-2xl font-bold text-slate-900 dark:text-neutral-100">Transactions</h1>
+          <button onClick={() => setSearchOpen(o => !o)} aria-label="Search" aria-expanded={searchOpen} className={`w-10 h-10 rounded-xl border flex items-center justify-center ${searchOpen || searchQuery ? 'border-indigo-500 text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40' : 'border-slate-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-slate-600 dark:text-neutral-300'}`}><Search size={17} /></button>
+          <button onClick={onOpenImport} className="h-10 px-3.5 rounded-xl bg-indigo-600 text-white text-[13px] font-semibold flex items-center gap-1.5"><Upload size={15} /> Import</button>
+          <button onClick={onLogout} aria-label="Log out" className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-400"><LogOut size={16} /></button>
+        </div>
+        {(searchOpen || searchQuery) && (
+          <div className="flex items-center gap-2">
+            <label className="relative flex-1">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                autoFocus
+                value={searchQuery}
+                onChange={(e) => onSearch(e.target.value)}
+                placeholder="Merchant, category or amount"
+                className="w-full h-10 pl-9 pr-3 bg-white dark:bg-neutral-800 border-[1.5px] border-indigo-500 rounded-xl text-[15px] text-slate-900 dark:text-neutral-100 placeholder:text-slate-400 outline-none"
+              />
+            </label>
+            <button onClick={() => { onSearch(''); setSearchOpen(false); }} className="text-sm text-slate-500">Cancel</button>
+          </div>
+        )}
+        <div className="flex items-center justify-between gap-2">
+          <div className="relative">
+            <button onClick={() => setPeriodMenuOpen(o => !o)} aria-haspopup="listbox" aria-expanded={periodMenuOpen} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-[13px] font-semibold text-slate-900 dark:text-neutral-100">
+              {customOpen || dateRange.label === 'Custom Range' ? periodText : PRESETS.find(x => x.id === dateRange.label)?.label || periodText}
+              <ChevronDown size={13} className={`text-slate-400 transition-transform ${periodMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {periodMenuOpen && (
+              <>
+                <button aria-label="Close period list" className="fixed inset-0 z-40 cursor-default" onClick={() => setPeriodMenuOpen(false)} />
+                <div role="listbox" aria-label="Period" className="absolute left-0 z-50 mt-1.5 w-44 p-1 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl shadow-lg">
+                  {[...PRESETS.map(x => ({ id: x.id, label: x.label })), { id: 'Custom Range', label: 'Custom dates…' }].map(o => {
+                    const on = dateRange.label === o.id;
+                    return (
+                      <button key={o.id} role="option" aria-selected={on} onClick={() => { pickPreset(o.id); setPeriodMenuOpen(false); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] text-left ${on ? 'bg-indigo-50 dark:bg-indigo-950/40 font-semibold text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-neutral-300'}`}>
+                        {o.label}{on && <span aria-hidden>✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+          <span className="text-[12.5px] text-slate-600 dark:text-neutral-300 truncate">Spent <strong className="text-slate-900 dark:text-neutral-100">{gbp0(summary.spent)}</strong> · In <strong className="text-emerald-700 dark:text-emerald-400">{gbp0(summary.moneyIn)}</strong></span>
+        </div>
+        {customOpen && (
+          <div className="flex items-center gap-2 bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-600 px-2.5 py-2">
+            <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="flex-1 min-w-0 bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-md px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-neutral-200" />
+            <span className="text-slate-300 text-xs">–</span>
+            <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="flex-1 min-w-0 bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-md px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-neutral-200" />
+            <button onClick={() => { if (customStart && customEnd) { onDateRange({ start: customStart, end: customEnd, label: 'Custom Range' }); setCustomOpen(false); } }} disabled={!customStart || !customEnd} className="px-3 py-1.5 bg-slate-900 dark:bg-neutral-100 text-white dark:text-neutral-900 rounded-md text-xs font-bold disabled:opacity-40">Go</button>
+          </div>
+        )}
+      </div>
+
+      {/* Tablet and desktop header */}
+      <div className="hidden md:flex shrink-0 flex-col xl:flex-row xl:items-start justify-between gap-3">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-neutral-100">Transactions</h1>
             <p className="text-xs md:text-[13px] text-slate-500 dark:text-neutral-400 mt-0.5">{periodText} · {transactions.length.toLocaleString('en-GB')} {transactions.length === 1 ? 'transaction' : 'transactions'}</p>
           </div>
-          <button onClick={onLogout} title="Log out" className="md:hidden p-2 bg-white dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-full text-slate-500"><LogOut size={16} /></button>
         </div>
         <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-2.5 md:flex-wrap xl:flex-nowrap">
           <label className="relative md:w-64 xl:w-72">
@@ -284,7 +345,7 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
       </div>
 
       {/* Summary strip */}
-      <div className={`${card} shrink-0 grid grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1.3fr]`}>
+      <div className={`${card} shrink-0 hidden md:grid grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1.3fr]`}>
         <div className="px-4 md:px-5 py-3 md:py-4 border-r border-b lg:border-b-0 border-slate-100 dark:border-neutral-700">
           <div className="text-[10px] md:text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-neutral-400">Spent</div>
           <div className="text-lg md:text-2xl font-bold text-slate-900 dark:text-neutral-100">{gbp0(summary.spent)}</div>
@@ -320,16 +381,16 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
         {/* List */}
         <section className={`${card} flex-1 min-w-0 flex flex-col lg:min-h-0 overflow-hidden`}>
           <div className="shrink-0 flex items-center gap-2 px-3 md:px-4 py-3 border-b border-slate-100 dark:border-neutral-700 overflow-x-auto hide-scrollbar">
-            <SelectPill label="Bank" value={filterBank} on={filterBank !== 'all'} onChange={onFilterBank}>
+            <SelectPill label="Bank" className="max-md:order-last" value={filterBank} on={filterBank !== 'all'} onChange={onFilterBank}>
               <option value="all">Bank: All</option>
               {availableBanks.map(b => <option key={b} value={b}>{b}</option>)}
             </SelectPill>
-            <SelectPill label="Money in or out" value={filterType} on={filterType !== 'all'} onChange={(v) => onFilterType(v as 'all' | 'INCOME' | 'EXPENSE')}>
+            <SelectPill label="Money in or out" className="max-md:order-last" value={filterType} on={filterType !== 'all'} onChange={(v) => onFilterType(v as 'all' | 'INCOME' | 'EXPENSE')}>
               <option value="all">Money out & in</option>
               <option value="EXPENSE">Money out</option>
               <option value="INCOME">Money in</option>
             </SelectPill>
-            <span className="w-px h-5 bg-slate-200 dark:bg-neutral-700 shrink-0" />
+            <span className="hidden md:block w-px h-5 bg-slate-200 dark:bg-neutral-700 shrink-0" />
             <button onClick={() => { onFilterCategory('all'); onFilterSubcategory('all'); }} aria-pressed={filterCategory === 'all'} className={`shrink-0 px-3 py-1.5 rounded-full border text-[12.5px] whitespace-nowrap ${filterCategory === 'all' ? pillOn : pillOff}`}>All categories</button>
             {topCats.map(c => {
               const on = filterCategory === c.id;
@@ -350,20 +411,20 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
                 {filterSubcategory} <X size={12} />
               </button>
             )}
-            <SelectPill label="Added" value={filterRecentlyAdded === 'uncategorized' ? 'all' : filterRecentlyAdded} on={filterRecentlyAdded === 'today' || filterRecentlyAdded === 'week'} onChange={(v) => onFilterRecentlyAdded(v as 'all' | 'today' | 'week')}>
+            <SelectPill label="Added" className="max-md:order-last" value={filterRecentlyAdded === 'uncategorized' ? 'all' : filterRecentlyAdded} on={filterRecentlyAdded === 'today' || filterRecentlyAdded === 'week'} onChange={(v) => onFilterRecentlyAdded(v as 'all' | 'today' | 'week')}>
               <option value="all">Added: any time</option>
               <option value="today">Added today</option>
               <option value="week">Added this week</option>
             </SelectPill>
-            <span className="flex-1 min-w-2" />
+            <span className="hidden md:block flex-1 min-w-2" />
             {filtersOn && (
-              <button onClick={() => { onResetFilters(); setReviewOnly(false); }} className="shrink-0 text-[12.5px] font-medium text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 whitespace-nowrap">Reset</button>
+              <button onClick={() => { onResetFilters(); setReviewOnly(false); }} className="max-md:order-last shrink-0 text-[12.5px] font-medium text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 whitespace-nowrap">Reset</button>
             )}
             {(reviewCount > 0 || reviewOnly) && (
               <button
                 onClick={() => setReviewOnly(r => !r)}
                 aria-pressed={reviewOnly}
-                className={`shrink-0 px-3 py-1.5 rounded-full text-[12.5px] font-semibold whitespace-nowrap ${reviewOnly ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'}`}
+                className={`max-md:order-first shrink-0 px-3 py-1.5 rounded-full text-[12.5px] font-semibold whitespace-nowrap ${reviewOnly ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'}`}
               >
                 {reviewCount} to review
               </button>
@@ -414,7 +475,7 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
                       <span className="min-w-0 flex flex-col">
                         <span className={`text-[13.5px] md:text-sm font-semibold truncate ${hidden ? 'text-slate-400 dark:text-neutral-500' : 'text-slate-900 dark:text-neutral-100'}`}>{t.description || 'Unknown'}</span>
                         <span className="text-xs text-slate-400 dark:text-neutral-500 truncate">
-                          <span className="md:hidden">{catText}{t.subcategoryName && !hidden ? ` · ${t.subcategoryName}` : ''}{review ? ' · check' : ''}</span>
+                          <span className={`md:hidden ${review ? 'text-amber-700 dark:text-amber-400' : 'text-slate-500 dark:text-neutral-400'}`}>{catText}{t.subcategoryName && !hidden ? ` · ${t.subcategoryName}` : ''}{review ? ' · check' : ''}</span>
                           <span className="hidden md:inline">{t.bankName || '—'}</span>
                         </span>
                       </span>
@@ -425,7 +486,8 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
                       </span>
                       <span className="flex flex-col items-end">
                         <span className={`text-sm font-bold whitespace-nowrap ${hidden ? 'text-slate-400 line-through' : income ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-neutral-100'}`}>{income ? '+' : '−'}{gbp(Math.abs(t.amountGBP || 0))}</span>
-                        {t.amountAED > 0 && <span className="text-[11.5px] text-slate-400 dark:text-neutral-500 whitespace-nowrap">{aed(Math.abs(t.amountAED))}</span>}
+                        {t.bankName && <span className="md:hidden text-[11px] text-slate-400 dark:text-neutral-500 whitespace-nowrap">{t.bankName}</span>}
+                        {t.amountAED > 0 && <span className="hidden md:inline text-[11.5px] text-slate-400 dark:text-neutral-500 whitespace-nowrap">{aed(Math.abs(t.amountAED))}</span>}
                       </span>
                     </button>
                   );
@@ -443,15 +505,34 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
         {/* Desktop: details docked beside the list */}
         {isLg && selected && (
           <aside aria-label="Transaction details" className={`${card} w-[400px] shrink-0 flex flex-col min-h-0 overflow-hidden animate-in slide-in-from-right-4 fade-in duration-200`}>
-            <DetailPanel key={selected.id} t={selected} {...{ allTransactions, categories, getCategoryEmoji, onUpdate, onBulkUpdate, onDelete, onRemember }} onClose={() => setSelectedId(null)} onPick={setSelectedId} onDone={() => (reviewOnly ? move(1) : undefined)} />
+            <DetailPanel key={selected.id} t={selected} {...{ allTransactions, categories, getCategoryEmoji, onUpdate, onBulkUpdate, onDelete, onRemember }} onToast={setToast} onClose={() => setSelectedId(null)} onPick={setSelectedId} onDone={() => (reviewOnly ? move(1) : undefined)} />
           </aside>
         )}
       </div>
 
       {/* Phones and tablets: the same details as a bottom sheet */}
       {!isLg && <DetailSheet t={selected} onClose={() => setSelectedId(null)}>
-        {selected && <DetailPanel key={selected.id} t={selected} sheet {...{ allTransactions, categories, getCategoryEmoji, onUpdate, onBulkUpdate, onDelete, onRemember }} onClose={() => setSelectedId(null)} onPick={setSelectedId} onDone={() => (reviewOnly ? move(1) : setSelectedId(null))} />}
+        {selected && <DetailPanel key={selected.id} t={selected} sheet {...{ allTransactions, categories, getCategoryEmoji, onUpdate, onBulkUpdate, onDelete, onRemember }} onToast={setToast} onClose={() => setSelectedId(null)} onPick={setSelectedId} onDone={() => (reviewOnly ? move(1) : undefined)} />}
       </DetailSheet>}
+
+      {createPortal(
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              role="status"
+              className="fixed z-[130] left-4 right-4 bottom-24 md:left-auto md:right-6 md:bottom-6 md:w-[360px] flex items-center justify-between gap-3 rounded-2xl bg-slate-900 dark:bg-neutral-100 text-white dark:text-neutral-900 px-4 py-3 text-[13.5px] shadow-xl"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 12 }}
+              transition={MODAL_TRANSITION}
+            >
+              <span className="truncate">{toast}</span>
+              <button onClick={() => setToast(null)} className="shrink-0 font-semibold text-indigo-300 dark:text-indigo-600">OK</button>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </div>
   );
 };
@@ -502,23 +583,44 @@ interface DetailPanelProps {
   onBulkUpdate: (ids: string[], updates: Partial<Transaction>) => void;
   onDelete: (id: string) => void;
   onRemember: (merchant: string, categoryId: string, categoryName: string, subcategoryName: string) => void;
+  onToast: (msg: string) => void;
   onClose: () => void;
   onPick: (id: string) => void;
   onDone: () => void;
 }
 
-const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, categories, getCategoryEmoji, onUpdate, onBulkUpdate, onDelete, onRemember, onClose, onPick, onDone }) => {
+const QUICK_CATS = 7;
+
+// The category is shown locked until you tap Edit, so a stray tap can't re-file anything, and
+// Delete asks first (offering Hide from totals as the gentler option).
+const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, categories, getCategoryEmoji, onUpdate, onBulkUpdate, onDelete, onRemember, onToast, onClose, onPick, onDone }) => {
   const hidden = isHidden(t);
-  const [catId, setCatId] = useState(hidden ? '' : t.categoryId);
-  const [sub, setSub] = useState(hidden ? '' : t.subcategoryName || '');
+  const startCat = hidden ? '' : t.categoryId;
+  const startSub = hidden ? '' : t.subcategoryName || '';
+  const [editing, setEditing] = useState(!startCat);
+  const [catId, setCatId] = useState(startCat);
+  const [sub, setSub] = useState(startSub);
   const [remember, setRemember] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [askDelete, setAskDelete] = useState(false);
+  const [histShown, setHistShown] = useState(sheet ? 3 : 10);
   useEffect(() => { if (!saved) return; const id = setTimeout(() => setSaved(false), 2000); return () => clearTimeout(id); }, [saved]);
+
   const cat = categories.find(c => c.id === catId);
   const subs = cat ? Array.from(new Set([...cat.subcategories, ...(sub && !cat.subcategories.includes(sub) ? [sub] : [])])) : [];
   const review = needsReview(t);
-  const dirty = catId !== (hidden ? '' : t.categoryId) || sub !== (hidden ? '' : t.subcategoryName || '');
+  const dirty = catId !== startCat || sub !== startSub;
+
+  // Quick picks: the chosen category, then the ones used most across all transactions.
+  const quickCats = useMemo(() => {
+    const used = new Map<string, number>();
+    allTransactions.forEach(x => { if (x.categoryId && !isHidden(x)) used.set(x.categoryId, (used.get(x.categoryId) || 0) + 1); });
+    // Same kind as this transaction (spending vs money in) first; the rest live under More.
+    const ranked = categories.filter(c => used.has(c.id) && c.type === t.type).sort((a, b) => (used.get(b.id) || 0) - (used.get(a.id) || 0));
+    const current = categories.find(c => c.id === startCat);
+    return Array.from(new Set([...(current ? [current] : []), ...ranked])).slice(0, QUICK_CATS);
+  }, [allTransactions, categories, startCat, t.type]);
+  const moreCats = categories.filter(c => !quickCats.some(q => q.id === c.id)).sort((a, b) => a.name.localeCompare(b.name));
 
   const others = useMemo(
     () => allTransactions.filter(x => x.id !== t.id && norm(x.description) === norm(t.description)).sort((a, b) => b.date.localeCompare(a.date)),
@@ -529,8 +631,11 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
   const toRefile = others.filter(x => !isHidden(x) && (x.categoryId !== catId || (x.subcategoryName || '') !== sub));
   const dt = parse(t.date);
   const income = t.type === 'INCOME';
-  const shortName = t.description.length > 24 ? `${t.description.slice(0, 22)}…` : t.description || 'this merchant';
-  const canSave = !!catId && (dirty || remember || review);
+  const shortName = t.description.length > 22 ? `${t.description.slice(0, 20)}…` : t.description || 'this merchant';
+
+  const pickCat = (id: string) => { const c = categories.find(x => x.id === id); setCatId(id); setSub(c?.subcategories[0] || ''); setSaved(false); };
+  const cancelEdit = () => { setCatId(startCat); setSub(startSub); setEditing(false); };
+  const showSave = saved || remember || (editing && dirty && !!catId) || (review && !!startCat && !editing);
 
   const save = () => {
     if (!cat) return;
@@ -542,122 +647,200 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
       onRemember(t.description, cat.id, cat.name, sub);
     }
     setRemember(false);
+    setEditing(false);
     setSaved(true);
     onDone();
   };
-  const toggleHidden = () => onUpdate(t.id, hidden ? { categoryId: '', categoryName: '', excluded: false } : { categoryId: 'excluded', categoryName: 'Excluded', excluded: true });
+  const setHidden = (hide: boolean) => {
+    onUpdate(t.id, hide ? { categoryId: 'excluded', categoryName: 'Excluded', excluded: true } : { categoryId: '', categoryName: '', excluded: false });
+    onToast(`${shortName} ${hide ? 'hidden from totals' : 'back in totals'}`);
+    if (hide) onClose();
+  };
 
-  const label = 'text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-neutral-400 mb-1.5';
-  const selectCls = 'w-full appearance-none pl-3 pr-8 py-2.5 rounded-xl border border-slate-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-[13px] text-slate-900 dark:text-neutral-100 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20';
+  const label = 'text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 dark:text-neutral-400';
+  const chip = (on: boolean) => `px-3 py-1.5 rounded-xl border-[1.5px] text-[13px] transition-colors ${on ? 'border-indigo-600 bg-indigo-50 text-indigo-800 font-semibold dark:bg-indigo-950/50 dark:text-indigo-200' : 'border-slate-200 dark:border-neutral-600 text-slate-700 dark:text-neutral-300 hover:border-slate-300'}`;
+  const amountText = `${income ? '+' : '−'}${gbp(Math.abs(t.amountGBP || 0))}`;
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
       <div className={`px-5 ${sheet ? 'pt-1' : 'pt-5'} pb-4 border-b border-slate-100 dark:border-neutral-700 flex flex-col gap-3`}>
-        <div className="flex items-start gap-3">
+        <div className="flex items-center gap-3">
           <span className={`w-12 h-12 shrink-0 rounded-[14px] flex items-center justify-center text-xl font-bold ${hidden ? 'bg-slate-100 text-slate-400 dark:bg-neutral-700' : tintFor(t.description)}`}>{initialOf(t.description)}</span>
           <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-bold leading-snug text-slate-900 dark:text-neutral-100 break-words">{t.description || 'Unknown'}</h2>
-            <p className="text-[12.5px] text-slate-500 dark:text-neutral-400">{LONG_DAYS[dt.getDay()]} {dt.getDate()} {MONTHS[dt.getMonth()]} {dt.getFullYear()}{t.bankName ? ` · ${t.bankName}` : ''}</p>
+            <h2 className="text-[17px] font-bold leading-snug text-slate-900 dark:text-neutral-100 break-words">{t.description || 'Unknown'}</h2>
+            <p className="text-xs text-slate-500 dark:text-neutral-400">{sheet ? DAYS[dt.getDay()] : LONG_DAYS[dt.getDay()]} {dt.getDate()} {sheet ? MONTHS[dt.getMonth()].slice(0, 3) : `${MONTHS[dt.getMonth()]} ${dt.getFullYear()}`}{t.bankName ? ` · ${t.bankName}` : ''}</p>
           </div>
-          <button onClick={onClose} aria-label="Close details" className="w-8 h-8 shrink-0 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 flex items-center justify-center"><X size={15} /></button>
+          {sheet ? (
+            <span className={`shrink-0 text-xl font-bold ${hidden ? 'text-slate-400 line-through' : income ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-neutral-100'}`}>{amountText}</span>
+          ) : (
+            <button onClick={onClose} aria-label="Close details" className="w-8 h-8 shrink-0 self-start rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 flex items-center justify-center"><X size={15} /></button>
+          )}
         </div>
-        <div className="flex justify-between items-baseline gap-3">
-          <span className={`text-3xl font-bold ${hidden ? 'text-slate-400 line-through' : income ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-neutral-100'}`}>{income ? '+' : '−'}{gbp(Math.abs(t.amountGBP || 0))}</span>
-          {t.amountAED > 0 && <span className="text-[13px] text-slate-400">{aed(Math.abs(t.amountAED))}</span>}
-        </div>
+        {!sheet && (
+          <div className="flex justify-between items-baseline gap-3">
+            <span className={`text-3xl font-bold ${hidden ? 'text-slate-400 line-through' : income ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-neutral-100'}`}>{amountText}</span>
+            {t.amountAED > 0 && <span className="text-[13px] text-slate-400">{aed(Math.abs(t.amountAED))}</span>}
+          </div>
+        )}
         {hidden && <p className="text-xs font-medium text-slate-600 dark:text-neutral-300 bg-slate-100 dark:bg-neutral-700 rounded-lg px-3 py-2">Hidden from totals. Pick a category and Save, or tap “Show in totals”.</p>}
         {!hidden && review && (
           <p className="text-xs font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 rounded-lg px-3 py-2">
-            {t.categoryId ? 'Filed automatically from memory. Check it’s right, then Save.' : 'Not categorised yet. Pick a category below.'}
+            {t.categoryId ? 'Filed automatically from memory. If it’s right, tap Looks right.' : 'Not categorised yet. Pick a category below.'}
           </p>
         )}
         {t.notes && t.notes.replace(AUTO_NOTE, '').trim() && <p className="text-xs text-slate-500 dark:text-neutral-400">Note: {t.notes.replace(AUTO_NOTE, '').trim()}</p>}
       </div>
 
-      <div className="px-5 py-4 border-b border-slate-100 dark:border-neutral-700 flex flex-col gap-3.5">
-        <div className="grid grid-cols-2 gap-2.5">
-          <label className="min-w-0">
-            <div className={label}>Category</div>
-            <span className="relative block">
-              <select value={catId} onChange={(e) => { const c = categories.find(x => x.id === e.target.value); setCatId(e.target.value); setSub(c?.subcategories[0] || ''); }} className={selectCls}>
-                <option value="" disabled>Choose…</option>
-                <optgroup label="Spending">
-                  {categories.filter(c => c.type === 'EXPENSE').map(c => <option key={c.id} value={c.id}>{getCategoryEmoji(c.id)} {c.name}</option>)}
-                </optgroup>
-                <optgroup label="Money in">
-                  {categories.filter(c => c.type === 'INCOME').map(c => <option key={c.id} value={c.id}>{getCategoryEmoji(c.id)} {c.name}</option>)}
-                </optgroup>
-              </select>
-              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+      <div className="px-5 py-4 flex flex-col gap-3">
+        {!editing ? (
+          <div className="flex items-center gap-3 rounded-2xl bg-slate-50 dark:bg-neutral-700/50 pl-3.5 pr-2.5 py-2.5">
+            <span className="min-w-0 flex-1">
+              <span className={`block ${label}`}>Category</span>
+              <span className="block text-sm font-semibold text-slate-900 dark:text-neutral-100 truncate">
+                {getCategoryEmoji(startCat)} {t.categoryName}{startSub ? <span className="font-normal text-slate-500 dark:text-neutral-400"> › {startSub}</span> : null}
+              </span>
             </span>
-          </label>
-          <label className="min-w-0">
-            <div className={label}>Subcategory</div>
-            <span className="relative block">
-              <select value={sub} onChange={(e) => setSub(e.target.value)} disabled={!cat} className={`${selectCls} disabled:opacity-50`}>
-                {subs.length === 0 && <option value="">None</option>}
-                {subs.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            </span>
-          </label>
-        </div>
+            <button onClick={() => { setEditing(true); setSaved(false); }} className="shrink-0 px-3 py-2 rounded-xl border border-slate-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-[13px] font-semibold text-indigo-700 dark:text-indigo-300">✎ Edit</button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2.5 rounded-2xl border-[1.5px] border-indigo-200 dark:border-indigo-900 bg-indigo-50/30 dark:bg-indigo-950/10 p-3">
+            <div className="flex justify-between items-center">
+              <span className="text-[13.5px] font-semibold text-slate-900 dark:text-neutral-100">{startCat ? 'Change category' : 'Choose a category'}</span>
+              {startCat && <button onClick={cancelEdit} className="text-[13px] text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100">Cancel</button>}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {quickCats.map(c => (
+                <button key={c.id} onClick={() => pickCat(c.id)} aria-pressed={catId === c.id} className={chip(catId === c.id)}>{getCategoryEmoji(c.id)} {c.name}</button>
+              ))}
+              {moreCats.length > 0 && (
+                <span className="relative">
+                  <select aria-label="More categories" value={moreCats.some(c => c.id === catId) ? catId : ''} onChange={(e) => e.target.value && pickCat(e.target.value)} className={`appearance-none pr-7 ${chip(moreCats.some(c => c.id === catId))} bg-transparent`}>
+                    <option value="">More…</option>
+                    {moreCats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                  <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
+                </span>
+              )}
+            </div>
+            {subs.length > 0 && (
+              <>
+                <span className={label}>Subcategory</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {subs.map(x => (
+                    <button key={x} onClick={() => { setSub(x); setSaved(false); }} aria-pressed={sub === x} className={`${chip(sub === x)} rounded-full`}>{x}</button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
-        <button
-          onClick={() => setRemember(r => !r)}
-          aria-pressed={remember}
-          className={`flex gap-3 items-start text-left rounded-xl border px-3 py-2.5 transition-colors ${remember ? 'border-indigo-300 bg-indigo-50/70 dark:border-indigo-800 dark:bg-indigo-950/30' : 'border-slate-200 dark:border-neutral-600'}`}
-        >
-          <span className={`mt-0.5 w-[18px] h-[18px] shrink-0 rounded-[5px] border-2 flex items-center justify-center ${remember ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 dark:border-neutral-500'}`}>
-            {remember && <svg viewBox="0 0 12 12" className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M2.5 6.2 5 8.5l4.5-5" /></svg>}
-          </span>
-          <span>
-            <span className="block text-[13px] font-semibold text-slate-900 dark:text-neutral-100">Remember for {shortName}</span>
-            <span className="block text-xs text-slate-500 dark:text-neutral-400">
-              {toRefile.length
-                ? `Also re-file the ${toRefile.length} other ${toRefile.length === 1 ? 'payment' : 'payments'} filed elsewhere, and any future ones`
-                : others.length
-                  ? `Your ${others.length} other ${others.length === 1 ? 'payment is' : 'payments are'} already filed here. Future ones will be too.`
-                  : 'File future payments here automatically'}
+        {!!(catId || startCat) && (
+          <button onClick={() => { setRemember(r => !r); setSaved(false); }} aria-pressed={remember} className="flex items-center gap-3 text-left rounded-2xl bg-slate-50 dark:bg-neutral-700/50 px-3.5 py-2.5">
+            <span className="flex-1 min-w-0">
+              <span className="block text-[13.5px] font-semibold text-slate-900 dark:text-neutral-100">Remember for {shortName}</span>
+              <span className="block text-xs text-slate-500 dark:text-neutral-400">
+                {toRefile.length
+                  ? `Also re-files ${toRefile.length} other ${toRefile.length === 1 ? 'payment' : 'payments'} and future ones`
+                  : others.length ? 'Other payments already match · future ones too' : 'Files future payments here automatically'}
+              </span>
             </span>
-          </span>
-        </button>
+            <span className={`relative w-11 h-[26px] shrink-0 rounded-full transition-colors ${remember ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-neutral-600'}`}>
+              <span className={`absolute top-[3px] w-5 h-5 rounded-full bg-white shadow transition-all ${remember ? 'left-[21px]' : 'left-[3px]'}`} />
+            </span>
+          </button>
+        )}
 
-        <div className="flex gap-2">
-          <button onClick={save} disabled={!canSave && !saved} className={`flex-1 py-2.5 rounded-xl text-white text-[13px] font-semibold disabled:cursor-not-allowed ${saved ? 'bg-emerald-600' : 'bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-200 dark:disabled:bg-indigo-900/60'}`}>
-            {saved ? '✓ Saved' : remember && toRefile.length ? `Save and update ${toRefile.length + 1}` : !dirty && review && !remember ? 'Looks right' : 'Save'}
+        {showSave && (
+          <button onClick={saved ? undefined : save} disabled={!cat} className={`py-3 rounded-2xl text-white text-[15px] font-semibold disabled:opacity-50 ${saved ? 'bg-emerald-600' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
+            {saved ? '✓ Saved' : remember && toRefile.length ? `Save and update ${toRefile.length + 1}` : !editing && review ? 'Looks right' : 'Save'}
           </button>
-          <button onClick={toggleHidden} className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-neutral-600 text-[13px] text-slate-700 dark:text-neutral-300 whitespace-nowrap">
-            {hidden ? 'Show in totals' : 'Hide from totals'}
-          </button>
-          <button
-            onClick={() => { if (confirmDelete) { onDelete(t.id); onClose(); } else setConfirmDelete(true); }}
-            onBlur={() => setConfirmDelete(false)}
-            className={`px-3 py-2.5 rounded-xl border text-[13px] whitespace-nowrap ${confirmDelete ? 'bg-rose-600 border-rose-600 text-white font-semibold' : 'border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-400'}`}
-          >
-            {confirmDelete ? 'Confirm' : 'Delete'}
-          </button>
+        )}
+
+        <div className="flex justify-center gap-7 pt-0.5 text-[13.5px] font-medium">
+          <button onClick={() => setHidden(!hidden)} className="text-slate-600 dark:text-neutral-300 hover:text-slate-900">{hidden ? 'Show in totals' : 'Hide from totals'}</button>
+          <button onClick={() => setAskDelete(true)} className="text-rose-700 dark:text-rose-400 hover:text-rose-800">Delete</button>
         </div>
       </div>
 
-      <div className="px-5 py-4 pb-[max(16px,env(safe-area-inset-bottom))]">
+      <div className="px-5 pt-1 pb-[max(18px,env(safe-area-inset-bottom))]">
         <div className="flex justify-between items-baseline gap-2 mb-1">
           <h3 className="text-[13.5px] font-semibold text-slate-900 dark:text-neutral-100 truncate">Other {shortName} payments</h3>
           <span className="shrink-0 text-xs text-slate-500 dark:text-neutral-400">{others.length ? `${others.length} · ${gbp0(othersTotal)} total` : 'First time'}</span>
         </div>
-        {others.slice(0, 10).map(x => {
+        {others.slice(0, histShown).map(x => {
           const d = parse(x.date);
           return (
-            <button key={x.id} onClick={() => onPick(x.id)} className="w-full grid grid-cols-[64px_minmax(0,1fr)_auto] gap-2 items-center py-2 border-t border-slate-100 dark:border-neutral-700 text-left text-[12.5px] hover:bg-slate-50 dark:hover:bg-neutral-700/30">
+            <button key={x.id} onClick={() => onPick(x.id)} className="w-full grid grid-cols-[58px_minmax(0,1fr)_auto] gap-2 items-center py-2 border-t border-slate-100 dark:border-neutral-700 text-left text-[12.5px] hover:bg-slate-50 dark:hover:bg-neutral-700/30">
               <span className="text-slate-500 dark:text-neutral-400">{d.getDate()} {MONTHS[d.getMonth()].slice(0, 3)}{d.getFullYear() !== new Date().getFullYear() ? ` '${String(d.getFullYear()).slice(2)}` : ''}</span>
               <span className="truncate text-slate-600 dark:text-neutral-300">{isHidden(x) ? 'Hidden' : x.categoryId ? `${getCategoryEmoji(x.categoryId)} ${x.categoryName}${x.subcategoryName ? ` › ${x.subcategoryName}` : ''}` : 'Not categorised'}</span>
               <span className="font-semibold text-slate-900 dark:text-neutral-100">{gbp(Math.abs(x.amountGBP || 0))}</span>
             </button>
           );
         })}
-        {others.length > 10 && <p className="pt-2 text-xs text-slate-400">and {others.length - 10} more</p>}
+        {others.length > histShown && (
+          <button onClick={() => setHistShown(n => n + 20)} className="w-full mt-1 py-2.5 rounded-xl border border-slate-200 dark:border-neutral-600 text-[13px] font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-slate-50 dark:hover:bg-neutral-700/40">
+            Show {Math.min(20, others.length - histShown)} more <span className="font-normal text-slate-500 dark:text-neutral-400">· {others.length - histShown} left</span>
+          </button>
+        )}
       </div>
+
+      <DeleteDialog
+        open={askDelete}
+        t={t}
+        amountText={amountText}
+        onCancel={() => setAskDelete(false)}
+        onDelete={() => { setAskDelete(false); onDelete(t.id); onToast(`${shortName} deleted`); onClose(); }}
+        onHide={() => { setAskDelete(false); setHidden(true); }}
+        hidden={hidden}
+      />
     </div>
+  );
+};
+
+const DeleteDialog: React.FC<{ open: boolean; t: Transaction; amountText: string; hidden: boolean; onCancel: () => void; onDelete: () => void; onHide: () => void }> = ({ open, t, amountText, hidden, onCancel, onDelete, onHide }) => {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopImmediatePropagation(); onCancel(); } };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [open, onCancel]);
+  const dt = parse(t.date);
+  return createPortal(
+    <AnimatePresence>
+      {open && (
+        <motion.div className="fixed inset-0 z-[120] flex items-center justify-center p-6" initial={{ pointerEvents: 'auto' }} animate={{ pointerEvents: 'auto' }} exit={{ pointerEvents: 'none' }}>
+          <motion.div className="absolute inset-0 bg-slate-900/55" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={MODAL_TRANSITION} onClick={onCancel} />
+          <motion.div
+            role="alertdialog"
+            aria-label="Delete this transaction?"
+            className="relative w-full max-w-[360px] bg-white dark:bg-neutral-800 rounded-3xl shadow-2xl px-5 pt-6 pb-4 flex flex-col items-center gap-3 text-center"
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={MODAL_TRANSITION}
+          >
+            <span className="w-[52px] h-[52px] rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 flex items-center justify-center"><Trash2 size={22} /></span>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-neutral-100">Delete this transaction?</h2>
+            <div className="w-full flex items-center gap-2.5 rounded-2xl bg-slate-50 dark:bg-neutral-700/50 px-3 py-2.5 text-left">
+              <span className={`w-[34px] h-[34px] shrink-0 rounded-[10px] flex items-center justify-center text-[13px] font-bold ${tintFor(t.description)}`}>{initialOf(t.description)}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13.5px] font-semibold text-slate-900 dark:text-neutral-100 truncate">{t.description || 'Unknown'}</span>
+                <span className="block text-[11.5px] text-slate-500 dark:text-neutral-400">{DAYS[dt.getDay()]} {dt.getDate()} {MONTHS[dt.getMonth()].slice(0, 3)} {dt.getFullYear()}{t.bankName ? ` · ${t.bankName}` : ''}</span>
+              </span>
+              <span className="text-sm font-bold text-slate-900 dark:text-neutral-100">{amountText}</span>
+            </div>
+            <p className="text-[12.5px] leading-relaxed text-slate-600 dark:text-neutral-300">
+              This removes it for good, and it can't be undone.{!hidden && ' If you just want it out of your totals, hide it instead.'}
+            </p>
+            <button onClick={onDelete} className="w-full py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-[15px] font-semibold">Delete transaction</button>
+            {!hidden && <button onClick={onHide} className="w-full py-3 rounded-2xl border border-slate-200 dark:border-neutral-600 text-sm font-medium text-slate-900 dark:text-neutral-100">Hide from totals instead</button>}
+            <button onClick={onCancel} className="py-1.5 text-sm text-slate-500 dark:text-neutral-400">Cancel</button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body
   );
 };
 

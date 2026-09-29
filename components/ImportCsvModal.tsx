@@ -64,6 +64,9 @@ const ImportCsvModal: React.FC<ImportCsvModalProps> = ({ open, onClose, banks, l
   const [ready, setReady] = useState<Ready | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const bank = banks.find(b => b.id === bankId) || banks[0];
+  // Phones get a bottom sheet with a "Choose file" button (there's nothing to drag a file from).
+  const sheet = useMemo(() => window.matchMedia('(max-width: 767px)').matches, [open]);
+  const touch = useMemo(() => window.matchMedia('(pointer: coarse)').matches, [open]);
 
   // Start clean each time it opens; default to the bank that's most overdue for an import.
   useEffect(() => {
@@ -142,7 +145,7 @@ const ImportCsvModal: React.FC<ImportCsvModalProps> = ({ open, onClose, banks, l
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[110] flex items-start md:items-center justify-center p-3 md:p-6 overflow-y-auto"
+          className="fixed inset-0 z-[110] flex items-end md:items-center justify-center md:p-6 overflow-y-auto"
           initial={{ pointerEvents: 'auto' }}
           animate={{ pointerEvents: 'auto' }}
           exit={{ pointerEvents: 'none' }}
@@ -159,13 +162,14 @@ const ImportCsvModal: React.FC<ImportCsvModalProps> = ({ open, onClose, banks, l
           <motion.div
             role="dialog"
             aria-label="Import transactions"
-            className="relative w-full max-w-[560px] mt-10 md:mt-0 bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
-            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            className="relative w-full md:max-w-[560px] max-h-[92dvh] overflow-y-auto bg-white dark:bg-neutral-800 rounded-t-3xl md:rounded-2xl shadow-2xl flex flex-col"
+            initial={{ opacity: 0, y: sheet ? 60 : 12, scale: sheet ? 1 : 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.98 }}
+            exit={{ opacity: 0, y: sheet ? 60 : 12, scale: sheet ? 1 : 0.98 }}
             transition={MODAL_TRANSITION}
           >
             <div className="px-6 pt-5 pb-4 flex justify-between items-start gap-4">
+              {sheet && <span className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-slate-300 dark:bg-neutral-600" />}
               <div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-neutral-100">Import transactions</h2>
                 <p className="text-[13px] text-slate-500 dark:text-neutral-400">Upload a CSV statement exported from your bank</p>
@@ -219,9 +223,9 @@ const ImportCsvModal: React.FC<ImportCsvModalProps> = ({ open, onClose, banks, l
                       {reading ? <Loader2 size={20} className="animate-spin" /> : <Upload size={20} />}
                     </span>
                     <span className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100">
-                      {reading ? 'Reading your statement…' : dragging ? 'Drop it here' : `Drop your ${bank?.name || ''} CSV here`}
+                      {reading ? 'Reading your statement…' : dragging ? 'Drop it here' : touch ? `Choose your ${bank?.name || ''} CSV` : `Drop your ${bank?.name || ''} CSV here`}
                     </span>
-                    {!reading && (
+                    {!reading && !touch && (
                       <span className="text-[12.5px] text-slate-500 dark:text-neutral-400">
                         or <span className="text-indigo-600 dark:text-indigo-300 font-semibold underline">browse your files</span> · .csv only
                       </span>
@@ -263,15 +267,15 @@ const ImportCsvModal: React.FC<ImportCsvModalProps> = ({ open, onClose, banks, l
               </div>
             </div>
 
-            <div className="px-6 py-3.5 border-t border-slate-100 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-900/40 flex items-center gap-2.5">
-              <span className="flex-1 text-xs text-slate-500 dark:text-neutral-400">
+            <div className="px-6 pt-3.5 pb-[max(14px,env(safe-area-inset-bottom))] border-t border-slate-100 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-900/40 flex flex-wrap md:flex-nowrap items-center gap-2.5">
+              <span className="w-full md:w-auto md:flex-1 text-xs text-slate-500 dark:text-neutral-400">
                 {ready && ready.autoCount > 0 ? `${ready.autoCount} will be filed automatically from memory.` : 'You can check categories before anything is saved.'}
               </span>
-              <button onClick={onClose} className="px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-[13px] text-slate-700 dark:text-neutral-300">Cancel</button>
+              <button onClick={onClose} className="flex-1 md:flex-none px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-[13px] text-slate-700 dark:text-neutral-300">Cancel</button>
               <button
                 onClick={doImport}
                 disabled={importCount === 0}
-                className="px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[13px] font-semibold disabled:bg-indigo-200 dark:disabled:bg-indigo-900/60 disabled:cursor-not-allowed"
+                className="flex-[2] md:flex-none px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[13px] font-semibold disabled:bg-indigo-200 dark:disabled:bg-indigo-900/60 disabled:cursor-not-allowed"
               >
                 {importCount > 0 ? `Import ${importCount} ${importCount === 1 ? 'transaction' : 'transactions'}` : 'Import'}
               </button>
