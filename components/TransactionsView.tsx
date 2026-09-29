@@ -513,6 +513,8 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
   const [sub, setSub] = useState(hidden ? '' : t.subcategoryName || '');
   const [remember, setRemember] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [saved, setSaved] = useState(false);
+  useEffect(() => { if (!saved) return; const id = setTimeout(() => setSaved(false), 2000); return () => clearTimeout(id); }, [saved]);
   const cat = categories.find(c => c.id === catId);
   const subs = cat ? Array.from(new Set([...cat.subcategories, ...(sub && !cat.subcategories.includes(sub) ? [sub] : [])])) : [];
   const review = needsReview(t);
@@ -523,6 +525,8 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
     [allTransactions, t.id, t.description]
   );
   const othersTotal = others.reduce((s, x) => s + Math.abs(x.amountGBP || 0), 0);
+  // Only the other payments that Remember would actually change (filed somewhere else).
+  const toRefile = others.filter(x => !isHidden(x) && (x.categoryId !== catId || (x.subcategoryName || '') !== sub));
   const dt = parse(t.date);
   const income = t.type === 'INCOME';
   const shortName = t.description.length > 24 ? `${t.description.slice(0, 22)}…` : t.description || 'this merchant';
@@ -534,10 +538,11 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
     const note = (t.notes || '').replace(AUTO_NOTE, '').trim();
     onUpdate(t.id, note !== (t.notes || '') ? { ...update, notes: note } : update);
     if (remember) {
-      const ids = others.filter(x => !isHidden(x) && (x.categoryId !== cat.id || (x.subcategoryName || '') !== sub)).map(x => x.id);
-      if (ids.length) onBulkUpdate(ids, update);
+      if (toRefile.length) onBulkUpdate(toRefile.map(x => x.id), update);
       onRemember(t.description, cat.id, cat.name, sub);
     }
+    setRemember(false);
+    setSaved(true);
     onDone();
   };
   const toggleHidden = () => onUpdate(t.id, hidden ? { categoryId: '', categoryName: '', excluded: false } : { categoryId: 'excluded', categoryName: 'Excluded', excluded: true });
@@ -609,14 +614,18 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
           <span>
             <span className="block text-[13px] font-semibold text-slate-900 dark:text-neutral-100">Remember for {shortName}</span>
             <span className="block text-xs text-slate-500 dark:text-neutral-400">
-              {others.length ? `Also re-file the ${others.length} other ${others.length === 1 ? 'payment' : 'payments'} and any future ones` : 'File future payments here automatically'}
+              {toRefile.length
+                ? `Also re-file the ${toRefile.length} other ${toRefile.length === 1 ? 'payment' : 'payments'} filed elsewhere, and any future ones`
+                : others.length
+                  ? `Your ${others.length} other ${others.length === 1 ? 'payment is' : 'payments are'} already filed here. Future ones will be too.`
+                  : 'File future payments here automatically'}
             </span>
           </span>
         </button>
 
         <div className="flex gap-2">
-          <button onClick={save} disabled={!canSave} className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[13px] font-semibold disabled:bg-indigo-200 dark:disabled:bg-indigo-900/60 disabled:cursor-not-allowed">
-            {remember && others.length ? `Save and update ${others.length + 1}` : !dirty && review && !remember ? 'Looks right' : 'Save'}
+          <button onClick={save} disabled={!canSave && !saved} className={`flex-1 py-2.5 rounded-xl text-white text-[13px] font-semibold disabled:cursor-not-allowed ${saved ? 'bg-emerald-600' : 'bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-200 dark:disabled:bg-indigo-900/60'}`}>
+            {saved ? '✓ Saved' : remember && toRefile.length ? `Save and update ${toRefile.length + 1}` : !dirty && review && !remember ? 'Looks right' : 'Save'}
           </button>
           <button onClick={toggleHidden} className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-neutral-600 text-[13px] text-slate-700 dark:text-neutral-300 whitespace-nowrap">
             {hidden ? 'Show in totals' : 'Hide from totals'}
