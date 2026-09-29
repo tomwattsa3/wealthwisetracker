@@ -1622,7 +1622,14 @@ const App: React.FC = () => {
   ];
 
   return (
-    <div className="bg-slate-50 dark:bg-neutral-900 h-screen font-['Poppins'] text-slate-900 dark:text-neutral-200 overflow-hidden">
+    // 100dvh (not 100vh, which on iPhone is taller than what's visible) plus padding for the
+    // status bar: iOS Safari draws the page behind its blurred status bar, and since the app
+    // scrolls inside <main> rather than the page, the top of every tab otherwise sat under it,
+    // out of reach. viewport-fit=cover (index.html) is what makes the safe-area insets non-zero.
+    <div
+      className="bg-slate-50 dark:bg-neutral-900 h-[100dvh] font-['Poppins'] text-slate-900 dark:text-neutral-200 overflow-hidden"
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+    >
       
       {/* App Wrapper - Updated sidebar gap to md:gap-0 */}
       <div className="max-w-[1920px] mx-auto h-full flex flex-col md:flex-row md:gap-0">
@@ -1630,7 +1637,7 @@ const App: React.FC = () => {
         {/* Collapsible Sidebar - Simplified Styles */}
         <nav
           className={`
-            fixed bottom-0 left-0 w-full bg-white dark:bg-neutral-800 border-t border-slate-100 dark:border-neutral-700 z-50 pb-4 pt-3
+            fixed bottom-0 left-0 w-full bg-white dark:bg-neutral-800 border-t border-slate-100 dark:border-neutral-700 z-50 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3
             md:relative md:flex md:border-r md:border-t-0 md:flex-col md:h-full md:p-4 md:pb-4 md:pt-4 md:justify-start
             transition-all duration-300 ease-in-out
             ${isSidebarCollapsed ? 'md:w-20' : 'md:w-64'}
