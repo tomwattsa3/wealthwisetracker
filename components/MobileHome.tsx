@@ -12,7 +12,8 @@ interface MobileHomeProps {
   transactions: Transaction[];
   currency: 'GBP' | 'AED';
   getCategoryEmoji?: (categoryId: string) => string;
-  onOpenBreakdown?: () => void;
+  // Opens Breakdown on these months ('YYYY-MM', inclusive).
+  onOpenBreakdown?: (startMonth: string, endMonth: string) => void;
   onViewTransactions?: (categoryId: string, subcategory: string | null, start: string, end: string) => void;
   onImport?: () => void;
 }
@@ -194,6 +195,9 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
     : { title: `${FULL_MONTHS[sel % 12]} ${year}`, vin: inc, vout: out };
   const detailNet = detail.vin - detail.vout;
 
+  // Full breakdown opens on what Home is showing: the picked month, or the year's imported months.
+  const openBreakdown = () => onOpenBreakdown?.(indexToKey(firstSel), indexToKey(lastSel));
+
   const card = 'bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-2xl';
 
   return (
@@ -292,7 +296,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
             {rest.length ? `+${rest.length} more · ${fmt(rest.reduce((s, c) => s + c.v, 0))}` : 'All categories shown'}
           </span>
           {onOpenBreakdown && (
-            <button onClick={onOpenBreakdown} className="font-semibold text-indigo-700 dark:text-indigo-300">Full breakdown →</button>
+            <button onClick={openBreakdown} className="font-semibold text-indigo-700 dark:text-indigo-300">Full breakdown →</button>
           )}
         </div>
       </section>
@@ -334,7 +338,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
           <div className="border-t border-slate-100 dark:border-neutral-700 py-3 flex justify-between text-[12.5px]">
             <span className="text-slate-500 dark:text-neutral-400">{monthPlaces.length} {monthPlaces.length === 1 ? 'place' : 'places'} in {periodShort}</span>
             {onOpenBreakdown && (
-              <button onClick={onOpenBreakdown} className="font-semibold text-indigo-700 dark:text-indigo-300">Full breakdown →</button>
+              <button onClick={openBreakdown} className="font-semibold text-indigo-700 dark:text-indigo-300">Full breakdown →</button>
             )}
           </div>
         </section>

@@ -995,6 +995,8 @@ const App: React.FC = () => {
   };
 
   const [importOpen, setImportOpen] = useState(false);
+  // Months for Breakdown to open on (from Home's "Full breakdown"), cleared once it's applied.
+  const [breakdownJump, setBreakdownJump] = useState<{ start: string; end: string } | null>(null);
 
   // Same fields as updateTransaction, applied to many rows in one request (used by "Remember"
   // to re-file every earlier payment at a merchant).
@@ -1933,7 +1935,10 @@ const App: React.FC = () => {
                     transactions={transactions}
                     currency={currency}
                     getCategoryEmoji={getCategoryEmoji}
-                    onOpenBreakdown={() => handleTabChange('breakdown')}
+                    onOpenBreakdown={(start, end) => {
+                      setBreakdownJump({ start, end });
+                      handleTabChange('breakdown');
+                    }}
                     onImport={() => setImportOpen(true)}
                     onViewTransactions={(categoryId, subcategory, start, end) => {
                       setFilterCategory(categoryId);
@@ -1955,6 +1960,8 @@ const App: React.FC = () => {
                   transactions={transactions}
                   categories={categories}
                   getCategoryEmoji={getCategoryEmoji}
+                  jumpTo={breakdownJump}
+                  onJumpApplied={() => setBreakdownJump(null)}
                   onViewTransactions={(categoryId, subcategory, start, end) => {
                     setFilterCategory(categoryId);
                     setFilterSubcategory(subcategory ?? 'all');

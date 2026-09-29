@@ -18,13 +18,16 @@ interface BreakdownTabProps {
   getCategoryEmoji: (categoryId: string) => string;
   // Jump to the Transactions tab filtered to this category (and subcategory) over this date range.
   onViewTransactions?: (categoryId: string, subcategory: string | null, start: string, end: string) => void;
+  // Months to open on ('YYYY-MM', inclusive), e.g. from Home's "Full breakdown".
+  jumpTo?: { start: string; end: string } | null;
+  onJumpApplied?: () => void;
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const monthInputValue = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
-const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, getCategoryEmoji, onViewTransactions }) => {
+const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, getCategoryEmoji, onViewTransactions, jumpTo, onJumpApplied }) => {
   // On desktop a cell's transactions open in a panel docked beside the table (so the grid stays
   // visible and other cells can be clicked straight away); phones keep the slide-down popup.
   const [isDesktop, setIsDesktop] = useState(() => window.matchMedia('(min-width: 768px)').matches);
@@ -61,6 +64,15 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     const saved = localStorage.getItem('breakdownRangeLabel');
     return saved === 'MTD' || saved === 'Last Month' || saved === 'YTD' || saved === 'This Year' || saved === 'Custom' ? saved : 'YTD';
   });
+  useEffect(() => {
+    if (!jumpTo) return;
+    setRangeStart(jumpTo.start);
+    setRangeEnd(jumpTo.end);
+    setRangeLabel('Custom');
+    setViewMode('monthly');
+    onJumpApplied?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jumpTo]);
   useEffect(() => {
     localStorage.setItem('breakdownRangeStart', rangeStart);
     localStorage.setItem('breakdownRangeEnd', rangeEnd);
@@ -475,24 +487,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     }));
   }, [monthCols]);
 
-  // A single month shows week-of-month columns instead of one lonely column.
-  const weekMode = viewMode === 'monthly' && monthCols.length === 1;
-  const weekColDefs: ColDef[] = useMemo(() => {
-    if (monthCols.length !== 1) return [];
-    const m = monthCols[0];
-    const days = new Date(m.year, m.monthIndex + 1, 0).getDate();
-    const ranges = [[1, 7], [8, 14], [15, 21], [22, 28], [29, days]].filter(([a]) => a <= days);
-    return ranges.map(([a, b], i) => ({
-      key: `${m.key}-w${i + 1}`,
-      label: i === 0 ? `${a}–${b} ${MONTHS[m.monthIndex]}` : `${a}–${b}`,
-      year: m.year,
-      monthIndex: m.monthIndex,
-      monthKeys: [`${m.key}-w${i + 1}`],
-    }));
-  }, [monthCols]);
-
-  const cols = viewMode === 'yearly' ? yearColDefs : weekMode ? weekColDefs : monthColDefs;
-  const weekOf = (day: number) => (day <= 7 ? 1 : day <= 14 ? 2 : day <= 21 ? 3 : day <= 28 ? 4 : 5);
+  const cols = viewMode === 'yearly' ? yearColDefs : monthColDefs;
 
   // categoryId -> monthKey -> amount
   // Uses Math.abs because stored amountGBP/amountAED is supposed to always be a positive
@@ -509,9 +504,6 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
       if (!map.has(t.categoryId)) map.set(t.categoryId, new Map());
       const catMap = map.get(t.categoryId)!;
       catMap.set(monthKey, (catMap.get(monthKey) || 0) + amount);
-      // Also bucketed by week of the month, for the single-month (weekly) view.
-      const weekKey = `${monthKey}-w${weekOf(d.getDate())}`;
-      catMap.set(weekKey, (catMap.get(weekKey) || 0) + amount);
     });
     return map;
   }, [activeTransactions, currency]);
@@ -527,8 +519,6 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
       if (!map.has(subKey)) map.set(subKey, new Map());
       const catMap = map.get(subKey)!;
       catMap.set(monthKey, (catMap.get(monthKey) || 0) + amount);
-      const weekKey = `${monthKey}-w${weekOf(d.getDate())}`;
-      catMap.set(weekKey, (catMap.get(weekKey) || 0) + amount);
     });
     return map;
   }, [activeTransactions, currency]);
@@ -568,20 +558,8 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
   const categoryTotal = (catId: string) => monthCols.reduce((sum, m) => sum + getCell(catId, m.key), 0);
   const subTotal = (catId: string, subName: string) => monthCols.reduce((sum, m) => sum + getSubCell(catId, subName, m.key), 0);
 
-  // "Usual month" for the weekly view: the category's average over every other month that has
-  // any imported data.
-  const dataMonthKeys = useMemo(() => {
-    const keys = new Set<string>();
-    activeTransactions.forEach(t => { const d = new Date(t.date); keys.add(`${d.getFullYear()}-${d.getMonth()}`); });
-    return Array.from(keys);
-  }, [activeTransactions]);
-  const usualMonth = (catId: string) => {
-    const others = dataMonthKeys.filter(k => !monthCols.some(m => m.key === k));
-    return others.length ? others.reduce((sum, k) => sum + getCell(catId, k), 0) / others.length : 0;
-  };
-
   // Heat shading: each row is shaded against its own busiest column, so darker = a heavier
-  // month (or week) for that category. Indigo for spending, green for income.
+  // month for that category. Indigo for spending, green for income.
   const heat = (amt: number, rowMax: number, isExpense: boolean) => {
     const ratio = rowMax > 0 ? amt / rowMax : 0;
     return {
@@ -631,7 +609,6 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     // one you're looking at — a light dashed outline rather than a solid border/background so it
     // doesn't compete with the sticky/zebra-striping already going on in this table.
     const isActiveCell = (subName: string | undefined, col: ColDef) =>
-      !weekMode &&
       detailModal !== null &&
       detailModal.categoryId === cat.id &&
       detailModal.subcategoryName === subName &&
@@ -690,7 +667,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
             {formatAmountRounded(total)}
           </td>
           <td className="px-2 md:px-3">
-            {isExpense && !weekMode && expenseGrandTotal > 0 && (
+            {isExpense && expenseGrandTotal > 0 && (
               <span className="flex items-center justify-end gap-2">
                 <span className="hidden md:block w-16 h-1.5 rounded bg-slate-100 dark:bg-neutral-700 overflow-hidden">
                   <span className="block h-full rounded bg-indigo-500" style={{ width: `${(total / expenseGrandTotal) * 100}%` }} />
@@ -698,17 +675,6 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                 <span className="text-slate-500 dark:text-neutral-400 tabular-nums">{((total / expenseGrandTotal) * 100).toFixed(1)}%</span>
               </span>
             )}
-            {isExpense && weekMode && (() => {
-              const usual = usualMonth(cat.id);
-              if (usual <= 0) return <span className="block text-right text-slate-400">New</span>;
-              const d = (total - usual) / usual;
-              return (
-                <span className={`block text-right font-semibold whitespace-nowrap ${Math.abs(d) < 0.15 ? 'text-slate-500 dark:text-neutral-400' : d > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
-                  {Math.abs(d) < 0.15 ? 'About usual' : `${d > 0 ? '↑' : '↓'} ${formatAmountRounded(Math.abs(total - usual))}`}
-                  <span className="hidden md:inline font-normal text-slate-400"> vs {formatAmountRounded(usual)}</span>
-                </span>
-              );
-            })()}
           </td>
         </tr>
         <AnimatePresence initial={false}>
@@ -922,7 +888,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
   const renderMobileList = () => {
     const sq = Math.max(4, Math.min(14, Math.floor(120 / cols.length) - 3));
     const colLabel = (c: ColDef, i: number) =>
-      viewMode === 'yearly' ? `'${String(c.year).slice(2)}` : weekMode ? `W${i + 1}` : MONTHS[c.monthIndex ?? 0][0];
+      viewMode === 'yearly' ? `'${String(c.year).slice(2)}` : MONTHS[c.monthIndex ?? 0][0];
     const net = incomeGrandTotal - expenseGrandTotal;
     const open = (cat: Category, isExpense: boolean) => {
       const col = [...cols].reverse().find(c => getColCell(cat.id, c) !== 0);
@@ -933,13 +899,8 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
       const rowMax = Math.max(...vals, 0);
       const total = categoryTotal(cat.id);
       let meta = `${formatAmountRounded(total / monthCols.length)}/mo avg`;
-      let metaClass = 'text-slate-500 dark:text-neutral-400';
-      if (weekMode) {
-        const usual = usualMonth(cat.id);
-        const d = usual ? (total - usual) / usual : 0;
-        meta = !usual ? 'New this month' : Math.abs(d) < 0.15 ? 'About usual' : `${d > 0 ? '↑' : '↓'} ${formatAmountRounded(Math.abs(total - usual))} vs usual`;
-        if (usual && Math.abs(d) >= 0.15) metaClass = (d > 0) === isExpense ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400';
-      } else if (isExpense && expenseGrandTotal > 0) {
+      const metaClass = 'text-slate-500 dark:text-neutral-400';
+      if (isExpense && expenseGrandTotal > 0) {
         meta += ` · ${((total / expenseGrandTotal) * 100).toFixed(0)}%`;
       }
       const active = detailModal?.categoryId === cat.id;
@@ -1192,7 +1153,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                     </th>
                   ))}
                   <th className="sticky top-0 z-30 px-2 md:px-3 py-2.5 md:py-[12.5px] text-right font-semibold text-slate-600 dark:text-neutral-300 uppercase tracking-wider whitespace-nowrap border-b border-l bg-slate-50 dark:bg-neutral-700 border-slate-200 dark:border-neutral-700">Total</th>
-                  <th className="sticky top-0 z-30 px-2 md:px-3 py-2.5 md:py-[12.5px] text-right font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap border-b bg-slate-50 dark:bg-neutral-700 border-slate-200 dark:border-neutral-700">{weekMode ? 'vs usual' : 'Share'}</th>
+                  <th className="sticky top-0 z-30 px-2 md:px-3 py-2.5 md:py-[12.5px] text-right font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider whitespace-nowrap border-b bg-slate-50 dark:bg-neutral-700 border-slate-200 dark:border-neutral-700">Share</th>
                 </tr>
               </thead>
               <tbody>
