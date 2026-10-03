@@ -7,7 +7,7 @@ import SegmentedControl from './SegmentedControl';
 import { MODAL_TRANSITION, SHEET_TRANSITION } from '../lib/motion';
 import {
   MONTHS, FULL_MONTHS, TOM, PERIODS, PeriodId, keyToIndex, monthKey, indexLabel, indexToKey, daysIn, localToday,
-  inWindow, computeWindow, merchantKey, sum,
+  inWindow, computeWindow, merchantKey, sum, PeriodWindow,
 } from '../lib/periods';
 
 interface CategorySheetsProps {
@@ -33,7 +33,6 @@ interface Row {
 }
 
 const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency, getCategoryEmoji, onViewTransactions }) => {
-  const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
   const [period, setPeriod] = useState<PeriodId>(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}').period;
@@ -97,13 +96,27 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
 
   const today = localToday();
   const lastIdx = useMemo(() => (rows.length ? Math.max(...rows.map(r => r.monthIdx)) : keyToIndex(monthKey(today))), [rows, today]);
-  const win = useMemo(() => computeWindow(period, today, lastIdx), [period, today, lastIdx]);
+  const firstIdx = useMemo(() => (rows.length ? Math.min(...rows.map(r => r.monthIdx)) : lastIdx), [rows, lastIdx]);
+  // Phones just pick a year (its imported months); desktop keeps the period presets.
+  const [phoneYear, setPhoneYear] = useState<number | null>(null);
+  const year = phoneYear ?? Math.floor(lastIdx / 12);
+  const yearWin = useMemo<PeriodWindow>(() => {
+    const from = Math.max(year * 12, firstIdx), to = Math.min(year * 12 + 11, lastIdx);
+    const monthIdxs = from <= to ? Array.from({ length: to - from + 1 }, (_, i) => from + i) : Array.from({ length: 12 }, (_, i) => year * 12 + i);
+    const last = monthIdxs[monthIdxs.length - 1];
+    return {
+      start: `${indexToKey(monthIdxs[0])}-01`,
+      end: `${indexToKey(last)}-${String(daysIn(last)).padStart(2, '0')}`,
+      monthIdxs, single: false, dayLimit: 0, label: String(year), name: String(year), prev: null,
+    };
+  }, [year, firstIdx, lastIdx]);
+  const win = useMemo(() => (isPhone ? yearWin : computeWindow(period, today, lastIdx)), [isPhone, yearWin, period, today, lastIdx]);
   const inRange = useMemo(() => rows.filter(r => inWindow(r.date, win)), [rows, win]);
 
   // Months picked from the month strip (empty = every month in the period). Any combination,
   // not just a continuous range; cleared whenever the period changes.
   const [selMonths, setSelMonths] = useState<Set<number>>(new Set());
-  useEffect(() => { setSelMonths(new Set()); }, [period]);
+  useEffect(() => { setSelMonths(new Set()); }, [period, year, isPhone]);
   const toggleMonth = (mi: number) => setSelMonths(prev => {
     const next = new Set(prev);
     if (next.has(mi)) next.delete(mi); else next.add(mi);
@@ -204,36 +217,11 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
             {scopeLabel} · {fmt(total)} spent
           </p>
         </div>
-        {/* Phones: one compact button that opens the period list, instead of a row of pills */}
-        <div className="md:hidden relative shrink-0 self-start mt-1">
-          <button
-            onClick={() => setPeriodMenuOpen(o => !o)}
-            aria-haspopup="listbox"
-            aria-expanded={periodMenuOpen}
-            className="flex items-center gap-1.5 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900 dark:text-neutral-100 shadow-sm"
-          >
-            {PERIODS.find(p => p.id === period)?.label}
-            <svg viewBox="0 0 12 12" className={`w-3 h-3 text-slate-400 transition-transform ${periodMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m2.5 4.5 3.5 3.5 3.5-3.5" /></svg>
-          </button>
-          {periodMenuOpen && (
-            <>
-              <button aria-label="Close period list" className="fixed inset-0 z-40 cursor-default" onClick={() => setPeriodMenuOpen(false)} />
-              <div role="listbox" aria-label="Period" className="absolute right-0 z-50 mt-1.5 w-44 p-1 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl shadow-lg">
-                {PERIODS.map(p => (
-                  <button
-                    key={p.id}
-                    role="option"
-                    aria-selected={period === p.id}
-                    onClick={() => { setPeriod(p.id); setPeriodMenuOpen(false); }}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] text-left ${period === p.id ? 'bg-indigo-50 dark:bg-indigo-950/40 font-semibold text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-neutral-300'}`}
-                  >
-                    {p.label}
-                    {period === p.id && <span aria-hidden>✓</span>}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+        {/* Phones: just a year picker */}
+        <div className="md:hidden shrink-0 self-start mt-1 flex items-center bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl p-0.5 shadow-sm">
+          <button onClick={() => setPhoneYear(year - 1)} disabled={year <= Math.floor(firstIdx / 12)} aria-label="Previous year" className="w-8 h-8 rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">‹</button>
+          <span className="min-w-[48px] text-center text-[13px] font-semibold text-slate-900 dark:text-neutral-100">{year}</span>
+          <button onClick={() => setPhoneYear(year + 1)} disabled={year >= Math.floor(lastIdx / 12)} aria-label="Next year" className="w-8 h-8 rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">›</button>
         </div>
         <div role="group" aria-label="Period" className="hidden md:flex gap-1 p-1 bg-slate-200/70 dark:bg-neutral-800 rounded-xl self-start max-w-full overflow-x-auto hide-scrollbar">
           {PERIODS.map(p => (

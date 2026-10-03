@@ -233,8 +233,7 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
 
   return (
     <div
-      data-scroll-root
-      className="h-full flex flex-col gap-3 md:gap-4 overflow-y-auto lg:overflow-hidden pb-24 lg:pb-0"
+      className="h-full flex flex-col gap-3 md:gap-4 overflow-hidden"
       style={{ fontVariantNumeric: 'tabular-nums' }}
       onDragEnter={(e) => { if (Array.from(e.dataTransfer.types).includes('Files')) onOpenImport(); }}
     >
@@ -377,9 +376,9 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
         </button>
       </div>
 
-      <div className="flex gap-4 lg:flex-1 lg:min-h-0">
+      <div className="flex gap-4 flex-1 min-h-0">
         {/* List */}
-        <section className={`${card} flex-1 min-w-0 flex flex-col lg:min-h-0 overflow-hidden`}>
+        <section className={`${card} flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden`}>
           <div className="shrink-0 flex items-center gap-2 px-3 md:px-4 py-3 border-b border-slate-100 dark:border-neutral-700 overflow-x-auto hide-scrollbar">
             <SelectPill label="Bank" className="max-md:order-last" value={filterBank} on={filterBank !== 'all'} onChange={onFilterBank}>
               <option value="all">Bank: All</option>
@@ -444,7 +443,8 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
             </div>
           )}
 
-          <div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
+          {/* Header, totals and chips stay put; only the list scrolls (on phones too). */}
+          <div data-scroll-root className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
             {list.length === 0 && (
               <div className="py-16 text-center">
                 <p className="text-sm font-semibold text-slate-700 dark:text-neutral-200">{reviewOnly ? 'Nothing left to review' : 'No transactions match'}</p>
