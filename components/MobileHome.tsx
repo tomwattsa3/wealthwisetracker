@@ -1,5 +1,8 @@
 import React, { useMemo, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { Transaction } from '../types';
+import { usePrivacy } from '../lib/privacy';
+import BlurStrengthSlider from './BlurStrengthSlider';
 import { MONTHS, FULL_MONTHS, monthKey, keyToIndex, indexToKey, daysIn, localToday, merchantKey } from '../lib/periods';
 
 // The phone Home screen: one month at a time, fitting on a single screen. How much went out vs
@@ -80,6 +83,8 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const [picked, setPicked] = useState<number | null>(null);
   const [placeRank, setPlaceRank] = useState<'visits' | 'spent'>('visits');
   const [mode, setMode] = useState<'month' | 'ytd'>('month');
+  const [hideAmounts, toggleHideAmounts] = usePrivacy();
+  const [privacyOpen, setPrivacyOpen] = useState(false);
   const sel = picked ?? (hasData ? lastIdx : keyToIndex(monthKey(localToday())));
 
   const fmt = (v: number) => (currency === 'GBP' ? '£' : 'AED ') + Math.round(v).toLocaleString('en-GB');
@@ -203,7 +208,31 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   return (
     <div className="pb-24 flex flex-col gap-3" style={{ fontVariantNumeric: 'tabular-nums' }}>
       <div className="flex items-center justify-between gap-2 pt-1">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-neutral-100">Home</h1>
+        <div className="flex items-center gap-1">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-neutral-100">Home</h1>
+          <span className="relative">
+            <button onClick={() => setPrivacyOpen(o => !o)} aria-expanded={privacyOpen} aria-label="Hide amounts settings" data-amt-skip className={`w-8 h-8 rounded-lg flex items-center justify-center ${hideAmounts ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/50 dark:text-indigo-300' : 'text-slate-400'}`}>
+              {hideAmounts ? <EyeOff size={17} /> : <Eye size={17} />}
+            </button>
+            {privacyOpen && (
+              <>
+                <button aria-label="Close" className="fixed inset-0 z-40 cursor-default" onClick={() => setPrivacyOpen(false)} />
+                <div className="absolute left-0 top-10 z-50 w-64 p-3.5 flex flex-col gap-3 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-2xl shadow-lg">
+                  <button onClick={toggleHideAmounts} aria-pressed={hideAmounts} className="flex items-center justify-between gap-3 text-left" data-amt-skip>
+                    <span>
+                      <span className="block text-sm font-semibold text-slate-900 dark:text-neutral-100">Hide amounts</span>
+                      <span className="block text-xs text-slate-500 dark:text-neutral-400">Blur every £ figure in the app</span>
+                    </span>
+                    <span className={`relative w-11 h-[26px] shrink-0 rounded-full transition-colors ${hideAmounts ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-neutral-600'}`}>
+                      <span className={`absolute top-[3px] w-5 h-5 rounded-full bg-white shadow transition-all ${hideAmounts ? 'left-[21px]' : 'left-[3px]'}`} />
+                    </span>
+                  </button>
+                  <BlurStrengthSlider disabled={!hideAmounts} />
+                </div>
+              </>
+            )}
+          </span>
+        </div>
         <div className="flex items-center gap-1.5">
           <div role="group" aria-label="Period" className="flex gap-0.5 p-[3px] bg-slate-200/70 dark:bg-neutral-800 rounded-[10px]">
             {([['month', 'Month'], ['ytd', 'YTD']] as const).map(([id, l]) => (

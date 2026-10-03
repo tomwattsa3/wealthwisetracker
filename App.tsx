@@ -18,6 +18,8 @@ import CategoryTrendWidget from './components/CategoryTrendWidget';
 import AllocationSidebar from './components/AllocationSidebar';
 import CategoryManager from './components/CategoryManager';
 import ImportCsvModal from './components/ImportCsvModal';
+import { usePrivacy } from './lib/privacy';
+import BlurStrengthSlider from './components/BlurStrengthSlider';
 import SettingsManager from './components/SettingsManager';
 import BreakdownTab from './components/BreakdownTab';
 import RecurringPayments from './components/RecurringPayments';
@@ -28,7 +30,7 @@ import {
   ChevronLeft, ChevronRight, EyeOff, TrendingUp,
   Car, Plane, Smartphone, Coffee, ShoppingBag, PoundSterling, Activity, X,
   FolderCog, CalendarRange, LayoutGrid, ArrowRightLeft, Settings,
-  RotateCcw, Loader2, LogOut, Sparkles, Sun, Moon, Table, Repeat
+  RotateCcw, Loader2, LogOut, Sparkles, Sun, Moon, Table, Repeat, Eye
 } from 'lucide-react';
 
 // Helper for category icons
@@ -995,6 +997,7 @@ const App: React.FC = () => {
   };
 
   const [importOpen, setImportOpen] = useState(false);
+  const [hideAmounts, toggleHideAmounts] = usePrivacy();
   // Months for Breakdown to open on (from Home's "Full breakdown"), cleared once it's applied.
   const [breakdownJump, setBreakdownJump] = useState<{ start: string; end: string } | null>(null);
 
@@ -1726,8 +1729,30 @@ const App: React.FC = () => {
               </button>
            </div>
 
-           {/* Dark Mode Toggle - Desktop */}
+           {/* Hide amounts - Desktop */}
            <div className="hidden md:block mt-auto pt-4 border-t border-slate-100 dark:border-neutral-700">
+             <button
+                onClick={toggleHideAmounts}
+                aria-pressed={hideAmounts}
+                data-amt-skip
+                className={`
+                  w-full py-2.5 rounded-xl font-medium transition-all active:scale-95 flex items-center justify-center gap-2 group relative
+                  ${hideAmounts ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300' : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-200 hover:bg-slate-50 dark:hover:bg-neutral-700'}
+                  ${isSidebarCollapsed ? 'px-0' : 'px-4'}
+                `}
+              >
+                {hideAmounts ? <EyeOff size={18} /> : <Eye size={18} />}
+                {!isSidebarCollapsed && <span className="text-sm">{hideAmounts ? 'Show amounts' : 'Hide amounts'}</span>}
+              </button>
+              {hideAmounts && !isSidebarCollapsed && (
+                <div className="px-2 pt-3 pb-1">
+                  <BlurStrengthSlider compact />
+                </div>
+              )}
+           </div>
+
+           {/* Dark Mode Toggle - Desktop */}
+           <div className="hidden md:block pt-2">
              <button
                 onClick={() => setDarkMode(!darkMode)}
                 className={`
