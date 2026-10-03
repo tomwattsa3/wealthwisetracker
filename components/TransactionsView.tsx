@@ -629,7 +629,14 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
     () => allTransactions.filter(x => x.id !== t.id && norm(x.description) === norm(t.description)).sort((a, b) => b.date.localeCompare(a.date)),
     [allTransactions, t.id, t.description]
   );
-  const othersTotal = others.reduce((s, x) => s + Math.abs(x.amountGBP || 0), 0);
+  // Net spent at this merchant: payments out minus refunds in; hidden ones don't count (as
+  // everywhere else). "All time" includes the open transaction, the list shows the others.
+  const netOf = (list: Transaction[]) => list.reduce((s, x) => (isHidden(x) ? s : s + (x.type === 'INCOME' ? -1 : 1) * Math.abs(x.amountGBP || 0)), 0);
+  const othersTotal = netOf(others);
+  const allTime = [t, ...others];
+  const allTotal = netOf(allTime);
+  const allRefunds = allTime.filter(x => !isHidden(x) && x.type === 'INCOME').length;
+  const allHidden = allTime.filter(isHidden).length;
   // Only the other payments that Remember would actually change (filed somewhere else).
   const toRefile = others.filter(x => !isHidden(x) && (x.categoryId !== catId || (x.subcategoryName || '') !== sub));
   const dt = parse(t.date);
@@ -774,8 +781,15 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
       <div className="flex-1 min-h-0 flex flex-col border-t border-slate-100 dark:border-neutral-700">
         <div className="shrink-0 px-5 pt-3 pb-1 flex justify-between items-baseline gap-2">
           <h3 className="text-[13.5px] font-semibold text-slate-900 dark:text-neutral-100 truncate">Other {shortName} payments</h3>
-          <span className="shrink-0 text-xs text-slate-500 dark:text-neutral-400">{others.length ? `${others.length} · ${gbp0(othersTotal)} total` : 'First time'}</span>
+          <span className="shrink-0 text-xs text-slate-500 dark:text-neutral-400">{others.length ? `${others.length} · ${gbp(othersTotal)}` : 'First time'}</span>
         </div>
+        {others.length > 0 && (
+          <p className="shrink-0 px-5 pb-1.5 text-[11.5px] text-slate-500 dark:text-neutral-400">
+            All time with this one: <strong className="font-semibold text-slate-700 dark:text-neutral-200">{allTime.length} · {gbp(allTotal)}</strong>
+            {allRefunds > 0 && ` · ${allRefunds} ${allRefunds === 1 ? 'refund' : 'refunds'} taken off`}
+            {allHidden > 0 && ` · ${allHidden} hidden not counted`}
+          </p>
+        )}
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pb-[max(18px,env(safe-area-inset-bottom))]">
         {others.slice(0, histShown).map(x => {
           const d = parse(x.date);
