@@ -630,9 +630,8 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
     [allTransactions, t.id, t.description]
   );
   // Net spent at this merchant: payments out minus refunds in; hidden ones don't count (as
-  // everywhere else). "All time" includes the open transaction, the list shows the others.
+  // everywhere else). The total is all time, including the open transaction; the list shows the others.
   const netOf = (list: Transaction[]) => list.reduce((s, x) => (isHidden(x) ? s : s + (x.type === 'INCOME' ? -1 : 1) * Math.abs(x.amountGBP || 0)), 0);
-  const othersTotal = netOf(others);
   const allTime = [t, ...others];
   const allTotal = netOf(allTime);
   const allRefunds = allTime.filter(x => !isHidden(x) && x.type === 'INCOME').length;
@@ -781,13 +780,11 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
       <div className="flex-1 min-h-0 flex flex-col border-t border-slate-100 dark:border-neutral-700">
         <div className="shrink-0 px-5 pt-3 pb-1 flex justify-between items-baseline gap-2">
           <h3 className="text-[13.5px] font-semibold text-slate-900 dark:text-neutral-100 truncate">Other {shortName} payments</h3>
-          <span className="shrink-0 text-xs text-slate-500 dark:text-neutral-400">{others.length ? `${others.length} · ${gbp(othersTotal)}` : 'First time'}</span>
+          <span className="shrink-0 text-xs text-slate-500 dark:text-neutral-400">{others.length ? <>All time <strong className="font-semibold text-slate-700 dark:text-neutral-200">{allTime.length} · {gbp(allTotal)}</strong></> : 'First time'}</span>
         </div>
-        {others.length > 0 && (
+        {others.length > 0 && (allRefunds > 0 || allHidden > 0) && (
           <p className="shrink-0 px-5 pb-1.5 text-[11.5px] text-slate-500 dark:text-neutral-400">
-            All time with this one: <strong className="font-semibold text-slate-700 dark:text-neutral-200">{allTime.length} · {gbp(allTotal)}</strong>
-            {allRefunds > 0 && ` · ${allRefunds} ${allRefunds === 1 ? 'refund' : 'refunds'} taken off`}
-            {allHidden > 0 && ` · ${allHidden} hidden not counted`}
+            {[allRefunds > 0 && `${allRefunds} ${allRefunds === 1 ? 'refund' : 'refunds'} taken off`, allHidden > 0 && `${allHidden} hidden not counted`].filter(Boolean).join(' · ')}
           </p>
         )}
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pb-[max(18px,env(safe-area-inset-bottom))]">
@@ -849,7 +846,7 @@ const RefileDialog: React.FC<{ open: boolean; merchant: string; target: string; 
           <motion.div className="absolute inset-0 bg-slate-900/55" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={MODAL_TRANSITION} onClick={onCancel} />
           <motion.div
             role="dialog"
-            aria-label={`Re-file ${n} other ${n === 1 ? 'payment' : 'payments'}?`}
+            aria-label={`Also change ${n} earlier ${n === 1 ? 'payment' : 'payments'}?`}
             className="relative w-full max-w-[400px] max-h-[85dvh] flex flex-col bg-white dark:bg-neutral-800 rounded-3xl shadow-2xl overflow-hidden"
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -857,9 +854,9 @@ const RefileDialog: React.FC<{ open: boolean; merchant: string; target: string; 
             transition={MODAL_TRANSITION}
           >
             <div className="shrink-0 px-5 pt-5 pb-3">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-neutral-100">Re-file {n} other {n === 1 ? 'payment' : 'payments'}?</h2>
-              <p className="text-[12.5px] text-slate-600 dark:text-neutral-300 mt-1">
-                Remember files every <strong>{merchant}</strong> payment under <strong>{target}</strong>. {n === 1 ? 'This earlier one is' : 'These earlier ones are'} filed somewhere else right now:
+              <h2 className="text-lg font-bold leading-snug text-slate-900 dark:text-neutral-100">Also change {n === 1 ? 'your' : `${n}`} earlier {merchant} {n === 1 ? 'payment' : 'payments'}?</h2>
+              <p className="text-[13px] text-slate-600 dark:text-neutral-300 mt-1.5">
+                From now on, {merchant} will go under <strong className="text-slate-900 dark:text-neutral-100">{target}</strong>. {n === 1 ? 'This earlier payment is' : 'These earlier payments are'} in a different category:
               </p>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5">
@@ -871,21 +868,20 @@ const RefileDialog: React.FC<{ open: boolean; merchant: string; target: string; 
                       <span className="min-w-0 truncate text-[13.5px] font-semibold text-slate-900 dark:text-neutral-100">{x.description || 'Unknown'}</span>
                       <span className="shrink-0 text-[13.5px] font-bold text-slate-900 dark:text-neutral-100">{x.type === 'INCOME' ? '+' : '−'}{gbp(Math.abs(x.amountGBP || 0))}</span>
                     </div>
-                    <div className="text-[11.5px] text-slate-500 dark:text-neutral-400">{LONG_DAYS[d.getDay()]} {d.getDate()} {MONTHS[d.getMonth()]} {d.getFullYear()}{x.bankName ? ` · ${x.bankName}` : ''}{x.amountAED > 0 ? ` · ${aed(Math.abs(x.amountAED))}` : ''}</div>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
-                      <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-neutral-700 text-slate-600 dark:text-neutral-300 line-through decoration-slate-400">
-                        {x.categoryId ? `${getCategoryEmoji(x.categoryId)} ${x.categoryName}${x.subcategoryName ? ` › ${x.subcategoryName}` : ''}` : 'Not categorised'}
-                      </span>
-                      <span className="text-slate-400">→</span>
-                      <span className="px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-800 dark:text-indigo-200 font-medium">{target}</span>
+                    <div className="text-[11.5px] text-slate-500 dark:text-neutral-400">{DAYS[d.getDay()]} {d.getDate()} {MONTHS[d.getMonth()].slice(0, 3)} {d.getFullYear()}{x.bankName ? ` · ${x.bankName}` : ''}</div>
+                    <div className="mt-2 rounded-xl bg-slate-50 dark:bg-neutral-700/50 px-3 py-2 grid grid-cols-[62px_minmax(0,1fr)] gap-x-2 gap-y-1 text-xs">
+                      <span className="text-slate-500 dark:text-neutral-400">Now</span>
+                      <span className="text-slate-700 dark:text-neutral-300">{x.categoryId ? `${getCategoryEmoji(x.categoryId)} ${x.categoryName}${x.subcategoryName ? ` › ${x.subcategoryName}` : ''}` : 'Not categorised'}</span>
+                      <span className="font-semibold text-indigo-700 dark:text-indigo-300">Will be</span>
+                      <span className="font-semibold text-indigo-800 dark:text-indigo-200">{target}</span>
                     </div>
                   </div>
                 );
               })}
             </div>
             <div className="shrink-0 px-5 pt-3 pb-4 flex flex-col gap-2 border-t border-slate-100 dark:border-neutral-700">
-              <button onClick={() => onChoose(true)} className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-[15px] font-semibold">Re-file {n === 1 ? 'it' : `all ${n}`} too</button>
-              <button onClick={() => onChoose(false)} className="w-full py-3 rounded-2xl border border-slate-200 dark:border-neutral-600 text-sm font-medium text-slate-900 dark:text-neutral-100">Only future payments</button>
+              <button onClick={() => onChoose(true)} className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-[15px] font-semibold">Yes, change {n === 1 ? 'it' : `all ${n}`} too</button>
+              <button onClick={() => onChoose(false)} className="w-full py-3 rounded-2xl border border-slate-200 dark:border-neutral-600 text-sm font-medium text-slate-900 dark:text-neutral-100">No, just future payments</button>
               <button onClick={onCancel} className="py-1.5 text-sm text-slate-500 dark:text-neutral-400">Cancel</button>
             </div>
           </motion.div>
