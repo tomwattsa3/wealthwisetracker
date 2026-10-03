@@ -549,7 +549,7 @@ const DetailSheet: React.FC<{ t: Transaction | null; onClose: () => void; childr
           <motion.div
             role="dialog"
             aria-label={t.description}
-            className="absolute inset-x-0 bottom-0 max-h-[88dvh] bg-white dark:bg-neutral-800 rounded-t-2xl shadow-2xl flex flex-col overflow-hidden"
+            className="absolute inset-x-0 bottom-0 h-[86dvh] bg-white dark:bg-neutral-800 rounded-t-2xl shadow-2xl flex flex-col overflow-hidden"
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
@@ -601,9 +601,12 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
   const [catId, setCatId] = useState(startCat);
   const [sub, setSub] = useState(startSub);
   const [remember, setRemember] = useState(false);
+  // Whether Remember also re-files the earlier payments (chosen in the pop-up), and that pop-up.
+  const [refileOthers, setRefileOthers] = useState(true);
+  const [askRefile, setAskRefile] = useState(false);
   const [saved, setSaved] = useState(false);
   const [askDelete, setAskDelete] = useState(false);
-  const [histShown, setHistShown] = useState(sheet ? 3 : 10);
+  const [histShown, setHistShown] = useState(10);
   useEffect(() => { if (!saved) return; const id = setTimeout(() => setSaved(false), 2000); return () => clearTimeout(id); }, [saved]);
 
   const cat = categories.find(c => c.id === catId);
@@ -643,7 +646,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
     const note = (t.notes || '').replace(AUTO_NOTE, '').trim();
     onUpdate(t.id, note !== (t.notes || '') ? { ...update, notes: note } : update);
     if (remember) {
-      if (toRefile.length) onBulkUpdate(toRefile.map(x => x.id), update);
+      if (refileOthers && toRefile.length) onBulkUpdate(toRefile.map(x => x.id), update);
       onRemember(t.description, cat.id, cat.name, sub);
     }
     setRemember(false);
@@ -661,8 +664,10 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
   const chip = (on: boolean) => `px-3 py-1.5 rounded-xl border-[1.5px] text-[13px] transition-colors ${on ? 'border-indigo-600 bg-indigo-50 text-indigo-800 font-semibold dark:bg-indigo-950/50 dark:text-indigo-200' : 'border-slate-200 dark:border-neutral-600 text-slate-700 dark:text-neutral-300 hover:border-slate-300'}`;
   const amountText = `${income ? '+' : '−'}${gbp(Math.abs(t.amountGBP || 0))}`;
 
+  // The details and actions stay put; only the list of other payments scrolls underneath.
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+    <div className="flex-1 min-h-0 flex flex-col">
+      <div className="shrink-0 max-h-[65%] overflow-y-auto overscroll-contain">
       <div className={`px-5 ${sheet ? 'pt-1' : 'pt-5'} pb-4 border-b border-slate-100 dark:border-neutral-700 flex flex-col gap-3`}>
         <div className="flex items-center gap-3">
           <span className={`w-12 h-12 shrink-0 rounded-[14px] flex items-center justify-center text-xl font-bold ${hidden ? 'bg-slate-100 text-slate-400 dark:bg-neutral-700' : tintFor(t.description)}`}>{initialOf(t.description)}</span>
@@ -736,12 +741,14 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
         )}
 
         {!!(catId || startCat) && (
-          <button onClick={() => { setRemember(r => !r); setSaved(false); }} aria-pressed={remember} className="flex items-center gap-3 text-left rounded-2xl bg-slate-50 dark:bg-neutral-700/50 px-3.5 py-2.5">
+          <button onClick={() => { setSaved(false); if (remember) setRemember(false); else if (toRefile.length) setAskRefile(true); else { setRefileOthers(true); setRemember(true); } }} aria-pressed={remember} className="flex items-center gap-3 text-left rounded-2xl bg-slate-50 dark:bg-neutral-700/50 px-3.5 py-2.5">
             <span className="flex-1 min-w-0">
               <span className="block text-[13.5px] font-semibold text-slate-900 dark:text-neutral-100">Remember for {shortName}</span>
               <span className="block text-xs text-slate-500 dark:text-neutral-400">
                 {toRefile.length
-                  ? `Also re-files ${toRefile.length} other ${toRefile.length === 1 ? 'payment' : 'payments'} and future ones`
+                  ? remember && !refileOthers
+                    ? `Future payments only · ${toRefile.length} earlier ${toRefile.length === 1 ? 'one' : 'ones'} left as ${toRefile.length === 1 ? 'it is' : 'they are'}`
+                    : `Also re-files ${toRefile.length} other ${toRefile.length === 1 ? 'payment' : 'payments'} and future ones`
                   : others.length ? 'Other payments already match · future ones too' : 'Files future payments here automatically'}
               </span>
             </span>
@@ -753,7 +760,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
 
         {showSave && (
           <button onClick={saved ? undefined : save} disabled={!cat} className={`py-3 rounded-2xl text-white text-[15px] font-semibold disabled:opacity-50 ${saved ? 'bg-emerald-600' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
-            {saved ? '✓ Saved' : remember && toRefile.length ? `Save and update ${toRefile.length + 1}` : !editing && review ? 'Looks right' : 'Save'}
+            {saved ? '✓ Saved' : remember && refileOthers && toRefile.length ? `Save and update ${toRefile.length + 1}` : !editing && review ? 'Looks right' : 'Save'}
           </button>
         )}
 
@@ -762,12 +769,14 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
           <button onClick={() => setAskDelete(true)} className="text-rose-700 dark:text-rose-400 hover:text-rose-800">Delete</button>
         </div>
       </div>
+      </div>
 
-      <div className="px-5 pt-1 pb-[max(18px,env(safe-area-inset-bottom))]">
-        <div className="flex justify-between items-baseline gap-2 mb-1">
+      <div className="flex-1 min-h-0 flex flex-col border-t border-slate-100 dark:border-neutral-700">
+        <div className="shrink-0 px-5 pt-3 pb-1 flex justify-between items-baseline gap-2">
           <h3 className="text-[13.5px] font-semibold text-slate-900 dark:text-neutral-100 truncate">Other {shortName} payments</h3>
           <span className="shrink-0 text-xs text-slate-500 dark:text-neutral-400">{others.length ? `${others.length} · ${gbp0(othersTotal)} total` : 'First time'}</span>
         </div>
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pb-[max(18px,env(safe-area-inset-bottom))]">
         {others.slice(0, histShown).map(x => {
           const d = parse(x.date);
           return (
@@ -783,7 +792,18 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
             Show {Math.min(20, others.length - histShown)} more <span className="font-normal text-slate-500 dark:text-neutral-400">· {others.length - histShown} left</span>
           </button>
         )}
+        </div>
       </div>
+
+      <RefileDialog
+        open={askRefile}
+        merchant={t.description || 'this merchant'}
+        target={cat ? `${getCategoryEmoji(cat.id)} ${cat.name}${sub ? ` › ${sub}` : ''}` : ''}
+        rows={toRefile}
+        getCategoryEmoji={getCategoryEmoji}
+        onCancel={() => setAskRefile(false)}
+        onChoose={(all) => { setRefileOthers(all); setRemember(true); setAskRefile(false); }}
+      />
 
       <DeleteDialog
         open={askDelete}
@@ -795,6 +815,70 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
         hidden={hidden}
       />
     </div>
+  );
+};
+
+// Shown before Remember re-files earlier payments: exactly which ones would change, from what to
+// what, with the choice to leave them alone and only file future ones.
+const RefileDialog: React.FC<{ open: boolean; merchant: string; target: string; rows: Transaction[]; getCategoryEmoji: (id: string) => string; onCancel: () => void; onChoose: (all: boolean) => void }> = ({ open, merchant, target, rows, getCategoryEmoji, onCancel, onChoose }) => {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopImmediatePropagation(); onCancel(); } };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [open, onCancel]);
+  const n = rows.length;
+  return createPortal(
+    <AnimatePresence>
+      {open && (
+        <motion.div className="fixed inset-0 z-[120] flex items-center justify-center p-5" initial={{ pointerEvents: 'auto' }} animate={{ pointerEvents: 'auto' }} exit={{ pointerEvents: 'none' }}>
+          <motion.div className="absolute inset-0 bg-slate-900/55" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={MODAL_TRANSITION} onClick={onCancel} />
+          <motion.div
+            role="dialog"
+            aria-label={`Re-file ${n} other ${n === 1 ? 'payment' : 'payments'}?`}
+            className="relative w-full max-w-[400px] max-h-[85dvh] flex flex-col bg-white dark:bg-neutral-800 rounded-3xl shadow-2xl overflow-hidden"
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={MODAL_TRANSITION}
+          >
+            <div className="shrink-0 px-5 pt-5 pb-3">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-neutral-100">Re-file {n} other {n === 1 ? 'payment' : 'payments'}?</h2>
+              <p className="text-[12.5px] text-slate-600 dark:text-neutral-300 mt-1">
+                Remember files every <strong>{merchant}</strong> payment under <strong>{target}</strong>. {n === 1 ? 'This earlier one is' : 'These earlier ones are'} filed somewhere else right now:
+              </p>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5">
+              {rows.map(x => {
+                const d = parse(x.date);
+                return (
+                  <div key={x.id} className="py-2.5 border-t border-slate-100 dark:border-neutral-700">
+                    <div className="flex justify-between items-baseline gap-3">
+                      <span className="min-w-0 truncate text-[13.5px] font-semibold text-slate-900 dark:text-neutral-100">{x.description || 'Unknown'}</span>
+                      <span className="shrink-0 text-[13.5px] font-bold text-slate-900 dark:text-neutral-100">{x.type === 'INCOME' ? '+' : '−'}{gbp(Math.abs(x.amountGBP || 0))}</span>
+                    </div>
+                    <div className="text-[11.5px] text-slate-500 dark:text-neutral-400">{LONG_DAYS[d.getDay()]} {d.getDate()} {MONTHS[d.getMonth()]} {d.getFullYear()}{x.bankName ? ` · ${x.bankName}` : ''}{x.amountAED > 0 ? ` · ${aed(Math.abs(x.amountAED))}` : ''}</div>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+                      <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-neutral-700 text-slate-600 dark:text-neutral-300 line-through decoration-slate-400">
+                        {x.categoryId ? `${getCategoryEmoji(x.categoryId)} ${x.categoryName}${x.subcategoryName ? ` › ${x.subcategoryName}` : ''}` : 'Not categorised'}
+                      </span>
+                      <span className="text-slate-400">→</span>
+                      <span className="px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-800 dark:text-indigo-200 font-medium">{target}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="shrink-0 px-5 pt-3 pb-4 flex flex-col gap-2 border-t border-slate-100 dark:border-neutral-700">
+              <button onClick={() => onChoose(true)} className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-[15px] font-semibold">Re-file {n === 1 ? 'it' : `all ${n}`} too</button>
+              <button onClick={() => onChoose(false)} className="w-full py-3 rounded-2xl border border-slate-200 dark:border-neutral-600 text-sm font-medium text-slate-900 dark:text-neutral-100">Only future payments</button>
+              <button onClick={onCancel} className="py-1.5 text-sm text-slate-500 dark:text-neutral-400">Cancel</button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body
   );
 };
 
