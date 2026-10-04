@@ -356,7 +356,14 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                             <button onClick={() => setPm(null)} disabled={pm === null} className="min-w-[84px] px-1 text-center text-[13px] font-semibold text-indigo-700 dark:text-indigo-300" title={pm !== null ? 'Show the whole period' : undefined}>{title}</button>
                             {months.length > 1 && <button onClick={() => next !== undefined && setPm(next)} disabled={next === undefined} aria-label="Next month" className="w-8 h-8 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 disabled:opacity-30">›</button>}
                           </div>
-                          <button onClick={() => setOpen(null)} aria-label="Close" className="w-8 h-8 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 flex items-center justify-center"><X size={15} /></button>
+                          <div className="flex items-center gap-1.5">
+                            {pm !== null && (
+                              <button onClick={() => setPm(null)} className="h-8 px-3 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 text-xs font-semibold whitespace-nowrap hover:bg-indigo-100 dark:hover:bg-indigo-900/50">
+                                ← All months
+                              </button>
+                            )}
+                            <button onClick={() => setOpen(null)} aria-label="Close" className="w-8 h-8 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 flex items-center justify-center"><X size={15} /></button>
+                          </div>
                         </div>
                         <div className="flex justify-between items-end gap-3">
                           <div className="min-w-0">
