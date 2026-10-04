@@ -4,6 +4,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { Transaction } from '../types';
 import { usePrivacy } from '../lib/privacy';
 import BlurStrengthSlider from './BlurStrengthSlider';
+import CategorySheets from './CategorySheets';
 import { MONTHS, FULL_MONTHS, monthKey, keyToIndex, indexToKey, daysIn, localToday, merchantKey } from '../lib/periods';
 
 // The phone Home screen: one month at a time, fitting on a single screen. How much went out vs
@@ -93,6 +94,8 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const [hideAmounts, toggleHideAmounts] = usePrivacy();
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [showAllCats, setShowAllCats] = useState(false);
+  // The category tapped in "Where it went", shown in the same panel as Sheets' See all.
+  const [catPanel, setCatPanel] = useState<{ cat: string; year: number; month: number | null; n: number } | null>(null);
   const sel = picked ?? (hasData ? lastIdx : keyToIndex(monthKey(localToday())));
 
   const fmt = (v: number) => (currency === 'GBP' ? '£' : 'AED ') + Math.round(v).toLocaleString('en-GB');
@@ -153,7 +156,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const catRow = (c: { name: string; id: string; v: number }) => (
           <button
             key={c.name}
-            onClick={() => onViewTransactions?.(c.id, null, start, end)}
+            onClick={() => setCatPanel({ cat: c.name, year, month: ytd ? null : sel, n: Date.now() })}
             className="w-full grid grid-cols-[30px_minmax(0,1fr)_auto] gap-2.5 items-center py-2 border-t border-slate-100 dark:border-neutral-700 text-left"
           >
             <span className="w-[30px] h-[30px] rounded-[9px] bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-[15px]">
@@ -475,6 +478,18 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
           </button>
         )}
       </section>
+
+      {catPanel && (
+        <CategorySheets
+          key={catPanel.n}
+          transactions={transactions}
+          currency={currency}
+          getCategoryEmoji={getCategoryEmoji}
+          onViewTransactions={onViewTransactions || (() => {})}
+          panelOnly={catPanel}
+          onPanelClose={() => setCatPanel(null)}
+        />
+      )}
     </div>
   );
 };

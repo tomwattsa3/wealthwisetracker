@@ -16,6 +16,10 @@ interface CategorySheetsProps {
   getCategoryEmoji?: (categoryId: string) => string;
   // Jump to the Transactions tab filtered to this category (and subcategory) over this date range.
   onViewTransactions: (categoryId: string, subcategory: string | null, start: string, end: string) => void;
+  // Render only the See all panel for one category (e.g. opened from the phone Home), on a year
+  // and optionally one month of it. onPanelClose runs once it has slid away.
+  panelOnly?: { cat: string; year: number; month: number | null } | null;
+  onPanelClose?: () => void;
 }
 
 const STORAGE_KEY = 'categorySheets';
@@ -32,7 +36,7 @@ interface Row {
   amount: number;
 }
 
-const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency, getCategoryEmoji, onViewTransactions }) => {
+const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency, getCategoryEmoji, onViewTransactions, panelOnly, onPanelClose }) => {
   const [period, setPeriod] = useState<PeriodId>(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}').period;
@@ -47,9 +51,9 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
 
   // The open "See all" panel and its filters. Laid out like the Breakdown panel: a side panel on
   // desktop, a bottom sheet on phones. `pm` narrows it to one month (null = the whole scope).
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(panelOnly?.cat ?? null);
   const [sub, setSub] = useState<string>('all');
-  const [pm, setPm] = useState<number | null>(null);
+  const [pm, setPm] = useState<number | null>(panelOnly?.month ?? null);
   // Date/Amount and Summarise share the Breakdown panel's saved choices.
   const [sortBy, setSortBy] = useState<'date' | 'amount'>(() => {
     try { return localStorage.getItem('breakdownDetailSort') === 'amount' ? 'amount' : 'date'; } catch { return 'date'; }
@@ -98,7 +102,7 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
   const lastIdx = useMemo(() => (rows.length ? Math.max(...rows.map(r => r.monthIdx)) : keyToIndex(monthKey(today))), [rows, today]);
   const firstIdx = useMemo(() => (rows.length ? Math.min(...rows.map(r => r.monthIdx)) : lastIdx), [rows, lastIdx]);
   // Phones just pick a year (its imported months); desktop keeps the period presets.
-  const [phoneYear, setPhoneYear] = useState<number | null>(null);
+  const [phoneYear, setPhoneYear] = useState<number | null>(panelOnly?.year ?? null);
   const year = phoneYear ?? Math.floor(lastIdx / 12);
   const yearWin = useMemo<PeriodWindow>(() => {
     const from = Math.max(year * 12, firstIdx), to = Math.min(year * 12 + 11, lastIdx);
@@ -110,7 +114,7 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
       monthIdxs, single: false, dayLimit: 0, label: String(year), name: String(year), prev: null,
     };
   }, [year, firstIdx, lastIdx]);
-  const win = useMemo(() => (isPhone ? yearWin : computeWindow(period, today, lastIdx)), [isPhone, yearWin, period, today, lastIdx]);
+  const win = useMemo(() => (isPhone || panelOnly ? yearWin : computeWindow(period, today, lastIdx)), [isPhone, panelOnly, yearWin, period, today, lastIdx]);
   const inRange = useMemo(() => rows.filter(r => inWindow(r.date, win)), [rows, win]);
 
   // Months picked from the month strip (empty = every month in the period). Any combination,
@@ -202,110 +206,9 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
   const pct = (v: number) => (total > 0 ? `${((v / total) * 100).toFixed(1)}%` : '0%');
   const shortDate = (d: string) => `${Number(d.slice(8, 10))} ${MONTHS[Number(d.slice(5, 7)) - 1]}`;
 
-  return (
-    <div className="pb-24 md:pb-6 flex flex-col gap-4 md:gap-6" style={{ fontVariantNumeric: 'tabular-nums' }}>
-      {/* Header */}
-      <div className="flex flex-row md:items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-neutral-100">Category Sheets</h1>
-          <p className="text-xs md:text-sm text-slate-500 dark:text-neutral-400 mt-0.5">
-            {scopeLabel} · {fmt(total)} spent
-          </p>
-        </div>
-        {/* Phones: just a year picker */}
-        <div className="md:hidden shrink-0 self-start mt-1 flex items-center bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl p-0.5 shadow-sm">
-          <button onClick={() => setPhoneYear(year - 1)} disabled={year <= Math.floor(firstIdx / 12)} aria-label="Previous year" className="w-8 h-8 rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">‹</button>
-          <span className="min-w-[48px] text-center text-[13px] font-semibold text-slate-900 dark:text-neutral-100">{year}</span>
-          <button onClick={() => setPhoneYear(year + 1)} disabled={year >= Math.floor(lastIdx / 12)} aria-label="Next year" className="w-8 h-8 rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">›</button>
-        </div>
-        <div role="group" aria-label="Period" className="hidden md:flex gap-1 p-1 bg-slate-200/70 dark:bg-neutral-800 rounded-xl self-start max-w-full overflow-x-auto hide-scrollbar">
-          {PERIODS.map(p => (
-            <button
-              key={p.id}
-              onClick={() => setPeriod(p.id)}
-              aria-pressed={period === p.id}
-              className={`px-3 py-1.5 rounded-lg text-xs md:text-sm whitespace-nowrap transition-colors ${period === p.id ? 'bg-white dark:bg-neutral-600 font-semibold text-slate-900 dark:text-neutral-100 shadow-sm' : 'text-slate-600 dark:text-neutral-400'}`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Month strip: pick any months within the period */}
-      {!win.single && win.monthIdxs.length > 1 && (
-        <div className={`${card} p-2 md:p-3 flex items-center gap-2 overflow-x-auto hide-scrollbar`}>
-          <button
-            onClick={() => setSelMonths(new Set())}
-            aria-pressed={selMonths.size === 0}
-            className={`shrink-0 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${selMonths.size === 0 ? 'bg-slate-900 text-white dark:bg-neutral-100 dark:text-neutral-900' : 'text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-700'}`}
-          >
-            All months
-          </button>
-          <span aria-hidden className="w-px h-8 bg-slate-200 dark:bg-neutral-700 shrink-0" />
-          <div role="group" aria-label="Months" className="flex gap-1.5 flex-1">
-            {win.monthIdxs.map((mi, i) => {
-              const on = selMonths.has(mi);
-              const empty = monthTotals[i] === 0;
-              return (
-                <button
-                  key={mi}
-                  onClick={() => toggleMonth(mi)}
-                  disabled={empty}
-                  aria-pressed={on}
-                  title={empty ? `${FULL_MONTHS[mi % 12]}: nothing imported` : `${FULL_MONTHS[mi % 12]}: ${fmt(monthTotals[i], 2)}`}
-                  className={`flex-1 min-w-[58px] flex flex-col items-center px-2 py-1.5 rounded-xl border transition-colors disabled:opacity-40 disabled:cursor-default ${on ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-transparent text-slate-700 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-700'}`}
-                >
-                  <span className="text-xs font-semibold">{MONTHS[mi % 12]}</span>
-                  <span className={`text-[10px] ${on ? 'text-indigo-100' : 'text-slate-500 dark:text-neutral-400'}`}>{empty ? '–' : fmt(monthTotals[i])}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {sheets.length === 0 ? (
-        <div className={`${card} p-6 md:p-8 text-center`}>
-          <p className="text-sm md:text-base font-semibold text-slate-900 dark:text-neutral-100">No spending imported for {win.name} yet</p>
-          <p className="text-xs md:text-sm text-slate-500 dark:text-neutral-400 mt-1">
-            Your latest transactions are from {FULL_MONTHS[lastIdx % 12]} {Math.floor(lastIdx / 12)}. Pick a longer period or import newer statements.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
-          {sheets.map(s => {
-            const emoji = getCategoryEmoji && s.catId ? getCategoryEmoji(s.catId) : '';
-            return (
-              <article key={s.cat} className={`${card} p-4 md:p-5 flex flex-col gap-2.5 ${open === s.cat ? 'ring-2 ring-indigo-500 border-transparent' : ''}`}>
-                <div className="flex justify-between items-baseline gap-2">
-                  <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100 truncate">{emoji && <span className="mr-1">{emoji}</span>}{s.cat}</h2>
-                  <span className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100 whitespace-nowrap">{fmt(s.total, 2)}</span>
-                </div>
-                <div className="h-1.5 rounded bg-slate-100 dark:bg-neutral-700 overflow-hidden">
-                  <div className="h-full rounded bg-indigo-500" style={{ width: `${Math.max(1, (s.total / total) * 100)}%` }} />
-                </div>
-                <span className="text-[11px] text-slate-500 dark:text-neutral-400">{pct(s.total)} of spending · {s.list.length} {s.list.length === 1 ? 'transaction' : 'transactions'}</span>
-                <div className="border-t border-slate-100 dark:border-neutral-700 pt-0.5">
-                  {s.top.map(m => (
-                    <div key={m.name} className="flex justify-between gap-2 py-1.5 text-xs">
-                      <span className="truncate text-slate-700 dark:text-neutral-300">{m.name}</span>
-                      <span className="font-medium whitespace-nowrap text-slate-900 dark:text-neutral-100">{fmt(m.total, 2)}</span>
-                    </div>
-                  ))}
-                </div>
-                <button onClick={() => openSheet(s.cat)} className="mt-auto self-start py-1 text-[13px] font-semibold text-indigo-700 dark:text-indigo-300 hover:underline">
-                  See all →
-                </button>
-              </article>
-            );
-          })}
-        </div>
-      )}
-
-      {/* See all: side panel on desktop, bottom sheet on phones (same content as Breakdown's) */}
-      {createPortal(
-        <AnimatePresence>
+  // See all: side panel on desktop, bottom sheet on phones (same content as Breakdown's)
+  const panelPortal = createPortal(
+        <AnimatePresence onExitComplete={() => { if (panelOnly) onPanelClose?.(); }}>
           {sheet && panel && (
             <motion.div className="fixed inset-0 z-[100]" initial={{ pointerEvents: 'auto' }} animate={{ pointerEvents: 'auto' }} exit={{ pointerEvents: 'none' }}>
               <motion.div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={MODAL_TRANSITION} onClick={() => setOpen(null)} />
@@ -475,7 +378,112 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
           )}
         </AnimatePresence>,
         document.body
+      );
+
+  if (panelOnly) return panelPortal;
+
+  return (
+    <div className="pb-24 md:pb-6 flex flex-col gap-4 md:gap-6" style={{ fontVariantNumeric: 'tabular-nums' }}>
+      {/* Header */}
+      <div className="flex flex-row md:items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-neutral-100">Category Sheets</h1>
+          <p className="text-xs md:text-sm text-slate-500 dark:text-neutral-400 mt-0.5">
+            {scopeLabel} · {fmt(total)} spent
+          </p>
+        </div>
+        {/* Phones: just a year picker */}
+        <div className="md:hidden shrink-0 self-start mt-1 flex items-center bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl p-0.5 shadow-sm">
+          <button onClick={() => setPhoneYear(year - 1)} disabled={year <= Math.floor(firstIdx / 12)} aria-label="Previous year" className="w-8 h-8 rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">‹</button>
+          <span className="min-w-[48px] text-center text-[13px] font-semibold text-slate-900 dark:text-neutral-100">{year}</span>
+          <button onClick={() => setPhoneYear(year + 1)} disabled={year >= Math.floor(lastIdx / 12)} aria-label="Next year" className="w-8 h-8 rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">›</button>
+        </div>
+        <div role="group" aria-label="Period" className="hidden md:flex gap-1 p-1 bg-slate-200/70 dark:bg-neutral-800 rounded-xl self-start max-w-full overflow-x-auto hide-scrollbar">
+          {PERIODS.map(p => (
+            <button
+              key={p.id}
+              onClick={() => setPeriod(p.id)}
+              aria-pressed={period === p.id}
+              className={`px-3 py-1.5 rounded-lg text-xs md:text-sm whitespace-nowrap transition-colors ${period === p.id ? 'bg-white dark:bg-neutral-600 font-semibold text-slate-900 dark:text-neutral-100 shadow-sm' : 'text-slate-600 dark:text-neutral-400'}`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Month strip: pick any months within the period */}
+      {!win.single && win.monthIdxs.length > 1 && (
+        <div className={`${card} p-2 md:p-3 flex items-center gap-2 overflow-x-auto hide-scrollbar`}>
+          <button
+            onClick={() => setSelMonths(new Set())}
+            aria-pressed={selMonths.size === 0}
+            className={`shrink-0 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${selMonths.size === 0 ? 'bg-slate-900 text-white dark:bg-neutral-100 dark:text-neutral-900' : 'text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-700'}`}
+          >
+            All months
+          </button>
+          <span aria-hidden className="w-px h-8 bg-slate-200 dark:bg-neutral-700 shrink-0" />
+          <div role="group" aria-label="Months" className="flex gap-1.5 flex-1">
+            {win.monthIdxs.map((mi, i) => {
+              const on = selMonths.has(mi);
+              const empty = monthTotals[i] === 0;
+              return (
+                <button
+                  key={mi}
+                  onClick={() => toggleMonth(mi)}
+                  disabled={empty}
+                  aria-pressed={on}
+                  title={empty ? `${FULL_MONTHS[mi % 12]}: nothing imported` : `${FULL_MONTHS[mi % 12]}: ${fmt(monthTotals[i], 2)}`}
+                  className={`flex-1 min-w-[58px] flex flex-col items-center px-2 py-1.5 rounded-xl border transition-colors disabled:opacity-40 disabled:cursor-default ${on ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-transparent text-slate-700 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-700'}`}
+                >
+                  <span className="text-xs font-semibold">{MONTHS[mi % 12]}</span>
+                  <span className={`text-[10px] ${on ? 'text-indigo-100' : 'text-slate-500 dark:text-neutral-400'}`}>{empty ? '–' : fmt(monthTotals[i])}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       )}
+
+      {sheets.length === 0 ? (
+        <div className={`${card} p-6 md:p-8 text-center`}>
+          <p className="text-sm md:text-base font-semibold text-slate-900 dark:text-neutral-100">No spending imported for {win.name} yet</p>
+          <p className="text-xs md:text-sm text-slate-500 dark:text-neutral-400 mt-1">
+            Your latest transactions are from {FULL_MONTHS[lastIdx % 12]} {Math.floor(lastIdx / 12)}. Pick a longer period or import newer statements.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
+          {sheets.map(s => {
+            const emoji = getCategoryEmoji && s.catId ? getCategoryEmoji(s.catId) : '';
+            return (
+              <article key={s.cat} className={`${card} p-4 md:p-5 flex flex-col gap-2.5 ${open === s.cat ? 'ring-2 ring-indigo-500 border-transparent' : ''}`}>
+                <div className="flex justify-between items-baseline gap-2">
+                  <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100 truncate">{emoji && <span className="mr-1">{emoji}</span>}{s.cat}</h2>
+                  <span className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100 whitespace-nowrap">{fmt(s.total, 2)}</span>
+                </div>
+                <div className="h-1.5 rounded bg-slate-100 dark:bg-neutral-700 overflow-hidden">
+                  <div className="h-full rounded bg-indigo-500" style={{ width: `${Math.max(1, (s.total / total) * 100)}%` }} />
+                </div>
+                <span className="text-[11px] text-slate-500 dark:text-neutral-400">{pct(s.total)} of spending · {s.list.length} {s.list.length === 1 ? 'transaction' : 'transactions'}</span>
+                <div className="border-t border-slate-100 dark:border-neutral-700 pt-0.5">
+                  {s.top.map(m => (
+                    <div key={m.name} className="flex justify-between gap-2 py-1.5 text-xs">
+                      <span className="truncate text-slate-700 dark:text-neutral-300">{m.name}</span>
+                      <span className="font-medium whitespace-nowrap text-slate-900 dark:text-neutral-100">{fmt(m.total, 2)}</span>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => openSheet(s.cat)} className="mt-auto self-start py-1 text-[13px] font-semibold text-indigo-700 dark:text-indigo-300 hover:underline">
+                  See all →
+                </button>
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      {panelPortal}
     </div>
   );
 };
