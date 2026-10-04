@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Eye, EyeOff } from 'lucide-react';
 import { Transaction } from '../types';
 import { usePrivacy } from '../lib/privacy';
@@ -85,6 +86,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const [mode, setMode] = useState<'month' | 'ytd'>('month');
   const [hideAmounts, toggleHideAmounts] = usePrivacy();
   const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [showAllCats, setShowAllCats] = useState(false);
   const sel = picked ?? (hasData ? lastIdx : keyToIndex(monthKey(localToday())));
 
   const fmt = (v: number) => (currency === 'GBP' ? '£' : 'AED ') + Math.round(v).toLocaleString('en-GB');
@@ -142,6 +144,29 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const top = cats.slice(0, TOP_N);
   const rest = cats.slice(TOP_N);
   const catMax = top.length ? top[0].v : 1;
+  const catRow = (c: { name: string; id: string; v: number }) => (
+          <button
+            key={c.name}
+            onClick={() => onViewTransactions?.(c.id, null, start, end)}
+            className="w-full grid grid-cols-[30px_minmax(0,1fr)_auto] gap-2.5 items-center py-2 border-t border-slate-100 dark:border-neutral-700 text-left"
+          >
+            <span className="w-[30px] h-[30px] rounded-[9px] bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-[15px]">
+              {(getCategoryEmoji && c.id && getCategoryEmoji(c.id)) || '•'}
+            </span>
+            <span className="min-w-0 flex flex-col gap-1">
+              <span className="flex justify-between gap-2">
+                <span className="text-[13.5px] font-medium text-slate-900 dark:text-neutral-100 truncate">{c.name}</span>
+                <span className="text-[13.5px] font-bold text-slate-900 dark:text-neutral-100">{fmt(c.v)}</span>
+              </span>
+              <span className="block h-1 rounded bg-slate-100 dark:bg-neutral-700">
+                <span className="block h-1 rounded bg-indigo-500" style={{ width: `${(c.v / catMax) * 100}%` }} />
+              </span>
+            </span>
+            <span className="min-w-[40px] text-right text-[12px] font-semibold text-slate-500 dark:text-neutral-400">
+              {out ? `${Math.round((c.v / out) * 100)}%` : ''}
+            </span>
+          </button>
+  );
 
   // Merge each month's places across the selected months.
   const merged = new Map<string, Place>();
@@ -297,33 +322,31 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
           <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100">Where it went</h2>
         </div>
         {top.length === 0 && <p className="py-6 text-center text-sm text-slate-400">No spending {ytd ? 'this year' : 'this month'}</p>}
-        {top.map(c => (
-          <button
-            key={c.name}
-            onClick={() => onViewTransactions?.(c.id, null, start, end)}
-            className="w-full grid grid-cols-[30px_minmax(0,1fr)_auto] gap-2.5 items-center py-2 border-t border-slate-100 dark:border-neutral-700 text-left"
-          >
-            <span className="w-[30px] h-[30px] rounded-[9px] bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-[15px]">
-              {(getCategoryEmoji && c.id && getCategoryEmoji(c.id)) || '•'}
-            </span>
-            <span className="min-w-0 flex flex-col gap-1">
-              <span className="flex justify-between gap-2">
-                <span className="text-[13.5px] font-medium text-slate-900 dark:text-neutral-100 truncate">{c.name}</span>
-                <span className="text-[13.5px] font-bold text-slate-900 dark:text-neutral-100">{fmt(c.v)}</span>
-              </span>
-              <span className="block h-1 rounded bg-slate-100 dark:bg-neutral-700">
-                <span className="block h-1 rounded bg-indigo-500" style={{ width: `${(c.v / catMax) * 100}%` }} />
-              </span>
-            </span>
-            <span className="min-w-[40px] text-right text-[12px] font-semibold text-slate-500 dark:text-neutral-400">
-              {out ? `${Math.round((c.v / out) * 100)}%` : ''}
-            </span>
-          </button>
-        ))}
+        {top.map(catRow)}
+        {/* The rest of the categories open smoothly under the top six */}
+        <AnimatePresence initial={false}>
+          {showAllCats && rest.length > 0 && (
+            <motion.div
+              key="rest"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              className="overflow-hidden"
+            >
+              {rest.map(catRow)}
+            </motion.div>
+          )}
+        </AnimatePresence>
         <div className="border-t border-slate-100 dark:border-neutral-700 py-3 flex justify-between text-[12.5px]">
-          <span className="text-slate-500 dark:text-neutral-400">
-            {rest.length ? `+${rest.length} more · ${fmt(rest.reduce((s, c) => s + c.v, 0))}` : 'All categories shown'}
-          </span>
+          {rest.length ? (
+            <button onClick={() => setShowAllCats(v => !v)} aria-expanded={showAllCats} className="flex items-center gap-1 font-medium text-slate-600 dark:text-neutral-300">
+              {showAllCats ? 'Show less' : `+${rest.length} more · ${fmt(rest.reduce((s, c) => s + c.v, 0))}`}
+              <svg viewBox="0 0 12 12" className={`w-3 h-3 transition-transform duration-300 ${showAllCats ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m2.5 4.5 3.5 3.5 3.5-3.5" /></svg>
+            </button>
+          ) : (
+            <span className="text-slate-500 dark:text-neutral-400">All categories shown</span>
+          )}
           {onOpenBreakdown && (
             <button onClick={openBreakdown} className="font-semibold text-indigo-700 dark:text-indigo-300">Full breakdown →</button>
           )}
