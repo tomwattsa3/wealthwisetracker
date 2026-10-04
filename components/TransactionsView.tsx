@@ -118,7 +118,6 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
   const [customStart, setCustomStart] = useState(dateRange.start);
   const [customEnd, setCustomEnd] = useState(dateRange.end);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   useEffect(() => { if (!toast) return; const id = setTimeout(() => setToast(null), 3500); return () => clearTimeout(id); }, [toast]);
 
@@ -231,6 +230,35 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
 
   const panelOpen = !!selected;
 
+  // ---- Phones: month strip (spending per month of the year in view) ----
+  const spendByMonth = useMemo(() => {
+    const m = new Map<string, number>();
+    allTransactions.forEach(t => {
+      if (t.type !== 'EXPENSE' || isHidden(t) || !/^\d{4}-\d{2}/.test(t.date)) return;
+      const k = t.date.slice(0, 7);
+      m.set(k, (m.get(k) || 0) + Math.abs(t.amountGBP || 0));
+    });
+    return m;
+  }, [allTransactions]);
+  const dataYears = useMemo(() => Array.from(new Set(Array.from(spendByMonth.keys()).map(k => Number(k.slice(0, 4))))).sort(), [spendByMonth]);
+  const today = new Date();
+  const stripYear = dataYears.includes(Number(dateRange.end.slice(0, 4))) ? Number(dateRange.end.slice(0, 4)) : dataYears[dataYears.length - 1] ?? today.getFullYear();
+  const stripMonths = (() => {
+    const keys = Array.from(spendByMonth.keys()).filter(k => k.startsWith(`${stripYear}-`)).sort();
+    const last = keys.length ? Number(keys[keys.length - 1].slice(5, 7)) : (stripYear === today.getFullYear() ? today.getMonth() + 1 : 12);
+    return Array.from({ length: last }, (_, i) => i + 1);
+  })();
+  const monthRange = (y: number, m: number) => ({ start: `${y}-${String(m).padStart(2, '0')}-01`, end: iso(new Date(y, m, 0)) });
+  const yearRange = (y: number) => (y === today.getFullYear()
+    ? { start: `${y}-01-01`, end: iso(today), label: 'YTD' }
+    : { start: `${y}-01-01`, end: `${y}-12-31`, label: 'Custom Range' });
+  const activeMonth = stripMonths.find(m => { const r = monthRange(stripYear, m); return r.start === dateRange.start && r.end === dateRange.end; });
+  const allActive = !activeMonth && dateRange.start === `${stripYear}-01-01` && (dateRange.label === 'YTD' || dateRange.end === `${stripYear}-12-31`);
+  const stripRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    stripRef.current?.querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [dateRange.start, dateRange.end]);
+
   return (
     <div
       className="h-full flex flex-col gap-3 md:gap-4 overflow-hidden"
@@ -245,6 +273,7 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
           <button onClick={onOpenImport} className="h-10 px-3.5 rounded-xl bg-indigo-600 text-white text-[13px] font-semibold flex items-center gap-1.5"><Upload size={15} /> Import</button>
           <button onClick={onLogout} aria-label="Log out" className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-400"><LogOut size={16} /></button>
         </div>
+        <p className="-mt-2 text-[12.5px] text-slate-600 dark:text-neutral-300">Spent <strong className="text-slate-900 dark:text-neutral-100">{gbp0(summary.spent)}</strong> · In <strong className="text-emerald-700 dark:text-emerald-400">{gbp0(summary.moneyIn)}</strong></p>
         {(searchOpen || searchQuery) && (
           <div className="flex items-center gap-2">
             <label className="relative flex-1">
@@ -261,29 +290,30 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
             <button onClick={() => { onSearch(''); setSearchOpen(false); }} className="text-sm text-slate-500">Cancel</button>
           </div>
         )}
-        <div className="flex items-center justify-between gap-2">
-          <div className="relative">
-            <button onClick={() => setPeriodMenuOpen(o => !o)} aria-haspopup="listbox" aria-expanded={periodMenuOpen} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-[13px] font-semibold text-slate-900 dark:text-neutral-100">
-              {customOpen || dateRange.label === 'Custom Range' ? periodText : PRESETS.find(x => x.id === dateRange.label)?.label || periodText}
-              <ChevronDown size={13} className={`text-slate-400 transition-transform ${periodMenuOpen ? 'rotate-180' : ''}`} />
-            </button>
-            {periodMenuOpen && (
-              <>
-                <button aria-label="Close period list" className="fixed inset-0 z-40 cursor-default" onClick={() => setPeriodMenuOpen(false)} />
-                <div role="listbox" aria-label="Period" className="absolute left-0 z-50 mt-1.5 w-44 p-1 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl shadow-lg">
-                  {[...PRESETS.map(x => ({ id: x.id, label: x.label })), { id: 'Custom Range', label: 'Custom dates…' }].map(o => {
-                    const on = dateRange.label === o.id;
-                    return (
-                      <button key={o.id} role="option" aria-selected={on} onClick={() => { pickPreset(o.id); setPeriodMenuOpen(false); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] text-left ${on ? 'bg-indigo-50 dark:bg-indigo-950/40 font-semibold text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-neutral-300'}`}>
-                        {o.label}{on && <span aria-hidden>✓</span>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-          <span className="text-[12.5px] text-slate-600 dark:text-neutral-300 truncate">Spent <strong className="text-slate-900 dark:text-neutral-100">{gbp0(summary.spent)}</strong> · In <strong className="text-emerald-700 dark:text-emerald-400">{gbp0(summary.moneyIn)}</strong></span>
+        {/* Compact month strip: the year, each month with what you spent, and custom dates */}
+        <div ref={stripRef} role="group" aria-label="Period" className="flex items-center gap-1 p-1 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-2xl overflow-x-auto hide-scrollbar">
+          {(dataYears.length > 1 ? dataYears : [stripYear]).map(y => {
+            const on = y === stripYear && allActive;
+            return (
+              <button key={y} onClick={() => { onDateRange(yearRange(y)); setCustomOpen(false); }} aria-pressed={on} className={`shrink-0 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap ${on ? 'bg-slate-900 text-white dark:bg-neutral-100 dark:text-neutral-900' : y === stripYear ? 'text-slate-700 dark:text-neutral-200' : 'text-slate-400 dark:text-neutral-500'}`}>
+                {dataYears.length > 1 ? y : `All ${y}`}
+              </button>
+            );
+          })}
+          <span className="shrink-0 w-px h-6 bg-slate-200 dark:bg-neutral-700" />
+          {stripMonths.map(m => {
+            const on = activeMonth === m;
+            const total = spendByMonth.get(`${stripYear}-${String(m).padStart(2, '0')}`) || 0;
+            return (
+              <button key={m} onClick={() => { onDateRange({ ...monthRange(stripYear, m), label: 'Custom Range' }); setCustomOpen(false); }} aria-pressed={on} className={`shrink-0 min-w-[52px] px-2 py-1 rounded-xl flex flex-col items-center ${on ? 'bg-slate-900 text-white dark:bg-neutral-100 dark:text-neutral-900' : 'text-slate-700 dark:text-neutral-200'}`}>
+                <span className="text-xs font-semibold">{MONTHS[m - 1].slice(0, 3)}</span>
+                <span className={`text-[10px] ${on ? 'text-slate-300 dark:text-neutral-600' : 'text-slate-400 dark:text-neutral-500'}`}>{total ? gbp0(total) : '–'}</span>
+              </button>
+            );
+          })}
+          <button onClick={() => setCustomOpen(o => !o)} aria-pressed={customOpen || (!activeMonth && !allActive)} className={`shrink-0 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap ${customOpen || (!activeMonth && !allActive) ? 'bg-slate-900 text-white dark:bg-neutral-100 dark:text-neutral-900' : 'text-slate-500 dark:text-neutral-400'}`}>
+            {!activeMonth && !allActive && !customOpen ? periodText : 'Custom'}
+          </button>
         </div>
         {customOpen && (
           <div className="flex items-center gap-2 bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-600 px-2.5 py-2">
