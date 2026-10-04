@@ -84,6 +84,12 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const [picked, setPicked] = useState<number | null>(null);
   const [placeRank, setPlaceRank] = useState<'visits' | 'spent'>('visits');
   const [mode, setMode] = useState<'month' | 'ytd'>('month');
+  // Tapping a month opens it; tapping the month that's already open goes back to the year.
+  const toggleMonth = (i: number) => {
+    if (mode === 'month' && i === (picked ?? lastIdx)) { setMode('ytd'); return; }
+    setPicked(i);
+    setMode('month');
+  };
   const [hideAmounts, toggleHideAmounts] = usePrivacy();
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [showAllCats, setShowAllCats] = useState(false);
@@ -300,7 +306,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
             return (
               <button
                 key={i}
-                onClick={() => { if (!inRange) return; setPicked(i); setMode('month'); }}
+                onClick={() => { if (!inRange) return; toggleMonth(i); }}
                 disabled={!inRange}
                 aria-pressed={on}
                 aria-label={`${FULL_MONTHS[i % 12]} ${Math.floor(i / 12)}: ${fmt(v)}`}
@@ -426,7 +432,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
                   return (
                     <button
                       key={c.i}
-                      onClick={() => { if (c.imported) { setPicked(c.i); setMode('month'); } }}
+                      onClick={() => { if (c.imported) toggleMonth(c.i); }}
                       disabled={!c.imported}
                       aria-pressed={on}
                       aria-label={`${FULL_MONTHS[c.i % 12]} ${year}: ${c.imported ? `in ${fmt(c.vin)}, out ${fmt(c.vout)}` : c.missing ? 'not imported' : 'no data'}`}
