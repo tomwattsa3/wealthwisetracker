@@ -191,14 +191,9 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
       filtered.forEach(r => { const k = merchantKey(r.desc); if (!latest.has(k) || r.date > latest.get(k)!) latest.set(k, r.date); });
       merchants.sort((a, b) => (latest.get(merchantKey(b.name)) || '').localeCompare(latest.get(merchantKey(a.name)) || ''));
     }
-    // "Usual" for a single month: the average of the other months in the period that had any.
-    const monthTotal = (mi: number) => sum(catAll.filter(r => r.monthIdx === mi).map(r => r.amount));
-    const others = pm !== null ? win.monthIdxs.filter(mi => mi !== pm).map(monthTotal).filter(v => v > 0) : [];
-    const usual = others.length ? sum(others) / others.length : 0;
     return {
       base, subs: Array.from(subs.entries()).sort((a, b) => b[1] - a[1]),
       merchants, tx, perCol, baseTotal: sum(base.map(r => r.amount)), filteredTotal: sum(filtered.map(r => r.amount)),
-      usual, diff: usual ? (monthTotal(pm as number) - usual) / usual : 0,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheet, sub, win, inRange, pm, sortBy]);
@@ -343,10 +338,10 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                   const prev = pm === null ? months[months.length - 1] : idx > 0 ? months[idx - 1] : undefined;
                   const next = pm !== null && idx < months.length - 1 ? months[idx + 1] : undefined;
                   const title = pm !== null ? `${MONTHS[pm % 12]} ${Math.floor(pm / 12)}` : scopeLabel;
-                  const near = Math.abs(panel.diff) < 0.15;
                   const start = pm !== null ? `${indexToKey(pm)}-01` : scopeStart;
                   const end = pm !== null ? `${indexToKey(pm)}-${String(daysIn(pm)).padStart(2, '0')}` : scopeEnd;
                   const mx = Math.max(...panel.perCol, 1);
+                  const avgMonth = panel.perCol.reduce((a, b) => a + b, 0) / Math.max(panel.perCol.length, 1);
                   return (
                     <>
                       <div className={`px-5 ${isPhone ? 'pt-1' : 'pt-5'} pb-3 flex flex-col gap-3 border-b border-slate-100 dark:border-neutral-700`}>
@@ -370,20 +365,20 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                             <h2 className="text-xl font-bold text-slate-900 dark:text-neutral-100 truncate">
                               {getCategoryEmoji && sheet.catId ? <span className="mr-1.5">{getCategoryEmoji(sheet.catId)}</span> : null}{sheet.cat}
                             </h2>
-                            <p className={`text-xs mt-0.5 ${pm !== null && panel.usual && !near ? (panel.diff > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400') : 'text-slate-500 dark:text-neutral-400'}`}>
-                              {pm === null
-                                ? `${panel.base.length} transactions · ${pct(panel.baseTotal)} of spending`
-                                : !panel.usual
-                                  ? `${panel.base.length} transactions`
-                                  : near
-                                    ? `About your usual month (${fmt(panel.usual)})`
-                                    : `${panel.diff > 0 ? '↑' : '↓'} ${Math.round(Math.abs(panel.diff) * 100)}% vs your usual ${fmt(panel.usual)}`}
+                            <p className="text-xs mt-0.5 text-slate-500 dark:text-neutral-400">
+                              {panel.base.length} {panel.base.length === 1 ? 'transaction' : 'transactions'}{pm === null ? ` · ${pct(panel.baseTotal)} of spending` : ''}
                             </p>
                           </div>
                           <span className="text-2xl font-bold whitespace-nowrap text-slate-900 dark:text-neutral-100">{fmt(panel.filteredTotal, 2)}</span>
                         </div>
 
-                        {/* Month bars across the period: tap one to look at just that month, tap again for all */}
+                        {/* Month bars across the period: tap one to look at just that month, tap again for all.
+                            The label shows the average month over the period. */}
+                        {!win.single && panel.perCol.length > 1 && (
+                          <div className="-mb-1.5 flex justify-end items-center gap-1.5 text-[11.5px] text-slate-500 dark:text-neutral-400">
+                            <span>Avg <strong className="font-semibold text-slate-800 dark:text-neutral-100">{fmt(avgMonth)}</strong> / month · {panel.perCol.length} months</span>
+                          </div>
+                        )}
                         <div className="grid gap-1.5 items-end h-[92px]" style={{ gridTemplateColumns: `repeat(${cols.length}, minmax(0, 1fr))` }}>
                           {panel.perCol.map((v, i) => {
                             const on = !win.single && pm === cols[i].key;

@@ -7,7 +7,7 @@ import { Transaction, Category } from '../types';
 import SegmentedControl from './SegmentedControl';
 import { MODAL_TRANSITION, SHEET_TRANSITION } from '../lib/motion';
 
-// Widths of the Total and Share / vs-usual columns added after the month columns.
+// Widths of the Total and Share columns added after the month columns.
 const TOTAL_COL_W = 96;
 const LAST_COL_W = 130;
 const EXTRA_COLS_W = TOTAL_COL_W + LAST_COL_W;
@@ -508,6 +508,14 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     return map;
   }, [activeTransactions, currency]);
 
+  // Months that have any imported transactions — the average in the panel skips empty months
+  // at the end of a range that haven't been imported yet.
+  const importedMonthKeys = useMemo(() => {
+    const keys = new Set<string>();
+    activeTransactions.forEach(t => { const d = new Date(t.date); keys.add(`${d.getFullYear()}-${d.getMonth()}`); });
+    return keys;
+  }, [activeTransactions]);
+
   // "categoryId::subcategoryName" -> monthKey -> amount
   const subGrid = useMemo(() => {
     const map = new Map<string, Map<string, number>>();
@@ -730,11 +738,6 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
   const catTotal = detailModalCategoryTransactions.reduce((sum, t) => sum + amt(t), 0);
   const subTotals = new Map<string, number>();
   detailModalCategoryTransactions.forEach(t => { const k = t.subcategoryName || 'Other'; subTotals.set(k, (subTotals.get(k) || 0) + amt(t)); });
-  // "Usual" = this category's average over the other months in the range that had any.
-  const others = monthCols.filter((m, i) => i !== idx).map(m => getCell(detailModal.categoryId, m.key)).filter(v => v > 0);
-  const usual = detailModal.monthIndex !== undefined && others.length ? others.reduce((a, b) => a + b, 0) / others.length : 0;
-  const diff = usual ? (catTotal - usual) / usual : 0;
-  const good = detailModal.isExpense ? diff < 0 : diff > 0;
   const monthLabel = detailModal.monthIndex !== undefined ? `${MONTHS[detailModal.monthIndex]} ${detailModal.year}` : String(detailModal.year);
   const sign = detailModal.isExpense ? '' : '+';
   const start = detailModal.monthIndex !== undefined ? `${detailModal.year}-${String(detailModal.monthIndex + 1).padStart(2, '0')}-01` : `${detailModal.year}-01-01`;
@@ -756,12 +759,8 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
         <div className="flex justify-between items-end gap-3">
           <div className="min-w-0">
             <h2 className="text-xl font-bold text-slate-900 dark:text-neutral-100 truncate"><span className="mr-1.5">{getCategoryEmoji(detailModal.categoryId)}</span>{detailModal.categoryName}</h2>
-            <p className={`text-xs mt-0.5 ${!usual || Math.abs(diff) < 0.15 ? 'text-slate-500 dark:text-neutral-400' : good ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'}`}>
-              {!usual
-                ? `${detailModalCategoryTransactions.length} transactions`
-                : Math.abs(diff) < 0.15
-                  ? `About your usual month (${formatAmountRounded(usual)})`
-                  : `${diff > 0 ? '↑' : '↓'} ${Math.round(Math.abs(diff) * 100)}% vs your usual ${formatAmountRounded(usual)}`}
+            <p className="text-xs mt-0.5 text-slate-500 dark:text-neutral-400">
+              {detailModalCategoryTransactions.length} {detailModalCategoryTransactions.length === 1 ? 'transaction' : 'transactions'}
             </p>
           </div>
           <span className={`text-2xl font-bold whitespace-nowrap ${detailModal.isExpense ? 'text-slate-900 dark:text-neutral-100' : 'text-emerald-700 dark:text-emerald-400'}`}>
@@ -769,11 +768,20 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
           </span>
         </div>
         {/* Month-by-month bars for this category (or the chosen subcategory) across the
-            whole range: the open month is highlighted, click any bar to jump to it. */}
+            whole range: the open month is highlighted, click any bar to jump to it. Above them,
+            the average month — over the months in range that have imported data. */}
         {monthCols.length > 1 && (() => {
           const vals = monthCols.map(m => (modalSubFilter === 'all' ? getCell(detailModal.categoryId, m.key) : getSubCell(detailModal.categoryId, modalSubFilter, m.key)));
           const mx = Math.max(...vals, 1);
+          const imported = monthCols.map((m, i) => (importedMonthKeys.has(m.key) ? vals[i] : null)).filter((v): v is number => v !== null);
+          const avg = imported.length ? imported.reduce((a, b) => a + b, 0) / imported.length : 0;
           return (
+            <>
+            {imported.length > 1 && (
+              <div className="-mb-1.5 flex justify-end text-[11.5px] text-slate-500 dark:text-neutral-400">
+                <span>Avg <strong className="font-semibold text-slate-800 dark:text-neutral-100">{formatAmountRounded(avg)}</strong> / month · {imported.length} months</span>
+              </div>
+            )}
             <div className="grid gap-1.5 items-end h-[92px]" style={{ gridTemplateColumns: `repeat(${monthCols.length}, minmax(0, 1fr))` }}>
               {monthCols.map((m, i) => {
                 const v = vals[i];
@@ -799,6 +807,7 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
                 );
               })}
             </div>
+            </>
           );
         })()}
         {detailModalSubcategories.length > 1 && (
