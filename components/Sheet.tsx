@@ -32,6 +32,20 @@ const scrollParentWithin = (from: Element | null, stop: Element) => {
   return null;
 };
 
+const scrollsSideways = (from: Element | null, stop: Element) => {
+  for (let el = from; el && el !== stop; el = el.parentElement) {
+    const s = getComputedStyle(el);
+    if ((s.overflowX === 'auto' || s.overflowX === 'scroll') && el.scrollWidth > el.clientWidth + 1) return true;
+  }
+  return false;
+};
+
+// While any sheet is open the page behind it is frozen, so a swipe on the sheet can't scroll
+// the dashboard underneath (phones sometimes hand the gesture to the scroller behind).
+let openSheets = 0;
+const lockPage = () => { if (openSheets++ === 0) document.documentElement.classList.add('sheet-open'); };
+const unlockPage = () => { if (--openSheets === 0) document.documentElement.classList.remove('sheet-open'); };
+
 const SheetPanel: React.FC<Omit<SheetProps, 'open' | 'onExitComplete'>> = ({ onClose, label, children, heightClass, zClass }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const dragY = useMotionValue(0);
@@ -42,6 +56,7 @@ const SheetPanel: React.FC<Omit<SheetProps, 'open' | 'onExitComplete'>> = ({ onC
   closeRef.current = onClose;
 
   useBackClose(true, onClose);
+  useEffect(() => { lockPage(); return unlockPage; }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
@@ -53,25 +68,37 @@ const SheetPanel: React.FC<Omit<SheetProps, 'open' | 'onExitComplete'>> = ({ onC
     const panel = panelRef.current;
     if (!panel) return;
     let startX = 0, startY = 0, startT = 0, lastY = 0, lastT = 0, velocity = 0;
-    let mode: 'idle' | 'maybe' | 'drag' | 'scroll' = 'idle';
+    let mode: 'idle' | 'native' | 'maybe' | 'drag' | 'scroll' = 'idle';
     let scroller: Element | null = null;
+    let sideways = false;
 
     const onStart = (e: TouchEvent) => {
       const target = e.target as Element;
-      if (e.touches.length !== 1 || target.closest('input, textarea, select, [data-no-sheet-drag]')) { mode = 'scroll'; return; }
+      if (e.touches.length !== 1 || target.closest('input, textarea, select, [data-no-sheet-drag]')) { mode = 'native'; return; }
       startX = e.touches[0].clientX; startY = lastY = e.touches[0].clientY; startT = lastT = performance.now();
       scroller = scrollParentWithin(target, panel);
+      sideways = scrollsSideways(target, panel);
       dragY.stop(); // catch it mid spring-back
       mode = 'maybe';
     };
     const onMove = (e: TouchEvent) => {
-      if (mode === 'idle' || mode === 'scroll') return;
+      if (mode === 'idle' || mode === 'native') return;
+      // Nothing in the sheet under the finger can scroll: keep the gesture away from the page.
+      if (mode === 'scroll') { if (!scroller && !sideways && e.cancelable) e.preventDefault(); return; }
       const x = e.touches[0].clientX, y = e.touches[0].clientY;
       const dy = y - startY, dx = x - startX;
       if (mode === 'maybe') {
-        if (Math.abs(dy) < 6 && Math.abs(dx) < 6) return;
+        if (Math.abs(dy) < 6 && Math.abs(dx) < 6) {
+          // Claim a downward pull from the very first move, before the browser starts a scroll.
+          if (!sideways && dy >= 0 && (!scroller || scroller.scrollTop <= 0) && e.cancelable) e.preventDefault();
+          return;
+        }
         // Sideways swipes (chip rows) and upward / mid-list pulls belong to scrolling.
-        if (Math.abs(dx) > Math.abs(dy) || dy < 0 || (scroller && scroller.scrollTop > 0)) { mode = 'scroll'; return; }
+        if (Math.abs(dx) > Math.abs(dy) || dy < 0 || (scroller && scroller.scrollTop > 0)) {
+          mode = 'scroll';
+          if (!scroller && !sideways && e.cancelable) e.preventDefault();
+          return;
+        }
         mode = 'drag';
       }
       e.preventDefault();
@@ -104,7 +131,7 @@ const SheetPanel: React.FC<Omit<SheetProps, 'open' | 'onExitComplete'>> = ({ onC
     // occasionally skip the exit-complete callback).
     <motion.div className={`fixed inset-0 ${zClass || 'z-[100]'}`} initial={{ pointerEvents: 'auto' }} animate={{ pointerEvents: 'auto' }} exit={{ pointerEvents: 'none' }}>
       <motion.div className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={MODAL_TRANSITION}>
-        <motion.div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]" style={{ opacity: scrimOpacity }} onClick={onClose} />
+        <motion.div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] touch-none" style={{ opacity: scrimOpacity }} onClick={onClose} />
       </motion.div>
       <motion.div
         className="absolute inset-x-0 bottom-0"
