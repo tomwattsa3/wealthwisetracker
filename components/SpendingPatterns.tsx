@@ -90,6 +90,8 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   const [moreCats, setMoreCats] = useState(false);
   // "Where it came from": every type, or just one (Commission, Refund…).
   const [srcType, setSrcType] = useState('all');
+  // The bar you're pointing at in the By category chart (its split shows above the chart).
+  const [hoverKey, setHoverKey] = useState<number | null>(null);
   // The small card under the headline you flip through with ‹ ›; remembers the last one shown.
   const SNAPSHOTS = ['ring', 'links', 'housing', 'costs', 'net'] as const;
   const [snapshot, setSnapshot] = useState<typeof SNAPSHOTS[number]>(() => (SNAPSHOTS as readonly string[]).includes(saved.snapshot || '') ? saved.snapshot as typeof SNAPSHOTS[number] : 'ring');
@@ -587,6 +589,28 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
     const rest = scopeTotal - sum(top.map(t => t.v));
     return rest > 0.005 ? [...top, { name: 'The rest', v: rest, color: '#CBD5E1' }] : top;
   })();
+  // The chart shows only imported months (no empty slots for months you haven't imported yet).
+  const shownBuckets = win.single ? buckets : buckets.filter(b => b.key <= lastIdx);
+  // By category: your top 3 categories in this period, then everything else, as one stacked bar.
+  const bucketOf = (s: Spend) => (win.single ? Number(s.date.slice(8, 10)) : s.monthIdx);
+  const STACK_COLORS = ['#3730A3', '#6366F1', '#A5B4FC'];
+  const stackGroups = (() => {
+    const tot = new Map<string, number>();
+    chosen.forEach(s => tot.set(s.cat, (tot.get(s.cat) || 0) + s.amount));
+    const top3 = Array.from(tot.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([name]) => name);
+    const per = new Map<number, Map<string, number>>();
+    chosen.forEach(s => {
+      const k = bucketOf(s);
+      const m = per.get(k) || new Map<string, number>();
+      const g = top3.includes(s.cat) ? s.cat : 'Everything else';
+      m.set(g, (m.get(g) || 0) + s.amount);
+      per.set(k, m);
+    });
+    const groups = [...top3.map((name, i) => ({ name, color: STACK_COLORS[i] })), { name: 'Everything else', color: '' }];
+    return { groups, per, totals: groups.map(g => ({ ...g, v: sum(Array.from(per.values()).map(m => m.get(g.name) || 0)) })) };
+  })();
+  const readKey = hoverKey ?? focus?.key ?? null;
+  const readBucket = readKey === null ? null : buckets.find(b => b.key === readKey) || null;
   const pct = (v: number, of: number) => (of > 0 ? (v / of < 0.005 ? '<1' : Math.round((v / of) * 100)) : 0);
   const pill = (on: boolean) => `min-h-[32px] px-3.5 rounded-full text-[13px] transition-colors whitespace-nowrap ${on ? 'bg-white dark:bg-neutral-600 font-semibold text-slate-900 dark:text-neutral-100 shadow-sm' : 'text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-neutral-200'}`;
   const bigCard = 'bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-3xl';
@@ -824,7 +848,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                 {focus ? `Click ${win.single ? 'that day' : MONTHS[focus.key % 12]} again, or Back, for the whole period` : <>{shortTrend}{shortTrend ? ' · ' : ''}click a {win.single ? 'day' : 'month'} to see just that {win.single ? 'day' : 'month'}</>}
               </p>
               <div className="flex items-center gap-3">
-                {view === 'total' && selected.size > 0 && total > 0 && (
+                {selected.size > 0 && total > 0 && (
                   <span className="hidden lg:flex items-center gap-2 text-xs text-slate-500 dark:text-neutral-400"><span className="w-[18px] border-t-2 border-dashed border-slate-400" />Average {fmt(avg)}</span>
                 )}
                 <div role="group" aria-label="Chart view" className="flex gap-0.5 p-[3px] bg-slate-100 dark:bg-neutral-700/60 rounded-full">
@@ -839,12 +863,12 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
               <div className="relative overflow-x-auto">
                 <div
                   className={`relative grid items-end ${win.single ? 'gap-[3px]' : monthIdxs.length >= 12 ? 'gap-2.5' : 'gap-4 xl:gap-5'}`}
-                  style={{ gridTemplateColumns: `repeat(${buckets.length}, minmax(${win.single ? 6 : 28}px, 1fr))`, height: BAR_H + (win.single ? 40 : 56) }}
+                  style={{ gridTemplateColumns: `repeat(${shownBuckets.length}, minmax(${win.single ? 6 : 28}px, 1fr))`, height: BAR_H + (win.single ? 40 : 56) }}
                 >
                   {selected.size > 0 && total > 0 && (
                     <div aria-hidden className="absolute left-0 right-0 border-t-2 border-dashed border-slate-400/70 pointer-events-none z-[1]" style={{ bottom: Math.round((avg / maxBucket) * BAR_H) + 26 }} />
                   )}
-                  {buckets.map(b => {
+                  {shownBuckets.map(b => {
                     const isFocus = focus?.key === b.key;
                     const dim = !!focus && !isFocus;
                     return (
@@ -870,49 +894,64 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                 </div>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-separate" style={{ borderSpacing: '3px' }}>
-                  <thead>
-                    <tr>
-                      <th className="text-left text-[11px] font-medium text-slate-500 dark:text-neutral-400 pb-1 min-w-[110px]">
-                        <div role="group" aria-label="Group by" className="inline-flex gap-0.5 p-[3px] bg-slate-100 dark:bg-neutral-700/60 rounded-full">
-                          {([['category', 'Categories'], ['subcategory', 'Subs']] as const).map(([id, l]) => (
-                            <button key={id} onClick={() => setLevel(id)} aria-pressed={level === id} className={`min-h-[26px] px-2.5 rounded-full text-[11px] ${level === id ? 'bg-white dark:bg-neutral-600 font-semibold text-slate-900 dark:text-neutral-100 shadow-sm' : 'text-slate-600 dark:text-neutral-400'}`}>{l}</button>
-                          ))}
-                        </div>
-                      </th>
-                      {matrix.cols.map(c => (
-                        <th key={c.key} className="text-[11px] font-medium text-slate-500 dark:text-neutral-400 pb-1 min-w-[44px]">{c.label}</th>
-                      ))}
-                      <th className="text-right text-[11px] font-medium text-slate-500 dark:text-neutral-400 pb-1 pl-2">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {matrix.rows.map(r => (
-                      <tr key={r.name}>
-                        <th scope="row" className="text-left text-[13px] font-medium text-slate-800 dark:text-neutral-200 pr-2 whitespace-nowrap">
-                          <span className="inline-block w-2 h-2 rounded-full mr-2 align-middle" style={{ background: catColor(r.cat) }} />
-                          {r.sub ? <>{r.sub} <span className="text-slate-400 dark:text-neutral-500 font-normal">· {r.cat}</span></> : r.name}
-                        </th>
-                        {r.cells.map((v, i) => {
-                          const ratio = v / r.max;
-                          return (
-                            <td
-                              key={i}
-                              title={`${r.name}, ${matrix.cols[i].label}: ${fmt(v, 2)}`}
-                              className={`h-9 rounded-lg text-center text-[11px] font-medium ${v === 0 ? 'bg-slate-50 dark:bg-neutral-700/40 text-slate-400' : ratio > 0.55 ? 'text-white' : 'text-slate-800 dark:text-neutral-100'}`}
-                              style={v > 0 ? { background: `rgba(79, 70, 229, ${0.12 + 0.78 * ratio})` } : undefined}
-                            >
-                              {v > 0 ? compact(v) : '–'}
-                            </td>
-                          );
-                        })}
-                        <td className="text-right text-[13px] font-semibold text-slate-900 dark:text-neutral-100 pl-2 whitespace-nowrap">{fmt(r.total)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <p className="text-[11px] text-slate-500 dark:text-neutral-400 mt-2">Each row is shaded against its own busiest {win.single ? 'week' : 'month'}, so darker = more than usual for that category.</p>
+              <div className="flex flex-col">
+                {/* What's under the pointer (or the picked month), else the whole period */}
+                <div className="min-h-[28px] flex flex-wrap items-baseline gap-x-5 gap-y-1 mb-2">
+                  <span className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100">
+                    {readBucket ? `${win.single ? readBucket.longLabel : `${FULL_MONTHS[readBucket.key % 12]} ${Math.floor(readBucket.key / 12)}`} · ${fmt(readBucket.total)}` : `${fmt(total)} ${periodLabel.toLowerCase()}`}
+                  </span>
+                  {stackGroups.totals.map(g => {
+                    const v = readBucket ? (stackGroups.per.get(readBucket.key)?.get(g.name) || 0) : g.v;
+                    return (
+                      <span key={g.name} className="flex items-center gap-1.5 text-[13px] text-slate-500 dark:text-neutral-400">
+                        <span className={`w-2 h-2 rounded-full ${g.color ? '' : 'bg-slate-200 dark:bg-neutral-600 ring-1 ring-inset ring-slate-300 dark:ring-neutral-500'}`} style={g.color ? { background: g.color } : undefined} />
+                        {g.name} <strong className="font-semibold text-slate-900 dark:text-neutral-100">{fmt(v)}</strong>
+                      </span>
+                    );
+                  })}
+                </div>
+                <div className="relative overflow-x-auto">
+                  <div
+                    className={`relative grid items-end ${win.single ? 'gap-[3px]' : monthIdxs.length >= 12 ? 'gap-3' : 'gap-6 xl:gap-8'}`}
+                    style={{ gridTemplateColumns: `repeat(${shownBuckets.length}, minmax(${win.single ? 6 : 28}px, 1fr))`, height: BAR_H + (win.single ? 14 : 28) - 28 }}
+                    onMouseLeave={() => setHoverKey(null)}
+                  >
+                    {selected.size > 0 && total > 0 && (
+                      <div aria-hidden className="absolute left-0 right-0 border-t-[1.5px] border-dashed border-slate-300 dark:border-neutral-600 pointer-events-none z-[1]" style={{ bottom: Math.round((avg / maxBucket) * (BAR_H - 28)) + 26 }} />
+                    )}
+                    {shownBuckets.map(b => {
+                      const isFocus = focus?.key === b.key;
+                      const lit = readKey === null || readKey === b.key;
+                      const h = b.total > 0 ? Math.max(4, Math.round((b.total / maxBucket) * (BAR_H - 28))) : 4;
+                      const parts = stackGroups.per.get(b.key);
+                      return (
+                        <button
+                          key={b.key}
+                          onClick={() => b.total > 0 && setFocusKey(isFocus ? null : b.key)}
+                          onMouseEnter={() => setHoverKey(b.key)}
+                          onFocus={() => setHoverKey(b.key)}
+                          onBlur={() => setHoverKey(null)}
+                          disabled={b.total === 0}
+                          aria-pressed={isFocus}
+                          aria-label={`${b.longLabel}: ${fmt(b.total, 2)}`}
+                          className="flex flex-col items-center justify-end gap-2.5 h-full disabled:cursor-default min-w-0"
+                        >
+                          <span
+                            className={`w-full ${win.single ? 'rounded-sm' : 'max-w-[92px] rounded-xl'} overflow-hidden flex flex-col-reverse gap-[1.5px] transition-opacity duration-150 ${lit ? '' : 'opacity-35'} ${b.total === 0 ? 'bg-slate-100 dark:bg-neutral-700' : ''}`}
+                            style={{ height: h }}
+                          >
+                            {b.total > 0 && stackGroups.groups.map(g => {
+                              const v = parts?.get(g.name) || 0;
+                              if (v <= 0) return null;
+                              return <span key={g.name} className={`block w-full ${g.color ? '' : 'bg-slate-200 dark:bg-neutral-600'}`} style={{ flex: `${v} 1 0`, minHeight: 2, ...(g.color ? { background: g.color } : {}) }} />;
+                            })}
+                          </span>
+                          <span className={`h-[18px] text-xs text-center ${isFocus || readKey === b.key ? 'font-semibold text-slate-900 dark:text-neutral-100' : 'text-slate-400 dark:text-neutral-500'} ${win.single && b.key !== 1 && Number(b.key) % 5 !== 0 && !isFocus ? 'invisible' : ''}`}>{b.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             )}
           </div>
