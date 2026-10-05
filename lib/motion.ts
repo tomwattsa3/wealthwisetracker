@@ -17,6 +17,9 @@ export const DURATION = {
 export const MODAL_TRANSITION = { duration: DURATION.modal, ease: EASE_OUT };
 export const PAGE_TRANSITION = { duration: DURATION.page, ease: EASE_OUT };
 export const SHEET_TRANSITION = { duration: DURATION.modal, ease: EASE_SHEET };
+// Spring for bottom sheets: used for opening, closing and snapping back after a drag, so every
+// sheet moves the same way.
+export const SHEET_SPRING = { type: 'spring' as const, stiffness: 420, damping: 42, mass: 0.9 };
 
 // Backdrop fade + panel scale-in, used by AnimatedModal and can be reused directly by any
 // bespoke modal that doesn't go through that component.

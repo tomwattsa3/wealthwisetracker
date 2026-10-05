@@ -8,7 +8,7 @@
     <meta name="googlebot" content="noindex, nofollow" />
     <title>WealthWise Tracker</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="apple-touch-icon" href="/favicon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -27,6 +27,14 @@
          and browsers without highlights. */
       [data-amt] { transition: filter 0.25s ease; }
       html.privacy [data-amt] { filter: blur(calc((2.64px + 0.088em) * var(--amt-k, 1))); user-select: none; }
+      /* Touch screens: feel like an app — no grey tap flash, no double-tap zoom or tap delay, and
+         long-pressing a button doesn't select its text or pop up the copy menu (text in lists
+         stays selectable). */
+      @media (pointer: coarse) {
+        html { -webkit-tap-highlight-color: transparent; }
+        * { touch-action: manipulation; }
+        button, a, [role="button"], [role="tab"], nav, label { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+      }
       /* Stop the whole app rubber-banding on iOS when a gesture hits the edge of the page */
       html, body {
         overscroll-behavior: none;

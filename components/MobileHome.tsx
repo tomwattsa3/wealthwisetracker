@@ -5,6 +5,8 @@ import { Transaction } from '../types';
 import { usePrivacy } from '../lib/privacy';
 import BlurStrengthSlider from './BlurStrengthSlider';
 import CategorySheets from './CategorySheets';
+import InstallCard from './InstallCard';
+import { useBackClose } from '../lib/backStack';
 import { MONTHS, FULL_MONTHS, monthKey, keyToIndex, indexToKey, daysIn, localToday, merchantKey } from '../lib/periods';
 
 // The phone Home screen: one month at a time, fitting on a single screen. How much went out vs
@@ -93,6 +95,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   };
   const [hideAmounts, toggleHideAmounts] = usePrivacy();
   const [privacyOpen, setPrivacyOpen] = useState(false);
+  useBackClose(privacyOpen, () => setPrivacyOpen(false));
   const [showAllCats, setShowAllCats] = useState(false);
   // The category tapped in "Where it went", shown in the same panel as Sheets' See all.
   const [catPanel, setCatPanel] = useState<{ cat: string; year: number; month: number | null; n: number } | null>(null);
@@ -245,7 +248,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         <div className="flex items-center gap-1">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-neutral-100">Home</h1>
           <span className="relative">
-            <button onClick={() => setPrivacyOpen(o => !o)} aria-expanded={privacyOpen} aria-label="Hide amounts settings" data-amt-skip className={`w-8 h-8 rounded-lg flex items-center justify-center ${hideAmounts ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/50 dark:text-indigo-300' : 'text-slate-400'}`}>
+            <button onClick={() => setPrivacyOpen(o => !o)} aria-expanded={privacyOpen} aria-label="Hide amounts settings" data-amt-skip className={`w-8 h-8 relative after:absolute after:-inset-1.5 after:content-[''] rounded-lg flex items-center justify-center ${hideAmounts ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/50 dark:text-indigo-300' : 'text-slate-400'}`}>
               {hideAmounts ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
             {privacyOpen && (
@@ -281,12 +284,14 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
             ))}
           </div>
           <div className="flex items-center bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl p-0.5">
-            <button onClick={() => step(-1)} disabled={!canPrev} aria-label={ytd ? 'Previous year' : 'Previous month'} className="w-7 h-8 rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">‹</button>
+            <button onClick={() => step(-1)} disabled={!canPrev} aria-label={ytd ? 'Previous year' : 'Previous month'} className="w-7 h-8 relative after:absolute after:-inset-y-1.5 after:-inset-x-2 after:content-[''] rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">‹</button>
             <span className="min-w-[70px] text-center text-[13px] font-semibold text-slate-900 dark:text-neutral-100">{ytd ? year : `${MONTHS[sel % 12]} ${year}`}</span>
-            <button onClick={() => step(1)} disabled={!canNext} aria-label={ytd ? 'Next year' : 'Next month'} className="w-7 h-8 rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">›</button>
+            <button onClick={() => step(1)} disabled={!canNext} aria-label={ytd ? 'Next year' : 'Next month'} className="w-7 h-8 relative after:absolute after:-inset-y-1.5 after:-inset-x-2 after:content-[''] rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">›</button>
           </div>
         </div>
       </div>
+
+      <InstallCard />
 
       <section className={`${card} p-4 flex flex-col gap-3.5`}>
         <div className="flex justify-between items-start gap-3">

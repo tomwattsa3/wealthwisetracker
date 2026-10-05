@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { DURATION, EASE_OUT, STAGGER_CONTAINER, STAGGER_ITEM } from './lib/motion';
 import { Session } from '@supabase/supabase-js';
 import { Transaction, FinancialSummary, Category, Bank, MerchantMapping } from './types';
@@ -20,6 +20,7 @@ import CategoryManager from './components/CategoryManager';
 import ImportCsvModal from './components/ImportCsvModal';
 import { usePrivacy } from './lib/privacy';
 import BlurStrengthSlider from './components/BlurStrengthSlider';
+import MoreSheet from './components/MoreSheet';
 import SettingsManager from './components/SettingsManager';
 import BreakdownTab from './components/BreakdownTab';
 import RecurringPayments from './components/RecurringPayments';
@@ -30,7 +31,7 @@ import {
   ChevronLeft, ChevronRight, EyeOff, TrendingUp,
   Car, Plane, Smartphone, Coffee, ShoppingBag, PoundSterling, Activity, X,
   FolderCog, CalendarRange, LayoutGrid, ArrowRightLeft, Settings,
-  RotateCcw, Loader2, LogOut, Sparkles, Sun, Moon, Table, Repeat, Eye
+  RotateCcw, Loader2, LogOut, Sparkles, Sun, Moon, Table, Repeat, Eye, MoreHorizontal
 } from 'lucide-react';
 
 // Helper for category icons
@@ -998,6 +999,17 @@ const App: React.FC = () => {
 
   const [importOpen, setImportOpen] = useState(false);
   const [hideAmounts, toggleHideAmounts] = usePrivacy();
+  const [moreOpen, setMoreOpen] = useState(false);
+  // Home-screen shortcuts (manifest.json) open a tab or action via ?tab=… / ?action=import.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    const action = params.get('action');
+    if (tab && ['home', 'history', 'categories', 'sheets', 'breakdown', 'recurring', 'settings'].includes(tab)) setActiveTab(tab as typeof activeTab);
+    if (action === 'import') setImportOpen(true);
+    if (tab || action) window.history.replaceState(null, '', window.location.pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Months for Breakdown to open on (from Home's "Full breakdown"), cleared once it's applied.
   const [breakdownJump, setBreakdownJump] = useState<{ start: string; end: string } | null>(null);
 
@@ -1633,6 +1645,8 @@ const App: React.FC = () => {
     // status bar: iOS Safari draws the page behind its blurred status bar, and since the app
     // scrolls inside <main> rather than the page, the top of every tab otherwise sat under it,
     // out of reach. viewport-fit=cover (index.html) is what makes the safe-area insets non-zero.
+    // MotionConfig: animations calm down for anyone with "Reduce motion" turned on.
+    <MotionConfig reducedMotion="user">
     <div
       className="bg-slate-50 dark:bg-neutral-900 h-[100dvh] font-['Poppins'] text-slate-900 dark:text-neutral-200 overflow-hidden"
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
@@ -1684,7 +1698,7 @@ const App: React.FC = () => {
                  key={item.id}
                  onClick={() => handleTabChange(item.id as any)}
                  className={`
-                   flex flex-col md:flex-row md:gap-3 p-1.5 md:p-2.5 items-center justify-center rounded-lg md:rounded-xl transition-colors duration-150 active:scale-95 group relative flex-shrink-0
+                   flex flex-col md:flex-row md:gap-3 p-1.5 md:p-2.5 min-h-[48px] min-w-[56px] md:min-h-0 md:min-w-0 items-center justify-center rounded-lg md:rounded-xl transition-colors duration-150 active:scale-95 group relative flex-shrink-0
                    ${activeTab === item.id
                      ? 'text-slate-900 dark:text-neutral-200 font-semibold'
                      : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-200 hover:bg-slate-50 dark:hover:bg-neutral-700'}
@@ -1713,6 +1727,19 @@ const App: React.FC = () => {
                  )}
                </button>
              ))}
+             {/* Phones: everything that doesn't fit in the bar lives under More */}
+             <button
+               onClick={() => setMoreOpen(true)}
+               aria-haspopup="dialog"
+               aria-expanded={moreOpen}
+               className={`md:hidden flex flex-col p-1.5 min-h-[48px] min-w-[56px] items-center justify-center rounded-lg transition-colors duration-150 active:scale-95 relative flex-shrink-0 ${moreOpen || ['categories', 'recurring', 'settings'].includes(activeTab) ? 'text-slate-900 dark:text-neutral-200 font-semibold' : 'text-slate-500 dark:text-neutral-500'}`}
+             >
+               {['categories', 'recurring', 'settings'].includes(activeTab) && (
+                 <span className="absolute inset-0 bg-slate-100 dark:bg-neutral-700 rounded-lg -z-10" />
+               )}
+               <MoreHorizontal size={18} strokeWidth={moreOpen ? 2.5 : 2} />
+               <span className="text-[9px] mt-0.5">More</span>
+             </button>
            </div>
 
            {/* Desktop Add Button */}
@@ -1929,10 +1956,10 @@ const App: React.FC = () => {
             key={activeTab}
             ref={restoreScrollOnMount}
             className="h-full"
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: isPhone ? 0 : 8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: DURATION.page, ease: EASE_OUT }}
+            exit={{ opacity: 0, y: isPhone ? 0 : -8 }}
+            transition={{ duration: isPhone ? 0.16 : DURATION.page, ease: EASE_OUT }}
           >
           {/* DASHBOARD VIEW */}
           {/* CATEGORY SHEETS */}
@@ -2088,6 +2115,17 @@ const App: React.FC = () => {
 
         </main>
       </div>
+
+      <MoreSheet
+        open={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        activeTab={activeTab}
+        onNavigate={(tab) => handleTabChange(tab)}
+        onAddTransaction={() => setIsModalOpen(true)}
+        darkMode={darkMode}
+        onToggleDark={() => setDarkMode(!darkMode)}
+        onLogout={handleLogout}
+      />
 
       <ImportCsvModal
         open={importOpen}
@@ -2333,6 +2371,7 @@ const App: React.FC = () => {
       )}
 
     </div>
+    </MotionConfig>
   );
 };
 

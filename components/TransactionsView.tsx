@@ -1,11 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion, useDragControls } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Search, Upload, X, LogOut, ChevronDown, Sparkles, RotateCcw, Trash2 } from 'lucide-react';
 import { Transaction, Category } from '../types';
 import { DateRange } from './DashboardDateFilter';
 import SegmentedControl from './SegmentedControl';
-import { MODAL_TRANSITION, SHEET_TRANSITION } from '../lib/motion';
+import { MODAL_TRANSITION } from '../lib/motion';
+import Sheet from './Sheet';
+import { useBackClose } from '../lib/backStack';
+import { buzz } from '../lib/haptics';
 
 // The Transactions tab: a summary strip, one row of filters, and every transaction grouped
 // under its day. Clicking a row opens a details panel (docked on the right on desktop, a bottom
@@ -569,37 +572,15 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
 
 // ---------------------------------------------------------------------------------------------
 
+// Phone sheet for a transaction's details. Keeps showing the last transaction while it slides
+// away, so the sheet doesn't go blank on the way down.
 const DetailSheet: React.FC<{ t: Transaction | null; onClose: () => void; children: React.ReactNode }> = ({ t, onClose, children }) => {
-  const drag = useDragControls();
-  return createPortal(
-    <AnimatePresence>
-      {t && (
-        <motion.div className="fixed inset-0 z-[100]" initial={{ pointerEvents: 'auto' }} animate={{ pointerEvents: 'auto' }} exit={{ pointerEvents: 'none' }}>
-          <motion.div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={MODAL_TRANSITION} onClick={onClose} />
-          <motion.div
-            role="dialog"
-            aria-label={t.description}
-            className="absolute inset-x-0 bottom-0 h-[86dvh] bg-white dark:bg-neutral-800 rounded-t-2xl shadow-2xl flex flex-col overflow-hidden"
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={SHEET_TRANSITION}
-            drag="y"
-            dragListener={false}
-            dragControls={drag}
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={{ top: 0, bottom: 0.6 }}
-            onDragEnd={(_, info) => { if (info.offset.y > 80 || info.velocity.y > 600) onClose(); }}
-          >
-            <div onPointerDown={(e) => drag.start(e)} className="shrink-0 flex justify-center pt-2.5 pb-1 touch-none cursor-grab">
-              <span className="w-10 h-1 rounded-full bg-slate-300 dark:bg-neutral-600" />
-            </div>
-            {children}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>,
-    document.body
+  const last = useRef<{ t: Transaction; children: React.ReactNode } | null>(null);
+  if (t) last.current = { t, children };
+  return (
+    <Sheet open={!!t} onClose={onClose} label={(t || last.current?.t)?.description || 'Transaction'} heightClass="h-[86dvh]">
+      {t ? children : last.current?.children}
+    </Sheet>
   );
 };
 
@@ -688,6 +669,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
     setRemember(false);
     setEditing(false);
     setSaved(true);
+    buzz();
     onDone();
   };
   const setHidden = (hide: boolean) => {
@@ -714,7 +696,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
           {sheet ? (
             <span className={`shrink-0 text-xl font-bold ${hidden ? 'text-slate-400 line-through' : income ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-neutral-100'}`}>{amountText}</span>
           ) : (
-            <button onClick={onClose} aria-label="Close details" className="w-8 h-8 shrink-0 self-start rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 flex items-center justify-center"><X size={15} /></button>
+            <button onClick={onClose} aria-label="Close details" className="w-8 h-8 relative after:absolute after:-inset-1.5 after:content-[''] shrink-0 self-start rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 flex items-center justify-center"><X size={15} /></button>
           )}
         </div>
         {!sheet && (
@@ -851,7 +833,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
         t={t}
         amountText={amountText}
         onCancel={() => setAskDelete(false)}
-        onDelete={() => { setAskDelete(false); onDelete(t.id); onToast(`${shortName} deleted`); onClose(); }}
+        onDelete={() => { setAskDelete(false); onDelete(t.id); buzz(20); onToast(`${shortName} deleted`); onClose(); }}
         onHide={() => { setAskDelete(false); setHidden(true); }}
         hidden={hidden}
       />
@@ -862,6 +844,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
 // Shown before Remember re-files earlier payments: exactly which ones would change, from what to
 // what, with the choice to leave them alone and only file future ones.
 const RefileDialog: React.FC<{ open: boolean; merchant: string; target: string; rows: Transaction[]; getCategoryEmoji: (id: string) => string; onCancel: () => void; onChoose: (all: boolean) => void }> = ({ open, merchant, target, rows, getCategoryEmoji, onCancel, onChoose }) => {
+  useBackClose(open, onCancel);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopImmediatePropagation(); onCancel(); } };
@@ -923,6 +906,7 @@ const RefileDialog: React.FC<{ open: boolean; merchant: string; target: string; 
 };
 
 const DeleteDialog: React.FC<{ open: boolean; t: Transaction; amountText: string; hidden: boolean; onCancel: () => void; onDelete: () => void; onHide: () => void }> = ({ open, t, amountText, hidden, onCancel, onDelete, onHide }) => {
+  useBackClose(open, onCancel);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopImmediatePropagation(); onCancel(); } };

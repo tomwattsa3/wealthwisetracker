@@ -1,10 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion, useDragControls } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
+import Sheet from './Sheet';
+import { useBackClose } from '../lib/backStack';
 import { X } from 'lucide-react';
 import { Transaction } from '../types';
 import SegmentedControl from './SegmentedControl';
-import { MODAL_TRANSITION, SHEET_TRANSITION } from '../lib/motion';
+import { MODAL_TRANSITION, SHEET_SPRING } from '../lib/motion';
 import {
   MONTHS, FULL_MONTHS, TOM, PERIODS, PeriodId, keyToIndex, monthKey, indexLabel, indexToKey, daysIn, localToday,
   inWindow, computeWindow, merchantKey, sum, PeriodWindow,
@@ -69,7 +71,7 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
     mql.addEventListener('change', on);
     return () => mql.removeEventListener('change', on);
   }, []);
-  const dragControls = useDragControls();
+  const lastPanelBody = useRef<React.ReactNode>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -207,35 +209,9 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
   const shortDate = (d: string) => `${Number(d.slice(8, 10))} ${MONTHS[Number(d.slice(5, 7)) - 1]}`;
 
   // See all: side panel on desktop, bottom sheet on phones (same content as Breakdown's)
-  const panelPortal = createPortal(
-        <AnimatePresence onExitComplete={() => { if (panelOnly) onPanelClose?.(); }}>
-          {sheet && panel && (
-            <motion.div className="fixed inset-0 z-[100]" initial={{ pointerEvents: 'auto' }} animate={{ pointerEvents: 'auto' }} exit={{ pointerEvents: 'none' }}>
-              <motion.div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={MODAL_TRANSITION} onClick={() => setOpen(null)} />
-              <motion.aside
-                role="dialog"
-                aria-modal="true"
-                aria-label={`${sheet.cat} details`}
-                className={isPhone
-                  ? 'absolute inset-x-0 bottom-0 h-[86dvh] bg-white dark:bg-neutral-800 rounded-t-2xl shadow-2xl flex flex-col overflow-hidden'
-                  : 'absolute top-0 right-0 bottom-0 w-[480px] bg-white dark:bg-neutral-800 shadow-2xl flex flex-col'}
-                initial={isPhone ? { y: '100%' } : { x: '100%' }}
-                animate={isPhone ? { y: 0 } : { x: 0 }}
-                exit={isPhone ? { y: '100%' } : { x: '100%' }}
-                transition={SHEET_TRANSITION}
-                drag={isPhone ? 'y' : false}
-                dragListener={false}
-                dragControls={dragControls}
-                dragConstraints={{ top: 0, bottom: 0 }}
-                dragElastic={{ top: 0, bottom: 0.6 }}
-                onDragEnd={(_, info) => { if (info.offset.y > 80 || info.velocity.y > 600) setOpen(null); }}
-              >
-                {isPhone && (
-                  <div onPointerDown={(e) => dragControls.start(e)} className="shrink-0 flex justify-center pt-2.5 pb-2 touch-none cursor-grab">
-                    <span className="w-10 h-1 rounded-full bg-slate-300 dark:bg-neutral-600" />
-                  </div>
-                )}
-                {(() => {
+  // The panel's content, shared by the phone sheet and the desktop side panel.
+  const renderPanelBody = () => {
+    if (!sheet || !panel) return null;
                   const idx = pm !== null ? win.monthIdxs.indexOf(pm) : -1;
                   const months = win.single ? [] : win.monthIdxs;
                   const prev = pm === null ? months[months.length - 1] : idx > 0 ? months[idx - 1] : undefined;
@@ -250,9 +226,9 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                       <div className={`px-5 ${isPhone ? 'pt-1' : 'pt-5'} pb-3 flex flex-col gap-3 border-b border-slate-100 dark:border-neutral-700`}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5">
-                            {months.length > 1 && <button onClick={() => prev !== undefined && setPm(prev)} disabled={prev === undefined} aria-label="Previous month" className="w-8 h-8 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 disabled:opacity-30">‹</button>}
+                            {months.length > 1 && <button onClick={() => prev !== undefined && setPm(prev)} disabled={prev === undefined} aria-label="Previous month" className="w-8 h-8 relative after:absolute after:-inset-1.5 after:content-[''] rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 disabled:opacity-30">‹</button>}
                             <button onClick={() => setPm(null)} disabled={pm === null} className="min-w-[84px] px-1 text-center text-[13px] font-semibold text-indigo-700 dark:text-indigo-300" title={pm !== null ? 'Show the whole period' : undefined}>{title}</button>
-                            {months.length > 1 && <button onClick={() => next !== undefined && setPm(next)} disabled={next === undefined} aria-label="Next month" className="w-8 h-8 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 disabled:opacity-30">›</button>}
+                            {months.length > 1 && <button onClick={() => next !== undefined && setPm(next)} disabled={next === undefined} aria-label="Next month" className="w-8 h-8 relative after:absolute after:-inset-1.5 after:content-[''] rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 disabled:opacity-30">›</button>}
                           </div>
                           <div className="flex items-center gap-1.5">
                             {pm !== null && (
@@ -260,7 +236,7 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                                 ← All months
                               </button>
                             )}
-                            <button onClick={() => setOpen(null)} aria-label="Close" className="w-8 h-8 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 flex items-center justify-center"><X size={15} /></button>
+                            <button onClick={() => setOpen(null)} aria-label="Close" className="w-8 h-8 relative after:absolute after:-inset-1.5 after:content-[''] rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 flex items-center justify-center"><X size={15} /></button>
                           </div>
                         </div>
                         <div className="flex justify-between items-end gap-3">
@@ -372,13 +348,40 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                       </div>
                     </>
                   );
-                })()}
-              </motion.aside>
-            </motion.div>
-          )}
-        </AnimatePresence>,
-        document.body
-      );
+  };
+  const panelBody = renderPanelBody();
+  if (panelBody) lastPanelBody.current = panelBody;
+  const closePanel = () => setOpen(null);
+  const afterClose = () => { if (panelOnly) onPanelClose?.(); };
+  useBackClose(!!panelBody && !isPhone, closePanel);
+
+  // See all: a bottom sheet on phones (drag down anywhere to close), a side panel on desktop.
+  const panelPortal = isPhone ? (
+    <Sheet open={!!panelBody} onClose={closePanel} label={`${(sheet?.cat || '')} details`} heightClass="h-[86dvh]" onExitComplete={afterClose}>
+      {panelBody || lastPanelBody.current}
+    </Sheet>
+  ) : createPortal(
+    <AnimatePresence onExitComplete={afterClose}>
+      {panelBody && (
+        <motion.div className="fixed inset-0 z-[100]" initial={{ pointerEvents: 'auto' }} animate={{ pointerEvents: 'auto' }} exit={{ pointerEvents: 'none' }}>
+          <motion.div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={MODAL_TRANSITION} onClick={closePanel} />
+          <motion.aside
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${sheet?.cat || ''} details`}
+            className="absolute top-0 right-0 bottom-0 w-[480px] bg-white dark:bg-neutral-800 shadow-2xl flex flex-col"
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={SHEET_SPRING}
+          >
+            {panelBody}
+          </motion.aside>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body
+  );
 
   if (panelOnly) return panelPortal;
 
@@ -394,9 +397,9 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
         </div>
         {/* Phones: just a year picker */}
         <div className="md:hidden shrink-0 self-start mt-1 flex items-center bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl p-0.5 shadow-sm">
-          <button onClick={() => setPhoneYear(year - 1)} disabled={year <= Math.floor(firstIdx / 12)} aria-label="Previous year" className="w-8 h-8 rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">‹</button>
+          <button onClick={() => setPhoneYear(year - 1)} disabled={year <= Math.floor(firstIdx / 12)} aria-label="Previous year" className="w-8 h-8 relative after:absolute after:-inset-1.5 after:content-[''] rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">‹</button>
           <span className="min-w-[48px] text-center text-[13px] font-semibold text-slate-900 dark:text-neutral-100">{year}</span>
-          <button onClick={() => setPhoneYear(year + 1)} disabled={year >= Math.floor(lastIdx / 12)} aria-label="Next year" className="w-8 h-8 rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">›</button>
+          <button onClick={() => setPhoneYear(year + 1)} disabled={year >= Math.floor(lastIdx / 12)} aria-label="Next year" className="w-8 h-8 relative after:absolute after:-inset-1.5 after:content-[''] rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">›</button>
         </div>
         <div role="group" aria-label="Period" className="hidden md:flex gap-1 p-1 bg-slate-200/70 dark:bg-neutral-800 rounded-xl self-start max-w-full overflow-x-auto hide-scrollbar">
           {PERIODS.map(p => (

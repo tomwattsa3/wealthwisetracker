@@ -1,11 +1,11 @@
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { AnimatePresence, motion, useDragControls } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
+import Sheet from './Sheet';
 import { ChevronRight, ChevronDown, GripVertical, SlidersHorizontal, X } from 'lucide-react';
 import { Transaction, Category } from '../types';
 import SegmentedControl from './SegmentedControl';
-import { MODAL_TRANSITION, SHEET_TRANSITION } from '../lib/motion';
+import { MODAL_TRANSITION } from '../lib/motion';
 
 // Widths of the Total and Share columns added after the month columns.
 const TOTAL_COL_W = 96;
@@ -167,10 +167,9 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
     return () => window.removeEventListener('keydown', onKey);
   }, [detailModal]);
 
-  // Drag-to-dismiss is restricted to the header (via dragListener={false} + this controls
-  // object) rather than the whole modal panel, so swiping through the transaction list below
-  // scrolls it normally instead of fighting with the dismiss gesture.
-  const detailModalDragControls = useDragControls();
+  // The last opened cell, so the phone sheet isn't blank while it slides away.
+  const lastDetail = useRef<typeof detailModal>(null);
+  if (detailModal) lastDetail.current = detailModal;
 
   const [categoryColWidth, setCategoryColWidth] = useState<number>(() => {
     try {
@@ -750,11 +749,11 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
       <div className={`px-5 ${sheet ? 'pt-1' : 'pt-4'} pb-3 flex flex-col gap-3 border-b border-slate-100 dark:border-neutral-700`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <button onClick={() => prevCol && goTo(prevCol)} disabled={!prevCol} aria-label="Previous month" className="w-8 h-8 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 disabled:opacity-30">‹</button>
+            <button onClick={() => prevCol && goTo(prevCol)} disabled={!prevCol} aria-label="Previous month" className="w-8 h-8 relative after:absolute after:-inset-1.5 after:content-[''] rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 disabled:opacity-30">‹</button>
             <span className="min-w-[84px] text-center text-[13px] font-semibold text-indigo-700 dark:text-indigo-300">{monthLabel}</span>
-            <button onClick={() => nextCol && goTo(nextCol)} disabled={!nextCol} aria-label="Next month" className="w-8 h-8 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 disabled:opacity-30">›</button>
+            <button onClick={() => nextCol && goTo(nextCol)} disabled={!nextCol} aria-label="Next month" className="w-8 h-8 relative after:absolute after:-inset-1.5 after:content-[''] rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 disabled:opacity-30">›</button>
           </div>
-          <button onClick={closeDetailModal} aria-label="Close panel" className="w-8 h-8 rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 flex items-center justify-center"><X size={15} /></button>
+          <button onClick={closeDetailModal} aria-label="Close panel" className="w-8 h-8 relative after:absolute after:-inset-1.5 after:content-[''] rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 flex items-center justify-center"><X size={15} /></button>
         </div>
         <div className="flex justify-between items-end gap-3">
           <div className="min-w-0">
@@ -1271,60 +1270,11 @@ const BreakdownTab: React.FC<BreakdownTabProps> = ({ transactions, categories, g
       </div>
 
 
-      {/* Phones: the same panel as a bottom sheet, covering most of the screen. Close via the
-          backdrop, the X, or by dragging the handle down. Portalled to <body> so it sits outside
-          <main>: there it was caught by <main>'s pull-to-refresh touch handlers and could be
-          re-anchored by the tab-transition wrapper's transform. dvh (not vh) because iOS Safari's
-          vh ignores the collapsing address bar. */}
-      {createPortal(
-      <AnimatePresence>
-      {detailModal && !isDesktop && (
-        // exit={{ pointerEvents: 'none' }}: stop intercepting touches the moment it starts closing,
-        // since on iOS Safari the exit-complete unmount can occasionally never fire.
-        <motion.div
-          className="fixed inset-0 z-[100]"
-          initial={{ pointerEvents: 'auto' }}
-          animate={{ pointerEvents: 'auto' }}
-          exit={{ pointerEvents: 'none' }}
-        >
-          <motion.div
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={MODAL_TRANSITION}
-            onClick={closeDetailModal}
-          />
-          <motion.div
-            role="dialog"
-            aria-label={detailModal.categoryName}
-            className="absolute inset-x-0 bottom-0 h-[86dvh] bg-white dark:bg-neutral-800 rounded-t-2xl shadow-2xl flex flex-col overflow-hidden"
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={SHEET_TRANSITION}
-            drag="y"
-            dragListener={false}
-            dragControls={detailModalDragControls}
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={{ top: 0, bottom: 0.6 }}
-            onDragEnd={(_, info) => {
-              if (info.offset.y > 80 || info.velocity.y > 600) closeDetailModal();
-            }}
-          >
-            <div
-              onPointerDown={(e) => detailModalDragControls.start(e)}
-              className="shrink-0 flex justify-center pt-2.5 pb-2 touch-none cursor-grab active:cursor-grabbing"
-            >
-              <span className="w-10 h-1 rounded-full bg-slate-300 dark:bg-neutral-600" />
-            </div>
-            {renderDetailPanel(detailModal, true)}
-          </motion.div>
-        </motion.div>
-      )}
-      </AnimatePresence>,
-      document.body
-      )}
+      {/* Phones: the same panel as a bottom sheet (drag down anywhere, tap outside, Escape or
+          Back to close). It keeps showing the last cell while it slides away. */}
+      <Sheet open={!!detailModal && !isDesktop} onClose={closeDetailModal} label={(detailModal || lastDetail.current)?.categoryName || 'Details'} heightClass="h-[86dvh]">
+        {(detailModal || lastDetail.current) && renderDetailPanel((detailModal || lastDetail.current)!, true)}
+      </Sheet>
     </div>
   );
 };
