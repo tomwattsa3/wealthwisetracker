@@ -31,7 +31,7 @@
          long-pressing a button doesn't select its text or pop up the copy menu (text in lists
          stays selectable). */
       /* A bottom sheet is open: freeze the page behind it (see components/Sheet.tsx). */
-      html.sheet-open main { overflow: hidden !important; }
+      html.sheet-open, html.sheet-open body, html.sheet-open main { overflow: hidden !important; }
       @media (pointer: coarse) {
         html { -webkit-tap-highlight-color: transparent; }
         * { touch-action: manipulation; }

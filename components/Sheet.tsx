@@ -42,9 +42,22 @@ const scrollsSideways = (from: Element | null, stop: Element) => {
 
 // While any sheet is open the page behind it is frozen, so a swipe on the sheet can't scroll
 // the dashboard underneath (phones sometimes hand the gesture to the scroller behind).
+// iPhone Safari ignores touch-action on the dimmed backdrop, so a page-wide listener also stops
+// any swipe that isn't inside a sheet or pop-up (those handle their own touches).
 let openSheets = 0;
-const lockPage = () => { if (openSheets++ === 0) document.documentElement.classList.add('sheet-open'); };
-const unlockPage = () => { if (--openSheets === 0) document.documentElement.classList.remove('sheet-open'); };
+const blockOutside = (e: TouchEvent) => {
+  if (e.cancelable && !(e.target as Element).closest?.('[role="dialog"], [role="alertdialog"]')) e.preventDefault();
+};
+const lockPage = () => {
+  if (openSheets++ > 0) return;
+  document.documentElement.classList.add('sheet-open');
+  document.addEventListener('touchmove', blockOutside, { passive: false });
+};
+const unlockPage = () => {
+  if (--openSheets > 0) return;
+  document.documentElement.classList.remove('sheet-open');
+  document.removeEventListener('touchmove', blockOutside);
+};
 
 const SheetPanel: React.FC<Omit<SheetProps, 'open' | 'onExitComplete'>> = ({ onClose, label, children, heightClass, zClass }) => {
   const panelRef = useRef<HTMLDivElement>(null);
