@@ -1006,6 +1006,8 @@ const App: React.FC = () => {
   const [importOpen, setImportOpen] = useState(false);
   const [hideAmounts, toggleHideAmounts] = usePrivacy();
   const [moreOpen, setMoreOpen] = useState(false);
+  // A Dashboard quick link asking Transactions to open on its review list or mixed categories.
+  const [txStart, setTxStart] = useState<'review' | 'mixed' | null>(null);
   // Home-screen shortcuts (manifest.json) open a tab or action via ?tab=… / ?action=import.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -2018,6 +2020,9 @@ const App: React.FC = () => {
                       setDateRange({ start, end, label: 'Custom Range' });
                       handleTabChange('history');
                     }}
+                    lastImport={latestByBank[0] ? `${latestByBank[0].dateLabel.replace(/ \d{4}$/, '')} · ${latestByBank[0].name}` : ''}
+                    onImport={() => setImportOpen(true)}
+                    onOpenTransactions={(view) => { setTxStart(view); handleTabChange('history'); }}
                   />
                 )}
              </div>
@@ -2126,6 +2131,8 @@ const App: React.FC = () => {
               onApplyMemory={applyMerchantMemory}
               applyingMemory={applyingMemory}
               onLogout={handleLogout}
+              startWith={txStart}
+              onStarted={() => setTxStart(null)}
             />
           )}
           </motion.div>

@@ -48,6 +48,9 @@ interface TransactionsViewProps {
   onApplyMemory: (list: Transaction[]) => void;
   applyingMemory: boolean;
   onLogout: () => void;
+  // Opened from the Dashboard's quick links: start on the review list or the mixed categories.
+  startWith?: 'review' | 'mixed' | null;
+  onStarted?: () => void;
 }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -74,7 +77,7 @@ const PRESETS: { id: string; label: string; range: () => [Date, Date] }[] = [
 
 // Needs a check: not categorised yet, or filed by memory on an import in the last 30 days.
 const RECENT_MS = 30 * 86400000;
-const needsReview = (t: Transaction) => {
+export const needsReview = (t: Transaction) => {
   if (isHidden(t)) return false;
   if (!t.categoryId) return true;
   if (!(t.notes || '').includes(AUTO_NOTE)) return false;
@@ -112,6 +115,7 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
     filterCategory, onFilterCategory, filterSubcategory, onFilterSubcategory,
     filterRecentlyAdded, onFilterRecentlyAdded, onResetFilters,
     latestByBank, onOpenImport, onUpdate, onBulkUpdate, onDelete, onRemember, onApplyMemory, applyingMemory, onLogout,
+    startWith, onStarted,
   } = p;
   const isLg = useMedia('(min-width: 1024px)');
 
@@ -142,6 +146,13 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
   // Merchants filed under more than one category, across all your transactions.
   const { mixed, hiddenCount: mixedOk, markOk, resetOk } = useMixedMerchants(allTransactions);
   const [mixedOpen, setMixedOpen] = useState(false);
+  useEffect(() => {
+    if (!startWith) return;
+    if (startWith === 'review') setReviewOnly(true);
+    if (startWith === 'mixed') setMixedOpen(true);
+    onStarted?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startWith]);
   const stalest = latestByBank[0];
 
   // ---- Category chips: the four busiest in this period, the rest under "More" ----

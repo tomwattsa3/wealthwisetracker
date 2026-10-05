@@ -7,6 +7,8 @@ import {
 
 import PlaceSheet, { PlacePick, PLACE_TINTS } from './PlaceSheet';
 import CategorySheets from './CategorySheets';
+import { useMixedMerchants } from './MixedMerchants';
+import { needsReview } from './TransactionsView';
 interface SpendingPatternsProps {
   transactions: Transaction[];
   categories: Category[];
@@ -14,6 +16,10 @@ interface SpendingPatternsProps {
   getCategoryEmoji?: (categoryId: string) => string;
   // Opens the Transactions tab filtered to a category (from the category panel).
   onViewTransactions?: (categoryId: string, subcategory: string | null, start: string, end: string) => void;
+  // Quick links in the hero card.
+  lastImport?: string;
+  onImport?: () => void;
+  onOpenTransactions?: (view: 'review' | 'mixed') => void;
 }
 
 
@@ -49,10 +55,10 @@ interface RegularPayment {
   stale: boolean;
 }
 
-const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categories, currency, getCategoryEmoji, onViewTransactions }) => {
+const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categories, currency, getCategoryEmoji, onViewTransactions, lastImport, onImport, onOpenTransactions }) => {
   const saved = useMemo(() => {
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as { period?: PeriodId; unselected?: string[]; view?: 'total' | 'category'; level?: 'category' | 'subcategory'; merchantAmount?: 'month' | 'total'; placeRank?: 'spent' | 'visits' };
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as { period?: PeriodId; unselected?: string[]; view?: 'total' | 'category'; level?: 'category' | 'subcategory'; merchantAmount?: 'month' | 'total'; placeRank?: 'spent' | 'visits'; snapshot?: string };
     } catch {
       return {};
     }
@@ -83,14 +89,20 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   const [moreCats, setMoreCats] = useState(false);
   // "Where it came from": every type, or just one (Commission, Refund…).
   const [srcType, setSrcType] = useState('all');
+  // The small card under the headline you flip through with ‹ ›; remembers the last one shown.
+  const SNAPSHOTS = ['ring', 'links', 'housing', 'costs', 'net'] as const;
+  const [snapshot, setSnapshot] = useState<typeof SNAPSHOTS[number]>(() => (SNAPSHOTS as readonly string[]).includes(saved.snapshot || '') ? saved.snapshot as typeof SNAPSHOTS[number] : 'ring');
+  const flipSnapshot = (dir: 1 | -1) => setSnapshot(cur => SNAPSHOTS[(SNAPSHOTS.indexOf(cur) + dir + SNAPSHOTS.length) % SNAPSHOTS.length]);
+  const reviewCount = useMemo(() => transactions.filter(needsReview).length, [transactions]);
+  const { mixed: mixedMerchants } = useMixedMerchants(transactions);
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ period, unselected: Array.from(unselected), view, level, merchantAmount, placeRank }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ period, unselected: Array.from(unselected), view, level, merchantAmount, placeRank, snapshot }));
     } catch {
       /* storage unavailable — selection just won't persist */
     }
-  }, [period, unselected, view, level, merchantAmount, placeRank]);
+  }, [period, unselected, view, level, merchantAmount, placeRank, snapshot]);
 
   const fmt = (v: number, decimals = 0) => {
     const n = Math.abs(v).toLocaleString('en-GB', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -555,6 +567,24 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   // A type picked for another period that has none here falls back to All.
   const activeSrc = income.types.some(t => t.name === srcType) ? srcType : 'all';
   const srcList = (activeSrc === 'all' ? income.sources : income.sources.filter(x => x.type === activeSrc)).slice(0, 8);
+  // Snapshot data for what's on screen: the picked month, or the whole period.
+  const inScope = (s: Spend) => !focus || (win.single ? Number(s.date.slice(8, 10)) === focus.key : s.monthIdx === focus.key);
+  const scopeCats = (() => {
+    const m = new Map<string, number>();
+    chosen.filter(inScope).forEach(s => m.set(s.cat, (m.get(s.cat) || 0) + s.amount));
+    return Array.from(m.entries()).map(([name, v]) => ({ name, v })).sort((a, b) => b.v - a.v);
+  })();
+  const scopeTotal = sum(scopeCats.map(c => c.v));
+  const housingV = scopeCats.filter(c => c.name.trim().toLowerCase() === 'housing').reduce((a, c) => a + c.v, 0);
+  const everyday = scopeTotal - housingV;
+  const spentAll = sum(inRange.filter(inScope).map(s => s.amount));
+  const netV = income.total - spentAll;
+  const ringParts = (() => {
+    const top = scopeCats.slice(0, 4).map(c => ({ name: c.name, v: c.v, color: catColor(c.name) }));
+    const rest = scopeTotal - sum(top.map(t => t.v));
+    return rest > 0.005 ? [...top, { name: 'The rest', v: rest, color: '#CBD5E1' }] : top;
+  })();
+  const pct = (v: number, of: number) => (of > 0 ? (v / of < 0.005 ? '<1' : Math.round((v / of) * 100)) : 0);
   const pill = (on: boolean) => `min-h-[32px] px-3.5 rounded-full text-[13px] transition-colors whitespace-nowrap ${on ? 'bg-white dark:bg-neutral-600 font-semibold text-slate-900 dark:text-neutral-100 shadow-sm' : 'text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-neutral-200'}`;
   const bigCard = 'bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-3xl';
 
@@ -628,7 +658,107 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
             <div className="text-[13px] font-medium text-slate-500 dark:text-neutral-400">{focus ? `Spent in ${focusLabel}` : `Spent · ${periodLabel.toLowerCase()}`}</div>
             <div className="text-[44px] xl:text-[52px] leading-[1.05] font-bold tracking-tight text-slate-900 dark:text-neutral-100 mt-1.5">{fmt(focus ? focus.total : total)}</div>
             <div className={`text-[15px] font-semibold mt-1.5 ${heroSub.cls}`}>{heroSub.text}</div>
-            <div className="mt-auto pt-7 flex gap-7">
+
+            {/* Snapshot: flip through with ‹ › (remembered) */}
+            <div className="mt-5 rounded-2xl bg-slate-50 dark:bg-neutral-700/40 px-4 pt-2.5 pb-3.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-slate-600 dark:text-neutral-300">
+                  {{ ring: 'Where it went', links: 'Quick links', housing: 'Without housing', costs: 'Biggest costs', net: 'Net position' }[snapshot]}
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="flex gap-1 mr-1" aria-hidden>
+                    {SNAPSHOTS.map(k => <span key={k} className={`w-1.5 h-1.5 rounded-full ${k === snapshot ? 'bg-indigo-600 dark:bg-indigo-400' : 'bg-slate-300 dark:bg-neutral-500'}`} />)}
+                  </span>
+                  <button onClick={() => flipSnapshot(-1)} aria-label="Previous snapshot" className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-white dark:hover:bg-neutral-600 hover:text-slate-900 dark:hover:text-neutral-100">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                  </button>
+                  <button onClick={() => flipSnapshot(1)} aria-label="Next snapshot" className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-white dark:hover:bg-neutral-600 hover:text-slate-900 dark:hover:text-neutral-100">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+                  </button>
+                </span>
+              </div>
+              <div className="h-[118px] mt-1">
+                {snapshot === 'ring' && (
+                  scopeTotal > 0 ? (
+                    <div className="h-full flex items-center gap-4">
+                      <svg width="96" height="96" viewBox="0 0 42 42" role="img" aria-label={ringParts.map(p => `${p.name} ${pct(p.v, scopeTotal)}%`).join(', ')} className="shrink-0 -rotate-90">
+                        <circle cx="21" cy="21" r="15.9155" fill="none" strokeWidth="6" className="stroke-slate-200 dark:stroke-neutral-600" />
+                        {(() => {
+                          let acc = 0;
+                          return ringParts.map(p => {
+                            const len = (p.v / scopeTotal) * 100;
+                            const el = <circle key={p.name} cx="21" cy="21" r="15.9155" fill="none" stroke={p.color} strokeWidth="6" strokeDasharray={`${Math.max(0, len - 0.6)} ${100 - Math.max(0, len - 0.6)}`} strokeDashoffset={-acc} />;
+                            acc += len;
+                            return el;
+                          });
+                        })()}
+                      </svg>
+                      <div className="min-w-0 flex flex-col gap-1 text-xs">
+                        {ringParts.map(p => (
+                          <span key={p.name} className="flex items-center gap-1.5 min-w-0">
+                            <span className="w-2 h-2 rounded-[3px] shrink-0" style={{ background: p.color }} />
+                            <span className={`truncate ${p.name === 'The rest' ? 'text-slate-500 dark:text-neutral-400' : 'text-slate-800 dark:text-neutral-200'}`}>{p.name}</span>
+                            <span className="text-slate-500 dark:text-neutral-400">{pct(p.v, scopeTotal)}%</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : <p className="pt-3 text-xs text-slate-500">Nothing selected.</p>
+                )}
+                {snapshot === 'links' && (
+                  <div className="h-full flex flex-col justify-center gap-1.5">
+                    {[
+                      { label: reviewCount ? `Review ${reviewCount} transaction${reviewCount === 1 ? '' : 's'}` : 'Nothing to review', on: () => onOpenTransactions?.('review'), cls: reviewCount ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300' : 'bg-white text-slate-500 dark:bg-neutral-800 dark:text-neutral-400' },
+                      { label: mixedMerchants.length ? `${mixedMerchants.length} mixed categor${mixedMerchants.length === 1 ? 'y' : 'ies'}` : 'No mixed categories', on: () => onOpenTransactions?.('mixed'), cls: mixedMerchants.length ? 'bg-violet-50 text-violet-800 dark:bg-violet-950/40 dark:text-violet-300' : 'bg-white text-slate-500 dark:bg-neutral-800 dark:text-neutral-400' },
+                      { label: lastImport ? `Import · last ${lastImport}` : 'Import statements', on: () => onImport?.(), cls: 'bg-white text-slate-700 dark:bg-neutral-800 dark:text-neutral-200' },
+                    ].map(l => (
+                      <button key={l.label} onClick={l.on} className={`min-h-[34px] px-3 rounded-[10px] text-[13px] font-semibold flex items-center justify-between gap-2 ${l.cls}`}>
+                        <span className="truncate">{l.label}</span><span aria-hidden>→</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {snapshot === 'housing' && (
+                  <div className="h-full flex flex-col justify-center">
+                    <div className="text-xs text-slate-500 dark:text-neutral-400">Everyday spending, without housing</div>
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="text-[22px] font-bold text-slate-900 dark:text-neutral-100">{fmt(everyday)}</span>
+                      {!focus && !win.single && <span className="text-[13px] text-slate-600 dark:text-neutral-300">{fmt(everyday / dataMonths)} a month</span>}
+                    </div>
+                    <div className="mt-2 h-2 rounded-full bg-slate-200 dark:bg-neutral-600 flex overflow-hidden">
+                      <span style={{ width: `${scopeTotal > 0 ? (housingV / scopeTotal) * 100 : 0}%`, background: catColor('Housing') }} />
+                    </div>
+                    <div className="mt-1.5 text-[11px] text-slate-500 dark:text-neutral-400">{housingV > 0 ? `Housing ${fmt(housingV)} · everything else ${fmt(everyday)}` : 'No housing in this selection'}</div>
+                  </div>
+                )}
+                {snapshot === 'costs' && (
+                  <div className="h-full flex flex-col justify-center gap-2.5">
+                    {scopeCats.slice(0, 3).map(c => (
+                      <div key={c.name} className="grid grid-cols-[84px_minmax(0,1fr)_34px] gap-2 items-center text-[13px]">
+                        <span className="truncate text-slate-800 dark:text-neutral-200">{c.name}</span>
+                        <span className="h-1.5 rounded-full bg-slate-200 dark:bg-neutral-600 overflow-hidden"><span className="block h-full rounded-full" style={{ width: `${(c.v / (scopeCats[0]?.v || 1)) * 100}%`, background: catColor(c.name) }} /></span>
+                        <span className="text-right text-slate-500 dark:text-neutral-400">{pct(c.v, scopeTotal)}%</span>
+                      </div>
+                    ))}
+                    {scopeCats.length === 0 && <p className="text-xs text-slate-500">Nothing selected.</p>}
+                  </div>
+                )}
+                {snapshot === 'net' && (
+                  <div className="h-full flex flex-col justify-center">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-xs text-slate-500 dark:text-neutral-400">Net</span>
+                      <span className={`text-[22px] font-bold ${netV < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>{netV < 0 ? '−' : '+'}{fmt(Math.abs(netV))}</span>
+                    </div>
+                    <div className="mt-2 h-2 rounded-full bg-slate-200 dark:bg-neutral-600 overflow-hidden">
+                      <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${spentAll > 0 ? Math.min(100, (income.total / spentAll) * 100) : 0}%` }} />
+                    </div>
+                    <div className="mt-1.5 text-[11px] text-slate-500 dark:text-neutral-400">{fmt(income.total)} in · {fmt(spentAll)} out · {spentAll > 0 ? Math.round((income.total / spentAll) * 100) : 0}% covered</div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-auto pt-5 flex gap-7">
               <div>
                 <div className="text-xs text-slate-500 dark:text-neutral-400">{focus ? `Share of ${periodLabel.toLowerCase()}` : `Busiest ${unit}`}</div>
                 <div className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100 mt-0.5">
@@ -682,7 +812,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                         className="flex flex-col items-stretch justify-end gap-2 h-full group disabled:cursor-default min-w-0"
                       >
                         {!win.single && (
-                          <span className={`text-xs font-semibold text-center whitespace-nowrap ${isFocus ? 'text-indigo-700 dark:text-indigo-300' : dim ? 'text-slate-300 dark:text-neutral-600' : 'text-slate-500 dark:text-neutral-400'}`}>{b.total > 0 ? fmt(b.total) : ''}</span>
+                          <span className={`relative z-[2] self-center px-1 rounded bg-white dark:bg-neutral-800 text-xs font-semibold text-center whitespace-nowrap ${isFocus ? 'text-indigo-700 dark:text-indigo-300' : dim ? 'text-slate-300 dark:text-neutral-600' : 'text-slate-500 dark:text-neutral-400'}`}>{b.total > 0 ? fmt(b.total) : ''}</span>
                         )}
                         <span
                           className={`block w-full mx-auto ${win.single ? 'rounded-sm' : 'rounded-[10px] max-w-[96px]'} transition-colors ${b.total === 0 ? 'bg-slate-100 dark:bg-neutral-700' : isFocus ? 'bg-indigo-600' : dim ? 'bg-indigo-100 dark:bg-indigo-950 group-hover:bg-indigo-200' : 'bg-indigo-400 dark:bg-indigo-500 group-hover:bg-indigo-500'}`}
