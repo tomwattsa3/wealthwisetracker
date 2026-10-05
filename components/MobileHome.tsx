@@ -8,7 +8,7 @@ import CategorySheets from './CategorySheets';
 import InstallCard from './InstallCard';
 import PlaceSheet, { PlacePick } from './PlaceSheet';
 import { useBackClose } from '../lib/backStack';
-import { MONTHS, FULL_MONTHS, monthKey, keyToIndex, indexToKey, daysIn, localToday, merchantKey } from '../lib/periods';
+import { MONTHS, FULL_MONTHS, monthKey, keyToIndex, indexToKey, daysIn, localToday, merchantKey, sum } from '../lib/periods';
 
 // The phone Home screen: one month at a time, fitting on a single screen. How much went out vs
 // your usual month, money in and net, six month bars to jump between, and the top categories
@@ -106,6 +106,18 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const [placePick, setPlacePick] = useState<PlacePick | null>(null);
   const sel = picked ?? (hasData ? lastIdx : keyToIndex(monthKey(localToday())));
   useEffect(() => setExtraPlaces(0), [sel, mode, placeRank]);
+  // Money in: every payment in (same rule as the totals above), its type, and who it came from.
+  const incomeRows = useMemo(() => transactions
+    .filter(t => t.type === 'INCOME' && valid(t) && (t.categoryName || '').trim().toLowerCase() !== 'excluded' && amt(t) > 0)
+    .map(t => {
+      const desc = (t.description || 'Unknown').trim();
+      return { idx: keyToIndex(monthKey(t.date)), desc, key: merchantKey(desc) || desc.toLowerCase(), type: (t.subcategoryName || '').trim() || (t.categoryName || '').trim() || 'Other', amount: amt(t) };
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [transactions, currency]);
+  const [inType, setInType] = useState('all');
+  const [moreSources, setMoreSources] = useState(false);
+  useEffect(() => setMoreSources(false), [sel, mode, inType]);
 
   const fmt = (v: number) => (currency === 'GBP' ? '£' : 'AED ') + Math.round(v).toLocaleString('en-GB');
 
@@ -526,6 +538,163 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
           </button>
         )}
       </section>
+
+      {/* Money in: how much came in, how much of your spending it covered, by type, and from whom */}
+      {(() => {
+        const rows = incomeRows.filter(r => idxs.includes(r.idx));
+        const inV = sum(rows.map(r => r.amount));
+        const outV = out;
+        const cover = outV > 0 ? inV / outV : null;
+        const netV = inV - outV;
+        const fmt2 = (v: number) => (currency === 'GBP' ? '£' : 'AED ') + v.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const TYPE_COLORS = ['#10B981', '#0EA5E9', '#8B5CF6', '#F59E0B'];
+        const byType = new Map<string, number>();
+        rows.forEach(r => byType.set(r.type, (byType.get(r.type) || 0) + r.amount));
+        const types = Array.from(byType.entries()).map(([name, v]) => ({ name, v })).sort((a, b) => b.v - a.v);
+        const typeColor = (name: string) => { const i = types.findIndex(t => t.name === name); return i >= 0 && i < TYPE_COLORS.length ? TYPE_COLORS[i] : '#94A3B8'; };
+        const activeType = types.some(t => t.name === inType) ? inType : 'all';
+        const bySource = new Map<string, { key: string; name: string; type: string; total: number; count: number; months: Set<number> }>();
+        rows.filter(r => activeType === 'all' || r.type === activeType).forEach(r => {
+          const e = bySource.get(r.key) || { key: r.key, name: r.desc, type: r.type, total: 0, count: 0, months: new Set<number>() };
+          e.total += r.amount; e.count++; e.months.add(r.idx);
+          bySource.set(r.key, e);
+        });
+        const sources = Array.from(bySource.values()).sort((a, b) => b.total - a.total);
+        const shownSources = moreSources ? sources : sources.slice(0, 5);
+        // The chart always shows the year's imported months, like Month by month.
+        const chartIdxs = yearIdxs.filter(i => i >= firstIdx && i <= lastIdx);
+        const inOf = (i: number) => sum(incomeRows.filter(r => r.idx === i).map(r => r.amount));
+        const chartMax = Math.max(...chartIdxs.map(i => Math.max(inOf(i), outByMonth.get(i) || 0)), 1);
+        const pctOf = (v: number, of: number) => (of > 0 ? (v / of < 0.005 ? '<1' : Math.round((v / of) * 100)) : 0);
+        return (
+          <>
+            <section aria-label="Money in" className={`${card} p-4`}>
+              <div className="flex items-center justify-between">
+                <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100">Money in</h2>
+                <span className="text-xs text-slate-500 dark:text-neutral-400">{ytd ? `${year} so far` : `${FULL_MONTHS[sel % 12]} ${year}`}</span>
+              </div>
+              <div className="flex items-baseline justify-between gap-3 mt-1">
+                <span className="text-[30px] leading-tight font-bold tracking-tight text-emerald-700 dark:text-emerald-400">{fmt(inV)}</span>
+                <span className={`text-[13px] font-semibold ${netV < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>{netV < 0 ? '−' : '+'}{fmt(Math.abs(netV))} net</span>
+              </div>
+              <div className="text-xs text-slate-500 dark:text-neutral-400">
+                {rows.length} {rows.length === 1 ? 'payment' : 'payments'}{ytd && idxs.length > 1 ? ` · average ${fmt(inV / idxs.length)} a month` : ''}
+              </div>
+              {cover !== null && (
+                <div className="mt-3">
+                  <div className="flex justify-between text-xs text-slate-600 dark:text-neutral-300"><span>Covered of your spending</span><span className="font-bold text-slate-900 dark:text-neutral-100">{Math.round(cover * 100)}%</span></div>
+                  <div className="mt-1.5 h-2 rounded-full bg-slate-100 dark:bg-neutral-700 overflow-hidden"><span className="block h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, cover * 100)}%` }} /></div>
+                </div>
+              )}
+
+              {chartIdxs.length > 0 && (
+                <>
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className="text-xs text-slate-600 dark:text-neutral-300">{ytd ? 'Each month · tap one' : `${MONTHS[sel % 12]}: ${fmt(inV)} in · ${fmt(outV)} out`}</span>
+                    <span className="flex gap-2.5 text-[11px] text-slate-500 dark:text-neutral-400">
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] bg-emerald-500" />In</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] bg-slate-300 dark:bg-neutral-500" />Out</span>
+                    </span>
+                  </div>
+                  <div className={`mt-2 flex items-end h-28 ${chartIdxs.length > 6 ? 'gap-1' : 'gap-1.5'}`}>
+                    {chartIdxs.map(i => {
+                      const vin = inOf(i), vout = outByMonth.get(i) || 0;
+                      const on = !ytd && i === sel;
+                      const dim = !ytd && !on;
+                      const h = (v: number) => (v > 0 ? Math.max(3, Math.round((v / chartMax) * 84)) : 3);
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => toggleMonth(i)}
+                          aria-pressed={on}
+                          aria-label={`${FULL_MONTHS[i % 12]}: ${fmt(vin)} in, ${fmt(vout)} out`}
+                          className={`flex-1 min-w-0 h-full flex flex-col justify-end gap-1.5 ${dim ? 'opacity-35' : ''}`}
+                        >
+                          <span className="flex items-end justify-center gap-[3px]">
+                            <span className="block w-[40%] max-w-[16px] rounded bg-emerald-500" style={{ height: h(vin) }} />
+                            <span className="block w-[40%] max-w-[16px] rounded bg-slate-300 dark:bg-neutral-500" style={{ height: h(vout) }} />
+                          </span>
+                          <span className={`text-[11px] ${on ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'}`}>{MONTHS[i % 12]}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {types.length > 0 && (
+                <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-neutral-700">
+                  <div className="flex justify-between items-baseline">
+                    <h3 className="text-[13px] font-semibold text-slate-900 dark:text-neutral-100">By type</h3>
+                    <span className="text-[11px] text-slate-400 dark:text-neutral-500">Tap one to filter below</span>
+                  </div>
+                  <div aria-hidden className="mt-2 h-2 rounded-full bg-slate-100 dark:bg-neutral-700 flex overflow-hidden">
+                    {types.map(t => <span key={t.name} style={{ width: `${(t.v / inV) * 100}%`, background: typeColor(t.name) }} />)}
+                  </div>
+                  <div className="mt-1.5 flex flex-col">
+                    {types.map(t => (
+                      <button
+                        key={t.name}
+                        onClick={() => setInType(activeType === t.name ? 'all' : t.name)}
+                        aria-pressed={activeType === t.name}
+                        className={`flex items-center gap-2.5 min-h-[44px] px-2 -mx-2 rounded-[10px] text-sm text-left ${activeType === t.name ? 'bg-slate-100 dark:bg-neutral-700/60' : ''}`}
+                      >
+                        <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ background: typeColor(t.name) }} />
+                        <span className="flex-1 min-w-0 truncate capitalize text-slate-900 dark:text-neutral-100">{t.name}</span>
+                        <span className="text-xs text-slate-500 dark:text-neutral-400">{pctOf(t.v, inV)}%</span>
+                        <span className="min-w-[78px] text-right font-semibold text-slate-900 dark:text-neutral-100">{fmt2(t.v)}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {rows.length === 0 && <p className="mt-3 text-sm text-slate-500 dark:text-neutral-400">No money in {ytd ? 'this year' : 'this month'}.</p>}
+            </section>
+
+            {rows.length > 0 && (
+              <section aria-label="Where it came from" className={`${card} px-4 pt-3.5 pb-2`}>
+                <div className="flex items-baseline justify-between">
+                  <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100">Where it came from</h2>
+                  <span className="text-xs text-slate-500 dark:text-neutral-400">{activeType === 'all' ? 'Biggest first' : <><span className="capitalize">{activeType}</span> · {fmt2(types.find(t => t.name === activeType)?.v || 0)}</>}</span>
+                </div>
+                {types.length > 1 && (
+                  <div role="group" aria-label="Filter by type" className="-mx-4 px-4 mt-2.5 mb-1 flex gap-1.5 overflow-x-auto hide-scrollbar" data-no-pull-refresh>
+                    {['all', ...types.map(t => t.name)].map(t => (
+                      <button
+                        key={t}
+                        onClick={() => setInType(t)}
+                        aria-pressed={activeType === t}
+                        className={`shrink-0 min-h-[34px] px-3.5 rounded-full border text-[13px] capitalize ${activeType === t ? 'bg-slate-900 border-slate-900 text-white font-semibold dark:bg-neutral-100 dark:border-neutral-100 dark:text-neutral-900' : 'bg-white border-slate-200 text-slate-700 dark:bg-neutral-800 dark:border-neutral-600 dark:text-neutral-300'}`}
+                      >
+                        {t === 'all' ? 'All' : t.replace(/ interest$/i, '')}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {shownSources.map(src => (
+                  <button
+                    key={src.key}
+                    onClick={() => setPlacePick({ key: src.key, name: src.name, catName: src.type, catId: '', tint: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300', year, month: ytd ? null : sel, income: true })}
+                    className="w-full grid grid-cols-[36px_minmax(0,1fr)_auto] gap-3 items-center min-h-[58px] border-t border-slate-100 dark:border-neutral-700 text-left"
+                  >
+                    <span className="w-9 h-9 rounded-[11px] flex items-center justify-center text-sm font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">{src.name.replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || '•'}</span>
+                    <span className="min-w-0 flex flex-col">
+                      <span className="text-sm font-medium text-slate-900 dark:text-neutral-100 truncate">{src.name}</span>
+                      <span className="text-xs text-slate-500 dark:text-neutral-400 truncate"><span className="capitalize">{src.type}</span> · {src.count > 1 ? `${src.count} payments` : Array.from(src.months).map(m => MONTHS[m % 12]).join(', ')}</span>
+                    </span>
+                    <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">+{fmt2(src.total)}</span>
+                  </button>
+                ))}
+                {sources.length > 5 && (
+                  <button onClick={() => setMoreSources(v => !v)} className="w-full min-h-[44px] my-1.5 rounded-xl border border-slate-200 dark:border-neutral-600 text-[13px] font-semibold text-indigo-700 dark:text-indigo-300">
+                    {moreSources ? 'Show fewer' : `Show ${sources.length - 5} more`}
+                  </button>
+                )}
+              </section>
+            )}
+          </>
+        );
+      })()}
 
       <PlaceSheet
         place={placePick}
