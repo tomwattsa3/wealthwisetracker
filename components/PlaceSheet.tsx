@@ -71,6 +71,12 @@ const Body: React.FC<Omit<PlaceSheetProps, 'place' | 'onClose' | 'firstIdx' | 'l
   const PAGE = 10;
   const [listShown, setListShown] = useState(PAGE);
   useEffect(() => setListShown(PAGE), [year, month]);
+  // The list keeps room for the most it ever shows for this place (up to ten rows, plus the
+  // Show more button if any year has more), so the sheet stays the same height when you switch
+  // between the whole year and a single month.
+  const ROW_H = 37, MORE_H = 46;
+  const perYear = years.map(y => visits.filter(v => Math.floor(v.idx / 12) === y).length);
+  const listReserve = Math.min(PAGE, Math.max(1, ...perYear)) * ROW_H + (perYear.some(n => n > PAGE) ? MORE_H : 0);
   const shortName = place.name.length > 22 ? `${place.name.slice(0, 20).trim()}…` : place.name;
   const thisYear = now.getFullYear();
   const day = (d: string) => {
@@ -103,11 +109,14 @@ const Body: React.FC<Omit<PlaceSheetProps, 'place' | 'onClose' | 'firstIdx' | 'l
             <span className="text-[13px] font-semibold text-slate-900 dark:text-neutral-100">{year}</span>
             <button onClick={() => stepYear(1)} disabled={!canNext} aria-label="Next year" className="w-8 h-8 relative after:absolute after:-inset-1.5 after:content-[''] rounded-lg flex items-center justify-center text-slate-500 disabled:opacity-25">›</button>
           </div>
-          {month !== null ? (
-            <button onClick={() => setMonth(null)} className="min-h-[32px] px-2.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-[12px] font-semibold text-indigo-700 dark:text-indigo-300">← All {year}</button>
-          ) : active.length > 0 ? (
-            <span className="text-[11.5px] text-slate-500 dark:text-neutral-400">Avg <strong className="text-slate-800 dark:text-neutral-200">{fmt(avgMonth)}</strong> / month</span>
-          ) : null}
+          <div className="flex items-center gap-2.5">
+            {active.length > 0 && (
+              <span className="text-[11.5px] text-slate-500 dark:text-neutral-400 whitespace-nowrap">Avg <strong className="text-slate-800 dark:text-neutral-200">{fmt(avgMonth)}</strong> / month</span>
+            )}
+            {month !== null && (
+              <button onClick={() => setMonth(null)} className="min-h-[32px] px-2.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-[12px] font-semibold text-indigo-700 dark:text-indigo-300 whitespace-nowrap">← All {year}</button>
+            )}
+          </div>
         </div>
         <div className={`mt-1.5 flex items-end h-[84px] ${cols.length > 8 ? 'gap-1' : 'gap-2'}`}>
           {cols.map(c => {
@@ -139,19 +148,21 @@ const Body: React.FC<Omit<PlaceSheetProps, 'place' | 'onClose' | 'firstIdx' | 'l
           <span className="shrink-0 text-xs text-slate-500 dark:text-neutral-400">{periodLabel} <strong className="font-semibold text-slate-700 dark:text-neutral-200">{shown.length} · {fmt2(total)}</strong></span>
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pb-[max(18px,env(safe-area-inset-bottom))]">
+          <div style={{ minHeight: listReserve }}>
           {shown.slice(0, listShown).map(({ t, a }) => (
-            <div key={t.id} className="grid grid-cols-[58px_minmax(0,1fr)_auto] gap-2 items-center py-2 border-t border-slate-100 dark:border-neutral-700 text-[12.5px]">
+            <div key={t.id} style={{ height: ROW_H }} className="grid grid-cols-[58px_minmax(0,1fr)_auto] gap-2 items-center border-t border-slate-100 dark:border-neutral-700 text-[12.5px]">
               <span className="text-slate-500 dark:text-neutral-400">{day(t.date)}</span>
               <span className="truncate text-slate-600 dark:text-neutral-300">{(getCategoryEmoji && t.categoryId && getCategoryEmoji(t.categoryId)) || ''} {t.categoryName}{t.subcategoryName ? ` › ${t.subcategoryName}` : ''}</span>
               <span className="font-semibold text-slate-900 dark:text-neutral-100">{fmt2(a)}</span>
             </div>
           ))}
           {shown.length > listShown && (
-            <button onClick={() => setListShown(n => n + PAGE)} className="w-full mt-1 py-2.5 rounded-xl border border-slate-200 dark:border-neutral-600 text-[13px] font-semibold text-indigo-700 dark:text-indigo-300 active:bg-slate-50 dark:active:bg-neutral-700/40">
+            <button onClick={() => setListShown(n => n + PAGE)} style={{ height: MORE_H - 4 }} className="w-full mt-1 rounded-xl border border-slate-200 dark:border-neutral-600 text-[13px] font-semibold text-indigo-700 dark:text-indigo-300 active:bg-slate-50 dark:active:bg-neutral-700/40">
               Show {Math.min(PAGE, shown.length - listShown)} more <span className="font-normal text-slate-500 dark:text-neutral-400">· {shown.length - listShown} left</span>
             </button>
           )}
           {shown.length === 0 && <p className="py-6 text-center text-sm text-slate-400">No payments in {periodLabel}</p>}
+          </div>
         </div>
       </div>
     </>
