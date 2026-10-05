@@ -102,8 +102,9 @@ const SheetPanel: React.FC<Omit<SheetProps, 'open' | 'onExitComplete'>> = ({ onC
       const dy = y - startY, dx = x - startX;
       if (mode === 'maybe') {
         if (Math.abs(dy) < 6 && Math.abs(dx) < 6) {
-          // Claim a downward pull from the very first move, before the browser starts a scroll.
-          if (!sideways && dy >= 0 && (!scroller || scroller.scrollTop <= 0) && e.cancelable) e.preventDefault();
+          // Claim the gesture from the very first move, before the browser starts a scroll (iPhone
+          // decides on that first move). Only let it through if something in the sheet can scroll.
+          if (e.cancelable && !sideways && (!scroller || (dy >= 0 && scroller.scrollTop <= 0))) e.preventDefault();
           return;
         }
         // Sideways swipes (chip rows) and upward / mid-list pulls belong to scrolling.

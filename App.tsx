@@ -229,21 +229,27 @@ const App: React.FC = () => {
   // Finger travel ignored before a pull engages, so taps and small jitters never count as a pull
   const PULL_DEADZONE = 10;
 
+  // The indicator is a small floating bubble that drops down from the top as you pull; the page
+  // itself stays still.
   const setIndicator = (distance: number, animate: boolean) => {
     pullDistanceRef.current = distance;
     const el = pullIndicatorRef.current;
     const icon = pullIconRef.current;
     if (!el || !icon) return;
-    el.style.transition = animate ? 'height 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none';
-    el.style.height = `${distance}px`;
-    icon.style.transition = animate ? 'transform 0.3s ease-out, opacity 0.2s ease' : 'none';
-    icon.style.transform = `rotate(${isRefreshingRef.current ? 0 : Math.min(distance / PULL_THRESHOLD, 1) * 180}deg)`;
-    icon.style.opacity = distance > 10 || isRefreshingRef.current ? '1' : '0';
-    icon.style.color = distance >= PULL_THRESHOLD ? '#475569' : '#cbd5e1';
+    const ease = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+    el.style.transition = animate ? `transform 0.3s ${ease}, opacity 0.2s ease` : 'none';
+    el.style.transform = `translate(-50%, ${distance - 48}px) scale(${0.6 + 0.4 * Math.min(distance / PULL_THRESHOLD, 1)})`;
+    el.style.opacity = distance > 10 || isRefreshingRef.current ? '1' : '0';
+    icon.style.transition = animate ? 'transform 0.3s ease-out' : 'none';
+    icon.style.transform = `rotate(${isRefreshingRef.current ? 0 : Math.min(distance / PULL_THRESHOLD, 1) * 270}deg)`;
+    icon.style.color = distance >= PULL_THRESHOLD ? '#4f46e5' : '#94a3b8';
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (isRefreshingRef.current) return;
+    // Only touches on the page itself. React also passes up touches from sheets and pop-ups
+    // (they're portals, drawn over the page), and pulling a sheet down must never refresh.
+    if (!mainRef.current?.contains(e.target as Node) || document.documentElement.classList.contains('sheet-open')) return;
     // Skip pull-to-refresh for touches starting inside a nested scroll container (e.g. the
     // Breakdown table) — those scroll independently of <main>, so main.scrollTop stays at 0
     // even while the user is actively scrolling/tapping inside them, which was causing every
@@ -267,8 +273,8 @@ const App: React.FC = () => {
     }
     const diff = e.touches[0].clientY - touchStartY.current - PULL_DEADZONE;
     if (diff > 0) {
-      // Elastic damping: diminishing returns as you pull further
-      setIndicator(Math.min(Math.pow(diff, 0.7), 130), false);
+      // Elastic: follows the finger at first, then slows (refreshes after a ~150px pull)
+      setIndicator(130 * (1 - Math.exp(-diff / 200)), false);
     } else if (pullDistanceRef.current > 0) {
       setIndicator(0, false);
     }
@@ -281,7 +287,7 @@ const App: React.FC = () => {
     if (pullDistanceRef.current >= PULL_THRESHOLD) {
       isRefreshingRef.current = true;
       setIsRefreshing(true);
-      setIndicator(60, true);
+      setIndicator(PULL_THRESHOLD, true);
       try {
         await fetchData();
       } finally {
@@ -1829,17 +1835,18 @@ const App: React.FC = () => {
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          className={`flex-1 h-full bg-slate-100 dark:bg-neutral-900 p-3 pb-24 md:px-8 md:py-6 max-w-[100vw] ${activeTab === 'history' || activeTab === 'breakdown' ? 'overflow-hidden' : 'overflow-y-auto'}`}
+          className={`flex-1 h-full bg-slate-100 dark:bg-neutral-900 p-3 pb-24 md:px-8 md:py-6 max-w-[100vw] overscroll-y-none ${activeTab === 'history' || activeTab === 'breakdown' ? 'overflow-hidden' : 'overflow-y-auto'}`}
         >
-          {/* Pull-to-refresh indicator */}
+          {/* Pull-to-refresh bubble (floats over the page, which stays put) */}
           <div
             ref={pullIndicatorRef}
-            className="flex items-center justify-center overflow-hidden md:hidden"
-            style={{ height: 0 }}
+            aria-hidden
+            className="md:hidden fixed left-1/2 top-[calc(env(safe-area-inset-top)+8px)] z-[60] w-10 h-10 rounded-full bg-white dark:bg-neutral-800 shadow-lg ring-1 ring-black/5 flex items-center justify-center pointer-events-none"
+            style={{ opacity: 0, transform: 'translate(-50%, -48px)' }}
           >
-            <div ref={pullIconRef} className="flex items-center justify-center" style={{ opacity: 0 }}>
+            <div ref={pullIconRef} className="flex items-center justify-center">
               {isRefreshing ? (
-                <Loader2 size={20} className="text-slate-500 animate-spin" />
+                <Loader2 size={20} className="text-indigo-600 animate-spin" />
               ) : (
                 <RotateCcw size={18} style={{ transition: 'color 0.15s ease' }} />
               )}
