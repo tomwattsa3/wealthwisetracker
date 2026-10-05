@@ -48,7 +48,7 @@ interface RegularPayment {
 const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categories, currency, getCategoryEmoji }) => {
   const saved = useMemo(() => {
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as { period?: PeriodId; unselected?: string[]; view?: 'total' | 'category'; level?: 'category' | 'subcategory'; merchantAmount?: 'month' | 'total' };
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as { period?: PeriodId; unselected?: string[]; view?: 'total' | 'category'; level?: 'category' | 'subcategory'; merchantAmount?: 'month' | 'total'; placeRank?: 'spent' | 'visits' };
     } catch {
       return {};
     }
@@ -67,14 +67,16 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   const [moreMerchants, setMoreMerchants] = useState(false);
   // Regular merchants' headline figure: typical spend per active month, or total for the period.
   const [merchantAmount, setMerchantAmount] = useState<'month' | 'total'>(saved.merchantAmount === 'total' ? 'total' : 'month');
+  // Top places: ranked by money spent there, or by how often you went (like the phone Home).
+  const [placeRank, setPlaceRank] = useState<'spent' | 'visits'>(saved.placeRank === 'visits' ? 'visits' : 'spent');
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ period, unselected: Array.from(unselected), view, level, merchantAmount }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ period, unselected: Array.from(unselected), view, level, merchantAmount, placeRank }));
     } catch {
       /* storage unavailable — selection just won't persist */
     }
-  }, [period, unselected, view, level, merchantAmount]);
+  }, [period, unselected, view, level, merchantAmount, placeRank]);
 
   const fmt = (v: number, decimals = 0) => {
     const n = Math.abs(v).toLocaleString('en-GB', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -282,11 +284,13 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
     // The summary sentence is about the whole period, so its top merchant ignores the focused bar.
     const topGroup = Array.from(groups.values()).sort((a, b) => sum(b.map(r => r.amount)) - sum(a.map(r => r.amount)))[0];
     const periodTop = topGroup ? { name: mostCommon(topGroup.map(r => r.desc)), periodTotal: sum(topGroup.map(r => r.amount)) } : null;
-    return { merchants: all.sort((a, b) => b.total - a.total).slice(0, 40), periodTopMerchant: periodTop };
+    return { merchants: all.sort((a, b) => b.total - a.total), periodTopMerchant: periodTop };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chosen, cols, colOf, focusBucket?.key, win.single]);
   // One ranked list, flowed across two columns on desktop (#1–8 left, #9–16 right).
-  const merchantsShown = merchants.slice(0, moreMerchants ? 32 : 16);
+  // Most visits breaks ties by money, so a 4× bill still ranks above 4 coffees.
+  const rankedMerchants = (placeRank === 'visits' ? [...merchants].sort((a, b) => b.count - a.count || b.total - a.total) : merchants).slice(0, 40);
+  const merchantsShown = rankedMerchants.slice(0, moreMerchants ? 32 : 16);
   const merchantHalf = Math.ceil(merchantsShown.length / 2);
   const shortDate = (d: string) => `${Number(d.slice(8, 10))} ${MONTHS[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}`;
 
@@ -820,10 +824,24 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
             )}
           </section>
 
-          {/* Biggest merchants: one ranked list across two columns */}
+          {/* Top places: one ranked list across two columns, by money spent or by visits */}
           <section className={`${card} p-4 md:p-6`}>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3">
-              <h2 className="text-base md:text-lg font-semibold text-slate-900 dark:text-neutral-100">Biggest merchants</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-base md:text-lg font-semibold text-slate-900 dark:text-neutral-100">Top places</h2>
+                <div role="group" aria-label="Rank places by" className="flex gap-1 p-1 bg-slate-100 dark:bg-neutral-700/60 rounded-lg">
+                  {([['visits', 'Most visits'], ['spent', 'Most spent']] as const).map(([id, l]) => (
+                    <button
+                      key={id}
+                      onClick={() => { setPlaceRank(id); setMoreMerchants(false); }}
+                      aria-pressed={placeRank === id}
+                      className={`px-3 py-1 rounded-md text-xs transition-colors ${placeRank === id ? 'bg-white dark:bg-neutral-600 font-semibold text-slate-900 dark:text-neutral-100 shadow-sm' : 'text-slate-600 dark:text-neutral-400'}`}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="flex items-center gap-3 self-start md:self-auto">
                 {focusBucket ? (
                   <span className="text-[11px] md:text-xs text-slate-500 dark:text-neutral-400">
@@ -831,9 +849,9 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                     <button onClick={() => setFocusKey(null)} className="font-medium text-indigo-700 dark:text-indigo-300 hover:underline">show {win.single ? 'all days' : 'all months'}</button>
                   </span>
                 ) : (
-                  <span className="hidden md:inline text-[11px] md:text-xs text-slate-500 dark:text-neutral-400">Ranked by total · bars show each {win.single ? 'week' : 'month'}</span>
+                  <span className="hidden md:inline text-[11px] md:text-xs text-slate-500 dark:text-neutral-400">{placeRank === 'visits' ? 'Ranked by visits' : 'Ranked by total'} · bars show each {win.single ? 'week' : 'month'}</span>
                 )}
-                <div role="group" aria-label="Merchant amounts" className={`${focusBucket ? 'hidden' : 'flex'} gap-1 p-1 bg-slate-100 dark:bg-neutral-700/60 rounded-lg`}>
+                <div role="group" aria-label="Merchant amounts" className={`${focusBucket || placeRank === 'visits' ? 'hidden' : 'flex'} gap-1 p-1 bg-slate-100 dark:bg-neutral-700/60 rounded-lg`}>
                   {([['month', win.single ? 'Per week' : 'Per month'], ['total', 'Total']] as const).map(([id, l]) => (
                     <button
                       key={id}
@@ -863,8 +881,8 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                             <div className="min-w-0">
                               <div className="text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={m.name}>{m.name}</div>
                               <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">
-                                {m.cat} · {m.count} {m.count === 1 ? 'payment' : 'payments'}
-                                {focusBucket
+                                {placeRank === 'visits' ? `${m.cat}${m.count > 1 ? ` · avg ${fmt(m.avg, 2)}` : ''}` : `${m.cat} · ${m.count} ${m.count === 1 ? 'payment' : 'payments'}`}
+                                {placeRank === 'visits' ? (focusBucket ? ` in ${win.single ? focusBucket.longLabel : MONTHS[focusBucket.key % 12]}` : '') : focusBucket
                                   ? ` in ${win.single ? focusBucket.longLabel : MONTHS[focusBucket.key % 12]} · ${fmt(m.periodTotal)} over the period`
                                   : m.activeCols > 1 && ` · ${merchantAmount === 'month' ? `${fmt(m.total)} total` : `${fmt(perUnit)}/${win.single ? 'week' : 'month'}`}`}
                               </div>
@@ -874,9 +892,16 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                                 <span key={cols[ci].key} title={`${cols[ci].label}: ${fmt(v, 2)}`} className={`flex-1 rounded-[2px] ${v <= 0 ? 'bg-slate-100 dark:bg-neutral-700' : focusCol === null || cols[ci].key === focusCol ? 'bg-indigo-500' : 'bg-indigo-200 dark:bg-indigo-900'}`} style={{ height: v > 0 ? Math.max(3, Math.round((v / m.cellMax) * 26)) : 2 }} />
                               ))}
                             </div>
-                            <span className="text-[13px] font-semibold text-right text-slate-900 dark:text-neutral-100">
-                              {focusBucket || merchantAmount === 'total' ? fmt(m.total, 2) : fmt(perUnit)}
-                            </span>
+                            {placeRank === 'visits' ? (
+                              <span className="flex flex-col items-end leading-tight">
+                                <span className="text-[13px] font-semibold text-slate-900 dark:text-neutral-100">{m.count === 1 ? 'once' : `${m.count}×`}</span>
+                                <span className="text-[11px] text-slate-500 dark:text-neutral-400">{fmt(m.total)}</span>
+                              </span>
+                            ) : (
+                              <span className="text-[13px] font-semibold text-right text-slate-900 dark:text-neutral-100">
+                                {focusBucket || merchantAmount === 'total' ? fmt(m.total, 2) : fmt(perUnit)}
+                              </span>
+                            )}
                           </div>
                         );
                       })}
@@ -884,12 +909,12 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                   ))}
                 </div>
                 <div className="flex items-center justify-between mt-3">
-                  {merchants.length > 16 ? (
+                  {rankedMerchants.length > 16 ? (
                     <button onClick={() => setMoreMerchants(v => !v)} className="text-sm font-medium text-indigo-700 dark:text-indigo-300 hover:underline">
-                      {moreMerchants ? 'Show fewer' : `Show ${Math.min(16, merchants.length - 16)} more`}
+                      {moreMerchants ? 'Show fewer' : `Show ${Math.min(16, rankedMerchants.length - 16)} more`}
                     </button>
                   ) : <span />}
-                  <span className="text-[11px] text-slate-500 dark:text-neutral-400">{focusBucket ? `Amounts are for ${win.single ? focusBucket.longLabel : MONTHS[focusBucket.key % 12]} only · highlighted bar = that ${win.single ? 'week' : 'month'}` : merchantAmount === 'month' ? `Per ${win.single ? 'week' : 'month'} = average across the ${win.single ? 'weeks' : 'months'} it was paid` : 'Total for the period'}</span>
+                  <span className="text-[11px] text-slate-500 dark:text-neutral-400">{focusBucket ? `Amounts are for ${win.single ? focusBucket.longLabel : MONTHS[focusBucket.key % 12]} only · highlighted bar = that ${win.single ? 'week' : 'month'}` : placeRank === 'visits' ? 'Times paid in the period, with the total spent' : merchantAmount === 'month' ? `Per ${win.single ? 'week' : 'month'} = average across the ${win.single ? 'weeks' : 'months'} it was paid` : 'Total for the period'}</span>
                 </div>
               </>
             )}
