@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Eye, EyeOff } from 'lucide-react';
 import { Transaction } from '../types';
@@ -6,6 +6,7 @@ import { usePrivacy } from '../lib/privacy';
 import BlurStrengthSlider from './BlurStrengthSlider';
 import CategorySheets from './CategorySheets';
 import InstallCard from './InstallCard';
+import PlaceSheet, { PlacePick } from './PlaceSheet';
 import { useBackClose } from '../lib/backStack';
 import { MONTHS, FULL_MONTHS, monthKey, keyToIndex, indexToKey, daysIn, localToday, merchantKey } from '../lib/periods';
 
@@ -36,7 +37,7 @@ const TINTS = [
   'bg-pink-50 text-pink-700 dark:bg-pink-950/60 dark:text-pink-300',
 ];
 
-interface Place { name: string; total: number; count: number; cats: Map<string, { id: string; amount: number }> }
+interface Place { key: string; name: string; total: number; count: number; cats: Map<string, { id: string; amount: number }> }
 
 const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCategoryEmoji, onOpenBreakdown, onViewTransactions, onImport }) => {
   const amt = (t: Transaction) => Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED) || 0;
@@ -66,7 +67,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         const desc = (t.description || 'Unknown').trim();
         const key = merchantKey(desc) || desc.toLowerCase();
         const pm = placesByMonth.get(idx) || new Map<string, Place>();
-        const pl = pm.get(key) || { name: desc, total: 0, count: 0, cats: new Map() };
+        const pl = pm.get(key) || { key, name: desc, total: 0, count: 0, cats: new Map() };
         pl.total += a;
         pl.count += 1;
         const pc = pl.cats.get(name) || { id: t.categoryId, amount: 0 };
@@ -99,7 +100,12 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const [showAllCats, setShowAllCats] = useState(false);
   // The category tapped in "Where it went", shown in the same panel as Sheets' See all.
   const [catPanel, setCatPanel] = useState<{ cat: string; year: number; month: number | null; n: number } | null>(null);
+  // Extra places opened under the top five, ten at a time.
+  const [extraPlaces, setExtraPlaces] = useState(0);
+  // The place tapped in Top places, shown in its own slide-up sheet.
+  const [placePick, setPlacePick] = useState<PlacePick | null>(null);
   const sel = picked ?? (hasData ? lastIdx : keyToIndex(monthKey(localToday())));
+  useEffect(() => setExtraPlaces(0), [sel, mode, placeRank]);
 
   const fmt = (v: number) => (currency === 'GBP' ? '£' : 'AED ') + Math.round(v).toLocaleString('en-GB');
 
@@ -183,7 +189,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   // Merge each month's places across the selected months.
   const merged = new Map<string, Place>();
   idxs.forEach(i => placesByMonth.get(i)?.forEach((p, key) => {
-    const m = merged.get(key) || { name: p.name, total: 0, count: 0, cats: new Map() };
+    const m = merged.get(key) || { key, name: p.name, total: 0, count: 0, cats: new Map() };
     m.total += p.total;
     m.count += p.count;
     p.cats.forEach((c, name) => {
@@ -195,13 +201,39 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   }));
   const monthPlaces = Array.from(merged.values());
   // Most visits breaks ties by money, so a 4× utility bill still ranks above 4 coffees.
-  const places = [...monthPlaces]
+  const allPlaces = [...monthPlaces]
     .sort((a, b) => (placeRank === 'visits' ? b.count - a.count || b.total - a.total : b.total - a.total))
-    .slice(0, TOP_PLACES)
     .map(p => {
       const [catName, cat] = Array.from(p.cats.entries()).sort((a, b) => b[1].amount - a[1].amount)[0];
       return { ...p, catName, catId: cat.id };
     });
+  const places = allPlaces.slice(0, TOP_PLACES);
+  const PLACES_STEP = 10;
+  const restPlaces = allPlaces.slice(TOP_PLACES);
+  const placesLeft = Math.max(0, restPlaces.length - extraPlaces);
+  const placeChunks = Array.from({ length: Math.ceil(Math.min(extraPlaces, restPlaces.length) / PLACES_STEP) }, (_, c) =>
+    restPlaces.slice(c * PLACES_STEP, (c + 1) * PLACES_STEP));
+  const placeRow = (p: typeof allPlaces[number], i: number) => (
+    <button
+      key={p.key}
+      onClick={() => setPlacePick({ key: p.key, name: p.name, catName: p.catName, catId: p.catId, tint: TINTS[i % TINTS.length], year, month: ytd ? null : sel })}
+      className="w-full text-left grid grid-cols-[30px_minmax(0,1fr)_auto] gap-2.5 items-center py-2 border-t border-slate-100 dark:border-neutral-700 active:bg-slate-50 dark:active:bg-neutral-700/40"
+    >
+      <span className={`w-[30px] h-[30px] rounded-[9px] flex items-center justify-center text-[13px] font-bold ${TINTS[i % TINTS.length]}`}>
+        {p.name.replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || '•'}
+      </span>
+      <span className="min-w-0 flex flex-col">
+        <span className="text-[13.5px] font-medium text-slate-900 dark:text-neutral-100 truncate">{p.name}</span>
+        <span className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">
+          {(getCategoryEmoji && p.catId && getCategoryEmoji(p.catId)) || ''} {p.catName}{p.count > 1 ? ` · avg ${fmt(p.total / p.count)}` : ''}
+        </span>
+      </span>
+      <span className="flex flex-col items-end">
+        <span className="text-[13.5px] font-bold text-slate-900 dark:text-neutral-100">{fmt(p.total)}</span>
+        <span className="text-[10.5px] font-semibold text-slate-500 dark:text-neutral-400">{p.count === 1 ? 'once' : `${p.count}×`}</span>
+      </span>
+    </button>
+  );
 
   const firstSel = idxs[0] ?? sel;
   const lastSel = idxs[idxs.length - 1] ?? sel;
@@ -384,25 +416,36 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
               ))}
             </div>
           </div>
-          {places.map((p, i) => (
-            <div key={p.name} className="grid grid-cols-[30px_minmax(0,1fr)_auto] gap-2.5 items-center py-2 border-t border-slate-100 dark:border-neutral-700">
-              <span className={`w-[30px] h-[30px] rounded-[9px] flex items-center justify-center text-[13px] font-bold ${TINTS[i % TINTS.length]}`}>
-                {p.name.replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || '•'}
-              </span>
-              <span className="min-w-0 flex flex-col">
-                <span className="text-[13.5px] font-medium text-slate-900 dark:text-neutral-100 truncate">{p.name}</span>
-                <span className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">
-                  {(getCategoryEmoji && p.catId && getCategoryEmoji(p.catId)) || ''} {p.catName}{p.count > 1 ? ` · avg ${fmt(p.total / p.count)}` : ''}
-                </span>
-              </span>
-              <span className="flex flex-col items-end">
-                <span className="text-[13.5px] font-bold text-slate-900 dark:text-neutral-100">{fmt(p.total)}</span>
-                <span className="text-[10.5px] font-semibold text-slate-500 dark:text-neutral-400">{p.count === 1 ? 'once' : `${p.count}×`}</span>
-              </span>
-            </div>
-          ))}
+          {places.map(placeRow)}
+          {/* More places open smoothly under the top five, ten at a time */}
+          <AnimatePresence initial={false}>
+            {placeChunks.map((chunk, c) => (
+              <motion.div
+                key={c}
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                className="overflow-hidden"
+              >
+                {chunk.map((p, k) => placeRow(p, TOP_PLACES + c * PLACES_STEP + k))}
+              </motion.div>
+            ))}
+          </AnimatePresence>
+          {placesLeft > 0 && (
+            <button onClick={() => setExtraPlaces(n => n + PLACES_STEP)} className="w-full mb-2.5 mt-0.5 py-2.5 rounded-xl border border-slate-200 dark:border-neutral-600 text-[13px] font-semibold text-indigo-700 dark:text-indigo-300 active:bg-slate-50 dark:active:bg-neutral-700/40">
+              Show {Math.min(PLACES_STEP, placesLeft)} more <span className="font-normal text-slate-500 dark:text-neutral-400">· {placesLeft} left</span>
+            </button>
+          )}
           <div className="border-t border-slate-100 dark:border-neutral-700 py-3 flex justify-between text-[12.5px]">
-            <span className="text-slate-500 dark:text-neutral-400">{monthPlaces.length} {monthPlaces.length === 1 ? 'place' : 'places'} in {periodShort}</span>
+            {extraPlaces > 0 ? (
+              <button onClick={() => setExtraPlaces(0)} className="flex items-center gap-1 font-medium text-slate-600 dark:text-neutral-300">
+                Show less
+                <svg viewBox="0 0 12 12" className="w-3 h-3 rotate-180" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m2.5 4.5 3.5 3.5 3.5-3.5" /></svg>
+              </button>
+            ) : (
+              <span className="text-slate-500 dark:text-neutral-400">{monthPlaces.length} {monthPlaces.length === 1 ? 'place' : 'places'} in {periodShort}</span>
+            )}
             {onOpenBreakdown && (
               <button onClick={openBreakdown} className="font-semibold text-indigo-700 dark:text-indigo-300">Full breakdown →</button>
             )}
@@ -484,6 +527,15 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         )}
       </section>
 
+      <PlaceSheet
+        place={placePick}
+        onClose={() => setPlacePick(null)}
+        transactions={transactions}
+        currency={currency}
+        getCategoryEmoji={getCategoryEmoji}
+        firstIdx={firstIdx}
+        lastIdx={lastIdx}
+      />
       {catPanel && (
         <CategorySheets
           key={catPanel.n}
