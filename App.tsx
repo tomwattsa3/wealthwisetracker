@@ -2007,7 +2007,18 @@ const App: React.FC = () => {
                     }}
                   />
                 ) : (
-                  <SpendingPatterns transactions={transactions} categories={categories} currency={currency} getCategoryEmoji={getCategoryEmoji} />
+                  <SpendingPatterns
+                    transactions={transactions}
+                    categories={categories}
+                    currency={currency}
+                    getCategoryEmoji={getCategoryEmoji}
+                    onViewTransactions={(categoryId, subcategory, start, end) => {
+                      setFilterCategory(categoryId);
+                      setFilterSubcategory(subcategory ?? 'all');
+                      setDateRange({ start, end, label: 'Custom Range' });
+                      handleTabChange('history');
+                    }}
+                  />
                 )}
              </div>
           )}

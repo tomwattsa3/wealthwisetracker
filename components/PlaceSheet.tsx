@@ -29,6 +29,7 @@ export interface PlacePick {
   tint: string;         // badge colours from the Top places row
   year: number;
   month: number | null; // month index (year * 12 + m) to start on, or null for the whole year
+  income?: boolean;     // a source of money in (its payments in), rather than a place you spend
 }
 
 interface PlaceSheetProps {
@@ -50,10 +51,10 @@ const Body: React.FC<Omit<PlaceSheetProps, 'place' | 'onClose' | 'firstIdx' | 'l
 
   // Every visit to this place (same rule as Top places: money out, not excluded, has a category).
   const visits = useMemo(() => transactions
-    .filter(t => !t.excluded && /^\d{4}-\d{2}-\d{2}/.test(t.date) && t.type === 'EXPENSE' && t.categoryName && amt(t) > 0)
+    .filter(t => !t.excluded && /^\d{4}-\d{2}-\d{2}/.test(t.date) && t.type === (place.income ? 'INCOME' : 'EXPENSE') && t.categoryName && t.categoryName.trim().toLowerCase() !== 'excluded' && amt(t) > 0)
     .filter(t => { const d = (t.description || 'Unknown').trim(); return (merchantKey(d) || d.toLowerCase()) === place.key; })
     .map(t => ({ t, idx: keyToIndex(monthKey(t.date)), a: amt(t) }))
-    .sort((a, b) => b.t.date.localeCompare(a.t.date)), [transactions, currency, place.key]);
+    .sort((a, b) => b.t.date.localeCompare(a.t.date)), [transactions, currency, place.key, place.income]);
 
   const [year, setYear] = useState(place.year);
   const [month, setMonth] = useState<number | null>(place.month);
@@ -112,7 +113,7 @@ const Body: React.FC<Omit<PlaceSheetProps, 'place' | 'onClose' | 'firstIdx' | 'l
           <p className="text-[12.5px] text-slate-500 dark:text-neutral-400 truncate">{(getCategoryEmoji && place.catId && getCategoryEmoji(place.catId)) || ''} {place.catName}</p>
         </div>
         <div className="shrink-0 text-right">
-          <div className="text-[22px] leading-none font-bold text-slate-900 dark:text-neutral-100">{fmt2(total)}</div>
+          <div className={`text-[22px] leading-none font-bold ${place.income ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-neutral-100'}`}>{place.income ? '+' : ''}{fmt2(total)}</div>
           <div className="mt-1 text-[11.5px] text-slate-500 dark:text-neutral-400">{periodLabel}</div>
         </div>
         {onClose && (
@@ -150,7 +151,7 @@ const Body: React.FC<Omit<PlaceSheetProps, 'place' | 'onClose' | 'firstIdx' | 'l
                 className="flex-1 min-w-0 h-full flex flex-col justify-end gap-1.5"
               >
                 <span
-                  className={`block rounded-md transition-colors ${!c.total ? 'bg-slate-100 dark:bg-neutral-700' : on ? 'bg-indigo-600' : month === null ? 'bg-indigo-400 dark:bg-indigo-500' : 'bg-indigo-100 dark:bg-indigo-900/60'}`}
+                  className={`block rounded-md transition-colors ${!c.total ? 'bg-slate-100 dark:bg-neutral-700' : place.income ? (on ? 'bg-emerald-600' : month === null ? 'bg-emerald-400 dark:bg-emerald-500' : 'bg-emerald-100 dark:bg-emerald-900/60') : on ? 'bg-indigo-600' : month === null ? 'bg-indigo-400 dark:bg-indigo-500' : 'bg-indigo-100 dark:bg-indigo-900/60'}`}
                   style={{ height: c.total ? Math.max(4, Math.round((c.total / max) * 60)) : 4 }}
                 />
                 <span className={`${cols.length > 8 ? 'text-[10px]' : 'text-[11px]'} ${on ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-400 dark:text-neutral-500'}`}>{MONTHS[c.i % 12]}</span>
