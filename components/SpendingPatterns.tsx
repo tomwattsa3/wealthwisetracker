@@ -5,6 +5,7 @@ import {
   inWindow, computeWindow, merchantKey, mean, sum,
 } from '../lib/periods';
 
+import PlaceSheet, { PlacePick, PLACE_TINTS } from './PlaceSheet';
 interface SpendingPatternsProps {
   transactions: Transaction[];
   categories: Category[];
@@ -69,6 +70,8 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   const [merchantAmount, setMerchantAmount] = useState<'month' | 'total'>(saved.merchantAmount === 'total' ? 'total' : 'month');
   // Top places: ranked by money spent there, or by how often you went (like the phone Home).
   const [placeRank, setPlaceRank] = useState<'spent' | 'visits'>(saved.placeRank === 'visits' ? 'visits' : 'spent');
+  // The place clicked in Top places, shown in a panel from the right (its months and payments).
+  const [placePick, setPlacePick] = useState<PlacePick | null>(null);
 
   useEffect(() => {
     try {
@@ -257,17 +260,21 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
       vals.forEach(v => m.set(v, (m.get(v) || 0) + 1));
       return Array.from(m.entries()).sort((a, b) => b[1] - a[1])[0][0];
     };
-    const all = Array.from(groups.values())
-      .map(allRows => {
+    const all = Array.from(groups.entries())
+      .map(([key, allRows]) => {
         const rows = allRows.filter(inFocusBucket);
         if (rows.length === 0) return null;
         const amounts = rows.map(r => r.amount);
         const cells = cols.map(c => sum(allRows.filter(r => colOf(r) === c.key).map(r => r.amount)));
         const last = rows.map(r => r.date.slice(0, 10)).sort().pop()!;
         const sub = mostCommon(allRows.map(r => r.sub));
+        const cat = mostCommon(allRows.map(r => r.cat));
         return {
+          key,
+          catId: allRows.find(r => r.cat === cat)?.catId || '',
+          lastMonth: Math.max(...rows.map(r => r.monthIdx)),
           name: mostCommon(allRows.map(r => r.desc)),
-          cat: mostCommon(allRows.map(r => r.cat)),
+          cat,
           sub: sub === NO_SUB ? '' : sub,
           total: sum(amounts),
           periodTotal: sum(allRows.map(r => r.amount)),
@@ -876,7 +883,21 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                         const rank = ci0 * merchantHalf + j + 1;
                         const perUnit = m.total / Math.max(1, m.activeCols);
                         return (
-                          <div key={m.name} className="grid grid-cols-[22px_minmax(0,1fr)_86px] sm:grid-cols-[22px_minmax(0,1fr)_76px_86px] gap-3 items-center py-2.5 border-t border-slate-100 dark:border-neutral-700">
+                          <button
+                            key={m.name}
+                            onClick={() => setPlacePick({
+                              key: m.key,
+                              name: m.name,
+                              catName: m.cat,
+                              catId: m.catId,
+                              tint: PLACE_TINTS[(rank - 1) % PLACE_TINTS.length],
+                              // Opens on the month you're looking at (a clicked bar or a one-month
+                              // period), otherwise the whole year of its latest payment.
+                              year: Math.floor((focusBucket && !win.single ? focusBucket.key : m.lastMonth) / 12),
+                              month: focusBucket && !win.single ? focusBucket.key : win.single ? m.lastMonth : null,
+                            })}
+                            className="w-full text-left grid grid-cols-[22px_minmax(0,1fr)_86px] sm:grid-cols-[22px_minmax(0,1fr)_76px_86px] gap-3 items-center py-2.5 border-t border-slate-100 dark:border-neutral-700 hover:bg-slate-50 dark:hover:bg-neutral-700/30 rounded-md"
+                          >
                             <span className="text-xs text-slate-400">{rank}</span>
                             <div className="min-w-0">
                               <div className="text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={m.name}>{m.name}</div>
@@ -902,7 +923,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                                 {focusBucket || merchantAmount === 'total' ? fmt(m.total, 2) : fmt(perUnit)}
                               </span>
                             )}
-                          </div>
+                          </button>
                         );
                       })}
                     </div>
@@ -1099,6 +1120,16 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
           </div>
         )}
       </section>
+      <PlaceSheet
+        side
+        place={placePick}
+        onClose={() => setPlacePick(null)}
+        transactions={transactions}
+        currency={currency}
+        getCategoryEmoji={getCategoryEmoji}
+        firstIdx={0}
+        lastIdx={lastIdx}
+      />
     </div>
   );
 };

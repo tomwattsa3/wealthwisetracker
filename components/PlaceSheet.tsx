@@ -1,10 +1,25 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import { X } from 'lucide-react';
 import { Transaction } from '../types';
 import Sheet from './Sheet';
+import { useBackClose } from '../lib/backStack';
+import { MODAL_TRANSITION, SHEET_SPRING } from '../lib/motion';
 import { MONTHS, FULL_MONTHS, monthKey, keyToIndex, merchantKey } from '../lib/periods';
 
-// Phones: tapping a place in Home's Top places slides this up — laid out like a transaction's
-// pop-up, with month bars for the year (tap one to see just that month) and every payment there.
+// Tapping a place in Top places opens this — laid out like a transaction's pop-up, with month
+// bars for the year (tap one to see just that month) and every payment there. Phones get a
+// bottom sheet; desktop (`side`) gets a panel sliding in from the right, like Category Sheets.
+
+// Initial-badge tints, in rank order (shared by every Top places list).
+export const PLACE_TINTS = [
+  'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300',
+  'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300',
+  'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+  'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+  'bg-pink-50 text-pink-700 dark:bg-pink-950/60 dark:text-pink-300',
+];
 
 export interface PlacePick {
   key: string;          // merchant key, grouped the same way Top places groups them
@@ -24,9 +39,10 @@ interface PlaceSheetProps {
   getCategoryEmoji?: (categoryId: string) => string;
   firstIdx: number;
   lastIdx: number;
+  side?: boolean; // desktop: slide in from the right instead of up from the bottom
 }
 
-const Body: React.FC<Omit<PlaceSheetProps, 'place' | 'onClose' | 'firstIdx' | 'lastIdx'> & { place: PlacePick }> = ({ place, transactions, currency, getCategoryEmoji }) => {
+const Body: React.FC<Omit<PlaceSheetProps, 'place' | 'onClose' | 'firstIdx' | 'lastIdx' | 'side'> & { place: PlacePick; onClose?: () => void }> = ({ place, transactions, currency, getCategoryEmoji, onClose }) => {
   const amt = (t: Transaction) => Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED) || 0;
   const sym = currency === 'GBP' ? '£' : 'AED ';
   const fmt = (v: number) => sym + Math.round(v).toLocaleString('en-GB');
@@ -87,7 +103,7 @@ const Body: React.FC<Omit<PlaceSheetProps, 'place' | 'onClose' | 'firstIdx' | 'l
   return (
     <>
       {/* Header, like a transaction's pop-up: badge, name, and the total for the period */}
-      <div className="shrink-0 px-5 pt-1 pb-3 flex items-center gap-3">
+      <div className={`shrink-0 px-5 ${onClose ? 'pt-5' : 'pt-1'} pb-3 flex items-center gap-3`}>
         <span className={`w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center text-lg font-bold ${place.tint}`}>
           {place.name.replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || '•'}
         </span>
@@ -99,6 +115,9 @@ const Body: React.FC<Omit<PlaceSheetProps, 'place' | 'onClose' | 'firstIdx' | 'l
           <div className="text-[22px] leading-none font-bold text-slate-900 dark:text-neutral-100">{fmt2(total)}</div>
           <div className="mt-1 text-[11.5px] text-slate-500 dark:text-neutral-400">{periodLabel}</div>
         </div>
+        {onClose && (
+          <button onClick={onClose} aria-label="Close" className="w-8 h-8 shrink-0 self-start rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 hover:text-slate-900 dark:hover:text-neutral-100 flex items-center justify-center"><X size={15} /></button>
+        )}
       </div>
 
       {/* Month bars: tap one to see just that month, tap it again for the whole year */}
@@ -169,11 +188,43 @@ const Body: React.FC<Omit<PlaceSheetProps, 'place' | 'onClose' | 'firstIdx' | 'l
   );
 };
 
-const PlaceSheet: React.FC<PlaceSheetProps> = ({ place, ...rest }) => {
+const PlaceSheet: React.FC<PlaceSheetProps> = ({ place, side, ...rest }) => {
   // Keep the last place on screen while the sheet slides away.
   const [last, setLast] = useState<PlacePick | null>(place);
   useEffect(() => { if (place) setLast(place); }, [place]);
   const shown = place || last;
+  useBackClose(!!place && !!side, rest.onClose);
+  useEffect(() => {
+    if (!place || !side) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') rest.onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [place, side, rest.onClose]);
+
+  if (side) {
+    return createPortal(
+      <AnimatePresence>
+        {place && (
+          <motion.div key="place" className="fixed inset-0 z-[100]" initial={{ pointerEvents: 'auto' }} animate={{ pointerEvents: 'auto' }} exit={{ pointerEvents: 'none' }}>
+            <motion.div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={MODAL_TRANSITION} onClick={rest.onClose} />
+            <motion.aside
+              role="dialog"
+              aria-modal="true"
+              aria-label={`${place.name} details`}
+              className="absolute top-0 right-0 bottom-0 w-[480px] max-w-full bg-white dark:bg-neutral-800 shadow-2xl flex flex-col"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={SHEET_SPRING}
+            >
+              <Body key={`${place.key}-${place.year}-${place.month}`} place={place} transactions={rest.transactions} currency={rest.currency} getCategoryEmoji={rest.getCategoryEmoji} onClose={rest.onClose} />
+            </motion.aside>
+          </motion.div>
+        )}
+      </AnimatePresence>,
+      document.body
+    );
+  }
   return (
     <Sheet open={!!place} onClose={rest.onClose} label={`${shown?.name || 'Place'} details`} heightClass="max-h-[86dvh]">
       {shown && <Body key={`${shown.key}-${shown.year}-${shown.month}`} place={shown} transactions={rest.transactions} currency={rest.currency} getCategoryEmoji={rest.getCategoryEmoji} />}
