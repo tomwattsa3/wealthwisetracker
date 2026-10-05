@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Search, Upload, X, LogOut, ChevronDown, Sparkles, RotateCcw, Trash2 } from 'lucide-react';
+import { Search, Upload, X, LogOut, ChevronDown, Sparkles, RotateCcw, Trash2, Check, ListChecks, Pencil } from 'lucide-react';
 import { Transaction, Category } from '../types';
 import { DateRange } from './DashboardDateFilter';
 import SegmentedControl from './SegmentedControl';
 import { MODAL_TRANSITION } from '../lib/motion';
 import Sheet from './Sheet';
+import MixedMerchants, { useMixedMerchants } from './MixedMerchants';
 import { useBackClose } from '../lib/backStack';
 import { buzz } from '../lib/haptics';
 
@@ -138,6 +139,9 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
     return { spent, spentAed, moneyIn, outCount, net: moneyIn - spent };
   }, [periodTransactions]);
   const reviewCount = useMemo(() => transactions.filter(needsReview).length, [transactions]);
+  // Merchants filed under more than one category, across all your transactions.
+  const { mixed, hiddenCount: mixedOk, markOk, resetOk } = useMixedMerchants(allTransactions);
+  const [mixedOpen, setMixedOpen] = useState(false);
   const stalest = latestByBank[0];
 
   // ---- Category chips: the four busiest in this period, the rest under "More" ----
@@ -203,6 +207,64 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
+
+  // ---- Select mode: tick several transactions and move them to one category together ----
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(() => new Set());
+  const [anchor, setAnchor] = useState<string | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const startSelecting = (firstId?: string) => {
+    setSelectedId(null);
+    setSelecting(true);
+    setPicked(new Set(firstId ? [firstId] : []));
+    setAnchor(firstId || null);
+  };
+  const stopSelecting = () => { setSelecting(false); setPicked(new Set()); setAnchor(null); setBulkOpen(false); };
+  useBackClose(selecting, stopSelecting);
+  // Shift-click ticks everything between the last one ticked and this one.
+  const togglePick = (id: string, range: boolean) => {
+    setPicked(prev => {
+      const next = new Set(prev);
+      const a = anchor ? list.findIndex(t => t.id === anchor) : -1;
+      const b = list.findIndex(t => t.id === id);
+      if (range && a !== -1 && b !== -1) {
+        const on = !prev.has(id) || prev.has(anchor!);
+        list.slice(Math.min(a, b), Math.max(a, b) + 1).forEach(t => (on ? next.add(t.id) : next.delete(t.id)));
+      } else if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    setAnchor(id);
+  };
+  const pickedTx = useMemo(() => allTransactions.filter(t => picked.has(t.id)), [allTransactions, picked]);
+  const pickedTotal = pickedTx.reduce((sum, t) => sum + Math.abs(t.amountGBP || 0), 0);
+  const allShownPicked = list.length > 0 && list.every(t => picked.has(t.id));
+  const pickAllShown = () => { setPicked(allShownPicked ? new Set() : new Set(list.map(t => t.id))); setAnchor(null); };
+  useEffect(() => {
+    if (!selecting) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !bulkOpen) stopSelecting(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+  const applyBulk = (cat: Category, sub: string) => {
+    const ids = pickedTx.map(t => t.id);
+    if (!ids.length) return;
+    onBulkUpdate(ids, { categoryId: cat.id, categoryName: cat.name, subcategoryName: sub, excluded: false });
+    // Ones filed automatically on import count as checked now.
+    pickedTx.forEach(t => { if ((t.notes || '').includes(AUTO_NOTE)) onUpdate(t.id, { notes: (t.notes || '').replace(AUTO_NOTE, '').trim() }); });
+    setToast(`Moved ${ids.length} ${ids.length === 1 ? 'transaction' : 'transactions'} to ${cat.name}${sub ? ` › ${sub}` : ''}`);
+    buzz();
+    stopSelecting();
+  };
+  // Phones: press and hold a row to start selecting.
+  const holdTimer = useRef<number | null>(null);
+  const held = useRef(false);
+  const holdStart = (id: string) => {
+    held.current = false;
+    if (selecting) return;
+    holdTimer.current = window.setTimeout(() => { held.current = true; buzz(); startSelecting(id); }, 450);
+  };
+  const holdEnd = () => { if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; } };
 
   const pickPreset = (id: string) => {
     if (id === 'Custom Range') { setCustomOpen(o => !o); return; }
@@ -273,6 +335,7 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
         <div className="flex items-center gap-2">
           <h1 className="flex-1 text-2xl font-bold text-slate-900 dark:text-neutral-100">Transactions</h1>
           <button onClick={() => setSearchOpen(o => !o)} aria-label="Search" aria-expanded={searchOpen} className={`w-10 h-10 rounded-xl border flex items-center justify-center ${searchOpen || searchQuery ? 'border-indigo-500 text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40' : 'border-slate-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-slate-600 dark:text-neutral-300'}`}><Search size={17} /></button>
+          <button onClick={() => (selecting ? stopSelecting() : startSelecting())} aria-label="Select transactions" aria-pressed={selecting} className={`w-10 h-10 rounded-xl border flex items-center justify-center ${selecting ? 'border-indigo-500 text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40' : 'border-slate-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-slate-600 dark:text-neutral-300'}`}><ListChecks size={17} /></button>
           <button onClick={onOpenImport} className="h-10 px-3.5 rounded-xl bg-indigo-600 text-white text-[13px] font-semibold flex items-center gap-1.5"><Upload size={15} /> Import</button>
           <button onClick={onLogout} aria-label="Log out" className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-400"><LogOut size={16} /></button>
         </div>
@@ -355,6 +418,9 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
               value={customOpen ? 'Custom Range' : dateRange.label}
               onChange={pickPreset}
             />
+            <button onClick={() => (selecting ? stopSelecting() : startSelecting())} aria-pressed={selecting} className={`shrink-0 h-10 px-3.5 rounded-xl border text-[13px] font-semibold flex items-center gap-1.5 ${selecting ? 'border-indigo-500 text-indigo-700 bg-indigo-50 dark:bg-indigo-950/40 dark:text-indigo-300' : 'border-slate-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-slate-700 dark:text-neutral-200 hover:bg-slate-50'}`}>
+              <ListChecks size={15} /> {selecting ? 'Done' : 'Select'}
+            </button>
             <button onClick={onOpenImport} className="shrink-0 h-10 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[13px] font-semibold flex items-center gap-1.5 shadow-sm">
               <Upload size={15} /> Import CSV
             </button>
@@ -461,6 +527,16 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
                 {reviewCount} to review
               </button>
             )}
+            {(mixed.length > 0 || mixedOk > 0) && (
+              <button
+                onClick={() => setMixedOpen(true)}
+                aria-haspopup="dialog"
+                title="Merchants filed under more than one category"
+                className="max-md:order-first shrink-0 px-3 py-1.5 rounded-full text-[12.5px] font-semibold whitespace-nowrap bg-violet-50 text-violet-800 dark:bg-violet-950/50 dark:text-violet-300"
+              >
+                {mixed.length} mixed
+              </button>
+            )}
           </div>
 
           {reviewOnly && (
@@ -491,7 +567,8 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
                   <span>{g.out > 0 ? `−${gbp(g.out)}` : ''}</span>
                 </div>
                 {g.rows.map(t => {
-                  const on = t.id === selectedId;
+                  const ticked = selecting && picked.has(t.id);
+                  const on = selecting ? ticked : t.id === selectedId;
                   const hidden = isHidden(t);
                   const review = needsReview(t);
                   const income = t.type === 'INCOME';
@@ -500,27 +577,41 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
                     <button
                       key={t.id}
                       data-tx-row={t.id}
-                      onClick={() => setSelectedId(on ? null : t.id)}
+                      onClick={(e) => {
+                        if (held.current) { held.current = false; return; }
+                        if (selecting) togglePick(t.id, e.shiftKey);
+                        else setSelectedId(on ? null : t.id);
+                      }}
+                      onTouchStart={() => holdStart(t.id)}
+                      onTouchMove={holdEnd}
+                      onTouchEnd={holdEnd}
+                      onContextMenu={(e) => { if (holdTimer.current || held.current) e.preventDefault(); }}
                       aria-pressed={on}
-                      className={`w-full text-left grid items-center gap-3 md:gap-4 pl-[13px] md:pl-[17px] pr-4 md:pr-5 py-2.5 border-b border-slate-100 dark:border-neutral-700/70 border-l-[3px] transition-colors ${on ? 'border-l-indigo-600 bg-indigo-50/70 dark:bg-indigo-950/30' : 'border-l-transparent hover:bg-slate-50 dark:hover:bg-neutral-700/30'} ${panelOpen && isLg ? 'grid-cols-[36px_minmax(0,1.3fr)_minmax(0,1fr)_110px]' : 'grid-cols-[36px_minmax(0,1fr)_auto] md:grid-cols-[36px_minmax(0,1.5fr)_minmax(0,1.4fr)_150px]'}`}
+                      className={`w-full text-left grid items-center gap-3 md:gap-4 pl-[13px] md:pl-[17px] pr-4 md:pr-5 py-2.5 md:py-2 border-b border-slate-100 dark:border-neutral-700/70 border-l-[3px] transition-colors ${on ? 'border-l-indigo-600 bg-indigo-50/70 dark:bg-indigo-950/30' : 'border-l-transparent hover:bg-slate-50 dark:hover:bg-neutral-700/30'} ${panelOpen && isLg ? 'grid-cols-[32px_minmax(0,1.3fr)_minmax(0,1fr)_104px]' : 'grid-cols-[36px_minmax(0,1fr)_auto] md:grid-cols-[32px_minmax(0,1.5fr)_minmax(0,1.4fr)_140px]'}`}
                     >
-                      <span className={`w-9 h-9 rounded-[11px] flex items-center justify-center text-sm font-bold ${hidden ? 'bg-slate-100 text-slate-400 dark:bg-neutral-700' : tintFor(t.description)}`}>{initialOf(t.description)}</span>
+                      {selecting ? (
+                        <span className="w-9 h-9 md:w-8 md:h-8 flex items-center justify-center">
+                          <span className={`w-[22px] h-[22px] rounded-[7px] border-2 flex items-center justify-center transition-colors ${ticked ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 dark:border-neutral-500 bg-white dark:bg-neutral-800'}`}>{ticked && <Check size={14} strokeWidth={3} />}</span>
+                        </span>
+                      ) : (
+                        <span className={`w-9 h-9 md:w-8 md:h-8 rounded-[11px] md:rounded-[10px] flex items-center justify-center text-sm md:text-[13px] font-bold ${hidden ? 'bg-slate-100 text-slate-400 dark:bg-neutral-700' : tintFor(t.description)}`}>{initialOf(t.description)}</span>
+                      )}
                       <span className="min-w-0 flex flex-col">
-                        <span className={`text-[13.5px] md:text-sm font-semibold truncate ${hidden ? 'text-slate-400 dark:text-neutral-500' : 'text-slate-900 dark:text-neutral-100'}`}>{t.description || 'Unknown'}</span>
-                        <span className="text-xs text-slate-400 dark:text-neutral-500 truncate">
+                        <span className={`text-[13.5px] md:text-[13px] font-semibold truncate ${hidden ? 'text-slate-400 dark:text-neutral-500' : 'text-slate-900 dark:text-neutral-100'}`}>{t.description || 'Unknown'}</span>
+                        <span className="text-xs md:text-[11.5px] text-slate-400 dark:text-neutral-500 truncate">
                           <span className={`md:hidden ${review ? 'text-amber-700 dark:text-amber-400' : 'text-slate-500 dark:text-neutral-400'}`}>{catText}{t.subcategoryName && !hidden ? ` · ${t.subcategoryName}` : ''}{review ? ' · check' : ''}</span>
                           <span className="hidden md:inline">{t.bankName || '—'}</span>
                         </span>
                       </span>
-                      <span className="hidden md:flex items-center gap-1.5 min-w-0">
-                        <span className={`shrink-0 max-w-full truncate px-2.5 py-1 rounded-full text-[12.5px] ${hidden ? 'bg-slate-100 text-slate-500 dark:bg-neutral-700 dark:text-neutral-400' : t.categoryId ? 'bg-slate-100 text-slate-800 dark:bg-neutral-700 dark:text-neutral-200' : 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'}`}>{catText}</span>
-                        {!(panelOpen && isLg) && !hidden && t.subcategoryName && <span className="text-[12.5px] text-slate-500 dark:text-neutral-400 truncate">{t.subcategoryName}</span>}
+                      <span className={`hidden md:flex min-w-0 ${panelOpen && isLg ? 'flex-col items-start gap-0.5' : 'items-center gap-1.5'}`}>
+                        <span className={`shrink-0 max-w-full truncate px-2.5 rounded-full ${panelOpen && isLg ? 'py-0.5 text-[11.5px]' : 'py-0.5 text-[12px]'} ${hidden ? 'bg-slate-100 text-slate-500 dark:bg-neutral-700 dark:text-neutral-400' : t.categoryId ? 'bg-slate-100 text-slate-800 dark:bg-neutral-700 dark:text-neutral-200' : 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'}`}>{catText}</span>
+                        {!hidden && t.subcategoryName && <span className={`text-slate-500 dark:text-neutral-400 truncate ${panelOpen && isLg ? 'max-w-full pl-2.5 text-[11px] leading-tight' : 'text-[12px]'}`}>{t.subcategoryName}</span>}
                         {review && t.categoryId && <span title="Filed automatically, check it" className="w-[7px] h-[7px] shrink-0 rounded-full bg-amber-500" />}
                       </span>
                       <span className="flex flex-col items-end">
-                        <span className={`text-sm font-bold whitespace-nowrap ${hidden ? 'text-slate-400 line-through' : income ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-neutral-100'}`}>{income ? '+' : '−'}{gbp(Math.abs(t.amountGBP || 0))}</span>
+                        <span className={`text-sm md:text-[13px] font-bold whitespace-nowrap ${hidden ? 'text-slate-400 line-through' : income ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-neutral-100'}`}>{income ? '+' : '−'}{gbp(Math.abs(t.amountGBP || 0))}</span>
                         {t.bankName && <span className="md:hidden text-[11px] text-slate-400 dark:text-neutral-500 whitespace-nowrap">{t.bankName}</span>}
-                        {t.amountAED > 0 && <span className="hidden md:inline text-[11.5px] text-slate-400 dark:text-neutral-500 whitespace-nowrap">{aed(Math.abs(t.amountAED))}</span>}
+                        {t.amountAED > 0 && <span className="hidden md:inline text-[11px] text-slate-400 dark:text-neutral-500 whitespace-nowrap">{aed(Math.abs(t.amountAED))}</span>}
                       </span>
                     </button>
                   );
@@ -533,6 +624,22 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
               </div>
             )}
           </div>
+
+          {/* Select mode: what's ticked, select all, and move them all to one category */}
+          {selecting && (
+            <div className="shrink-0 flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2.5 border-t border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-800">
+              <div className="min-w-0 flex-1 flex flex-col md:flex-row md:items-center md:gap-3">
+                <span className="text-[13.5px] text-slate-900 dark:text-neutral-100 truncate">
+                  {picked.size ? <><strong>{picked.size}</strong> selected <span className="text-slate-500 dark:text-neutral-400">· {gbp(pickedTotal)}</span></> : <span className="text-slate-500 dark:text-neutral-400">{isLg ? 'Click to select · Shift-click for a range' : 'Tap transactions to select'}</span>}
+                </span>
+                <button onClick={pickAllShown} disabled={!list.length} className="self-start text-[12.5px] font-semibold text-indigo-700 dark:text-indigo-300 disabled:opacity-40 whitespace-nowrap">
+                  {allShownPicked ? 'Clear selection' : `Select all ${list.length.toLocaleString('en-GB')}`}
+                </button>
+              </div>
+              <button onClick={() => setBulkOpen(true)} disabled={!picked.size} className="shrink-0 h-10 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[13.5px] font-semibold disabled:opacity-40">Recategorise</button>
+              <button onClick={stopSelecting} aria-label="Stop selecting" className="shrink-0 w-10 h-10 rounded-xl border border-slate-200 dark:border-neutral-600 text-slate-500 flex items-center justify-center"><X size={16} /></button>
+            </div>
+          )}
         </section>
 
         {/* Desktop: details docked beside the list */}
@@ -547,6 +654,32 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
       {!isLg && <DetailSheet t={selected} onClose={() => setSelectedId(null)}>
         {selected && <DetailPanel key={selected.id} t={selected} sheet {...{ allTransactions, categories, getCategoryEmoji, onUpdate, onBulkUpdate, onDelete, onRemember }} onToast={setToast} onClose={() => setSelectedId(null)} onPick={setSelectedId} onDone={() => (reviewOnly ? move(1) : undefined)} />}
       </DetailSheet>}
+
+      <MixedMerchants
+        open={mixedOpen}
+        onClose={() => setMixedOpen(false)}
+        sheet={!isLg}
+        mixed={mixed}
+        hiddenCount={mixedOk}
+        onMarkOk={markOk}
+        onResetOk={resetOk}
+        getCategoryEmoji={getCategoryEmoji}
+        categories={categories}
+        onBulkUpdate={onBulkUpdate}
+        onShow={(q) => { setSelectedId(null); onSearch(q); setSearchOpen(true); }}
+        onToast={setToast}
+      />
+
+      <BulkRecategorise
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        sheet={!isLg}
+        txs={pickedTx}
+        allTransactions={allTransactions}
+        categories={categories}
+        getCategoryEmoji={getCategoryEmoji}
+        onApply={applyBulk}
+      />
 
       {createPortal(
         <AnimatePresence>
@@ -571,6 +704,126 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
 };
 
 // ---------------------------------------------------------------------------------------------
+
+// Move every ticked transaction to one category (and subcategory) in one go. A centred pop-up
+// on desktop, a bottom sheet on phones.
+const BulkRecategorise: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  sheet: boolean;
+  txs: Transaction[];
+  allTransactions: Transaction[];
+  categories: Category[];
+  getCategoryEmoji: (categoryId: string) => string;
+  onApply: (cat: Category, sub: string) => void;
+}> = ({ open, onClose, sheet, txs, allTransactions, categories, getCategoryEmoji, onApply }) => {
+  const [catId, setCatId] = useState('');
+  const [sub, setSub] = useState('');
+  useEffect(() => { if (open) { setCatId(''); setSub(''); } }, [open]);
+  useBackClose(open && !sheet, onClose);
+  useEffect(() => {
+    if (!open || sheet) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, sheet, onClose]);
+
+  // Most of the ticked ones are spending (or money in): offer that kind first.
+  const kind = txs.filter(t => t.type === 'INCOME').length > txs.length / 2 ? 'INCOME' : 'EXPENSE';
+  const quick = useMemo(() => {
+    const used = new Map<string, number>();
+    allTransactions.forEach(x => { if (x.categoryId && !isHidden(x)) used.set(x.categoryId, (used.get(x.categoryId) || 0) + 1); });
+    return categories.filter(c => used.has(c.id) && c.type === kind).sort((a, b) => (used.get(b.id) || 0) - (used.get(a.id) || 0)).slice(0, 10);
+  }, [allTransactions, categories, kind]);
+  const more = categories.filter(c => c.id !== 'excluded' && !quick.some(q => q.id === c.id)).sort((a, b) => a.name.localeCompare(b.name));
+  const cat = categories.find(c => c.id === catId);
+  const subs = cat?.subcategories || [];
+  const pickCat = (id: string) => { const c = categories.find(x => x.id === id); setCatId(id); setSub(c?.subcategories[0] || ''); };
+
+  // Where they are now, e.g. "Subscriptions › General ×5, Work › Software ×2"
+  const now = useMemo(() => {
+    const m = new Map<string, number>();
+    txs.forEach(t => { const k = isHidden(t) ? 'Hidden' : t.categoryId ? `${t.categoryName}${t.subcategoryName ? ` › ${t.subcategoryName}` : ''}` : 'Not categorised'; m.set(k, (m.get(k) || 0) + 1); });
+    return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
+  }, [txs]);
+  const total = txs.reduce((s, t) => s + Math.abs(t.amountGBP || 0), 0);
+  const n = txs.length;
+  const label = 'text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 dark:text-neutral-400';
+  const chip = (on: boolean) => `px-3 py-1.5 rounded-xl border-[1.5px] text-[13px] transition-colors ${on ? 'border-indigo-600 bg-indigo-50 text-indigo-800 font-semibold dark:bg-indigo-950/50 dark:text-indigo-200' : 'border-slate-200 dark:border-neutral-600 text-slate-700 dark:text-neutral-300 hover:border-slate-300'}`;
+
+  const body = (
+    <div className="flex-1 min-h-0 flex flex-col">
+      <div className={`px-5 ${sheet ? 'pt-1' : 'pt-5'} pb-3 flex items-start gap-3 border-b border-slate-100 dark:border-neutral-700`}>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[17px] font-bold text-slate-900 dark:text-neutral-100">Move {n} {n === 1 ? 'transaction' : 'transactions'}</h2>
+          <p className="text-xs text-slate-500 dark:text-neutral-400">{gbp(total)} in total</p>
+        </div>
+        <button onClick={onClose} aria-label="Close" className="w-8 h-8 shrink-0 relative after:absolute after:-inset-1.5 after:content-[''] rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 flex items-center justify-center"><X size={15} /></button>
+      </div>
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4 flex flex-col gap-3">
+        <div>
+          <span className={label}>Now in</span>
+          <p className="mt-0.5 text-[13px] text-slate-700 dark:text-neutral-300">
+            {now.slice(0, 4).map(([k, c], i) => <span key={k}>{i > 0 && ', '}{k}{now.length > 1 || c > 1 ? <span className="text-slate-400"> ×{c}</span> : null}</span>)}
+            {now.length > 4 && <span className="text-slate-400">, +{now.length - 4} more</span>}
+          </p>
+        </div>
+        <span className={label}>Move to</span>
+        <div className="flex flex-wrap gap-1.5 -mt-1.5">
+          {quick.map(c => (
+            <button key={c.id} onClick={() => pickCat(c.id)} aria-pressed={catId === c.id} className={chip(catId === c.id)}>{getCategoryEmoji(c.id)} {c.name}</button>
+          ))}
+          {more.length > 0 && (
+            <span className="relative">
+              <select aria-label="More categories" value={more.some(c => c.id === catId) ? catId : ''} onChange={(e) => e.target.value && pickCat(e.target.value)} className={`appearance-none pr-7 ${chip(more.some(c => c.id === catId))} bg-transparent`}>
+                <option value="">More…</option>
+                {more.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
+            </span>
+          )}
+        </div>
+        {subs.length > 0 && (
+          <>
+            <span className={label}>Subcategory</span>
+            <div className="flex flex-wrap gap-1.5 -mt-1.5">
+              {subs.map(x => <button key={x} onClick={() => setSub(x)} aria-pressed={sub === x} className={`${chip(sub === x)} rounded-full`}>{x}</button>)}
+            </div>
+          </>
+        )}
+      </div>
+      <div className="shrink-0 px-5 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] border-t border-slate-100 dark:border-neutral-700">
+        <button onClick={() => cat && onApply(cat, sub)} disabled={!cat} className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-[15px] font-semibold disabled:opacity-40">
+          {cat ? `Move ${n} to ${cat.name}${sub ? ` › ${sub}` : ''}` : 'Choose a category'}
+        </button>
+      </div>
+    </div>
+  );
+
+  if (sheet) return <Sheet open={open} onClose={onClose} label="Move transactions" zClass="z-[110]">{body}</Sheet>;
+  return createPortal(
+    <AnimatePresence>
+      {open && (
+        <motion.div className="fixed inset-0 z-[110] flex items-center justify-center p-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={MODAL_TRANSITION}>
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]" onClick={onClose} />
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Move transactions"
+            className="relative w-full max-w-[480px] max-h-[85vh] flex flex-col bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl overflow-hidden"
+            initial={{ scale: 0.97, y: 8 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.97, y: 8 }}
+            transition={MODAL_TRANSITION}
+          >
+            {body}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body
+  );
+};
 
 // Phone sheet for a transaction's details. Keeps showing the last transaction while it slides
 // away, so the sheet doesn't go blank on the way down.
@@ -618,6 +871,17 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
   const [saved, setSaved] = useState(false);
   const [askDelete, setAskDelete] = useState(false);
   const [histShown, setHistShown] = useState(10);
+  // Renaming this one transaction (the merchant name shown everywhere).
+  const [renaming, setRenaming] = useState(false);
+  const [nameDraft, setNameDraft] = useState(t.description || '');
+  const saveName = () => {
+    const name = nameDraft.trim();
+    setRenaming(false);
+    if (!name || name === t.description) { setNameDraft(t.description || ''); return; }
+    onUpdate(t.id, { description: name });
+    onToast(`Renamed to ${name}`);
+    buzz();
+  };
   useEffect(() => { if (!saved) return; const id = setTimeout(() => setSaved(false), 2000); return () => clearTimeout(id); }, [saved]);
 
   const cat = categories.find(c => c.id === catId);
@@ -690,7 +954,28 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
         <div className="flex items-center gap-3">
           <span className={`w-12 h-12 shrink-0 rounded-[14px] flex items-center justify-center text-xl font-bold ${hidden ? 'bg-slate-100 text-slate-400 dark:bg-neutral-700' : tintFor(t.description)}`}>{initialOf(t.description)}</span>
           <div className="min-w-0 flex-1">
-            <h2 className="text-[17px] font-bold leading-snug text-slate-900 dark:text-neutral-100 break-words">{t.description || 'Unknown'}</h2>
+            {renaming ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  autoFocus
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); saveName(); }
+                    if (e.key === 'Escape') { e.stopPropagation(); setNameDraft(t.description || ''); setRenaming(false); }
+                  }}
+                  aria-label="Transaction name"
+                  className="min-w-0 flex-1 h-9 px-2.5 rounded-lg border-[1.5px] border-indigo-500 bg-white dark:bg-neutral-900 text-[15px] font-semibold text-slate-900 dark:text-neutral-100 outline-none"
+                />
+                <button onClick={saveName} className="shrink-0 h-9 px-3 rounded-lg bg-indigo-600 text-white text-[13px] font-semibold">Save</button>
+                <button onClick={() => { setNameDraft(t.description || ''); setRenaming(false); }} aria-label="Cancel rename" className="shrink-0 w-9 h-9 rounded-lg text-slate-500 flex items-center justify-center"><X size={15} /></button>
+              </div>
+            ) : (
+              <button onClick={() => { setNameDraft(t.description || ''); setRenaming(true); }} title="Rename" className="group text-left">
+                <h2 className="inline text-[17px] font-bold leading-snug text-slate-900 dark:text-neutral-100 break-words">{t.description || 'Unknown'}</h2>
+                <Pencil size={13} className="inline ml-1.5 -mt-0.5 text-slate-400 group-hover:text-indigo-600" />
+              </button>
+            )}
             <p className="text-xs text-slate-500 dark:text-neutral-400">{sheet ? DAYS[dt.getDay()] : LONG_DAYS[dt.getDay()]} {dt.getDate()} {sheet ? MONTHS[dt.getMonth()].slice(0, 3) : `${MONTHS[dt.getMonth()]} ${dt.getFullYear()}`}{t.bankName ? ` · ${t.bankName}` : ''}</p>
           </div>
           {sheet ? (
