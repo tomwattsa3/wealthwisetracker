@@ -38,8 +38,8 @@ interface Row {
   amount: number;
 }
 
-// Subcategories as one row of tabs (name, amount under it) that scrolls sideways when they
-// don't all fit; a soft fade on the edge shows there's more.
+// Subcategories as one row of evenly spaced tabs (name, amount under it; long names wrap onto
+// two lines) that scrolls sideways when they still don't fit; a soft fade shows there's more.
 const SubTabs: React.FC<{ items: [string, number][]; value: string; onChange: (k: string) => void; fmt: (v: number) => string }> = ({ items, value, onChange, fmt }) => {
   const row = useRef<HTMLDivElement>(null);
   const [more, setMore] = useState(false);
@@ -71,11 +71,11 @@ const SubTabs: React.FC<{ items: [string, number][]; value: string; onChange: (k
               key={k}
               onClick={() => onChange(k)}
               aria-pressed={on}
-              className={`relative shrink-0 min-w-[68px] min-h-[44px] px-3 rounded-lg flex flex-col items-center justify-center ${on ? '' : 'hover:bg-white/50 dark:hover:bg-neutral-600/30'}`}
+              className={`relative flex-1 basis-0 min-w-[64px] min-h-[44px] px-1.5 py-1.5 rounded-lg flex flex-col items-center justify-center ${on ? '' : 'hover:bg-white/50 dark:hover:bg-neutral-600/30'}`}
             >
               {on && <motion.span layoutId={pillId} aria-hidden className="absolute inset-0 rounded-lg bg-white dark:bg-neutral-600 shadow-sm" transition={{ type: 'spring', stiffness: 520, damping: 40, mass: 0.8 }} />}
-              <span className={`relative text-xs whitespace-nowrap transition-colors duration-200 ${on ? 'font-semibold text-slate-900 dark:text-neutral-100' : 'text-slate-600 dark:text-neutral-300'}`}>{k === 'all' ? 'All' : k}</span>
-              <span className={`relative text-[11px] whitespace-nowrap transition-colors duration-200 ${on ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-400 dark:text-neutral-500'}`}>{fmt(v)}</span>
+              <span className={`relative max-w-[7.5em] text-[11px] text-center leading-tight line-clamp-2 break-words transition-colors duration-200 ${on ? 'font-semibold text-slate-900 dark:text-neutral-100' : 'text-slate-600 dark:text-neutral-300'}`}>{k === 'all' ? 'All' : k}</span>
+              <span className={`relative text-[10.5px] whitespace-nowrap transition-colors duration-200 ${on ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-400 dark:text-neutral-500'}`}>{fmt(v)}</span>
             </button>
           );
         })}
