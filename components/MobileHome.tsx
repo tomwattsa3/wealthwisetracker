@@ -664,7 +664,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
                         key={t}
                         onClick={() => setInType(t)}
                         aria-pressed={activeType === t}
-                        className={`shrink-0 min-h-[34px] px-3.5 rounded-full border text-[13px] capitalize ${activeType === t ? 'bg-slate-900 border-slate-900 text-white font-semibold dark:bg-neutral-100 dark:border-neutral-100 dark:text-neutral-900' : 'bg-white border-slate-200 text-slate-700 dark:bg-neutral-800 dark:border-neutral-600 dark:text-neutral-300'}`}
+                        className={`shrink-0 min-h-[32px] px-3 rounded-full border text-[12.5px] capitalize ${activeType === t ? 'bg-slate-900 border-slate-900 text-white font-semibold dark:bg-neutral-100 dark:border-neutral-100 dark:text-neutral-900' : 'bg-white border-slate-200 text-slate-700 dark:bg-neutral-800 dark:border-neutral-600 dark:text-neutral-300'}`}
                       >
                         {t === 'all' ? 'All' : t.replace(/ interest$/i, '')}
                       </button>
@@ -675,14 +675,14 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
                   <button
                     key={src.key}
                     onClick={() => setPlacePick({ key: src.key, name: src.name, catName: src.type, catId: '', tint: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300', year, month: ytd ? null : sel, income: true })}
-                    className="w-full grid grid-cols-[36px_minmax(0,1fr)_auto] gap-3 items-center min-h-[58px] border-t border-slate-100 dark:border-neutral-700 text-left"
+                    className="w-full grid grid-cols-[32px_minmax(0,1fr)_auto] gap-2.5 items-center min-h-[52px] py-2 border-t border-slate-100 dark:border-neutral-700 text-left"
                   >
-                    <span className="w-9 h-9 rounded-[11px] flex items-center justify-center text-sm font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">{src.name.replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || '•'}</span>
+                    <span className="w-8 h-8 rounded-[10px] flex items-center justify-center text-[13px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">{src.name.replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || '•'}</span>
                     <span className="min-w-0 flex flex-col">
-                      <span className="text-sm font-medium text-slate-900 dark:text-neutral-100 truncate">{src.name}</span>
-                      <span className="text-xs text-slate-500 dark:text-neutral-400 truncate"><span className="capitalize">{src.type}</span> · {src.count > 1 ? `${src.count} payments` : Array.from(src.months).map(m => MONTHS[m % 12]).join(', ')}</span>
+                      <span className="text-[12.5px] leading-snug font-medium text-slate-900 dark:text-neutral-100 line-clamp-2 break-words">{src.name}</span>
+                      <span className="text-[11px] text-slate-500 dark:text-neutral-400 truncate"><span className="capitalize">{src.type}</span> · {src.count > 1 ? `${src.count} payments` : Array.from(src.months).map(m => MONTHS[m % 12]).join(', ')}</span>
                     </span>
-                    <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">+{fmt2(src.total)}</span>
+                    <span className="text-[12.5px] font-bold text-emerald-700 dark:text-emerald-400">+{fmt2(src.total)}</span>
                   </button>
                 ))}
                 {sources.length > 5 && (

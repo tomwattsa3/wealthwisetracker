@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Sheet from './Sheet';
@@ -37,6 +37,53 @@ interface Row {
   desc: string;
   amount: number;
 }
+
+// Subcategories as one row of tabs (name, amount under it) that scrolls sideways when they
+// don't all fit; a soft fade on the edge shows there's more.
+const SubTabs: React.FC<{ items: [string, number][]; value: string; onChange: (k: string) => void; fmt: (v: number) => string }> = ({ items, value, onChange, fmt }) => {
+  const row = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState(false);
+  // The white highlight glides from tab to tab (one per panel, so two panels never share it).
+  const pillId = `subtab-${useId()}`;
+  const first = useRef(true);
+  const check = () => { const el = row.current; if (el) setMore(el.scrollLeft + el.clientWidth < el.scrollWidth - 6); };
+  useEffect(() => {
+    // Smoothly bring the tapped tab fully into view (instantly when the panel first opens).
+    row.current?.querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: first.current ? 'auto' : 'smooth' });
+    first.current = false;
+    check();
+  }, [items.length, value]);
+  // Re-check once the panel has finished sliding in, and whenever its width changes.
+  useEffect(() => {
+    const el = row.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div className="relative">
+      <div ref={row} onScroll={check} role="group" aria-label="Subcategory" data-no-sheet-drag className="flex gap-0.5 p-1 rounded-xl bg-slate-100 dark:bg-neutral-700/60 overflow-x-auto hide-scrollbar">
+        {items.map(([k, v]) => {
+          const on = value === k;
+          return (
+            <button
+              key={k}
+              onClick={() => onChange(k)}
+              aria-pressed={on}
+              className={`relative shrink-0 min-w-[68px] min-h-[44px] px-3 rounded-lg flex flex-col items-center justify-center ${on ? '' : 'hover:bg-white/50 dark:hover:bg-neutral-600/30'}`}
+            >
+              {on && <motion.span layoutId={pillId} aria-hidden className="absolute inset-0 rounded-lg bg-white dark:bg-neutral-600 shadow-sm" transition={{ type: 'spring', stiffness: 520, damping: 40, mass: 0.8 }} />}
+              <span className={`relative text-xs whitespace-nowrap transition-colors duration-200 ${on ? 'font-semibold text-slate-900 dark:text-neutral-100' : 'text-slate-600 dark:text-neutral-300'}`}>{k === 'all' ? 'All' : k}</span>
+              <span className={`relative text-[11px] whitespace-nowrap transition-colors duration-200 ${on ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-400 dark:text-neutral-500'}`}>{fmt(v)}</span>
+            </button>
+          );
+        })}
+      </div>
+      {more && <span aria-hidden className="pointer-events-none absolute right-0 top-0 bottom-0 w-10 rounded-r-xl bg-gradient-to-l from-slate-100 dark:from-neutral-800 to-transparent" />}
+    </div>
+  );
+};
 
 const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency, getCategoryEmoji, onViewTransactions, panelOnly, onPanelClose }) => {
   const [period, setPeriod] = useState<PeriodId>(() => {
@@ -279,16 +326,7 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                         </div>
 
                         {panel.subs.length > 1 && (
-                          <div className="flex flex-wrap gap-1.5">
-                            {[['all', panel.baseTotal] as [string, number], ...panel.subs].map(([k, v]) => {
-                              const on = sub === k;
-                              return (
-                                <button key={k} onClick={() => setSub(k)} aria-pressed={on} className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${on ? 'bg-slate-900 border-slate-900 text-white dark:bg-neutral-100 dark:text-neutral-900' : 'bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-600 text-slate-700 dark:text-neutral-300'}`}>
-                                  {k === 'all' ? 'All' : k} · {fmt(v)}
-                                </button>
-                              );
-                            })}
-                          </div>
+                          <SubTabs items={[['all', panel.baseTotal] as [string, number], ...panel.subs]} value={sub} onChange={setSub} fmt={fmt} />
                         )}
 
                         <div className="flex justify-between items-center">
