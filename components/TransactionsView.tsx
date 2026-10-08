@@ -169,14 +169,40 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
   // ---- Category chips: the four busiest in this period, the rest under "More" ----
   const catCounts = useMemo(() => {
     const m = new Map<string, number>();
-    periodTransactions.forEach(t => { if (t.categoryId && !isHidden(t)) m.set(t.categoryId, (m.get(t.categoryId) || 0) + 1); });
+    // Only categories with payments of the picked kind (Money in shows just the ones money came in under).
+    periodTransactions.forEach(t => {
+      if (!t.categoryId || isHidden(t) || (filterType !== 'all' && t.type !== filterType)) return;
+      m.set(t.categoryId, (m.get(t.categoryId) || 0) + 1);
+    });
     return m;
-  }, [periodTransactions]);
+  }, [periodTransactions, filterType]);
+  // Switching to Money in (or out) drops a picked category that has nothing of that kind.
+  useEffect(() => {
+    if (filterType !== 'all' && filterCategory !== 'all' && !catCounts.has(filterCategory)) { onFilterCategory('all'); onFilterSubcategory('all'); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterType]);
   const topCats = useMemo(
     () => categories.filter(c => catCounts.has(c.id)).sort((a, b) => (catCounts.get(b.id) || 0) - (catCounts.get(a.id) || 0)).slice(0, isLg && selectedId ? 3 : 4),
     [categories, catCounts, isLg, selectedId]
   );
-  const moreCats = categories.filter(c => !topCats.some(t => t.id === c.id)).sort((a, b) => a.name.localeCompare(b.name));
+  const moreCats = categories.filter(c => !topCats.some(t => t.id === c.id) && (filterType === 'all' || catCounts.has(c.id))).sort((a, b) => a.name.localeCompare(b.name));
+
+  // ---- Subcategory chips under the filter row once a category is picked: count and total of each ----
+  const subChips = useMemo(() => {
+    if (filterCategory === 'all') return [];
+    const m = new Map<string, { name: string; count: number; total: number }>();
+    periodTransactions.forEach(t => {
+      if (t.categoryId !== filterCategory || isHidden(t)) return;
+      if (filterBank !== 'all' && t.bankName !== filterBank) return;
+      if (filterType !== 'all' && t.type !== filterType) return;
+      const name = (t.subcategoryName || '').trim();
+      if (!name) return;
+      const e = m.get(name) || { name, count: 0, total: 0 };
+      e.count++; e.total += Math.abs(t.amountGBP || 0);
+      m.set(name, e);
+    });
+    return Array.from(m.values()).sort((a, b) => b.total - a.total);
+  }, [periodTransactions, filterCategory, filterBank, filterType]);
   const filtersOn = filterCategory !== 'all' || filterSubcategory !== 'all' || filterType !== 'all' || filterBank !== 'all' || filterRecentlyAdded !== 'all' || reviewOnly;
 
   // ---- Day groups over the visible slice ----
@@ -526,7 +552,7 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
                 {moreCats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </SelectPill>
             )}
-            {filterSubcategory !== 'all' && (
+            {filterSubcategory !== 'all' && filterCategory === 'all' && (
               <button onClick={() => onFilterSubcategory('all')} className={`shrink-0 px-3 py-1.5 rounded-full border text-[12.5px] whitespace-nowrap flex items-center gap-1 ${pillOn}`}>
                 {filterSubcategory} <X size={12} />
               </button>
@@ -560,6 +586,51 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
               </button>
             )}
           </div>
+
+          {/* The picked category's subcategories, sliding in under the filters */}
+          <AnimatePresence initial={false}>
+            {filterCategory !== 'all' && subChips.length > 0 && (() => {
+              const catName = categories.find(c => c.id === filterCategory)?.name || '';
+              const SUB_COLORS = ['#22C55E', '#3B82F6', '#8B5CF6', '#F59E0B', '#EC4899', '#14B8A6'];
+              const shownTotal = transactions.filter(t => !isHidden(t)).reduce((a, t) => a + Math.abs(t.amountGBP || 0), 0);
+              const allCount = subChips.reduce((a, c) => a + c.count, 0);
+              const allTotal = subChips.reduce((a, c) => a + c.total, 0);
+              const chips = [{ name: 'all', count: allCount, total: allTotal }, ...subChips];
+              return (
+                <motion.div
+                  key="subs"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                  className="shrink-0 overflow-hidden"
+                >
+                  <div className="flex items-center gap-1.5 px-3 md:px-4 py-2.5 bg-slate-50 dark:bg-neutral-900/40 border-b border-slate-100 dark:border-neutral-700 overflow-x-auto hide-scrollbar">
+                    <span className="shrink-0 mr-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-slate-400 dark:text-neutral-500">{catName}</span>
+                    {chips.map((c, i) => {
+                      const on = c.name === 'all' ? filterSubcategory === 'all' : filterSubcategory === c.name;
+                      return (
+                        <button
+                          key={c.name}
+                          onClick={() => onFilterSubcategory(c.name === 'all' || on ? 'all' : c.name)}
+                          aria-pressed={on}
+                          className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[12.5px] whitespace-nowrap transition-colors duration-200 ${on ? pillOn : pillOff}`}
+                        >
+                          {c.name !== 'all' && <span className="w-[7px] h-[7px] rounded-full shrink-0" style={{ background: SUB_COLORS[(i - 1) % SUB_COLORS.length] }} />}
+                          <span className="capitalize">{c.name === 'all' ? `All ${catName}` : c.name}</span>
+                          <span className={`text-[11.5px] ${on ? 'opacity-70' : 'text-slate-400 dark:text-neutral-500'}`}>{c.count} · {gbp0(c.total)}</span>
+                        </button>
+                      );
+                    })}
+                    <span className="hidden md:block flex-1 min-w-2" />
+                    <span className="hidden md:block shrink-0 text-[12.5px] text-slate-500 dark:text-neutral-400 whitespace-nowrap">
+                      {transactions.length} {transactions.length === 1 ? 'payment' : 'payments'} · {gbp0(shownTotal)}
+                    </span>
+                  </div>
+                </motion.div>
+              );
+            })()}
+          </AnimatePresence>
 
           {reviewOnly && (
             <div className="shrink-0 flex flex-col md:flex-row md:items-center gap-2 px-4 py-2.5 bg-amber-50/70 dark:bg-amber-950/20 border-b border-amber-100 dark:border-amber-900/50 text-[12.5px] text-amber-900 dark:text-amber-200">
