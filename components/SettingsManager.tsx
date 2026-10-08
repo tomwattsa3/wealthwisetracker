@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Save, Trash2, Webhook, CheckCircle2, Building, Plus, CreditCard, ChevronRight, LogOut, Sparkles, X, Loader2, Sun, Moon } from 'lucide-react';
+import { Save, Trash2, Webhook, CheckCircle2, Building, Plus, CreditCard, ChevronRight, LogOut, Sparkles, X, Loader2, Sun, Moon, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { supabase } from '../supabaseClient';
 import { Bank, MerchantMapping } from '../types';
 
 interface SettingsManagerProps {
@@ -29,6 +30,67 @@ export interface BackfillItem {
   subcategory_name: string;
   count: number;
 }
+
+// Change the password you sign in with. Saved straight to your Supabase login; you stay signed in.
+const ChangePassword: React.FC = () => {
+  const [pw, setPw] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [show, setShow] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const tooShort = pw.length > 0 && pw.length < 8;
+  const mismatch = confirm.length > 0 && pw !== confirm;
+  const ready = pw.length >= 8 && pw === confirm && !saving;
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ready) return;
+    setSaving(true);
+    setMsg(null);
+    const { error } = await supabase.auth.updateUser({ password: pw });
+    setSaving(false);
+    if (error) {
+      setMsg({ ok: false, text: /reauth|recent/i.test(error.message) ? 'For security, sign out and back in, then change it straight away.' : error.message });
+      return;
+    }
+    setPw('');
+    setConfirm('');
+    setMsg({ ok: true, text: 'Password changed. Use it next time you sign in.' });
+  };
+
+  const input = 'w-full h-11 px-3 pr-11 rounded-lg border border-slate-200 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-sm text-slate-900 dark:text-neutral-100 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20';
+  return (
+    <form onSubmit={save} className="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-600 p-4 flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <span className="p-2 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-300 rounded-lg"><KeyRound size={16} /></span>
+        <div>
+          <h3 className="font-bold text-slate-800 dark:text-neutral-200">Change password</h3>
+          <p className="text-sm text-slate-500 dark:text-neutral-500">At least 8 characters</p>
+        </div>
+      </div>
+      <input type="text" name="username" autoComplete="username" className="hidden" readOnly value="" />
+      <label className="flex flex-col gap-1 text-xs font-medium text-slate-600 dark:text-neutral-400">
+        New password
+        <span className="relative">
+          <input type={show ? 'text' : 'password'} value={pw} onChange={e => { setPw(e.target.value); setMsg(null); }} autoComplete="new-password" className={input} />
+          <button type="button" onClick={() => setShow(v => !v)} aria-label={show ? 'Hide password' : 'Show password'} className="absolute right-1 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-neutral-200">
+            {show ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </span>
+      </label>
+      <label className="flex flex-col gap-1 text-xs font-medium text-slate-600 dark:text-neutral-400">
+        Confirm new password
+        <input type={show ? 'text' : 'password'} value={confirm} onChange={e => { setConfirm(e.target.value); setMsg(null); }} autoComplete="new-password" className={input} />
+      </label>
+      {(tooShort || mismatch) && <p className="text-xs text-rose-600 dark:text-rose-400">{tooShort ? 'Use at least 8 characters.' : "The two passwords don't match."}</p>}
+      {msg && <p className={`text-xs font-medium ${msg.ok ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{msg.text}</p>}
+      <button type="submit" disabled={!ready} className="self-start min-h-[40px] px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold disabled:opacity-40 flex items-center gap-2">
+        {saving && <Loader2 size={15} className="animate-spin" />}
+        {saving ? 'Saving…' : 'Change password'}
+      </button>
+    </form>
+  );
+};
 
 const SettingsManager: React.FC<SettingsManagerProps> = ({
   webhookUrl,
@@ -407,9 +469,14 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
             </div>
           )}
 
+          {/* Account: change password, then sign out */}
+          <div className="mt-8 pt-6 border-t border-slate-200 dark:border-neutral-600">
+            <ChangePassword />
+          </div>
+
           {/* Logout Section */}
           {onLogout && (
-            <div className="mt-8 pt-6 border-t border-slate-200 dark:border-neutral-600">
+            <div className="mt-4">
               <div className="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-600 p-4">
                 <div className="flex items-center justify-between">
                   <div>
