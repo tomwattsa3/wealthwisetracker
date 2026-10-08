@@ -166,7 +166,15 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
   }, [startWith]);
   const stalest = latestByBank[0];
 
-  // ---- Category chips: the four busiest in this period, the rest under "More" ----
+  // ---- Category chips: the biggest by total in this period, the rest under "More" ----
+  const catTotals = useMemo(() => {
+    const m = new Map<string, number>();
+    periodTransactions.forEach(t => {
+      if (!t.categoryId || isHidden(t) || (filterType !== 'all' && t.type !== filterType)) return;
+      m.set(t.categoryId, (m.get(t.categoryId) || 0) + Math.abs(t.amountGBP || 0));
+    });
+    return m;
+  }, [periodTransactions, filterType]);
   const catCounts = useMemo(() => {
     const m = new Map<string, number>();
     // Only categories with payments of the picked kind (Money in shows just the ones money came in under).
@@ -182,8 +190,11 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterType]);
   const topCats = useMemo(
-    () => categories.filter(c => catCounts.has(c.id)).sort((a, b) => (catCounts.get(b.id) || 0) - (catCounts.get(a.id) || 0)).slice(0, isLg && selectedId ? 3 : 4),
-    [categories, catCounts, isLg, selectedId]
+    () => categories
+      .filter(c => catCounts.has(c.id))
+      .sort((a, b) => (catTotals.get(b.id) || 0) - (catTotals.get(a.id) || 0))
+      .slice(0, isLg && selectedId ? 3 : 5),
+    [categories, catCounts, catTotals, isLg, selectedId]
   );
   const moreCats = categories.filter(c => !topCats.some(t => t.id === c.id) && (filterType === 'all' || catCounts.has(c.id))).sort((a, b) => a.name.localeCompare(b.name));
 
