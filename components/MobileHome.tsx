@@ -8,6 +8,8 @@ import CategorySheets from './CategorySheets';
 import InstallCard from './InstallCard';
 import PlaceSheet, { PlacePick } from './PlaceSheet';
 import { useBackClose } from '../lib/backStack';
+import Sheet from './Sheet';
+import { supabase } from '../supabaseClient';
 import { MONTHS, FULL_MONTHS, monthKey, keyToIndex, indexToKey, daysIn, localToday, merchantKey, sum } from '../lib/periods';
 
 // The phone Home screen: one month at a time, fitting on a single screen. How much went out vs
@@ -43,11 +45,19 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const amt = (t: Transaction) => Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED) || 0;
   const valid = (t: Transaction) => !t.excluded && /^\d{4}-\d{2}-\d{2}/.test(t.date);
 
+  // Categories switched off on Home (a saved view or your own pick); remembered on this phone.
+  const [homeOff, setHomeOff] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('homeCatsOff') || '[]')); } catch { return new Set(); }
+  });
+  useEffect(() => { try { localStorage.setItem('homeCatsOff', JSON.stringify(Array.from(homeOff))); } catch { /* not saved */ } }, [homeOff]);
+
   // Same rule as the Dashboard: spending = every money-out row that isn't excluded.
-  const { outByMonth, inByMonth, catByMonth, catInfo, placesByMonth, firstIdx, lastIdx } = useMemo(() => {
+  const { outByMonth, inByMonth, catByMonth, catAllByMonth, catInfo, placesByMonth, firstIdx, lastIdx } = useMemo(() => {
     const outByMonth = new Map<number, number>();
     const inByMonth = new Map<number, number>();
     const catByMonth = new Map<string, Map<number, number>>();
+    // Every category, whether or not it's switched off (for the picker)
+    const catAllByMonth = new Map<string, Map<number, number>>();
     const catInfo = new Map<string, { name: string; id: string }>();
     // month -> merchant -> totals, grouped the same way the Dashboard groups merchants
     const placesByMonth = new Map<number, Map<string, Place>>();
@@ -58,9 +68,15 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
       if (!a) return;
       const idx = keyToIndex(monthKey(t.date));
       if (t.type === 'EXPENSE' && t.categoryName) {
-        outByMonth.set(idx, (outByMonth.get(idx) || 0) + a);
         const name = t.categoryName.trim().replace(/Fee's/i, 'Fees');
         if (!catInfo.has(name)) catInfo.set(name, { name, id: t.categoryId });
+        const all = catAllByMonth.get(name) || new Map<number, number>();
+        all.set(idx, (all.get(idx) || 0) + a);
+        catAllByMonth.set(name, all);
+        firstIdx = Math.min(firstIdx, idx);
+        lastIdx = Math.max(lastIdx, idx);
+        if (homeOff.has(name)) return;
+        outByMonth.set(idx, (outByMonth.get(idx) || 0) + a);
         const m = catByMonth.get(name) || new Map<number, number>();
         m.set(idx, (m.get(idx) || 0) + a);
         catByMonth.set(name, m);
@@ -75,14 +91,25 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         pl.cats.set(name, pc);
         pm.set(key, pl);
         placesByMonth.set(idx, pm);
-        firstIdx = Math.min(firstIdx, idx);
-        lastIdx = Math.max(lastIdx, idx);
       } else if (t.type === 'INCOME' && (t.categoryName || '').trim().toLowerCase() !== 'excluded') {
         inByMonth.set(idx, (inByMonth.get(idx) || 0) + a);
       }
     });
-    return { outByMonth, inByMonth, catByMonth, catInfo, placesByMonth, firstIdx, lastIdx };
-  }, [transactions, currency]);
+    return { outByMonth, inByMonth, catByMonth, catAllByMonth, catInfo, placesByMonth, firstIdx, lastIdx };
+  }, [transactions, currency, homeOff]);
+
+  // Your saved views come from your account (the same ones as the desktop Dashboard).
+  const [views, setViews] = useState<{ name: string; cats: string[] }[]>([]);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      const meta = data.user?.user_metadata || {};
+      const list = meta.dashboardPrefs?.views ?? meta.dashboardViews;
+      if (Array.isArray(list)) setViews(list.filter((v: any) => v && typeof v.name === 'string' && Array.isArray(v.cats)));
+    });
+  }, []);
+  const [catSheet, setCatSheet] = useState(false);
+  const [naming, setNaming] = useState(false);
+  const [viewName, setViewName] = useState('');
 
   const hasData = Number.isFinite(lastIdx);
   const [picked, setPicked] = useState<number | null>(null);
@@ -334,6 +361,114 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
           </div>
         </div>
       </div>
+
+      {/* Saved views (swipe sideways) and the categories picker */}
+      {(() => {
+        const allNames = Array.from(catAllByMonth.keys());
+        const inPeriod = allNames
+          .map(n => ({ name: n, id: catInfo.get(n)?.id || '', v: sumOver(catAllByMonth.get(n), idxs) }))
+          .filter(c => c.v > 0)
+          .sort((a, b) => b.v - a.v);
+        const onNames = allNames.filter(n => !homeOff.has(n));
+        const showOnly = (cats: string[]) => setHomeOff(new Set(allNames.filter(n => !cats.includes(n))));
+        const same = (cats: string[]) => allNames.every(n => cats.includes(n) === !homeOff.has(n));
+        const topName = inPeriod[0]?.name;
+        const pills = [
+          { name: 'All spending', cats: allNames },
+          ...(topName ? [{ name: `Without ${topName}`, cats: allNames.filter(n => n !== topName) }] : []),
+          { name: 'Top 3', cats: inPeriod.slice(0, 3).map(c => c.name) },
+          ...views,
+        ];
+        const current = pills.find(p => same(p.cats));
+        const COLORS = ['#4F46E5', '#0EA5E9', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
+        const colorOf = (n: string) => { const i = inPeriod.findIndex(c => c.name === n); return i >= 0 && i < COLORS.length ? COLORS[i] : '#94A3B8'; };
+        const onTotal = inPeriod.filter(c => !homeOff.has(c.name)).reduce((a, c) => a + c.v, 0);
+        const saveView = async () => {
+          const name = viewName.trim();
+          if (!name || onNames.length === 0) return;
+          const next = [...views.filter(v => v.name !== name), { name, cats: onNames }];
+          setViews(next);
+          setNaming(false);
+          setViewName('');
+          setCatSheet(false);
+          // Add it to your account without touching the rest of your Dashboard setup.
+          const { data } = await supabase.auth.getUser();
+          const prefs = data.user?.user_metadata?.dashboardPrefs || {};
+          await supabase.auth.updateUser({ data: { dashboardPrefs: { ...prefs, views: next } } });
+        };
+        return (
+          <>
+            <div className="-mx-1 flex items-center gap-1.5">
+              <div className="flex-1 min-w-0 flex gap-1.5 overflow-x-auto hide-scrollbar px-1" data-no-pull-refresh>
+                {pills.map(p => {
+                  const on = current?.name === p.name;
+                  return (
+                    <button
+                      key={p.name}
+                      onClick={() => showOnly(p.cats)}
+                      aria-pressed={on}
+                      className={`shrink-0 min-h-[30px] px-3 rounded-full border text-[12px] whitespace-nowrap transition-colors ${on ? 'bg-slate-900 border-slate-900 text-white font-semibold dark:bg-neutral-100 dark:border-neutral-100 dark:text-neutral-900' : 'bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 text-slate-700 dark:text-neutral-300'}`}
+                    >
+                      {p.name}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                onClick={() => setCatSheet(true)}
+                aria-label="Choose categories"
+                className={`relative shrink-0 w-8 h-8 rounded-[10px] border flex items-center justify-center ${current ? 'bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 text-slate-500 dark:text-neutral-400' : 'bg-indigo-50 dark:bg-indigo-950/50 border-indigo-400 text-indigo-700 dark:text-indigo-300'}`}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></svg>
+                {!current && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+              </button>
+            </div>
+
+            <Sheet open={catSheet} onClose={() => { setCatSheet(false); setNaming(false); }} label="Choose categories">
+              <div className="flex-1 min-h-0 flex flex-col">
+                <div className="px-5 flex justify-between items-baseline">
+                  <span className="text-[17px] font-bold text-slate-900 dark:text-neutral-100">Show</span>
+                  <span className="text-[13px] text-slate-500 dark:text-neutral-400">{onNames.length} of {allNames.length} · {fmt(onTotal)}</span>
+                </div>
+                <div className="px-5 pt-2.5 pb-2 flex gap-1.5">
+                  {([['All', allNames], ['Without housing', allNames.filter(n => n.toLowerCase() !== 'housing')], ['Clear', [] as string[]]] as const).map(([l, cats]) => (
+                    <button key={l} onClick={() => showOnly(cats as string[])} className="min-h-[32px] px-3 rounded-full border border-slate-200 dark:border-neutral-600 text-xs text-slate-700 dark:text-neutral-300">{l}</button>
+                  ))}
+                </div>
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3">
+                  {inPeriod.map(c => {
+                    const on = !homeOff.has(c.name);
+                    return (
+                      <div key={c.name} className="flex items-center gap-2.5 min-h-[48px] px-2 border-t border-slate-50 dark:border-neutral-700/50">
+                        <button onClick={() => setHomeOff(prev => { const n = new Set(prev); if (on) n.add(c.name); else n.delete(c.name); return n; })} aria-pressed={on} aria-label={`${on ? 'Hide' : 'Show'} ${c.name}`} className={`w-6 h-6 shrink-0 rounded-[7px] flex items-center justify-center ${on ? 'bg-indigo-600 text-white' : 'border-2 border-slate-300 dark:border-neutral-500'}`}>
+                          {on && <svg viewBox="0 0 12 12" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M2.5 6.2 5 8.5l4.5-5" /></svg>}
+                        </button>
+                        <span className="w-2 h-2 shrink-0 rounded-full" style={{ background: colorOf(c.name) }} />
+                        <span className={`flex-1 min-w-0 truncate text-sm ${on ? 'text-slate-900 dark:text-neutral-100' : 'text-slate-400 dark:text-neutral-500'}`}>{(getCategoryEmoji && c.id && getCategoryEmoji(c.id)) || ''} {c.name}</span>
+                        <span className="text-xs text-slate-400 dark:text-neutral-500">{fmt(c.v)}</span>
+                        <button onClick={() => showOnly([c.name])} className="shrink-0 min-h-[32px] px-2.5 rounded-[10px] bg-slate-100 dark:bg-neutral-700 text-xs font-semibold text-indigo-700 dark:text-indigo-300">Only</button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="shrink-0 px-5 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] border-t border-slate-100 dark:border-neutral-700 flex gap-2">
+                  {naming ? (
+                    <form onSubmit={(e) => { e.preventDefault(); void saveView(); }} className="flex-1 flex gap-2">
+                      <input autoFocus value={viewName} onChange={(e) => setViewName(e.target.value)} placeholder="Name this view" maxLength={30} aria-label="View name" className="flex-1 min-w-0 h-11 px-3 rounded-xl border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-neutral-900 text-sm text-slate-900 dark:text-neutral-100 outline-none" />
+                      <button type="submit" disabled={!viewName.trim()} className="h-11 px-4 rounded-xl bg-indigo-600 text-white text-sm font-semibold disabled:opacity-40">Save</button>
+                    </form>
+                  ) : (
+                    <>
+                      <button onClick={() => setNaming(true)} disabled={onNames.length === 0} className="flex-1 h-11 rounded-xl border border-slate-200 dark:border-neutral-600 text-sm font-semibold text-indigo-700 dark:text-indigo-300 disabled:opacity-40">＋ Save as a view</button>
+                      <button onClick={() => setCatSheet(false)} className="flex-1 h-11 rounded-xl bg-indigo-600 text-white text-sm font-semibold">Done</button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </Sheet>
+          </>
+        );
+      })()}
 
       <InstallCard />
 
