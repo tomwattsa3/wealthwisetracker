@@ -161,8 +161,9 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [transactions, currency]);
   const [inType, setInType] = useState('all');
-  // Every source for the chosen type, in its own slide-up sheet.
-  const [allSources, setAllSources] = useState(false);
+  // The rest of the sources, opened under the first four (closes on a new month or type).
+  const [moreSources, setMoreSources] = useState(false);
+  useEffect(() => setMoreSources(false), [sel, mode, inType]);
 
   const fmt = (v: number) => (currency === 'GBP' ? '£' : 'AED ') + Math.round(v).toLocaleString('en-GB');
 
@@ -754,7 +755,6 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
             <span className="text-[12.5px] font-bold text-emerald-700 dark:text-emerald-400">+{fmt2(src.total)}</span>
           </button>
         );
-        const activeTotal = activeType === 'all' ? inV : (types.find(t => t.name === activeType)?.v || 0);
         // The chart always shows the year's imported months, like Month by month.
         const chartIdxs = yearIdxs.filter(i => i >= firstIdx && i <= lastIdx);
         const inOf = (i: number) => sum(incomeRows.filter(r => r.idx === i).map(r => r.amount));
@@ -858,27 +858,35 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
                       </motion.div>
                     </AnimatePresence>
                   </div>
-                  <button onClick={() => setAllSources(true)} className="w-full min-h-[44px] flex items-center justify-between border-t border-slate-100 dark:border-neutral-700 text-[13px]">
-                    <span className="text-slate-500 dark:text-neutral-400">{sources.length > SHOWN ? `+${sources.length - SHOWN} more · ` : ''}{sources.length} {sources.length === 1 ? 'source' : 'sources'}</span>
-                    <span className="font-semibold text-indigo-700 dark:text-indigo-300">See all ›</span>
-                  </button>
+                  <AnimatePresence initial={false}>
+                    {moreSources && sources.length > SHOWN && (
+                      <motion.div
+                        key="more"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                        className="overflow-hidden"
+                      >
+                        {sources.slice(SHOWN).map(sourceRow)}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  <div className="border-t border-slate-100 dark:border-neutral-700 py-3 text-[12.5px]">
+                    {sources.length > SHOWN ? (
+                      <button onClick={() => setMoreSources(v => !v)} aria-expanded={moreSources} className="flex items-center gap-1 font-medium text-slate-600 dark:text-neutral-300">
+                        {moreSources ? 'Show less' : `+${sources.length - SHOWN} more · ${fmt(sources.slice(SHOWN).reduce((a, x) => a + x.total, 0))}`}
+                        <svg viewBox="0 0 12 12" className={`w-3 h-3 transition-transform duration-300 ${moreSources ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m2.5 4.5 3.5 3.5 3.5-3.5" /></svg>
+                      </button>
+                    ) : (
+                      <span className="text-slate-500 dark:text-neutral-400">All sources shown</span>
+                    )}
+                  </div>
                 </div>
               )}
               {rows.length === 0 && <p className="mt-3 text-sm text-slate-500 dark:text-neutral-400">No money in {ytd ? 'this year' : 'this month'}.</p>}
             </section>
 
-            <Sheet open={allSources} onClose={() => setAllSources(false)} label="Where it came from">
-              <div className="px-5 pb-2">
-                <div className="text-xs text-slate-500 dark:text-neutral-400">{ytd ? `${year} so far` : `${FULL_MONTHS[sel % 12]} ${year}`} · {sources.length} {sources.length === 1 ? 'source' : 'sources'}</div>
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-lg font-bold text-slate-900 dark:text-neutral-100">{activeType === 'all' ? 'All money in' : <span className="capitalize">{activeType}</span>}</span>
-                  <span className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{fmt2(activeTotal)}</span>
-                </div>
-              </div>
-              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pb-[max(20px,env(safe-area-inset-bottom))]">
-                {sources.map(sourceRow)}
-              </div>
-            </Sheet>
           </>
         );
       })()}
