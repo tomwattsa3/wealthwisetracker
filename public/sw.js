@@ -5,9 +5,11 @@
 // - The app's own build files (/assets/…, hashed per deploy) and icons: saved after first use.
 // - Fonts and the Tailwind script: served from the save, refreshed in the background.
 // - Anything else — Supabase, exchange rates, any API — is never touched or saved, so numbers
-//   are always live.
+//   are always live. (When offline, the app itself shows the copy of your data saved on the phone.)
+// - Import reminders: Android wakes this worker about twice a day ('periodicsync'); if you've
+//   turned reminders on and your bank data is older than you chose, it shows a notification.
 
-const VERSION = 'ww-v1';
+const VERSION = 'ww-v2';
 const SHELL = `${VERSION}-shell`;
 const RUNTIME = `${VERSION}-runtime`;
 const SHELL_FILES = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png', '/favicon.png'];
@@ -67,4 +69,83 @@ self.addEventListener('fetch', (event) => {
     );
   }
   // Everything else (Supabase, rates, APIs, index.html checks): straight to the network.
+});
+
+// ---- Import reminders ----
+// Same on-phone store as lib/offline.ts.
+const kvGet = (key) => new Promise((resolve) => {
+  const open = indexedDB.open('wealthwise', 1);
+  open.onupgradeneeded = () => { if (!open.result.objectStoreNames.contains('kv')) open.result.createObjectStore('kv'); };
+  open.onerror = () => resolve(undefined);
+  open.onsuccess = () => {
+    try {
+      const req = open.result.transaction('kv', 'readonly').objectStore('kv').get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(undefined);
+    } catch { resolve(undefined); }
+  };
+});
+const kvSet = (key, value) => new Promise((resolve) => {
+  const open = indexedDB.open('wealthwise', 1);
+  open.onupgradeneeded = () => { if (!open.result.objectStoreNames.contains('kv')) open.result.createObjectStore('kv'); };
+  open.onerror = () => resolve();
+  open.onsuccess = () => {
+    try {
+      const tx = open.result.transaction('kv', 'readwrite');
+      tx.objectStore('kv').put(value, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    } catch { resolve(); }
+  };
+});
+
+const DAY = 86400000;
+const checkImportReminder = async () => {
+  const prefs = await kvGet('reminder');
+  const last = await kvGet('lastImport');
+  if (!prefs || !prefs.on || !last || !last.date) return;
+  const ends = new Date(`${last.date.slice(0, 10)}T00:00:00`).getTime();
+  const days = Math.floor((Date.now() - ends) / DAY);
+  if (!(days >= prefs.days)) return;
+  // At most one reminder every 3 days, so it nudges rather than nags.
+  const lastShown = (await kvGet('reminderShownAt')) || 0;
+  if (Date.now() - lastShown < 3 * DAY) return;
+  await self.registration.showNotification('Time to update WealthWise', {
+    body: `Your latest ${last.bank || 'bank'} payment is from ${days} days ago. Import a new statement to catch up.`,
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: 'import-reminder',
+    data: { url: '/?tab=history&action=import' },
+  });
+  await kvSet('reminderShownAt', Date.now());
+};
+
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'import-reminder') event.waitUntil(checkImportReminder());
+});
+
+// The app asks for a test notification from Settings.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'test-reminder') {
+    event.waitUntil(self.registration.showNotification('Time to update WealthWise', {
+      body: 'This is what your import reminder will look like.',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: 'import-reminder',
+      data: { url: '/?tab=history&action=import' },
+    }));
+  }
+});
+
+// Tapping the reminder opens the app on the import screen (or brings it to the front).
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      const open = list.find((c) => new URL(c.url).origin === self.location.origin);
+      if (open) return open.navigate(url).then((c) => (c || open).focus()).catch(() => open.focus());
+      return self.clients.openWindow(url);
+    })
+  );
 });

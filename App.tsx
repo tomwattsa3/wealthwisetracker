@@ -26,6 +26,7 @@ import SettingsManager from './components/SettingsManager';
 import BreakdownTab from './components/BreakdownTab';
 import RecurringPayments from './components/RecurringPayments';
 import DashboardSkeleton from './components/DashboardSkeleton';
+import { loadSnapshot, saveSnapshot, clearSnapshot, saveLastImport } from './lib/offline';
 import SegmentedControl from './components/SegmentedControl';
 import {
   LayoutDashboard, Plus, Home,
@@ -153,6 +154,7 @@ const App: React.FC = () => {
 
   // Logout handler
   const handleLogout = async () => {
+    await clearSnapshot();
     await supabase.auth.signOut();
   };
 
@@ -162,6 +164,10 @@ const App: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [merchantMappings, setMerchantMappings] = useState<MerchantMapping[]>([]);
   const [loading, setLoading] = useState(true);
+  // Set when there's no connection and you're looking at the copy saved on this device (when it was saved).
+  const [offlineFrom, setOfflineFrom] = useState<string | null>(null);
+  // True once this session has loaded live data (only then is the saved copy refreshed).
+  const liveLoaded = useRef(false);
 
   // Webhook State
   const [webhookUrl, setWebhookUrl] = useState<string>(() => {
@@ -512,8 +518,18 @@ const App: React.FC = () => {
 
   // --- SUPABASE DATA FETCHING ---
   const fetchData = async () => {
+    // Your last loaded data, saved on this device: shown straight away, and kept if there's no connection.
+    const userId = session?.user?.id || '';
+    const snap = userId ? await loadSnapshot(userId) : undefined;
+    if (snap) {
+      setBanks(INITIAL_BANKS);
+      setCategories(snap.categories);
+      setTransactions(snap.transactions);
+      setLoading(false);
+      if (!navigator.onLine) { setOfflineFrom(snap.savedAt); return; }
+    }
     try {
-      setLoading(true);
+      if (!snap) setLoading(true);
 
       // Use local constants for banks (no DB table)
       setBanks(INITIAL_BANKS);
@@ -540,6 +556,7 @@ const App: React.FC = () => {
       } catch (catErr) {
         console.log('Categories table error, using defaults:', catErr);
       }
+      if (activeCategories === INITIAL_CATEGORIES && snap) activeCategories = snap.categories;
       setCategories(activeCategories);
 
       // Fetch Transactions from Supabase
@@ -623,6 +640,8 @@ const App: React.FC = () => {
 
       console.log('Mapped transactions:', mappedTxs.length, mappedTxs);
       setTransactions(mappedTxs);
+      liveLoaded.current = true;
+      setOfflineFrom(null);
 
       // Fetch Merchant Mappings from Supabase
       try {
@@ -650,9 +669,16 @@ const App: React.FC = () => {
 
     } catch (error) {
       console.error('Error fetching data from Supabase:', error);
-      setCategories(INITIAL_CATEGORIES);
-      setBanks(INITIAL_BANKS);
-      setTransactions([]);
+      if (snap) {
+        // No connection (or the server didn't answer): keep showing the saved copy.
+        setCategories(snap.categories);
+        setTransactions(snap.transactions);
+        setOfflineFrom(snap.savedAt);
+      } else {
+        setCategories(INITIAL_CATEGORIES);
+        setBanks(INITIAL_BANKS);
+        setTransactions([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -1586,6 +1612,29 @@ const App: React.FC = () => {
           .sort((a, b) => a.date.localeCompare(b.date)); // stalest first
   }, [transactions, banks]);
 
+  // Keep the saved copy up to date (after loads and your own edits), but never while offline.
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId || !liveLoaded.current || offlineFrom || loading || !transactions.length) return;
+    const t = setTimeout(() => saveSnapshot({ userId, savedAt: new Date().toISOString(), categories, transactions }), 1500);
+    return () => clearTimeout(t);
+  }, [transactions, categories, offlineFrom, loading, session?.user?.id]);
+
+  // Where your bank data ends, for the import reminder that checks in the background.
+  useEffect(() => {
+    if (!transactions.length) return;
+    saveLastImport(latestByBank[0] ? { bank: latestByBank[0].name, date: latestByBank[0].date } : undefined);
+  }, [latestByBank, transactions.length]);
+
+  // Back online after showing the saved copy: load the latest.
+  useEffect(() => {
+    if (!offlineFrom) return;
+    const back = () => fetchData();
+    window.addEventListener('online', back);
+    return () => window.removeEventListener('online', back);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offlineFrom]);
+
   // Categories available for filter dropdown (Dynamic)
   const expenseCategories = categories.filter(c => c.type === 'EXPENSE');
   const incomeCategories = categories.filter(c => c.type === 'INCOME');
@@ -1858,6 +1907,16 @@ const App: React.FC = () => {
           onTouchEnd={handleTouchEnd}
           className={`flex-1 h-full bg-slate-100 dark:bg-neutral-900 p-3 pb-24 md:px-8 md:py-6 max-w-[100vw] overscroll-y-none ${activeTab === 'history' || activeTab === 'breakdown' ? 'overflow-hidden' : 'overflow-y-auto'}`}
         >
+          {/* No connection: you're looking at the copy saved on this device */}
+          {offlineFrom && (
+            <div role="status" className="mb-3 flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-[12.5px] text-amber-900 dark:text-amber-200">
+              <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+              <span className="flex-1 min-w-0">
+                <strong className="font-semibold">Offline</strong> · showing your data from {new Date(offlineFrom).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}. Changes won't save until you're back online.
+              </span>
+            </div>
+          )}
+
           {/* Pull-to-refresh bubble (floats over the page, which stays put) */}
           <div
             ref={pullIndicatorRef}

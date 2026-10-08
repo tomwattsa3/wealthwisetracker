@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { Save, Trash2, Webhook, CheckCircle2, Building, Plus, CreditCard, ChevronRight, LogOut, Sparkles, X, Loader2, Sun, Moon, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { Save, Trash2, Webhook, CheckCircle2, Building, Plus, CreditCard, ChevronRight, LogOut, Sparkles, X, Loader2, Sun, Moon, KeyRound, Eye, EyeOff, Bell } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { Bank, MerchantMapping } from '../types';
+import { loadReminder, saveReminder, registerReminderSync, reminderSupport, ReminderPrefs, DEFAULT_REMINDER } from '../lib/offline';
 
 interface SettingsManagerProps {
   webhookUrl: string;
@@ -89,6 +90,81 @@ const ChangePassword: React.FC = () => {
         {saving ? 'Saving…' : 'Change password'}
       </button>
     </form>
+  );
+};
+
+// A notification when your bank data gets old, checked in the background by the app's worker
+// (public/sw.js). Kept on this phone only, since notifications belong to the device.
+const ImportReminders: React.FC = () => {
+  const [prefs, setPrefs] = useState<ReminderPrefs>(DEFAULT_REMINDER);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const support = reminderSupport();
+  useEffect(() => { loadReminder().then(setPrefs); }, []);
+
+  const update = async (next: ReminderPrefs) => {
+    setPrefs(next);
+    await saveReminder(next);
+    await registerReminderSync(next.on);
+  };
+
+  const toggle = async () => {
+    setMsg(null);
+    if (prefs.on) { await update({ ...prefs, on: false }); return; }
+    const perm = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+    if (perm !== 'granted') {
+      setMsg({ ok: false, text: 'Notifications are blocked. Allow them in your phone settings: Apps → WealthWise → Notifications.' });
+      return;
+    }
+    await update({ ...prefs, on: true });
+    setMsg({ ok: true, text: `Done. You'll get a reminder when your data is more than ${prefs.days} days old.` });
+  };
+
+  const test = async () => {
+    setMsg(null);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      await reg.showNotification('Time to update WealthWise', { body: 'This is what your import reminder will look like.', icon: '/icon-192.png', badge: '/icon-192.png', tag: 'import-reminder', data: { url: '/?tab=history&action=import' } });
+    } catch {
+      setMsg({ ok: false, text: "Couldn't show a notification here. Try it in the installed app." });
+    }
+  };
+
+  return (
+    <div className="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-600 p-4 flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <span className="p-2 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-300 rounded-lg"><Bell size={16} /></span>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-slate-800 dark:text-neutral-200">Import reminders</h3>
+          <p className="text-sm text-slate-500 dark:text-neutral-500">A notification when it's time to import a new statement</p>
+        </div>
+        {support.notifications && (
+          <button type="button" role="switch" aria-checked={prefs.on} aria-label="Import reminders" onClick={toggle} className={`relative w-11 h-[26px] shrink-0 rounded-full transition-colors ${prefs.on ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-neutral-600'}`}>
+            <span className={`absolute top-[3px] w-5 h-5 rounded-full bg-white shadow transition-all ${prefs.on ? 'left-[21px]' : 'left-[3px]'}`} />
+          </button>
+        )}
+      </div>
+      {!support.notifications ? (
+        <p className="text-xs text-slate-500 dark:text-neutral-400">Reminders work in the installed app on your phone.</p>
+      ) : (
+        <>
+          <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-neutral-300">
+            <span>Remind me when my data is older than</span>
+            <div role="group" aria-label="Days" className="flex gap-0.5 p-[3px] bg-slate-100 dark:bg-neutral-700/60 rounded-[9px]">
+              {[7, 14, 30].map(d => (
+                <button key={d} type="button" onClick={() => update({ ...prefs, days: d })} aria-pressed={prefs.days === d} className={`px-2.5 py-1 rounded-[7px] text-xs ${prefs.days === d ? 'bg-white dark:bg-neutral-600 font-semibold text-slate-900 dark:text-neutral-100 shadow-sm' : 'text-slate-500 dark:text-neutral-400'}`}>{d} days</button>
+              ))}
+            </div>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-neutral-400">
+            {support.background ? 'Your phone checks about once or twice a day, so it may arrive a little after the day it\'s due. At most one reminder every 3 days.' : 'This browser can\'t check in the background. Reminders work in the installed Android app.'}
+          </p>
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={test} className="min-h-[36px] px-3 rounded-lg border border-slate-200 dark:border-neutral-600 text-sm font-semibold text-indigo-700 dark:text-indigo-300">Send a test</button>
+          </div>
+        </>
+      )}
+      {msg && <p className={`text-xs font-medium ${msg.ok ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{msg.text}</p>}
+    </div>
   );
 };
 
@@ -471,7 +547,8 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
 
           {/* Account: change password, then sign out */}
           <div className="mt-8 pt-6 border-t border-slate-200 dark:border-neutral-600">
-            <ChangePassword />
+            <ImportReminders />
+            <div className="mt-4"><ChangePassword /></div>
           </div>
 
           {/* Logout Section */}
