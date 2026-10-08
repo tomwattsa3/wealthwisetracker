@@ -60,7 +60,7 @@ interface RegularPayment {
 const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categories, currency, getCategoryEmoji, onViewTransactions, lastImport, onImport, onOpenTransactions }) => {
   const saved = useMemo(() => {
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as { period?: PeriodId; unselected?: string[]; view?: 'total' | 'category'; level?: 'category' | 'subcategory'; merchantAmount?: 'month' | 'total'; placeRank?: 'spent' | 'visits'; snapshot?: string; catMode?: 'except' | 'only'; views?: { name: string; cats: string[] }[] };
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as { period?: PeriodId; unselected?: string[]; view?: 'total' | 'category'; level?: 'category' | 'subcategory'; merchantAmount?: 'month' | 'total'; placeRank?: 'spent' | 'visits'; snapshot?: string; catMode?: 'except' | 'only'; views?: { name: string; cats: string[] }[]; heroSplit?: number };
     } catch {
       return {};
     }
@@ -91,36 +91,29 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   // How the category line reads: "everything except …" (chips = left out) or "only …" (chips = shown).
   // Your saved views: named sets of categories, one tap to switch to.
   const [views, setViews] = useState<{ name: string; cats: string[] }[]>(() => (Array.isArray(saved.views) ? saved.views.filter(v => v && v.name && Array.isArray(v.cats)) : []));
-  // Saved views live on your Supabase login (user metadata), so every device signed in as you
-  // gets the same ones. This browser keeps a copy so they show instantly; the account wins.
-  const viewsLoaded = useRef(false);
-  const skipSave = useRef(false);
-  useEffect(() => {
-    let cancelled = false;
-    supabase.auth.getUser().then(({ data }) => {
-      if (cancelled) return;
-      const remote = data.user?.user_metadata?.dashboardViews;
-      if (Array.isArray(remote)) {
-        skipSave.current = true; // just loaded from the account; nothing to save back
-        setViews(remote.filter((v: any) => v && typeof v.name === 'string' && Array.isArray(v.cats)));
-      } else if (views.length) {
-        // First time: copy the views saved in this browser up to the account.
-        void supabase.auth.updateUser({ data: { dashboardViews: views } });
-      }
-      viewsLoaded.current = true;
-    });
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  // Save to the account whenever you add or remove a view (after the first load).
-  const firstViews = useRef(true);
-  useEffect(() => {
-    if (firstViews.current) { firstViews.current = false; return; }
-    if (!viewsLoaded.current) return;
-    if (skipSave.current) { skipSave.current = false; return; }
-    void supabase.auth.updateUser({ data: { dashboardViews: views } });
-  }, [views]);
   const [savingView, setSavingView] = useState(false);
+  // Hero card: how much of its width the left side takes on wide screens (drag the divider).
+  const HERO_DEFAULT = 0.4;
+  const [heroSplit, setHeroSplit] = useState<number>(() => (typeof saved.heroSplit === 'number' && saved.heroSplit >= 0.25 && saved.heroSplit <= 0.65 ? saved.heroSplit : HERO_DEFAULT));
+  const heroRow = useRef<HTMLDivElement>(null);
+  const [heroWide, setHeroWide] = useState(() => window.matchMedia('(min-width: 1024px)').matches);
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 1024px)');
+    const on = () => setHeroWide(mql.matches);
+    mql.addEventListener('change', on);
+    return () => mql.removeEventListener('change', on);
+  }, []);
+  const startHeroDrag = (e: React.PointerEvent) => {
+    const row = heroRow.current;
+    if (!row) return;
+    e.preventDefault();
+    const rect = row.getBoundingClientRect();
+    const move = (ev: PointerEvent) => setHeroSplit(Math.min(0.62, Math.max(0.28, (ev.clientX - rect.left) / rect.width)));
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); document.body.style.cursor = ''; };
+    document.body.style.cursor = 'col-resize';
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
   const [viewName, setViewName] = useState('');
   const [moreCats, setMoreCats] = useState(false);
   // "Where it came from": every type, or just one (Commission, Refund…).
@@ -138,11 +131,52 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ period, unselected: Array.from(unselected), view, level, merchantAmount, placeRank, snapshot, views }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ period, unselected: Array.from(unselected), view, level, merchantAmount, placeRank, snapshot, views, heroSplit }));
     } catch {
       /* storage unavailable — selection just won't persist */
     }
-  }, [period, unselected, view, level, merchantAmount, placeRank, snapshot, views]);
+  }, [period, unselected, view, level, merchantAmount, placeRank, snapshot, views, heroSplit]);
+
+  // Your Dashboard setup follows your Supabase login (user metadata), so any computer signed in
+  // as you opens it the same way: ticked categories, saved views, the divider, which snapshot
+  // card shows and the chart choices. This browser keeps a copy so it appears instantly; the
+  // account wins once it has loaded. Saved a moment after you stop changing things.
+  const prefsLoaded = useRef(false);
+  const skipPrefsSave = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getUser().then(({ data }) => {
+      if (cancelled) return;
+      const meta = data.user?.user_metadata || {};
+      const p = meta.dashboardPrefs;
+      if (p && typeof p === 'object') {
+        skipPrefsSave.current = true; // just loaded; nothing to save back
+        setUnselected(new Set(Array.isArray(p.unselected) ? p.unselected.filter((x: unknown) => typeof x === 'string') : []));
+        if (p.view === 'total' || p.view === 'category') setView(p.view);
+        if (p.level === 'category' || p.level === 'subcategory') setLevel(p.level);
+        if (p.merchantAmount === 'month' || p.merchantAmount === 'total') setMerchantAmount(p.merchantAmount);
+        if (p.placeRank === 'spent' || p.placeRank === 'visits') setPlaceRank(p.placeRank);
+        if ((SNAPSHOTS as readonly string[]).includes(p.snapshot)) setSnapshot(p.snapshot);
+        if (typeof p.heroSplit === 'number' && p.heroSplit >= 0.25 && p.heroSplit <= 0.65) setHeroSplit(p.heroSplit);
+        if (Array.isArray(p.views)) setViews(p.views.filter((v: any) => v && typeof v.name === 'string' && Array.isArray(v.cats)));
+      } else {
+        // First time on this account: keep views saved before this (if any), then upload the lot.
+        if (Array.isArray(meta.dashboardViews)) setViews(meta.dashboardViews.filter((v: any) => v && typeof v.name === 'string' && Array.isArray(v.cats)));
+        else void supabase.auth.updateUser({ data: { dashboardPrefs: { unselected: Array.from(unselected), view, level, merchantAmount, placeRank, snapshot, heroSplit, views } } });
+      }
+      prefsLoaded.current = true;
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!prefsLoaded.current) return;
+    if (skipPrefsSave.current) { skipPrefsSave.current = false; return; }
+    const id = window.setTimeout(() => {
+      void supabase.auth.updateUser({ data: { dashboardPrefs: { unselected: Array.from(unselected), view, level, merchantAmount, placeRank, snapshot, heroSplit, views } } });
+    }, 800);
+    return () => clearTimeout(id);
+  }, [unselected, view, level, merchantAmount, placeRank, snapshot, heroSplit, views]);
 
   const fmt = (v: number, decimals = 0) => {
     const n = Math.abs(v).toLocaleString('en-GB', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -519,7 +553,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
 
   const card = 'bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-2xl';
   const label = 'text-[10px] md:text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-neutral-400';
-  const BAR_H = 250;
+  const BAR_H = 215;
 
   // The bar whose breakdown is shown under the Totals chart: the one you clicked, else the latest
   // with spending.
@@ -715,8 +749,8 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
       <>
       {/* Hero: the headline numbers beside the chart, category chips underneath */}
       <section aria-label="Spending overview" className={bigCard}>
-        <div className="flex flex-wrap gap-8 xl:gap-12 p-6 md:p-8 pb-5">
-          <div className="flex-[1_1_240px] max-w-[320px] flex flex-col">
+        <div ref={heroRow} className="flex flex-col lg:flex-row gap-8 lg:gap-0 p-6 md:p-8 md:pb-5">
+          <div className="min-w-0 flex flex-col" style={heroWide ? { flex: `0 0 ${heroSplit * 100}%` } : undefined}>
             <div className="text-[13px] font-medium text-slate-500 dark:text-neutral-400">{focus ? `Spent in ${focusLabel}` : `Spent · ${periodLabel.toLowerCase()}`}</div>
             <div className="text-[44px] xl:text-[52px] leading-[1.05] font-bold tracking-tight text-slate-900 dark:text-neutral-100 mt-1.5">{fmt(focus ? focus.total : total)}</div>
             <div className={`text-[15px] font-semibold mt-1.5 ${heroSub.cls}`}>{heroSub.text}</div>
@@ -726,8 +760,10 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                 : selected.size && peak.total > 0 ? `Busiest ${unit}: ${peak.label} · ${fmt(peak.total)}` : ''}
             </div>
 
+            {/* Side by side when there's room: the snapshot takes the space, Money in stays a small square */}
+            <div className="mt-5 flex-1 flex flex-wrap gap-3 items-stretch">
             {/* Snapshot: flip through with ‹ › (remembered) */}
-            <div className="mt-5 rounded-2xl bg-slate-50 dark:bg-neutral-700/40 px-4 pt-3 pb-4 overflow-hidden">
+            <div className="flex-[1_1_260px] min-w-0 rounded-2xl bg-slate-50 dark:bg-neutral-700/40 px-4 pt-3 pb-4 overflow-hidden flex flex-col">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-medium text-slate-500 dark:text-neutral-400">
                   {{ ring: 'Where it went', links: 'Quick links', housing: 'Without housing', costs: 'Biggest costs', net: 'Net position' }[snapshot]}
@@ -746,7 +782,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                   </span>
                 </span>
               </div>
-              <div className="relative h-[104px] mt-2">
+              <div className="relative flex-1 min-h-[104px] mt-2">
                 <AnimatePresence initial={false} custom={snapDir} mode="popLayout">
                   <motion.div
                     key={snapshot}
@@ -858,33 +894,50 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
             </div>
 
             {/* Money in at a glance: follows the period, or the month you picked */}
-            <div className="mt-3 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/20 px-4 pt-3 pb-3.5">
+            <div className="flex-[1_1_180px] max-w-[220px] min-w-[170px] rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/20 px-4 pt-3 pb-3.5 flex flex-col">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-medium text-slate-500 dark:text-neutral-400">Money in</span>
                 {income.coverage !== null && <span className="text-xs text-slate-500 dark:text-neutral-400">{Math.round(income.coverage * 100)}% covered</span>}
               </div>
-              <div className="mt-1 flex items-end justify-between gap-4">
-                <span className="text-[22px] leading-none font-bold tracking-tight text-emerald-700 dark:text-emerald-400">{fmt(income.total)}</span>
-                <span aria-hidden className="flex items-end gap-[3px] h-9">
-                  {cols.map((c, i) => {
-                    const mx = Math.max(...income.perCol, 1);
-                    const v = income.perCol[i];
-                    const on = focusCol === null || c.key === focusCol;
-                    return <span key={c.key} title={`${c.label}: ${fmt(v)}`} className={`w-2 rounded-[3px] ${v <= 0 ? 'bg-emerald-100 dark:bg-emerald-950' : on ? 'bg-emerald-500' : 'bg-emerald-200 dark:bg-emerald-900'}`} style={{ height: v > 0 ? Math.max(4, Math.round((v / mx) * 36)) : 3 }} />;
-                  })}
-                </span>
+              <div className="mt-1 text-[22px] leading-none font-bold tracking-tight text-emerald-700 dark:text-emerald-400">{fmt(income.total)}</div>
+              {/* A small bar per imported month, under the number */}
+              <div aria-hidden className="mt-auto pt-3 flex items-end gap-[3px] h-[48px]">
+                {cols.map((c, i) => {
+                  if (!win.single && (c.key as number) > lastIdx) return null;
+                  const mx = Math.max(...income.perCol, 1);
+                  const v = income.perCol[i];
+                  const on = focusCol === null || c.key === focusCol;
+                  return <span key={c.key} title={`${c.label}: ${fmt(v)}`} className={`w-2 rounded-[3px] ${v <= 0 ? 'bg-emerald-100 dark:bg-emerald-950' : on ? 'bg-emerald-500' : 'bg-emerald-200 dark:bg-emerald-900'}`} style={{ height: v > 0 ? Math.max(4, Math.round((v / mx) * 36)) : 3 }} />;
+                })}
               </div>
+            </div>
             </div>
           </div>
 
-          <div className="flex-[3_1_420px] min-w-0 flex flex-col">
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
-              <p className="text-[13px] text-slate-500 dark:text-neutral-400">
-                {focus ? `Click ${win.single ? 'that day' : MONTHS[focus.key % 12]} again, or Back, for the whole period` : <>{shortTrend}{shortTrend ? ' · ' : ''}click a {win.single ? 'day' : 'month'} to see just that {win.single ? 'day' : 'month'}</>}
-              </p>
-              <div className="flex items-center gap-3">
+          {heroWide && (
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Drag to resize"
+              title="Drag to resize · double-click to reset"
+              onPointerDown={startHeroDrag}
+              onDoubleClick={() => setHeroSplit(HERO_DEFAULT)}
+              className="group shrink-0 w-10 self-stretch cursor-col-resize flex items-center justify-center touch-none"
+            >
+              <span className="w-1 h-14 rounded-full bg-slate-200 dark:bg-neutral-600 group-hover:bg-indigo-300 dark:group-hover:bg-indigo-500 transition-colors" />
+            </div>
+          )}
+
+          <div className="flex-1 min-w-0 flex flex-col">
+            {/* One line: what's going on (cut short if needed) · average · chart switch */}
+            <div className="flex items-center justify-between gap-3 mb-2">
+              {(() => {
+                const note = focus ? `Click ${win.single ? 'that day' : MONTHS[focus.key % 12]} again, or Back, for the whole period` : `${shortTrend}${shortTrend ? ' · ' : ''}click a ${win.single ? 'day' : 'month'} to see just that ${win.single ? 'day' : 'month'}`;
+                return <p title={note} className="min-w-0 truncate text-[13px] text-slate-500 dark:text-neutral-400">{note}</p>;
+              })()}
+              <div className="shrink-0 flex items-center gap-3">
                 {selected.size > 0 && total > 0 && (
-                  <span className="hidden lg:flex items-center gap-2 text-xs text-slate-500 dark:text-neutral-400"><span className="w-[18px] border-t-2 border-dashed border-slate-400" />Average {fmt(avg)}</span>
+                  <span className="hidden xl:flex items-center gap-2 text-xs text-slate-500 dark:text-neutral-400 whitespace-nowrap"><span className="w-[18px] border-t-2 border-dashed border-slate-400" />Avg {fmt(avg)}</span>
                 )}
                 <div role="group" aria-label="Chart view" className="flex gap-0.5 p-[3px] bg-slate-100 dark:bg-neutral-700/60 rounded-full">
                   {([['total', 'Totals'], ['category', 'By category']] as const).map(([id, l]) => (
@@ -898,7 +951,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
               <div className="relative overflow-x-auto">
                 <div
                   className={`relative grid items-end ${win.single ? 'gap-[3px]' : monthIdxs.length >= 12 ? 'gap-2.5' : 'gap-4 xl:gap-5'}`}
-                  style={{ gridTemplateColumns: `repeat(${shownBuckets.length}, minmax(${win.single ? 6 : 28}px, 1fr))`, height: BAR_H + (win.single ? 40 : 56) }}
+                  style={{ gridTemplateColumns: `repeat(${shownBuckets.length}, minmax(${win.single ? 6 : 28}px, ${win.single ? '1fr' : '104px'}))`, justifyContent: 'center', height: BAR_H + (win.single ? 40 : 56) }}
                 >
                   {selected.size > 0 && total > 0 && (
                     <div aria-hidden className="absolute left-0 right-0 border-t-2 border-dashed border-slate-400/70 pointer-events-none z-[1]" style={{ bottom: Math.round((avg / maxBucket) * BAR_H) + 26 }} />
@@ -919,7 +972,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                           <span className={`relative z-[2] self-center px-1 rounded bg-white dark:bg-neutral-800 text-xs font-semibold text-center whitespace-nowrap ${isFocus ? 'text-indigo-700 dark:text-indigo-300' : dim ? 'text-slate-300 dark:text-neutral-600' : 'text-slate-500 dark:text-neutral-400'}`}>{b.total > 0 ? fmt(b.total) : ''}</span>
                         )}
                         <span
-                          className={`block w-full mx-auto ${win.single ? 'rounded-sm' : 'rounded-[10px] max-w-[96px]'} transition-colors ${b.total === 0 ? 'bg-slate-100 dark:bg-neutral-700' : isFocus ? 'bg-indigo-600' : dim ? 'bg-indigo-100 dark:bg-indigo-950 group-hover:bg-indigo-200' : 'bg-indigo-400 dark:bg-indigo-500 group-hover:bg-indigo-500'}`}
+                          className={`block w-full mx-auto ${win.single ? 'rounded-sm' : 'rounded-[10px] max-w-[64px]'} transition-colors ${b.total === 0 ? 'bg-slate-100 dark:bg-neutral-700' : isFocus ? 'bg-indigo-600' : dim ? 'bg-indigo-100 dark:bg-indigo-950 group-hover:bg-indigo-200' : 'bg-indigo-400 dark:bg-indigo-500 group-hover:bg-indigo-500'}`}
                           style={{ height: b.total > 0 ? Math.max(4, Math.round((b.total / maxBucket) * BAR_H)) : 4 }}
                         />
                         <span className={`h-[18px] text-xs text-center ${isFocus ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'} ${win.single && b.key !== 1 && Number(b.key) % 5 !== 0 && !isFocus ? 'invisible' : ''}`}>{b.label}</span>
@@ -948,7 +1001,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                 <div className="relative overflow-x-auto">
                   <div
                     className={`relative grid items-end ${win.single ? 'gap-[3px]' : monthIdxs.length >= 12 ? 'gap-3' : 'gap-6 xl:gap-8'}`}
-                    style={{ gridTemplateColumns: `repeat(${shownBuckets.length}, minmax(${win.single ? 6 : 28}px, 1fr))`, height: BAR_H + (win.single ? 14 : 28) - 28 }}
+                    style={{ gridTemplateColumns: `repeat(${shownBuckets.length}, minmax(${win.single ? 6 : 28}px, ${win.single ? '1fr' : '104px'}))`, justifyContent: 'center', height: BAR_H + (win.single ? 14 : 28) - 28 }}
                     onMouseLeave={() => setHoverKey(null)}
                   >
                     {selected.size > 0 && total > 0 && (
@@ -972,7 +1025,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                           className="flex flex-col items-center justify-end gap-2.5 h-full disabled:cursor-default min-w-0"
                         >
                           <span
-                            className={`w-full ${win.single ? 'rounded-sm' : 'max-w-[92px] rounded-xl'} overflow-hidden flex flex-col-reverse gap-[1.5px] transition-opacity duration-150 ${lit ? '' : 'opacity-35'} ${b.total === 0 ? 'bg-slate-100 dark:bg-neutral-700' : ''}`}
+                            className={`w-full ${win.single ? 'rounded-sm' : 'max-w-[64px] rounded-xl'} overflow-hidden flex flex-col-reverse gap-[1.5px] transition-opacity duration-150 ${lit ? '' : 'opacity-35'} ${b.total === 0 ? 'bg-slate-100 dark:bg-neutral-700' : ''}`}
                             style={{ height: h }}
                           >
                             {b.total > 0 && stackGroups.groups.map(g => {
