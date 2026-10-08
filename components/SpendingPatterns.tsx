@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { supabase } from '../supabaseClient';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Transaction, Category } from '../types';
 import {
@@ -59,7 +60,7 @@ interface RegularPayment {
 const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categories, currency, getCategoryEmoji, onViewTransactions, lastImport, onImport, onOpenTransactions }) => {
   const saved = useMemo(() => {
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as { period?: PeriodId; unselected?: string[]; view?: 'total' | 'category'; level?: 'category' | 'subcategory'; merchantAmount?: 'month' | 'total'; placeRank?: 'spent' | 'visits'; snapshot?: string };
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as { period?: PeriodId; unselected?: string[]; view?: 'total' | 'category'; level?: 'category' | 'subcategory'; merchantAmount?: 'month' | 'total'; placeRank?: 'spent' | 'visits'; snapshot?: string; catMode?: 'except' | 'only'; views?: { name: string; cats: string[] }[] };
     } catch {
       return {};
     }
@@ -87,6 +88,40 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   const [catPanel, setCatPanel] = useState<{ cat: string; year: number; month: number | null; n: number } | null>(null);
   const [periodMenu, setPeriodMenu] = useState(false);
   const [pickerMenu, setPickerMenu] = useState(false);
+  // How the category line reads: "everything except …" (chips = left out) or "only …" (chips = shown).
+  // Your saved views: named sets of categories, one tap to switch to.
+  const [views, setViews] = useState<{ name: string; cats: string[] }[]>(() => (Array.isArray(saved.views) ? saved.views.filter(v => v && v.name && Array.isArray(v.cats)) : []));
+  // Saved views live on your Supabase login (user metadata), so every device signed in as you
+  // gets the same ones. This browser keeps a copy so they show instantly; the account wins.
+  const viewsLoaded = useRef(false);
+  const skipSave = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getUser().then(({ data }) => {
+      if (cancelled) return;
+      const remote = data.user?.user_metadata?.dashboardViews;
+      if (Array.isArray(remote)) {
+        skipSave.current = true; // just loaded from the account; nothing to save back
+        setViews(remote.filter((v: any) => v && typeof v.name === 'string' && Array.isArray(v.cats)));
+      } else if (views.length) {
+        // First time: copy the views saved in this browser up to the account.
+        void supabase.auth.updateUser({ data: { dashboardViews: views } });
+      }
+      viewsLoaded.current = true;
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Save to the account whenever you add or remove a view (after the first load).
+  const firstViews = useRef(true);
+  useEffect(() => {
+    if (firstViews.current) { firstViews.current = false; return; }
+    if (!viewsLoaded.current) return;
+    if (skipSave.current) { skipSave.current = false; return; }
+    void supabase.auth.updateUser({ data: { dashboardViews: views } });
+  }, [views]);
+  const [savingView, setSavingView] = useState(false);
+  const [viewName, setViewName] = useState('');
   const [moreCats, setMoreCats] = useState(false);
   // "Where it came from": every type, or just one (Commission, Refund…).
   const [srcType, setSrcType] = useState('all');
@@ -103,11 +138,11 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ period, unselected: Array.from(unselected), view, level, merchantAmount, placeRank, snapshot }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ period, unselected: Array.from(unselected), view, level, merchantAmount, placeRank, snapshot, views }));
     } catch {
       /* storage unavailable — selection just won't persist */
     }
-  }, [period, unselected, view, level, merchantAmount, placeRank, snapshot]);
+  }, [period, unselected, view, level, merchantAmount, placeRank, snapshot, views]);
 
   const fmt = (v: number, decimals = 0) => {
     const n = Math.abs(v).toLocaleString('en-GB', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -957,84 +992,124 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
           </div>
         </div>
 
-        {/* Quick picks, the biggest categories as chips, and every category in a menu */}
-        <div className="border-t border-slate-100 dark:border-neutral-700 px-6 md:px-8 py-4 flex flex-wrap items-center gap-2">
-          <div role="group" aria-label="Quick picks" className="flex gap-0.5 p-[3px] bg-slate-100 dark:bg-neutral-700/60 rounded-full mr-1.5">
-            {presets.map(p => (
-              <button key={p.label} onClick={() => selectOnly(p.names)} aria-pressed={presetActive(p.names)} className={pill(presetActive(p.names))}>{p.label}</button>
-            ))}
-          </div>
-          {chipCats.map(c => {
-            const on = catState(c) !== 'off';
-            return (
-              <button
-                key={c.name}
-                onClick={() => toggle(c.name)}
-                aria-pressed={on}
-                className={`min-h-[34px] px-3 rounded-full border text-[13px] flex items-center gap-2 transition-colors ${on ? 'border-slate-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-100' : 'border-dashed border-slate-300 dark:border-neutral-600 bg-slate-50 dark:bg-neutral-800/50 text-slate-400 line-through'}`}
-              >
-                <span className="w-2 h-2 rounded-full" style={{ background: on ? catColor(c.name) : '#CBD5E1' }} />
-                {c.name}
-                <span className="text-slate-400 dark:text-neutral-500">{fmt(c.total)}</span>
-              </button>
-            );
-          })}
-          <div className="relative">
-            <button onClick={() => setPickerMenu(o => !o)} aria-expanded={pickerMenu} className="min-h-[34px] px-3 text-[13px] font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-1">
-              {selected.size === catStats.length ? `All ${catStats.length} categories` : `${selected.size} of ${catStats.length} categories`}
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" className={pickerMenu ? 'rotate-180' : ''}><path d="m6 9 6 6 6-6" /></svg>
-            </button>
-            {pickerMenu && (
-              <>
-                <button aria-label="Close categories" className="fixed inset-0 z-20 cursor-default" onClick={() => setPickerMenu(false)} />
-                <div className="absolute left-0 top-11 z-30 w-[320px] max-h-[420px] overflow-y-auto p-2 rounded-2xl border border-slate-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 shadow-xl flex flex-col gap-0.5">
-                  {catStats.map(c => {
-                    const state = catState(c);
-                    const on = state !== 'off';
-                    const emoji = getCategoryEmoji && c.catId ? getCategoryEmoji(c.catId) : '';
-                    const hasSubs = c.subs.length > 1 || (c.subs.length === 1 && c.subs[0].name !== NO_SUB);
-                    const open = expanded.has(c.name);
-                    return (
-                      <div key={c.name}>
-                        <div className={`flex items-center rounded-lg ${on ? 'bg-slate-50 dark:bg-neutral-700/60' : 'hover:bg-slate-50 dark:hover:bg-neutral-700/40'}`}>
-                          <button onClick={() => toggle(c.name)} aria-pressed={state === 'on' ? true : state === 'some' ? 'mixed' : false} className="flex-1 min-w-0 flex items-center gap-2.5 pl-2.5 pr-1 py-2 text-left">
-                            <span aria-hidden className={`w-4 h-4 rounded-[5px] shrink-0 border-2 flex items-center justify-center ${on ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 dark:border-neutral-500'}`}>
-                              {state === 'on' && <svg viewBox="0 0 12 12" className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M2.5 6.2 5 8.5l4.5-5" /></svg>}
-                              {state === 'some' && <span className="block w-2 h-0.5 rounded bg-white" />}
-                            </span>
-                            <span className={`flex-1 truncate text-[13px] ${on ? 'font-semibold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'}`}>{emoji && <span className="mr-1">{emoji}</span>}{c.name}</span>
-                            <span className="text-xs text-slate-500 dark:text-neutral-400">{fmt(c.total)}</span>
-                          </button>
-                          {hasSubs ? (
-                            <button onClick={() => toggleExpanded(c.name)} aria-expanded={open} aria-label={`${open ? 'Hide' : 'Show'} ${c.name} subcategories`} className="w-8 h-8 shrink-0 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-neutral-200">
-                              <svg viewBox="0 0 12 12" className={`w-3 h-3 transition-transform ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4.5 2.5 8 6l-3.5 3.5" /></svg>
-                            </button>
-                          ) : <span className="w-8 shrink-0" />}
-                        </div>
-                        {hasSubs && open && (
-                          <div className="ml-6 pl-2 border-l border-slate-200 dark:border-neutral-700 flex flex-col my-0.5">
-                            {c.subs.map(sb => {
-                              const subOn = isIncluded({ cat: c.name, sub: sb.name });
-                              return (
-                                <button key={sb.name} onClick={() => toggleSub(c.name, sb.name)} aria-pressed={subOn} className="flex items-center gap-2 px-2 py-1.5 rounded-md text-left hover:bg-slate-50 dark:hover:bg-neutral-700/40">
-                                  <span aria-hidden className={`w-3.5 h-3.5 rounded shrink-0 border-2 flex items-center justify-center ${subOn ? 'bg-indigo-500 border-indigo-500' : 'border-slate-300 dark:border-neutral-500'}`}>
-                                    {subOn && <svg viewBox="0 0 12 12" className="w-2 h-2 text-white" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M2.5 6.2 5 8.5l4.5-5" /></svg>}
+        {/* Saved views (one tap), and one Categories button for everything else */}
+        {(() => {
+          const allNames = catStats.map(c => c.name);
+          const onNames = catStats.filter(c => catState(c) !== 'off').map(c => c.name);
+          const setOnly = (names: string[]) => selectOnly(names.filter(n => allNames.includes(n)));
+          const allViews = [
+            ...presets.map(p => ({ name: p.label, cats: p.names, builtIn: true })),
+            ...views.map(v => ({ ...v, builtIn: false })),
+          ];
+          const totalOf = (cats: string[]) => sum(catStats.filter(c => cats.includes(c.name)).map(c => c.total));
+          const isCurrent = (cats: string[]) => presetActive(cats.filter(n => allNames.includes(n)));
+          const label = onNames.length === allNames.length ? 'All' : onNames.length === 0 ? 'None' : onNames.length <= 2 ? onNames.join(', ') : `${onNames.length} of ${allNames.length}`;
+          const saveView = () => {
+            const name = viewName.trim();
+            if (!name || onNames.length === 0) return;
+            setViews(vs => [...vs.filter(v => v.name !== name), { name, cats: onNames }]);
+            setSavingView(false);
+            setViewName('');
+          };
+          return (
+            <div className="border-t border-slate-100 dark:border-neutral-700 px-6 md:px-8 py-4 flex flex-wrap items-center gap-2">
+              {allViews.map(v => {
+                const on = isCurrent(v.cats);
+                return (
+                  <span key={v.name} className={`group flex items-center min-h-[36px] rounded-full border text-[13px] transition-colors ${on ? 'bg-slate-900 border-slate-900 text-white dark:bg-neutral-100 dark:border-neutral-100 dark:text-neutral-900' : 'bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-600 text-slate-800 dark:text-neutral-200 hover:border-slate-300'}`}>
+                    <button onClick={() => setOnly(v.cats)} aria-pressed={on} className={`min-h-[34px] pl-3.5 ${v.builtIn ? 'pr-3.5' : 'pr-1.5'} flex items-center gap-1.5`}>
+                      <span className={on ? 'font-semibold' : ''}>{v.name}</span>
+                      <span className={on ? 'text-white/60 dark:text-neutral-900/60' : 'text-slate-400 dark:text-neutral-500'}>{fmt(totalOf(v.cats))}</span>
+                    </button>
+                    {!v.builtIn && (
+                      <button onClick={() => setViews(vs => vs.filter(x => x.name !== v.name))} aria-label={`Remove view ${v.name}`} title="Remove this view" className={`w-7 h-7 mr-0.5 rounded-full flex items-center justify-center opacity-50 group-hover:opacity-100 ${on ? 'hover:bg-white/15' : 'hover:bg-slate-100 dark:hover:bg-neutral-700'}`}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                      </button>
+                    )}
+                  </span>
+                );
+              })}
+
+              <div className="relative ml-auto">
+                <button onClick={() => { setPickerMenu(o => !o); setSavingView(false); }} aria-expanded={pickerMenu} className="min-h-[36px] px-3.5 rounded-xl border border-slate-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-[13px] font-semibold text-slate-900 dark:text-neutral-100 flex items-center gap-2 hover:border-slate-300">
+                  <span className="font-normal text-slate-500 dark:text-neutral-400">Categories</span>
+                  <span className="max-w-[180px] truncate">{label}</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" className={`text-slate-400 transition-transform ${pickerMenu ? 'rotate-180' : ''}`}><path d="m6 9 6 6 6-6" /></svg>
+                </button>
+                {pickerMenu && (
+                  <>
+                    <button aria-label="Close categories" className="fixed inset-0 z-20 cursor-default" onClick={() => { setPickerMenu(false); setSavingView(false); }} />
+                    <div className="absolute right-0 bottom-12 z-30 w-[340px] rounded-2xl border border-slate-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 shadow-xl flex flex-col overflow-hidden">
+                      <div className="flex gap-1.5 px-3 pt-3 pb-2.5 border-b border-slate-100 dark:border-neutral-700">
+                        {[['All', allNames], ['Without housing', allNames.filter(n => n.toLowerCase() !== 'housing')], ['Clear', [] as string[]]].map(([l, names]) => (
+                          <button key={l as string} onClick={() => setOnly(names as string[])} className="min-h-[30px] px-3 rounded-full border border-slate-200 dark:border-neutral-600 text-xs text-slate-700 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700/50">{l as string}</button>
+                        ))}
+                      </div>
+                      <div className="max-h-[min(340px,calc(100vh-260px))] overflow-y-auto p-1.5 flex flex-col">
+                        {catStats.map(c => {
+                          const state = catState(c);
+                          const on = state !== 'off';
+                          const emoji = getCategoryEmoji && c.catId ? getCategoryEmoji(c.catId) : '';
+                          const hasSubs = c.subs.length > 1 || (c.subs.length === 1 && c.subs[0].name !== NO_SUB);
+                          const open = expanded.has(c.name);
+                          return (
+                            <div key={c.name}>
+                              <div className="flex items-center gap-1 rounded-xl hover:bg-slate-50 dark:hover:bg-neutral-700/40">
+                                <button onClick={() => toggle(c.name)} aria-pressed={state === 'on' ? true : state === 'some' ? 'mixed' : false} className="flex-1 min-w-0 flex items-center gap-2.5 pl-2 pr-1 min-h-[38px] text-left">
+                                  <span aria-hidden className={`w-[18px] h-[18px] rounded-[6px] shrink-0 border-2 flex items-center justify-center ${on ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 dark:border-neutral-500'}`}>
+                                    {state === 'on' && <svg viewBox="0 0 12 12" className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M2.5 6.2 5 8.5l4.5-5" /></svg>}
+                                    {state === 'some' && <span className="block w-2 h-0.5 rounded bg-white" />}
                                   </span>
-                                  <span className={`flex-1 truncate text-xs ${subOn ? 'text-slate-800 dark:text-neutral-200' : 'text-slate-400 dark:text-neutral-500'}`}>{sb.name}</span>
-                                  <span className="text-[11px] text-slate-500 dark:text-neutral-400">{fmt(sb.total)}</span>
+                                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: catColor(c.name) }} />
+                                  <span className={`flex-1 truncate text-[13px] ${on ? 'text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'}`}>{emoji && <span className="mr-1">{emoji}</span>}{c.name}</span>
+                                  <span className="text-xs text-slate-400 dark:text-neutral-500">{fmt(c.total)}</span>
                                 </button>
-                              );
-                            })}
-                          </div>
+                                <button onClick={() => setOnly([c.name])} className="shrink-0 min-h-[26px] px-2 rounded-lg bg-slate-100 dark:bg-neutral-700 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50">Only</button>
+                                {hasSubs ? (
+                                  <button onClick={() => toggleExpanded(c.name)} aria-expanded={open} aria-label={`${open ? 'Hide' : 'Show'} ${c.name} subcategories`} className="w-7 h-7 shrink-0 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-neutral-200">
+                                    <svg viewBox="0 0 12 12" className={`w-3 h-3 transition-transform ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4.5 2.5 8 6l-3.5 3.5" /></svg>
+                                  </button>
+                                ) : <span className="w-7 shrink-0" />}
+                              </div>
+                              {hasSubs && open && (
+                                <div className="ml-7 pl-2 border-l border-slate-200 dark:border-neutral-700 flex flex-col my-0.5">
+                                  {c.subs.map(sb => {
+                                    const subOn = isIncluded({ cat: c.name, sub: sb.name });
+                                    return (
+                                      <button key={sb.name} onClick={() => toggleSub(c.name, sb.name)} aria-pressed={subOn} className="flex items-center gap-2 px-2 min-h-[32px] rounded-md text-left hover:bg-slate-50 dark:hover:bg-neutral-700/40">
+                                        <span aria-hidden className={`w-3.5 h-3.5 rounded shrink-0 border-2 flex items-center justify-center ${subOn ? 'bg-indigo-500 border-indigo-500' : 'border-slate-300 dark:border-neutral-500'}`}>
+                                          {subOn && <svg viewBox="0 0 12 12" className="w-2 h-2 text-white" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M2.5 6.2 5 8.5l4.5-5" /></svg>}
+                                        </span>
+                                        <span className={`flex-1 truncate text-xs ${subOn ? 'text-slate-800 dark:text-neutral-200' : 'text-slate-400 dark:text-neutral-500'}`}>{sb.name === NO_SUB ? 'No subcategory' : sb.name}</span>
+                                        <span className="text-[11px] text-slate-500 dark:text-neutral-400">{fmt(sb.total)}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="border-t border-slate-100 dark:border-neutral-700 p-2.5">
+                        {savingView ? (
+                          <form onSubmit={(e) => { e.preventDefault(); saveView(); }} className="flex gap-2">
+                            <input autoFocus value={viewName} onChange={(e) => setViewName(e.target.value)} placeholder="Name this view" maxLength={30} aria-label="View name" className="flex-1 min-w-0 h-9 px-3 rounded-lg border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-neutral-900 text-[13px] text-slate-900 dark:text-neutral-100 outline-none" />
+                            <button type="submit" disabled={!viewName.trim()} className="h-9 px-3 rounded-lg bg-indigo-600 text-white text-[13px] font-semibold disabled:opacity-40">Save</button>
+                          </form>
+                        ) : (
+                          <button onClick={() => setSavingView(true)} disabled={onNames.length === 0} className="w-full min-h-[36px] rounded-lg text-[13px] font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 disabled:opacity-40">
+                            ＋ Save these {onNames.length} as a view
+                          </button>
                         )}
                       </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </section>
 
       {/* Where it went beside Top places */}
