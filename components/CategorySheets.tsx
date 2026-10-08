@@ -6,6 +6,7 @@ import { useBackClose } from '../lib/backStack';
 import { X } from 'lucide-react';
 import { Transaction } from '../types';
 import SegmentedControl from './SegmentedControl';
+import TxDetail, { userNote } from './TxDetail';
 import { MODAL_TRANSITION, SHEET_SPRING } from '../lib/motion';
 import {
   MONTHS, FULL_MONTHS, TOM, PERIODS, PeriodId, keyToIndex, monthKey, indexLabel, indexToKey, daysIn, localToday,
@@ -36,6 +37,7 @@ interface Row {
   monthIdx: number;
   desc: string;
   amount: number;
+  hasNote: boolean;
 }
 
 // Subcategories as one row of evenly spaced tabs (name, amount under it; long names wrap onto
@@ -144,8 +146,11 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
       monthIdx: keyToIndex(monthKey(t.date)),
       desc: (t.description || 'Unknown').trim(),
       amount: Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED) || 0,
+      hasNote: !!userNote(t.notes),
     }))
     .filter(r => r.amount > 0), [transactions, currency]);
+  // The payment tapped in the panel, shown in its own pop-up (details and a note).
+  const [txOpen, setTxOpen] = useState<string | null>(null);
 
   const today = localToday();
   const lastIdx = useMemo(() => (rows.length ? Math.max(...rows.map(r => r.monthIdx)) : keyToIndex(monthKey(today))), [rows, today]);
@@ -361,14 +366,22 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                               </div>
                             ))
                           : panel.tx.map(r => (
-                              <div key={r.id} className="grid grid-cols-[52px_minmax(0,1fr)_90px] gap-3 items-center py-2.5 border-b border-slate-100 dark:border-neutral-700">
+                              <button
+                                key={r.id}
+                                onClick={() => setTxOpen(r.id)}
+                                aria-haspopup="dialog"
+                                className={`w-full text-left grid grid-cols-[52px_minmax(0,1fr)_90px] gap-3 items-center py-2.5 border-b border-slate-100 dark:border-neutral-700 rounded-md hover:bg-slate-50 dark:hover:bg-neutral-700/40 ${txOpen === r.id ? 'bg-indigo-50/70 dark:bg-indigo-950/30' : ''}`}
+                              >
                                 <span className="text-xs text-slate-500 dark:text-neutral-400 whitespace-nowrap">{shortDate(r.date)}</span>
                                 <div className="min-w-0">
-                                  <div className="text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={r.desc}>{r.desc}</div>
+                                  <div className="text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate flex items-center gap-1.5" title={r.desc}>
+                                    <span className="truncate">{r.desc}</span>
+                                    {r.hasNote && <span title="Has a note" className="w-1.5 h-1.5 shrink-0 rounded-full bg-amber-500" />}
+                                  </div>
                                   {r.sub !== NO_SUB && <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">{r.sub}</div>}
                                 </div>
                                 <span className="text-[13px] font-semibold text-right text-slate-900 dark:text-neutral-100">{fmt(r.amount, 2)}</span>
-                              </div>
+                              </button>
                             ))}
                       </div>
 
@@ -421,7 +434,8 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
     document.body
   );
 
-  if (panelOnly) return panelPortal;
+  const txPopup = <TxDetail id={txOpen} onClose={() => setTxOpen(null)} sheet={isPhone} />;
+  if (panelOnly) return <>{panelPortal}{txPopup}</>;
 
   return (
     <div className="pb-24 md:pb-6 flex flex-col gap-4 md:gap-6" style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -525,6 +539,7 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
       )}
 
       {panelPortal}
+      {txPopup}
     </div>
   );
 };

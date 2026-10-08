@@ -20,6 +20,7 @@ import CategoryManager from './components/CategoryManager';
 import ImportCsvModal from './components/ImportCsvModal';
 import { usePrivacy } from './lib/privacy';
 import BlurStrengthSlider from './components/BlurStrengthSlider';
+import { TxActionsContext } from './components/TxDetail';
 import MoreSheet from './components/MoreSheet';
 import SettingsManager from './components/SettingsManager';
 import BreakdownTab from './components/BreakdownTab';
@@ -1008,6 +1009,8 @@ const App: React.FC = () => {
   const [moreOpen, setMoreOpen] = useState(false);
   // A Dashboard quick link asking Transactions to open on its review list or mixed categories.
   const [txStart, setTxStart] = useState<'review' | 'mixed' | null>(null);
+  // "Open in Transactions" from a payment's pop-up: Transactions opens with it selected.
+  const [txSelect, setTxSelect] = useState<string | null>(null);
   // Home-screen shortcuts (manifest.json) open a tab or action via ?tab=… / ?action=import.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1655,6 +1658,22 @@ const App: React.FC = () => {
     // out of reach. viewport-fit=cover (index.html) is what makes the safe-area insets non-zero.
     // MotionConfig: animations calm down for anyone with "Reduce motion" turned on.
     <MotionConfig reducedMotion="user">
+    <TxActionsContext.Provider value={{
+      transactions,
+      banks,
+      getCategoryEmoji,
+      onUpdate: updateTransaction,
+      onOpenInTransactions: (t) => {
+        // Show that payment's month with no other filters, then open it.
+        const y = Number(t.date.slice(0, 4)), m = Number(t.date.slice(5, 7));
+        const end = new Date(y, m, 0).getDate();
+        handleResetFilters();
+        setSearchQuery('');
+        setDateRange({ start: `${t.date.slice(0, 7)}-01`, end: `${t.date.slice(0, 7)}-${String(end).padStart(2, '0')}`, label: 'Custom Range' });
+        setTxSelect(t.id);
+        handleTabChange('history');
+      },
+    }}>
     <div
       className="bg-slate-50 dark:bg-neutral-900 h-[100dvh] font-['Poppins'] text-slate-900 dark:text-neutral-200 overflow-hidden"
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
@@ -2133,6 +2152,8 @@ const App: React.FC = () => {
               onLogout={handleLogout}
               startWith={txStart}
               onStarted={() => setTxStart(null)}
+              selectOnStart={txSelect}
+              onSelected={() => setTxSelect(null)}
             />
           )}
           </motion.div>
@@ -2300,9 +2321,17 @@ const App: React.FC = () => {
                             <p className="text-xs text-slate-600 truncate" title={t.bankName}>{t.bankName}</p>
                           </div>
 
-                          {/* Merchant/Description */}
+                          {/* Merchant/Description, with an optional note saved alongside it */}
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-slate-900 truncate" title={t.description}>{t.description}</p>
+                            <input
+                              type="text"
+                              value={t.notes || ''}
+                              onChange={(e) => updatePendingTransaction(t.id, { notes: e.target.value })}
+                              placeholder="＋ Add a note"
+                              aria-label={`Note for ${t.description}`}
+                              className="mt-1 w-full max-w-[320px] h-7 px-2 rounded-md border border-dashed border-slate-300 focus:border-indigo-400 focus:border-solid bg-transparent text-xs text-slate-700 placeholder:text-indigo-500/80 outline-none"
+                            />
                           </div>
 
                           {/* GBP Amount */}
@@ -2396,6 +2425,7 @@ const App: React.FC = () => {
       )}
 
     </div>
+    </TxActionsContext.Provider>
     </MotionConfig>
   );
 };

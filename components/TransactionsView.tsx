@@ -51,6 +51,9 @@ interface TransactionsViewProps {
   // Opened from the Dashboard's quick links: start on the review list or the mixed categories.
   startWith?: 'review' | 'mixed' | null;
   onStarted?: () => void;
+  // Opened from a payment's pop-up: select that transaction.
+  selectOnStart?: string | null;
+  onSelected?: () => void;
 }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -115,7 +118,7 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
     filterCategory, onFilterCategory, filterSubcategory, onFilterSubcategory,
     filterRecentlyAdded, onFilterRecentlyAdded, onResetFilters,
     latestByBank, onOpenImport, onUpdate, onBulkUpdate, onDelete, onRemember, onApplyMemory, applyingMemory, onLogout,
-    startWith, onStarted,
+    startWith, onStarted, selectOnStart, onSelected,
   } = p;
   const isLg = useMedia('(min-width: 1024px)');
 
@@ -146,6 +149,13 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
   // Merchants filed under more than one category, across all your transactions.
   const { mixed, hiddenCount: mixedOk, markOk, resetOk } = useMixedMerchants(allTransactions);
   const [mixedOpen, setMixedOpen] = useState(false);
+  useEffect(() => {
+    if (!selectOnStart) return;
+    setSelectedId(selectOnStart);
+    onSelected?.();
+    requestAnimationFrame(() => document.querySelector(`[data-tx-row="${selectOnStart}"]`)?.scrollIntoView({ block: 'center' }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectOnStart]);
   useEffect(() => {
     if (!startWith) return;
     if (startWith === 'review') setReviewOnly(true);
