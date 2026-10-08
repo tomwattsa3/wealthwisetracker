@@ -226,8 +226,9 @@ const PlaceSheet: React.FC<PlaceSheetProps> = ({ place, side, ...rest }) => {
       document.body
     );
   }
+  // Money in sources open taller (most of the screen), however few payments there are.
   return (
-    <Sheet open={!!place} onClose={rest.onClose} label={`${shown?.name || 'Place'} details`} heightClass="max-h-[86dvh]">
+    <Sheet open={!!place} onClose={rest.onClose} label={`${shown?.name || 'Place'} details`} heightClass={shown?.income ? 'h-[80dvh]' : 'max-h-[86dvh]'}>
       {shown && <Body key={`${shown.key}-${shown.year}-${shown.month}`} place={shown} transactions={rest.transactions} currency={rest.currency} getCategoryEmoji={rest.getCategoryEmoji} />}
     </Sheet>
   );
