@@ -8,6 +8,7 @@ import SegmentedControl from './SegmentedControl';
 import { MODAL_TRANSITION } from '../lib/motion';
 import Sheet from './Sheet';
 import MixedMerchants, { useMixedMerchants } from './MixedMerchants';
+import { NoteBox, userNote } from './TxDetail';
 import { useBackClose } from '../lib/backStack';
 import { buzz } from '../lib/haptics';
 
@@ -929,6 +930,8 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
   // everywhere else). The total is all time, including the open transaction; the list shows the others.
   const netOf = (list: Transaction[]) => list.reduce((s, x) => (isHidden(x) ? s : s + (x.type === 'INCOME' ? -1 : 1) * Math.abs(x.amountGBP || 0)), 0);
   const allTime = [t, ...others];
+  // The list under the details: every payment at this merchant, newest first, this one included.
+  const history = useMemo(() => [...allTime].sort((a, b) => b.date.localeCompare(a.date)), [t, others]); // eslint-disable-line react-hooks/exhaustive-deps
   const allTotal = netOf(allTime);
   const allRefunds = allTime.filter(x => !isHidden(x) && x.type === 'INCOME').length;
   const allHidden = allTime.filter(isHidden).length;
@@ -1017,7 +1020,6 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
             {t.categoryId ? 'Filed automatically from memory. If it’s right, tap Looks right.' : 'Not categorised yet. Pick a category below.'}
           </p>
         )}
-        {t.notes && t.notes.replace(AUTO_NOTE, '').trim() && <p className="text-xs text-slate-500 dark:text-neutral-400">Note: {t.notes.replace(AUTO_NOTE, '').trim()}</p>}
       </div>
 
       <div className="px-5 py-4 flex flex-col gap-3">
@@ -1088,6 +1090,8 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
           </button>
         )}
 
+        <NoteBox t={t} onSave={onUpdate} />
+
         <div className="flex justify-center gap-7 pt-0.5 text-[13.5px] font-medium">
           <button onClick={() => setHidden(!hidden)} className="text-slate-600 dark:text-neutral-300 hover:text-slate-900">{hidden ? 'Show in totals' : 'Hide from totals'}</button>
           <button onClick={() => setAskDelete(true)} className="text-rose-700 dark:text-rose-400 hover:text-rose-800">Delete</button>
@@ -1097,7 +1101,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
 
       <div className="flex-1 min-h-0 flex flex-col border-t border-slate-100 dark:border-neutral-700">
         <div className="shrink-0 px-5 pt-3 pb-1 flex justify-between items-baseline gap-2">
-          <h3 className="text-[13.5px] font-semibold text-slate-900 dark:text-neutral-100 truncate">Other {shortName} payments</h3>
+          <h3 className="text-[13.5px] font-semibold text-slate-900 dark:text-neutral-100 truncate">{shortName} payments</h3>
           <span className="shrink-0 text-xs text-slate-500 dark:text-neutral-400">{others.length ? <>All time <strong className="font-semibold text-slate-700 dark:text-neutral-200">{allTime.length} · {gbp(allTotal)}</strong></> : 'First time'}</span>
         </div>
         {others.length > 0 && (allRefunds > 0 || allHidden > 0) && (
@@ -1106,19 +1110,29 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
           </p>
         )}
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pb-[max(18px,env(safe-area-inset-bottom))]">
-        {others.slice(0, histShown).map(x => {
+        {history.slice(0, Math.max(histShown, history.findIndex(x => x.id === t.id) + 1)).map(x => {
           const d = parse(x.date);
+          const current = x.id === t.id;
           return (
-            <button key={x.id} onClick={() => onPick(x.id)} className="w-full grid grid-cols-[58px_minmax(0,1fr)_auto] gap-2 items-center py-2 border-t border-slate-100 dark:border-neutral-700 text-left text-[12.5px] hover:bg-slate-50 dark:hover:bg-neutral-700/30">
-              <span className="text-slate-500 dark:text-neutral-400">{d.getDate()} {MONTHS[d.getMonth()].slice(0, 3)}{d.getFullYear() !== new Date().getFullYear() ? ` '${String(d.getFullYear()).slice(2)}` : ''}</span>
-              <span className="truncate text-slate-600 dark:text-neutral-300">{isHidden(x) ? 'Hidden' : x.categoryId ? `${getCategoryEmoji(x.categoryId)} ${x.categoryName}${x.subcategoryName ? ` › ${x.subcategoryName}` : ''}` : 'Not categorised'}</span>
-              <span className="font-semibold text-slate-900 dark:text-neutral-100">{gbp(Math.abs(x.amountGBP || 0))}</span>
+            <button
+              key={x.id}
+              onClick={() => !current && onPick(x.id)}
+              aria-current={current ? 'true' : undefined}
+              className={`w-full grid grid-cols-[58px_minmax(0,1fr)_auto] gap-2 items-center py-2 px-2 -mx-2 rounded-lg border-t border-slate-100 dark:border-neutral-700 text-left text-[12.5px] ${current ? 'bg-indigo-50 dark:bg-indigo-950/40 cursor-default' : 'hover:bg-slate-50 dark:hover:bg-neutral-700/30'}`}
+            >
+              <span className={current ? 'font-semibold text-indigo-700 dark:text-indigo-300' : 'text-slate-500 dark:text-neutral-400'}>{d.getDate()} {MONTHS[d.getMonth()].slice(0, 3)}{d.getFullYear() !== new Date().getFullYear() ? ` '${String(d.getFullYear()).slice(2)}` : ''}</span>
+              <span className="truncate text-slate-600 dark:text-neutral-300 flex items-center gap-1.5">
+                {current && <span className="shrink-0 text-[10.5px] font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">This one ·</span>}
+                <span className="truncate">{isHidden(x) ? 'Hidden' : x.categoryId ? `${getCategoryEmoji(x.categoryId)} ${x.categoryName}${x.subcategoryName ? ` › ${x.subcategoryName}` : ''}` : 'Not categorised'}</span>
+                {userNote(x.notes) && <span title="Has a note" className="w-1.5 h-1.5 shrink-0 rounded-full bg-amber-500" />}
+              </span>
+              <span className={`font-semibold ${current ? 'text-indigo-800 dark:text-indigo-200' : 'text-slate-900 dark:text-neutral-100'}`}>{gbp(Math.abs(x.amountGBP || 0))}</span>
             </button>
           );
         })}
-        {others.length > histShown && (
+        {history.length > Math.max(histShown, history.findIndex(x => x.id === t.id) + 1) && (
           <button onClick={() => setHistShown(n => n + 20)} className="w-full mt-1 py-2.5 rounded-xl border border-slate-200 dark:border-neutral-600 text-[13px] font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-slate-50 dark:hover:bg-neutral-700/40">
-            Show {Math.min(20, others.length - histShown)} more <span className="font-normal text-slate-500 dark:text-neutral-400">· {others.length - histShown} left</span>
+            {(() => { const shownN = Math.max(histShown, history.findIndex(x => x.id === t.id) + 1); const left = history.length - shownN; return <>Show {Math.min(20, left)} more <span className="font-normal text-slate-500 dark:text-neutral-400">· {left} left</span></>; })()}
           </button>
         )}
         </div>

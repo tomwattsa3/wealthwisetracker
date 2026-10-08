@@ -28,8 +28,14 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const money = (sym: string, v: number) => `${sym}${Math.abs(v).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const Body: React.FC<{ t: Transaction; sheet: boolean; onClose: () => void; flushRef: React.MutableRefObject<(() => void) | null> }> = ({ t, sheet, onClose, flushRef }) => {
-  const ctx = useContext(TxActionsContext)!;
+// The note box: saves a second after you stop typing, when it loses focus, and when it goes
+// away. `flushRef` lets a parent save it straight away before closing.
+export const NoteBox: React.FC<{
+  t: Transaction;
+  onSave: (id: string, updates: Partial<Transaction>) => Promise<void> | void;
+  flushRef?: React.MutableRefObject<(() => void) | null>;
+  className?: string;
+}> = ({ t, onSave, flushRef, className = '' }) => {
   const [draft, setDraft] = useState(userNote(t.notes));
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>(userNote(t.notes) ? 'saved' : 'idle');
   const lastSaved = useRef(userNote(t.notes));
@@ -44,12 +50,10 @@ const Body: React.FC<{ t: Transaction; sheet: boolean; onClose: () => void; flus
     const auto = (t.notes || '').includes(AUTO_NOTE);
     setStatus('saving');
     lastSaved.current = text;
-    await ctx.onUpdate(t.id, { notes: auto ? `${text}${text ? ' ' : ''}${AUTO_NOTE}` : text });
+    await onSave(t.id, { notes: auto ? `${text}${text ? ' ' : ''}${AUTO_NOTE}` : text });
     setStatus(text ? 'saved' : 'idle');
   };
-  // Save a second after you stop typing, and straight away when the pop-up closes (however it
-  // closes: the parent calls this before closing, and unmounting saves anything left).
-  flushRef.current = () => { void save(); };
+  if (flushRef) flushRef.current = () => { void save(); };
   useEffect(() => () => { void save(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const type = (v: string) => {
     setDraft(v);
@@ -57,6 +61,27 @@ const Body: React.FC<{ t: Transaction; sheet: boolean; onClose: () => void; flus
     if (timer.current) clearTimeout(timer.current);
     timer.current = window.setTimeout(() => { void save(); }, 900);
   };
+  return (
+    <label className={`flex flex-col gap-1.5 ${className}`}>
+      <span className="flex justify-between text-xs font-semibold text-slate-600 dark:text-neutral-300">
+        Note
+        <span className="font-normal text-slate-400 dark:text-neutral-500">{status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved' : ''}</span>
+      </span>
+      <textarea
+        rows={3}
+        value={draft}
+        onChange={(e) => type(e.target.value)}
+        onBlur={() => { void save(); }}
+        placeholder="Add a note…"
+        data-no-sheet-drag
+        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-sm text-slate-900 dark:text-neutral-100 placeholder:text-slate-400 resize-none outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/15"
+      />
+    </label>
+  );
+};
+
+const Body: React.FC<{ t: Transaction; sheet: boolean; onClose: () => void; flushRef: React.MutableRefObject<(() => void) | null> }> = ({ t, sheet, onClose, flushRef }) => {
+  const ctx = useContext(TxActionsContext)!;
 
   const income = t.type === 'INCOME';
   const d = new Date(`${t.date.slice(0, 10)}T12:00:00`);
@@ -106,21 +131,7 @@ const Body: React.FC<{ t: Transaction; sheet: boolean; onClose: () => void; flus
         )}
       </div>
 
-      <label className="mt-3.5 flex flex-col gap-1.5">
-        <span className="flex justify-between text-xs font-semibold text-slate-600 dark:text-neutral-300">
-          Note
-          <span className="font-normal text-slate-400 dark:text-neutral-500">{status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved' : ''}</span>
-        </span>
-        <textarea
-          rows={3}
-          value={draft}
-          onChange={(e) => type(e.target.value)}
-          onBlur={() => { void save(); }}
-          placeholder="Add a note…"
-          data-no-sheet-drag
-          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-sm text-slate-900 dark:text-neutral-100 placeholder:text-slate-400 resize-none outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/15"
-        />
-      </label>
+      <NoteBox t={t} onSave={ctx.onUpdate} flushRef={flushRef} className="mt-3.5" />
 
       <button
         onClick={() => { onClose(); ctx.onOpenInTransactions(t); }}
