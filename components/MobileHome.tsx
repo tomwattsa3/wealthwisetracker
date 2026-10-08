@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, animate, motion } from 'framer-motion';
 import { Eye, EyeOff } from 'lucide-react';
 import { Transaction } from '../types';
 import { usePrivacy } from '../lib/privacy';
@@ -40,6 +40,24 @@ const TINTS = [
 ];
 
 interface Place { key: string; name: string; total: number; count: number; cats: Map<string, { id: string; amount: number }> }
+
+// Rows of a list arriving one after another after a month change.
+const Stagger: React.FC<{ i: number; children: React.ReactNode }> = ({ i, children }) => (
+  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.06, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}>
+    {children}
+  </motion.div>
+);
+
+// A money figure that glides from its old value to the new one instead of jumping.
+const Glide: React.FC<{ value: number; format: (v: number) => string }> = ({ value, format }) => {
+  const [shown, setShown] = useState(value);
+  const from = React.useRef(value);
+  useEffect(() => {
+    const ctl = animate(from.current, value, { duration: 1.1, delay: 0.12, ease: [0.22, 1, 0.36, 1], onUpdate: v => { from.current = v; setShown(v); } });
+    return () => ctl.stop();
+  }, [value]);
+  return <>{format(shown)}</>;
+};
 
 const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCategoryEmoji, onOpenBreakdown, onViewTransactions, onImport }) => {
   const amt = (t: Transaction) => Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED) || 0;
@@ -143,8 +161,8 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [transactions, currency]);
   const [inType, setInType] = useState('all');
-  const [moreSources, setMoreSources] = useState(false);
-  useEffect(() => setMoreSources(false), [sel, mode, inType]);
+  // Every source for the chosen type, in its own slide-up sheet.
+  const [allSources, setAllSources] = useState(false);
 
   const fmt = (v: number) => (currency === 'GBP' ? '£' : 'AED ') + Math.round(v).toLocaleString('en-GB');
 
@@ -168,14 +186,14 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const inc = sumOver(inByMonth, idxs);
   const net = inc - out;
 
-  // Month: vs the average of the other months with spending in the 12 up to your latest import.
+  // Month: vs the monthly average of that year so far (January up to your latest import).
   // YTD: vs the same months last year, when those were imported too.
-  const usualMonths = Array.from({ length: 12 }, (_, i) => lastIdx - 11 + i).filter(i => i !== sel && (outByMonth.get(i) || 0) > 0);
+  const usualMonths = Array.from({ length: 12 }, (_, i) => sel - (sel % 12) + i).filter(i => i <= lastIdx && (outByMonth.get(i) || 0) > 0);
   const prevYearIdxs = idxs.map(i => i - 12);
   const hasPrevYear = ytd && prevYearIdxs.every(i => i >= firstIdx);
   const usual = ytd
     ? (hasPrevYear ? sumOver(outByMonth, prevYearIdxs) : 0)
-    : usualMonths.length ? usualMonths.reduce((s, i) => s + (outByMonth.get(i) || 0), 0) / usualMonths.length : 0;
+    : usualMonths.length > 1 ? usualMonths.reduce((s, i) => s + (outByMonth.get(i) || 0), 0) / usualMonths.length : 0;
   const diff = usual ? (out - usual) / usual : 0;
   const near = Math.abs(diff) < 0.05;
   const partialYear = ytd && idxs.length > 0 && idxs[idxs.length - 1] % 12 !== 11;
@@ -185,7 +203,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
       : near
         ? 'About the same as last year'
         : `${diff > 0 ? '↑' : '↓'} ${fmt(Math.abs(out - usual))} vs ${partialYear ? 'this point ' : ''}last year (${fmt(usual)})`
-    : !usual ? 'Your first month' : near ? 'About your usual month' : `${diff > 0 ? '↑' : '↓'} ${fmt(Math.abs(out - usual))} vs your usual ${fmt(usual)}`;
+    : !usual ? 'First month of the year' : near ? 'About your average month' : `${diff > 0 ? '↑' : '↓'} ${fmt(Math.abs(out - usual))}`;
   const compareTone = !usual || near ? 'text-slate-500 dark:text-neutral-400' : diff > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400';
 
   // Month: six bars ending at the latest month, sliding back when you step further than that.
@@ -216,7 +234,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
                 <span className="text-[13.5px] font-bold text-slate-900 dark:text-neutral-100">{fmt(c.v)}</span>
               </span>
               <span className="block h-1 rounded bg-slate-100 dark:bg-neutral-700">
-                <span className="block h-1 rounded bg-indigo-500" style={{ width: `${(c.v / catMax) * 100}%` }} />
+                <span className="block h-1 rounded bg-indigo-500 transition-[width] duration-[1100ms] delay-150 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ width: `${(c.v / catMax) * 100}%` }} />
               </span>
             </span>
             <span className="min-w-[40px] text-right text-[12px] font-semibold text-slate-500 dark:text-neutral-400">
@@ -474,13 +492,33 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
 
       <section className={`${card} p-4 flex flex-col gap-3.5`}>
         <div className="flex justify-between items-start gap-3">
-          <div className="min-w-0">
+          <div className="flex-1 min-w-0">
             <div className="text-xs text-slate-500 dark:text-neutral-400">Spent in {ytd ? `${year}${partialYear ? ' so far' : ''}` : FULL_MONTHS[sel % 12]}</div>
-            <div className="text-[34px] leading-tight font-bold text-slate-900 dark:text-neutral-100">{fmt(out)}</div>
-            <div className={`text-[12.5px] font-semibold mt-0.5 ${compareTone}`}>{compareLine}</div>
+            <div className="text-[34px] leading-tight font-bold text-slate-900 dark:text-neutral-100"><Glide value={out} format={fmt} /></div>
+            {usual > 0 ? (() => {
+              // How far through your usual month (or last year) you are; the tick is your usual.
+              const scale = Math.max(out, usual) * 1.04;
+              const tick = (usual / scale) * 100;
+              const fill = near ? 'bg-slate-400 dark:bg-neutral-400' : diff > 0 ? 'bg-amber-500' : 'bg-emerald-500';
+              return (
+                <div className="mt-2 max-w-[150px]" aria-label={`${fmt(out)} spent; average ${fmt(usual)}`}>
+                  <div className="relative h-2 rounded-full bg-slate-100 dark:bg-neutral-700">
+                    <span className={`absolute inset-y-0 left-0 rounded-full transition-[width,background-color] duration-[1100ms] delay-150 ease-[cubic-bezier(0.22,1,0.36,1)] ${fill}`} style={{ width: `${(out / scale) * 100}%` }} />
+                    <span className="absolute -top-1 -bottom-1 w-0.5 rounded-full bg-slate-900 dark:bg-neutral-100 transition-[left] duration-[1100ms] delay-150 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ left: `calc(${tick}% - 1px)` }} />
+                  </div>
+                  <div className="relative h-4 mt-1 text-[10.5px] text-slate-500 dark:text-neutral-400">
+                    <span className="absolute whitespace-nowrap" style={tick < 18 ? { left: 0 } : { left: `${tick}%`, transform: 'translateX(-50%)' }}>
+                      {ytd ? 'Last year' : 'Avg'} {fmt(usual)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })() : (
+              <div className={`text-[12.5px] font-semibold mt-0.5 ${compareTone}`}>{compareLine}</div>
+            )}
           </div>
           <div className="text-right text-xs leading-relaxed text-slate-500 dark:text-neutral-400 shrink-0">
-            In <strong className="text-emerald-700 dark:text-emerald-400">{fmt(inc)}</strong>
+            In <strong className="text-emerald-700 dark:text-emerald-400"><Glide value={inc} format={fmt} /></strong>
             <br />
             Net <strong className={net < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}>{net < 0 ? '−' : '+'}{fmt(Math.abs(net))}</strong>
           </div>
@@ -500,10 +538,10 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
                 className="flex-1 h-full flex flex-col justify-end gap-1.5"
               >
                 <span
-                  className={`block rounded-md ${on ? (ytd ? 'bg-indigo-500' : 'bg-indigo-600') : v ? 'bg-indigo-100 dark:bg-indigo-900/60' : 'bg-slate-100 dark:bg-neutral-700'}`}
+                  className={`block rounded-md transition-[height,background-color] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${on ? (ytd ? 'bg-indigo-500' : 'bg-indigo-600') : v ? 'bg-indigo-100 dark:bg-indigo-900/60' : 'bg-slate-100 dark:bg-neutral-700'}`}
                   style={{ height: v ? Math.max(4, Math.round((v / barMax) * 72)) : 4 }}
                 />
-                <span className={`${barIdxs.length > 6 ? 'text-[10px]' : 'text-[11px]'} ${on && !ytd ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-400 dark:text-neutral-500'}`}>{MONTHS[i % 12]}</span>
+                <span className={`transition-colors duration-700 ${barIdxs.length > 6 ? 'text-[10px]' : 'text-[11px]'} ${on && !ytd ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-400 dark:text-neutral-500'}`}>{MONTHS[i % 12]}</span>
               </button>
             );
           })}
@@ -515,7 +553,9 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
           <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100">Where it went</h2>
         </div>
         {top.length === 0 && <p className="py-6 text-center text-sm text-slate-400">No spending {ytd ? 'this year' : 'this month'}</p>}
-        {top.map(catRow)}
+        <div key={`${mode}-${sel}`}>
+          {top.map((c, i) => <Stagger key={c.name} i={i}>{catRow(c)}</Stagger>)}
+        </div>
         {/* The rest of the categories open smoothly under the top six */}
         <AnimatePresence initial={false}>
           {showAllCats && rest.length > 0 && (
@@ -563,7 +603,9 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
               ))}
             </div>
           </div>
-          {places.map(placeRow)}
+          <div key={`${mode}-${sel}-${placeRank}`}>
+            {places.map((p, i) => <Stagger key={p.key} i={i}>{placeRow(p, i)}</Stagger>)}
+          </div>
           {/* More places open smoothly under the top five, ten at a time */}
           <AnimatePresence initial={false}>
             {placeChunks.map((chunk, c) => (
@@ -695,7 +737,24 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
           bySource.set(r.key, e);
         });
         const sources = Array.from(bySource.values()).sort((a, b) => b.total - a.total);
-        const shownSources = moreSources ? sources : sources.slice(0, 5);
+        const SHOWN = 4;
+        const shortType = (t: string) => t.replace(/ interest$/i, '');
+        const openSource = (src: typeof sources[number]) => setPlacePick({ key: src.key, name: src.name, catName: src.type, catId: '', tint: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300', year, month: ytd ? null : sel, income: true });
+        const sourceRow = (src: typeof sources[number]) => (
+          <button
+            key={src.key}
+            onClick={() => openSource(src)}
+            className="w-full h-[52px] grid grid-cols-[32px_minmax(0,1fr)_auto] gap-2.5 items-center border-t border-slate-100 dark:border-neutral-700 text-left"
+          >
+            <span className="w-8 h-8 rounded-[10px] flex items-center justify-center text-[13px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">{src.name.replace(/^from\s+/i, '').replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || '•'}</span>
+            <span className="min-w-0 flex flex-col">
+              <span className="text-[12.5px] leading-snug font-medium text-slate-900 dark:text-neutral-100 truncate">{src.name}</span>
+              <span className="text-[11px] text-slate-500 dark:text-neutral-400 truncate"><span className="capitalize">{src.type}</span> · {src.count > 1 ? `${src.count} payments` : Array.from(src.months).map(m => MONTHS[m % 12]).join(', ')}</span>
+            </span>
+            <span className="text-[12.5px] font-bold text-emerald-700 dark:text-emerald-400">+{fmt2(src.total)}</span>
+          </button>
+        );
+        const activeTotal = activeType === 'all' ? inV : (types.find(t => t.name === activeType)?.v || 0);
         // The chart always shows the year's imported months, like Month by month.
         const chartIdxs = yearIdxs.filter(i => i >= firstIdx && i <= lastIdx);
         const inOf = (i: number) => sum(incomeRows.filter(r => r.idx === i).map(r => r.amount));
@@ -709,7 +768,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
                 <span className="text-xs text-slate-500 dark:text-neutral-400">{ytd ? `${year} so far` : `${FULL_MONTHS[sel % 12]} ${year}`}</span>
               </div>
               <div className="flex items-baseline justify-between gap-3 mt-1">
-                <span className="text-[30px] leading-tight font-bold tracking-tight text-emerald-700 dark:text-emerald-400">{fmt(inV)}</span>
+                <span className="text-[30px] leading-tight font-bold tracking-tight text-emerald-700 dark:text-emerald-400"><Glide value={inV} format={fmt} /></span>
                 <span className={`text-[13px] font-semibold ${netV < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>{netV < 0 ? '−' : '+'}{fmt(Math.abs(netV))} net</span>
               </div>
               <div className="text-xs text-slate-500 dark:text-neutral-400">
@@ -718,7 +777,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
               {cover !== null && (
                 <div className="mt-3">
                   <div className="flex justify-between text-xs text-slate-600 dark:text-neutral-300"><span>Covered of your spending</span><span className="font-bold text-slate-900 dark:text-neutral-100">{Math.round(cover * 100)}%</span></div>
-                  <div className="mt-1.5 h-2 rounded-full bg-slate-100 dark:bg-neutral-700 overflow-hidden"><span className="block h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, cover * 100)}%` }} /></div>
+                  <div className="mt-1.5 h-2 rounded-full bg-slate-100 dark:bg-neutral-700 overflow-hidden"><span className="block h-full rounded-full bg-emerald-500 transition-[width] duration-[1100ms] delay-150 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ width: `${Math.min(100, cover * 100)}%` }} /></div>
                 </div>
               )}
 
@@ -743,7 +802,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
                           onClick={() => toggleMonth(i)}
                           aria-pressed={on}
                           aria-label={`${FULL_MONTHS[i % 12]}: ${fmt(vin)} in, ${fmt(vout)} out`}
-                          className={`flex-1 min-w-0 h-full flex flex-col justify-end gap-1.5 ${dim ? 'opacity-35' : ''}`}
+                          className={`flex-1 min-w-0 h-full flex flex-col justify-end gap-1.5 transition-opacity duration-700 ${dim ? 'opacity-35' : ''}`}
                         >
                           <span className="flex items-end justify-center gap-[3px]">
                             <span className="block w-[40%] max-w-[16px] rounded bg-emerald-500" style={{ height: h(vin) }} />
@@ -760,73 +819,66 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
               {types.length > 0 && (
                 <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-neutral-700">
                   <div className="flex justify-between items-baseline">
-                    <h3 className="text-[13px] font-semibold text-slate-900 dark:text-neutral-100">By type</h3>
-                    <span className="text-[11px] text-slate-400 dark:text-neutral-500">Tap one to filter below</span>
+                    <h3 className="text-[13px] font-semibold text-slate-900 dark:text-neutral-100">Where it came from</h3>
+                    <span className="text-[11px] text-slate-400 dark:text-neutral-500">Biggest first</span>
                   </div>
-                  <div aria-hidden className="mt-2 h-2 rounded-full bg-slate-100 dark:bg-neutral-700 flex overflow-hidden">
-                    {types.map(t => <span key={t.name} style={{ width: `${(t.v / inV) * 100}%`, background: typeColor(t.name) }} />)}
+                  <div aria-hidden className="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-neutral-700 flex overflow-hidden">
+                    {types.map(t => <span key={t.name} className="transition-[width] duration-[1100ms] delay-150 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ width: `${(t.v / inV) * 100}%`, background: typeColor(t.name) }} />)}
                   </div>
-                  <div className="mt-1.5 flex flex-col">
-                    {types.map(t => (
-                      <button
-                        key={t.name}
-                        onClick={() => setInType(activeType === t.name ? 'all' : t.name)}
-                        aria-pressed={activeType === t.name}
-                        className={`flex items-center gap-2.5 min-h-[44px] px-2 -mx-2 rounded-[10px] text-sm text-left ${activeType === t.name ? 'bg-slate-100 dark:bg-neutral-700/60' : ''}`}
-                      >
-                        <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ background: typeColor(t.name) }} />
-                        <span className="flex-1 min-w-0 truncate capitalize text-slate-900 dark:text-neutral-100">{t.name}</span>
-                        <span className="text-xs text-slate-500 dark:text-neutral-400">{pctOf(t.v, inV)}%</span>
-                        <span className="min-w-[78px] text-right font-semibold text-slate-900 dark:text-neutral-100">{fmt2(t.v)}</span>
-                      </button>
-                    ))}
+                  {/* One switch for the type; the list below always keeps the same height so nothing jumps */}
+                  {types.length > 0 && (
+                    <div role="group" aria-label="Filter by type" className="mt-2.5 p-[3px] rounded-xl bg-slate-100 dark:bg-neutral-900/60 flex gap-0.5 overflow-x-auto hide-scrollbar" data-no-pull-refresh>
+                      {['all', ...types.map(t => t.name)].map(t => {
+                        const on = activeType === t;
+                        const v = t === 'all' ? inV : (byType.get(t) || 0);
+                        return (
+                          <button
+                            key={t}
+                            onClick={() => setInType(t)}
+                            aria-pressed={on}
+                            className="relative flex-1 basis-0 min-w-[calc((100%_-_4px)/3)] min-h-[44px] px-1.5 rounded-[9px]"
+                          >
+                            {on && <motion.span layoutId="money-in-type" transition={{ type: 'spring', stiffness: 500, damping: 40 }} className="absolute inset-0 rounded-[9px] bg-white dark:bg-neutral-700 shadow-sm" />}
+                            <span className="relative flex flex-col items-center leading-tight">
+                              <span className={`flex items-center gap-1 text-[12px] capitalize truncate max-w-full ${on ? 'font-semibold text-slate-900 dark:text-neutral-100' : 'text-slate-600 dark:text-neutral-300'}`}>
+                                {t !== 'all' && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: typeColor(t) }} />}
+                                {t === 'all' ? 'All' : shortType(t)}
+                              </span>
+                              <span className="text-[10.5px] text-slate-500 dark:text-neutral-400">{fmt(v)}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="mt-2" style={{ height: SHOWN * 52 }}>
+                    <AnimatePresence mode="wait" initial={false}>
+                      <motion.div key={`${activeType}-${mode}-${sel}`} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                        {sources.slice(0, SHOWN).map((src, i) => <Stagger key={src.key} i={i}>{sourceRow(src)}</Stagger>)}
+                      </motion.div>
+                    </AnimatePresence>
                   </div>
+                  <button onClick={() => setAllSources(true)} className="w-full min-h-[44px] flex items-center justify-between border-t border-slate-100 dark:border-neutral-700 text-[13px]">
+                    <span className="text-slate-500 dark:text-neutral-400">{sources.length > SHOWN ? `+${sources.length - SHOWN} more · ` : ''}{sources.length} {sources.length === 1 ? 'source' : 'sources'}</span>
+                    <span className="font-semibold text-indigo-700 dark:text-indigo-300">See all ›</span>
+                  </button>
                 </div>
               )}
               {rows.length === 0 && <p className="mt-3 text-sm text-slate-500 dark:text-neutral-400">No money in {ytd ? 'this year' : 'this month'}.</p>}
             </section>
 
-            {rows.length > 0 && (
-              <section aria-label="Where it came from" className={`${card} px-4 pt-3.5 pb-2`}>
-                <div className="flex items-baseline justify-between">
-                  <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100">Where it came from</h2>
-                  <span className="text-xs text-slate-500 dark:text-neutral-400">{activeType === 'all' ? 'Biggest first' : <><span className="capitalize">{activeType}</span> · {fmt2(types.find(t => t.name === activeType)?.v || 0)}</>}</span>
+            <Sheet open={allSources} onClose={() => setAllSources(false)} label="Where it came from">
+              <div className="px-5 pb-2">
+                <div className="text-xs text-slate-500 dark:text-neutral-400">{ytd ? `${year} so far` : `${FULL_MONTHS[sel % 12]} ${year}`} · {sources.length} {sources.length === 1 ? 'source' : 'sources'}</div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-lg font-bold text-slate-900 dark:text-neutral-100">{activeType === 'all' ? 'All money in' : <span className="capitalize">{activeType}</span>}</span>
+                  <span className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{fmt2(activeTotal)}</span>
                 </div>
-                {types.length > 1 && (
-                  <div role="group" aria-label="Filter by type" className="-mx-4 px-4 mt-2.5 mb-1 flex gap-1.5 overflow-x-auto hide-scrollbar" data-no-pull-refresh>
-                    {['all', ...types.map(t => t.name)].map(t => (
-                      <button
-                        key={t}
-                        onClick={() => setInType(t)}
-                        aria-pressed={activeType === t}
-                        className={`shrink-0 min-h-[32px] px-3 rounded-full border text-[12.5px] capitalize ${activeType === t ? 'bg-slate-900 border-slate-900 text-white font-semibold dark:bg-neutral-100 dark:border-neutral-100 dark:text-neutral-900' : 'bg-white border-slate-200 text-slate-700 dark:bg-neutral-800 dark:border-neutral-600 dark:text-neutral-300'}`}
-                      >
-                        {t === 'all' ? 'All' : t.replace(/ interest$/i, '')}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {shownSources.map(src => (
-                  <button
-                    key={src.key}
-                    onClick={() => setPlacePick({ key: src.key, name: src.name, catName: src.type, catId: '', tint: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300', year, month: ytd ? null : sel, income: true })}
-                    className="w-full grid grid-cols-[32px_minmax(0,1fr)_auto] gap-2.5 items-center min-h-[52px] py-2 border-t border-slate-100 dark:border-neutral-700 text-left"
-                  >
-                    <span className="w-8 h-8 rounded-[10px] flex items-center justify-center text-[13px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">{src.name.replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || '•'}</span>
-                    <span className="min-w-0 flex flex-col">
-                      <span className="text-[12.5px] leading-snug font-medium text-slate-900 dark:text-neutral-100 line-clamp-2 break-words">{src.name}</span>
-                      <span className="text-[11px] text-slate-500 dark:text-neutral-400 truncate"><span className="capitalize">{src.type}</span> · {src.count > 1 ? `${src.count} payments` : Array.from(src.months).map(m => MONTHS[m % 12]).join(', ')}</span>
-                    </span>
-                    <span className="text-[12.5px] font-bold text-emerald-700 dark:text-emerald-400">+{fmt2(src.total)}</span>
-                  </button>
-                ))}
-                {sources.length > 5 && (
-                  <button onClick={() => setMoreSources(v => !v)} className="w-full min-h-[44px] my-1.5 rounded-xl border border-slate-200 dark:border-neutral-600 text-[13px] font-semibold text-indigo-700 dark:text-indigo-300">
-                    {moreSources ? 'Show fewer' : `Show ${sources.length - 5} more`}
-                  </button>
-                )}
-              </section>
-            )}
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pb-[max(20px,env(safe-area-inset-bottom))]">
+                {sources.map(sourceRow)}
+              </div>
+            </Sheet>
           </>
         );
       })()}
