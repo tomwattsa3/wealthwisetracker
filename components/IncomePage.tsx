@@ -7,7 +7,7 @@ import { MODAL_TRANSITION } from '../lib/motion';
 import { userNote } from './TxDetail';
 import { useBackClose } from '../lib/backStack';
 import Sheet from './Sheet';
-import Swap, { GlideRow } from './Swap';
+import Swap, { GlideRow, AutoHeight } from './Swap';
 
 const useMedia = (q: string) => {
   const [m, setM] = useState(() => window.matchMedia(q).matches);
@@ -355,7 +355,7 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
             <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100">Who pays you</h2>
             <span className="text-xs text-slate-500 dark:text-neutral-400">Biggest first</span>
           </div>
-          <div className="relative">
+          <AutoHeight>
           <AnimatePresence initial={false} mode="popLayout">
           {shownPayers.map(p => {
             const byM = Array.from({ length: lastMonth + 1 }, (_, m) => sum(p.rows.filter(r => r.month === m).map(r => r.amount)));
@@ -380,7 +380,7 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
             );
           })}
           </AnimatePresence>
-          </div>
+          </AutoHeight>
           {!payers.length && <p className="py-6 text-center text-sm text-slate-400">Nothing in for this choice.</p>}
           {payers.length > 5 && (
             <div className="border-t border-slate-100 dark:border-neutral-700 py-3 text-[12.5px]">
@@ -402,7 +402,7 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
             <div className="mt-2.5 h-2.5 rounded-full overflow-hidden flex bg-slate-100 dark:bg-neutral-700">
               {lands.map((g, i) => <span key={g.name} className="h-full transition-[width] duration-500" style={{ width: `${(g.total / Math.max(shownTotal, 1)) * 100}%`, background: landColor(i) }} />)}
             </div>
-            <div className="mt-1.5 relative">
+            <AutoHeight className="mt-1.5">
               <AnimatePresence initial={false} mode="popLayout">
               {lands.map((g, i) => (
                 <GlideRow key={g.name}>
@@ -417,7 +417,7 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
                 </GlideRow>
               ))}
               </AnimatePresence>
-            </div>
+            </AutoHeight>
           </section>
         )}
 

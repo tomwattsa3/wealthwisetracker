@@ -8,7 +8,7 @@ import CategorySheets from './CategorySheets';
 import InstallCard from './InstallCard';
 import PlaceSheet, { PlacePick } from './PlaceSheet';
 import { useBackClose } from '../lib/backStack';
-import Swap, { GlideRow } from './Swap';
+import Swap, { GlideRow, AutoHeight } from './Swap';
 import Sheet from './Sheet';
 import { supabase } from '../supabaseClient';
 import { MONTHS, FULL_MONTHS, monthKey, keyToIndex, indexToKey, daysIn, localToday, merchantKey, sum } from '../lib/periods';
@@ -559,7 +559,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         {top.length === 0 && <p className="py-6 text-center text-sm text-slate-400">No spending {ytd ? 'this year' : 'this month'}</p>}
         {/* On a new month the rows stay put: amounts and % swap softly, rows that move glide to
             their new place, and categories that come or go fade in or out. */}
-        <div className="relative">
+        <AutoHeight>
           <AnimatePresence initial={false} mode="popLayout">
             {top.map(c => (
               <motion.div
@@ -574,7 +574,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
               </motion.div>
             ))}
           </AnimatePresence>
-        </div>
+        </AutoHeight>
         {/* The rest of the categories open smoothly under the top six */}
         <AnimatePresence initial={false}>
           {showAllCats && rest.length > 0 && (
@@ -625,7 +625,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
           </div>
           {/* Switching Most visits / Most spent (or the month): rows glide to their new rank,
               amounts swap softly, and places that come or go fade in or out. */}
-          <div className="relative">
+          <AutoHeight>
             <AnimatePresence initial={false} mode="popLayout">
               {places.map((p, i) => (
                 <motion.div
@@ -640,7 +640,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
                 </motion.div>
               ))}
             </AnimatePresence>
-          </div>
+          </AutoHeight>
           {/* More places open smoothly under the top five, ten at a time */}
           <AnimatePresence initial={false}>
             {placeChunks.map((chunk, c) => (
