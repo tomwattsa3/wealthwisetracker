@@ -504,14 +504,15 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
               const daysCounted = isCurrent ? Number(today.slice(8, 10)) : daysIn(sel);
               const perDay = out / Math.max(daysCounted, 1);
               return (
-                <div className="mt-1.5 text-[12.5px] text-slate-500 dark:text-neutral-400">
+                <div className="mt-2 flex flex-wrap gap-1">
                   {usual > 0 && (
-                    <span className={`font-semibold ${near ? 'text-slate-600 dark:text-neutral-300' : diff > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
-                      <Swap text={near ? 'About your average' : `${diff > 0 ? '↑' : '↓'} ${fmt(Math.abs(out - usual))} ${diff > 0 ? 'over' : 'under'} average`} />
+                    <span className={`inline-flex items-center h-[22px] px-2 rounded-full text-[11px] font-semibold ${near ? 'bg-slate-100 text-slate-600 dark:bg-neutral-700 dark:text-neutral-300' : diff > 0 ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'}`}>
+                      <Swap text={near ? 'About average' : `${diff > 0 ? '↑' : '↓'} ${fmt(Math.abs(out - usual))} ${diff > 0 ? 'over' : 'under'} avg`} />
                     </span>
                   )}
-                  {usual > 0 && <span className="mx-1.5 text-slate-300 dark:text-neutral-600">·</span>}
-                  <span><Swap text={`${fmt(perDay)} a day`} /></span>
+                  <span className="inline-flex items-center h-[22px] px-2 rounded-full bg-slate-100 dark:bg-neutral-700 text-[11px] font-medium text-slate-600 dark:text-neutral-300">
+                    <Swap text={`${fmt(perDay)} / day`} />
+                  </span>
                 </div>
               );
             })() : usual > 0 ? (() => {
@@ -559,7 +560,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
           <>
         {/* Switching between the year and six months: bars that leave shrink away and the rest widen
               smoothly into the space (and back), rather than jumping. */}
-          <div className="flex items-end h-24">
+          <div className="flex items-end h-[110px]">
             <AnimatePresence initial={false} mode="popLayout">
             {barIdxs.map(i => {
               const v = outByMonth.get(i) || 0;
@@ -581,13 +582,22 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
                 >
                   {/* A full-height bar that slides up from behind the bottom edge: growing and shrinking is a
                       cheap transform, and its rounded corners never get squashed. */}
-                  <span className="relative block h-[72px] overflow-hidden rounded-md">
-                    <motion.span
-                      className={`absolute inset-0 rounded-md transition-colors duration-500 will-change-transform ${on ? (ytd ? 'bg-indigo-500' : 'bg-indigo-600') : v ? 'bg-indigo-100 dark:bg-indigo-900/60' : 'bg-slate-100 dark:bg-neutral-700'}`}
-                      initial={{ y: '100%' }}
-                      animate={{ y: `${(1 - (v ? Math.max(4, Math.round((v / barMax) * 72)) : 4) / 72) * 100}%` }}
-                      transition={{ duration: 0.5, delay: 0.05 + barIdxs.indexOf(i) * 0.03, ease: [0.22, 1, 0.36, 1] }}
-                    />
+                  <span className="relative block h-[72px]">
+                    {/* Each month's amount in small writing just above its bar */}
+                    <span
+                      className="absolute inset-x-0 text-center text-[9.5px] font-semibold text-slate-500 dark:text-neutral-400 whitespace-nowrap transition-[bottom] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                      style={{ bottom: (v ? Math.max(4, Math.round((v / barMax) * 72)) : 4) + 3 }}
+                    >
+                      {v ? (v >= 10000 || (v >= 1000 && barIdxs.length > 9) ? `${currency === 'GBP' ? '£' : ''}${(v / 1000).toFixed(1)}k` : fmt(v)) : '–'}
+                    </span>
+                    <span className="absolute inset-0 overflow-hidden rounded-md">
+                      <motion.span
+                        className={`absolute inset-0 rounded-md transition-colors duration-500 will-change-transform ${on ? (ytd ? 'bg-indigo-500' : 'bg-indigo-600') : v ? 'bg-indigo-100 dark:bg-indigo-900/60' : 'bg-slate-100 dark:bg-neutral-700'}`}
+                        initial={{ y: '100%' }}
+                        animate={{ y: `${(1 - (v ? Math.max(4, Math.round((v / barMax) * 72)) : 4) / 72) * 100}%` }}
+                        transition={{ duration: 0.5, delay: 0.05 + barIdxs.indexOf(i) * 0.03, ease: [0.22, 1, 0.36, 1] }}
+                      />
+                    </span>
                   </span>
                   <span className={`transition-colors duration-700 text-[10.5px] whitespace-nowrap ${on && !ytd ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-400 dark:text-neutral-500'}`}>{MONTHS[i % 12]}</span>
                 </motion.button>
@@ -1050,19 +1060,9 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
           : [];
         const total = sum(list.map(amt));
         const dt = dayPick ? new Date(`${dateKey}T12:00:00`) : null;
-        // Keep the card the height of this month's busiest day, so stepping between days doesn't
-        // make it jump up and down.
-        const monthKeyStr = indexToKey(sel);
-        const perDay = new Map<string, number>();
-        if (dayPick) transactions.forEach(t => {
-          if (!valid(t) || t.type !== 'EXPENSE' || !t.categoryName || !t.date.startsWith(monthKeyStr) || amt(t) <= 0) return;
-          if (homeOff.has(t.categoryName.trim().replace(/Fee's/i, 'Fees'))) return;
-          perDay.set(t.date.slice(0, 10), (perDay.get(t.date.slice(0, 10)) || 0) + 1);
-        });
-        const mostRows = Math.max(1, ...Array.from(perDay.values()));
         const fmt2 = (v: number) => (currency === 'GBP' ? '£' : 'AED ') + v.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         return (
-          <Sheet open={!!dayPick && !ytd} onClose={() => setDayPick(null)} label="Spending that day">
+          <Sheet open={!!dayPick && !ytd} onClose={() => setDayPick(null)} label="Spending that day" heightClass="h-[51dvh]">
             {dt && (
               <div className="flex-1 min-h-0 flex flex-col">
                 {/* One slim line: a compact day switcher in the middle (easy reach with either thumb),
@@ -1080,7 +1080,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
                     <div className="text-[10.5px] text-slate-500 dark:text-neutral-400"><Swap text={`${list.length} ${list.length === 1 ? 'payment' : 'payments'}`} /></div>
                   </div>
                 </div>
-                <motion.div key={dateKey} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} style={{ minHeight: `min(${mostRows * 53 + 20}px, 70dvh)` }} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pb-[max(20px,env(safe-area-inset-bottom))]">
+                <motion.div key={dateKey} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pb-[max(20px,env(safe-area-inset-bottom))]">
                   {list.map(t => (
                     <button key={t.id} onClick={() => setDayTx(t.id)} className="w-full grid grid-cols-[30px_minmax(0,1fr)_auto] gap-2.5 items-center min-h-[52px] py-1.5 border-b border-slate-100 dark:border-neutral-700 last:border-b-0 text-left">
                       <span className="w-[30px] h-[30px] rounded-[9px] bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-[15px]">{(getCategoryEmoji && t.categoryId && getCategoryEmoji(t.categoryId)) || '•'}</span>
