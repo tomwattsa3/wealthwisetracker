@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Eye, EyeOff } from 'lucide-react';
 import { Transaction } from '../types';
@@ -149,6 +149,17 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const [placePick, setPlacePick] = useState<PlacePick | null>(null);
   const sel = picked ?? (hasData ? lastIdx : keyToIndex(monthKey(localToday())));
   useEffect(() => setDayPick(null), [sel, mode]);
+  // The month row in the month view scrolls to keep the month you're on in the middle.
+  const monthRowRef = useRef<HTMLDivElement>(null);
+  const monthRowReady = useRef(false);
+  useEffect(() => {
+    if (mode !== 'month') { monthRowReady.current = false; return; }
+    const el = monthRowRef.current;
+    const b = el?.querySelector('[aria-pressed="true"]') as HTMLElement | null;
+    if (!el || !b) return;
+    el.scrollTo({ left: b.offsetLeft - (el.clientWidth - b.offsetWidth) / 2, behavior: monthRowReady.current ? 'smooth' : 'auto' });
+    monthRowReady.current = true;
+  }, [sel, mode]);
   useEffect(() => setExtraPlaces(0), [sel, mode, placeRank]);
   // Money in: every payment in (same rule as the totals above), its type, and who it came from.
   const incomeRows = useMemo(() => transactions
@@ -660,12 +671,19 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
               {/* "← year" goes back to the whole year; the months beside it jump straight to that month */}
               <div className="flex items-center gap-1 mt-3">
                 <button onClick={() => setMode('ytd')} className="shrink-0 h-9 px-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-[12px] font-semibold text-indigo-700 dark:text-indigo-300 active:scale-95 transition-transform">← {year}</button>
-                {Array.from({ length: 6 }, (_, k) => barEnd - 5 + k).filter(i => i >= firstIdx && i <= lastIdx).map(i => (
-                  <button key={i} onClick={() => toggleMonth(i)} aria-pressed={i === sel} className={`relative flex-1 min-w-0 h-9 rounded-xl text-[12px] transition-colors duration-200 ${i === sel ? 'text-white font-bold dark:text-neutral-900' : 'text-slate-500 dark:text-neutral-400'}`}>
-                    {i === sel && <motion.span layoutId="homeMonthPill" transition={{ type: 'spring', stiffness: 420, damping: 36 }} className="absolute inset-0 rounded-xl bg-slate-900 dark:bg-neutral-100" />}
-                    <span className="relative">{MONTHS[i % 12]}</span>
-                  </button>
-                ))}
+                {/* Every month you have, from the first; swipe sideways for earlier ones (opens on the one you're on) */}
+                <div
+                  ref={monthRowRef}
+                  className="flex-1 min-w-0 flex gap-1 overflow-x-auto hide-scrollbar scroll-smooth"
+                  data-no-pull-refresh
+                >
+                  {Array.from({ length: lastIdx - firstIdx + 1 }, (_, k) => firstIdx + k).map(i => (
+                    <button key={i} onClick={() => toggleMonth(i)} aria-pressed={i === sel} className={`relative shrink-0 w-12 h-9 rounded-xl text-[12px] transition-colors duration-200 ${i === sel ? 'text-white font-bold dark:text-neutral-900' : 'text-slate-500 dark:text-neutral-400'}`}>
+                      {i === sel && <motion.span layoutId="homeMonthPill" transition={{ type: 'spring', stiffness: 420, damping: 36 }} className="absolute inset-0 rounded-xl bg-slate-900 dark:bg-neutral-100" />}
+                      <span className="relative">{MONTHS[i % 12]}{Math.floor(i / 12) !== Math.floor(lastIdx / 12) ? ` ’${String(Math.floor(i / 12)).slice(2)}` : ''}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
               </>
             );
