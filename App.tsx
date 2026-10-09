@@ -889,6 +889,11 @@ const App: React.FC = () => {
 
   // Store imported transactions in pending state (NOT saved to Supabase yet)
   const handleImportTransactions = (imported: Omit<Transaction, 'id'>[]) => {
+      // Merchants you've already confirmed (filed without the auto tag): a new payment filed the
+      // same way doesn't need checking again.
+      const AUTO = '✨ Auto-categorized';
+      const keyOf = (d: string, c: string, s: string) => `${(d || '').trim().toLowerCase()}|${(c || '').trim().toLowerCase()}|${(s || '').trim().toLowerCase()}`;
+      const confirmedKeys = new Set(transactions.filter(t => t.categoryName && !(t.notes || '').includes(AUTO)).map(t => keyOf(t.description, t.categoryName, t.subcategoryName)));
       // Create pending transactions with temporary IDs
       const pendingTxs: Transaction[] = imported.map((t, index) => {
           const isIncome = t.type === 'INCOME';
@@ -913,7 +918,9 @@ const App: React.FC = () => {
             categoryName: t.categoryName || '',
             subcategoryName: t.subcategoryName || '',
             description: t.description || '',
-            notes: t.notes || '',
+            notes: (t.notes || '').includes(AUTO) && confirmedKeys.has(keyOf(t.description || '', t.categoryName || '', t.subcategoryName || ''))
+              ? (t.notes || '').replace(AUTO, '').trim()
+              : t.notes || '',
             excluded: false,
             bankName: t.bankName || '',
             createdAt: new Date().toISOString()

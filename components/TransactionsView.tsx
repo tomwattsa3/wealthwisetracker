@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Search, Upload, X, LogOut, ChevronDown, Sparkles, RotateCcw, Trash2, Check, ListChecks, Pencil } from 'lucide-react';
 import { Transaction, Category } from '../types';
 import { DateRange } from './DashboardDateFilter';
-import SegmentedControl from './SegmentedControl';
 import { MODAL_TRANSITION } from '../lib/motion';
 import Sheet from './Sheet';
 import MixedMerchants, { useMixedMerchants } from './MixedMerchants';
@@ -451,14 +450,14 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
       </div>
 
       {/* Tablet and desktop header */}
-      <div className="hidden md:flex shrink-0 flex-col xl:flex-row xl:items-start justify-between gap-3">
+      <div className="hidden md:flex shrink-0 items-start justify-between gap-3">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-neutral-100">Transactions</h1>
             <p className="text-xs md:text-[13px] text-slate-500 dark:text-neutral-400 mt-0.5">{periodText} · {transactions.length.toLocaleString('en-GB')} {transactions.length === 1 ? 'transaction' : 'transactions'}</p>
           </div>
         </div>
-        <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-2.5 md:flex-wrap xl:flex-nowrap">
+        <div className="flex items-center gap-2.5">
           <label className="relative md:w-64 xl:w-72">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -469,14 +468,7 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
               className="w-full h-10 pl-9 pr-3 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-600 rounded-xl text-[13px] text-slate-900 dark:text-neutral-100 placeholder:text-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
             />
           </label>
-          <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar">
-            <SegmentedControl
-              layoutId="txPeriodPill"
-              optionClassName="md:px-3 md:py-1.5 text-xs md:text-[13px] whitespace-nowrap"
-              options={[...PRESETS.map(x => ({ id: x.id, label: x.label })), { id: 'Custom Range', label: 'Custom' }]}
-              value={customOpen ? 'Custom Range' : dateRange.label}
-              onChange={pickPreset}
-            />
+          <div className="flex items-center gap-2">
             <button onClick={() => (selecting ? stopSelecting() : startSelecting())} aria-pressed={selecting} className={`shrink-0 h-10 px-3.5 rounded-xl border text-[13px] font-semibold flex items-center gap-1.5 ${selecting ? 'border-indigo-500 text-indigo-700 bg-indigo-50 dark:bg-indigo-950/40 dark:text-indigo-300' : 'border-slate-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-slate-700 dark:text-neutral-200 hover:bg-slate-50'}`}>
               <ListChecks size={15} /> {selecting ? 'Done' : 'Select'}
             </button>
@@ -484,22 +476,96 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
               <Upload size={15} /> Import CSV
             </button>
           </div>
-          {customOpen && (
-            <div className="flex items-center gap-2 bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-600 px-2.5 py-1.5">
-              <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-md px-2 py-1 text-xs font-semibold text-slate-700 dark:text-neutral-200" />
-              <span className="text-slate-300 text-xs">–</span>
-              <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-md px-2 py-1 text-xs font-semibold text-slate-700 dark:text-neutral-200" />
-              <button
-                onClick={() => { if (customStart && customEnd) { onDateRange({ start: customStart, end: customEnd, label: 'Custom Range' }); setCustomOpen(false); } }}
-                disabled={!customStart || !customEnd}
-                className="px-3 py-1 bg-slate-900 dark:bg-neutral-100 text-white dark:text-neutral-900 rounded-md text-xs font-bold disabled:opacity-40"
-              >
-                Go
-              </button>
-            </div>
-          )}
         </div>
       </div>
+
+      {/* Tablet and desktop: one slim row of months with their spending. Click a month (again for the whole year); shift-click another for a range. */}
+      {(() => {
+        const yearMax = Math.max(1, ...Array.from({ length: 12 }, (_, i) => spendByMonth.get(`${stripYear}-${String(i + 1).padStart(2, '0')}`) || 0));
+        const lastMonth = stripMonths[stripMonths.length - 1] || 12;
+        const inRange = (m: number) => { const r = monthRange(stripYear, m); return r.start <= dateRange.end && r.end >= dateRange.start; };
+        const pickMonth = (m: number, extend: boolean) => {
+          setCustomOpen(false);
+          // Clicking the month you're already on goes back to the whole year.
+          if (!extend && activeMonth === m) { onDateRange(yearRange(stripYear)); return; }
+          const anchor = activeMonth ?? (dateRange.start.startsWith(`${stripYear}-`) && !allActive ? Number(dateRange.start.slice(5, 7)) : null);
+          if (extend && anchor !== null && anchor !== m) {
+            const a = Math.min(anchor, m), b = Math.max(anchor, m);
+            onDateRange({ start: monthRange(stripYear, a).start, end: monthRange(stripYear, b).end, label: 'Custom Range' });
+          } else onDateRange({ ...monthRange(stripYear, m), label: 'Custom Range' });
+        };
+        const yi = dataYears.indexOf(stripYear);
+        const stepYear = (d: number) => { const y = dataYears[yi + d]; if (y) { onDateRange(yearRange(y)); setCustomOpen(false); } };
+        const lastWeekOn = dateRange.label === 'Last Week';
+        // The dark pill slides between YTD, Last week and Custom.
+        const chip = (on: boolean, onClick: () => void, children: React.ReactNode) => (
+          <button onClick={onClick} aria-pressed={on} className={`relative shrink-0 h-8 px-3 rounded-full text-[12.5px] whitespace-nowrap transition-colors duration-300 ${on ? 'text-white font-semibold dark:text-neutral-900' : 'text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-700'}`}>
+            {on && <motion.span layoutId="txDateChip" transition={{ type: 'spring', stiffness: 380, damping: 34 }} className="absolute inset-0 rounded-full bg-slate-900 dark:bg-neutral-100" />}
+            <span className="relative">{children}</span>
+          </button>
+        );
+        return (
+          <div className="hidden md:flex shrink-0 items-center gap-3 -mt-1">
+            <div className="flex items-center shrink-0">
+              <button onClick={() => stepYear(-1)} disabled={yi <= 0} aria-label="Earlier year" className="w-7 h-8 flex items-center justify-center text-slate-500 dark:text-neutral-400 disabled:text-slate-300 dark:disabled:text-neutral-600">‹</button>
+              <span className="text-[13px] font-bold text-slate-900 dark:text-neutral-100">{stripYear}</span>
+              <button onClick={() => stepYear(1)} disabled={yi < 0 || yi >= dataYears.length - 1} aria-label="Later year" className="w-7 h-8 flex items-center justify-center text-slate-500 dark:text-neutral-400 disabled:text-slate-300 dark:disabled:text-neutral-600">›</button>
+            </div>
+            <div className="flex-1 min-w-0 grid grid-cols-12 gap-1" role="group" aria-label={`Months of ${stripYear}`}>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map(m => {
+                const v = spendByMonth.get(`${stripYear}-${String(m).padStart(2, '0')}`) || 0;
+                const has = m <= lastMonth && v > 0;
+                const on = has && inRange(m) && !customOpen;
+                return (
+                  <button
+                    key={m}
+                    onClick={(e) => has && pickMonth(m, e.shiftKey)}
+                    disabled={!has}
+                    aria-pressed={on}
+                    title={has ? `${MONTHS[m - 1]} ${stripYear} · ${gbp0(v)} out · click again for the whole year, shift-click for a range` : undefined}
+                    className="group h-9 flex flex-col justify-end items-stretch gap-1 rounded-lg px-1 hover:bg-slate-100/70 dark:hover:bg-neutral-800 disabled:hover:bg-transparent"
+                  >
+                    <span className="flex items-end h-3">
+                      <span className={`block w-full rounded-[3px] transition-colors duration-300 ${!has ? 'bg-slate-100 dark:bg-neutral-800' : on ? 'bg-indigo-600' : 'bg-indigo-100 dark:bg-indigo-900/50 group-hover:bg-indigo-200'}`} style={{ height: has ? Math.max(3, Math.round((v / yearMax) * 12)) : 2 }} />
+                    </span>
+                    <span className={`text-[11.5px] leading-none ${on ? 'font-bold text-slate-900 dark:text-neutral-100' : has ? 'text-slate-500 dark:text-neutral-400' : 'text-slate-300 dark:text-neutral-600'}`}>{MONTHS[m - 1].slice(0, 3)}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              {chip(allActive && !customOpen, () => { onDateRange(yearRange(stripYear)); setCustomOpen(false); }, stripYear === today.getFullYear() ? 'YTD' : `All ${stripYear}`)}
+              {chip(lastWeekOn && !customOpen, () => pickPreset('Last Week'), 'Last week')}
+              {chip(customOpen, () => pickPreset('Custom Range'), 'Custom')}
+            </div>
+            <AnimatePresence initial={false}>
+            {customOpen && (
+              <motion.div
+                key="custom"
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: 'auto', opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                className="shrink-0 overflow-hidden"
+              >
+              <div className="flex items-center gap-2 bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-600 px-2.5 py-1 whitespace-nowrap">
+                <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-md px-2 py-1 text-xs font-semibold text-slate-700 dark:text-neutral-200" />
+                <span className="text-slate-300 text-xs">–</span>
+                <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="bg-slate-50 dark:bg-neutral-700 border border-slate-200 dark:border-neutral-600 rounded-md px-2 py-1 text-xs font-semibold text-slate-700 dark:text-neutral-200" />
+                <button
+                  onClick={() => { if (customStart && customEnd) { onDateRange({ start: customStart, end: customEnd, label: 'Custom Range' }); setCustomOpen(false); } }}
+                  disabled={!customStart || !customEnd}
+                  className="px-3 py-1 bg-slate-900 dark:bg-neutral-100 text-white dark:text-neutral-900 rounded-md text-xs font-bold disabled:opacity-40"
+                >
+                  Go
+                </button>
+              </div>
+              </motion.div>
+            )}
+            </AnimatePresence>
+          </div>
+        );
+      })()}
 
       {/* Summary strip */}
       <div className={`${card} shrink-0 hidden md:grid grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1.3fr]`}>
@@ -1032,6 +1098,10 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
     const update: Partial<Transaction> = { categoryId: cat.id, categoryName: cat.name, subcategoryName: sub, excluded: false };
     const note = (t.notes || '').replace(AUTO_NOTE, '').trim();
     onUpdate(t.id, note !== (t.notes || '') ? { ...update, notes: note } : update);
+    // Other payments at this merchant waiting for a check, filed exactly the same way: confirmed too.
+    const sameWay = others.filter(x => needsReview(x) && x.categoryId === cat.id && (x.subcategoryName || '') === sub);
+    sameWay.forEach(x => onUpdate(x.id, { notes: (x.notes || '').replace(AUTO_NOTE, '').trim() }));
+    if (sameWay.length) onToast(`Also confirmed ${sameWay.length} other ${shortName} ${sameWay.length === 1 ? 'payment' : 'payments'}`);
     if (remember) {
       if (refileOthers && toRefile.length) onBulkUpdate(toRefile.map(x => x.id), update);
       onRemember(t.description, cat.id, cat.name, sub);
