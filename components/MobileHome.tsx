@@ -52,17 +52,18 @@ const Stagger: React.FC<{ i: number; children: React.ReactNode }> = ({ i, childr
 
 // A money figure that glides from its old value to the new one instead of jumping.
 // Text that changes with a soft fade and slide: the old value drifts up and fades out while the
-// new one rises in from below (with a light blur), in about a quarter of a second.
+// new one rises in from below, in about a quarter of a second. Only opacity and position move
+// (no blur), which phones can animate without redrawing the page.
 const Swap: React.FC<{ text: string }> = ({ text }) => (
   <span className="relative inline-grid align-baseline">
     <AnimatePresence initial={false}>
       <motion.span
         key={text}
-        style={{ gridArea: '1 / 1' }}
+        style={{ gridArea: '1 / 1', willChange: 'transform, opacity' }}
         className="whitespace-nowrap"
-        initial={{ opacity: 0, y: '0.35em', filter: 'blur(3px)' }}
-        animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-        exit={{ opacity: 0, y: '-0.35em', filter: 'blur(3px)' }}
+        initial={{ opacity: 0, y: '0.35em' }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: '-0.35em' }}
         transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
       >
         {text}
@@ -542,7 +543,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         {/* Switching between the year and six months: bars that leave shrink away and the rest widen
             smoothly into the space (and back), rather than jumping. */}
         <div className="flex items-end h-24">
-          <AnimatePresence initial={false}>
+          <AnimatePresence initial={false} mode="popLayout">
           {barIdxs.map(i => {
             const v = outByMonth.get(i) || 0;
             const on = ytd || i === sel;
@@ -550,19 +551,21 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
             return (
               <motion.button
                 key={i}
-                initial={{ flexGrow: 0, opacity: 0 }}
-                animate={{ flexGrow: 1, opacity: 1 }}
-                exit={{ flexGrow: 0, opacity: 0 }}
-                transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+                layout
+                initial={{ opacity: 0, scaleX: 0.4 }}
+                animate={{ opacity: 1, scaleX: 1 }}
+                exit={{ opacity: 0, scaleX: 0.4 }}
+                transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
                 onClick={() => { if (!inRange) return; toggleMonth(i); }}
                 disabled={!inRange}
                 aria-pressed={on}
                 aria-label={`${FULL_MONTHS[i % 12]} ${Math.floor(i / 12)}: ${fmt(v)}`}
-                className="basis-0 min-w-0 h-full flex flex-col justify-end gap-1.5 overflow-hidden px-[3px]"
+                className="flex-1 basis-0 min-w-0 h-full flex flex-col justify-end gap-1.5 px-[3px]"
               >
+                {/* Full-height bar scaled from the bottom: growing and shrinking is a cheap transform */}
                 <span
-                  className={`block rounded-md transition-[height,background-color] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${on ? (ytd ? 'bg-indigo-500' : 'bg-indigo-600') : v ? 'bg-indigo-100 dark:bg-indigo-900/60' : 'bg-slate-100 dark:bg-neutral-700'}`}
-                  style={{ height: v ? Math.max(4, Math.round((v / barMax) * 72)) : 4 }}
+                  className={`block h-[72px] rounded-md origin-bottom transition-[transform,background-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${on ? (ytd ? 'bg-indigo-500' : 'bg-indigo-600') : v ? 'bg-indigo-100 dark:bg-indigo-900/60' : 'bg-slate-100 dark:bg-neutral-700'}`}
+                  style={{ transform: `scaleY(${(v ? Math.max(4, Math.round((v / barMax) * 72)) : 4) / 72})` }}
                 />
                 <span className={`transition-colors duration-700 text-[10.5px] whitespace-nowrap ${on && !ytd ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-400 dark:text-neutral-500'}`}>{MONTHS[i % 12]}</span>
               </motion.button>
@@ -585,9 +588,9 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
               <motion.div
                 key={c.name}
                 layout="position"
-                initial={{ opacity: 0, y: 6, filter: 'blur(3px)' }}
-                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, filter: 'blur(3px)' }}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
                 transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
               >
                 {catRow(c)}
