@@ -585,7 +585,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
                   <span className="relative block h-[72px]">
                     {/* Each month's amount in small writing just above its bar */}
                     <span
-                      className="absolute inset-x-0 text-center text-[9.5px] font-semibold text-slate-500 dark:text-neutral-400 whitespace-nowrap transition-[bottom] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                      className="absolute inset-x-0 text-center text-[8.5px] font-medium text-slate-400 dark:text-neutral-500 whitespace-nowrap transition-[bottom] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
                       style={{ bottom: (v ? Math.max(4, Math.round((v / barMax) * 72)) : 4) + 3 }}
                     >
                       {v ? (v >= 10000 || (v >= 1000 && barIdxs.length > 9) ? `${currency === 'GBP' ? '£' : ''}${(v / 1000).toFixed(1)}k` : fmt(v)) : '–'}
