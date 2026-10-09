@@ -287,13 +287,15 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const placesLeft = Math.max(0, restPlaces.length - extraPlaces);
   const placeChunks = Array.from({ length: Math.ceil(Math.min(extraPlaces, restPlaces.length) / PLACES_STEP) }, (_, c) =>
     restPlaces.slice(c * PLACES_STEP, (c + 1) * PLACES_STEP));
-  const placeRow = (p: typeof allPlaces[number], i: number) => (
+  // A place keeps its colour wherever it ranks, so rows can glide without changing colour.
+  const tintOf = (key: string) => { let h = 0; for (let k = 0; k < key.length; k++) h = (h * 31 + key.charCodeAt(k)) % 9973; return TINTS[h % TINTS.length]; };
+  const placeRow = (p: typeof allPlaces[number], _i: number) => (
     <button
       key={p.key}
-      onClick={() => setPlacePick({ key: p.key, name: p.name, catName: p.catName, catId: p.catId, tint: TINTS[i % TINTS.length], year, month: ytd ? null : sel })}
+      onClick={() => setPlacePick({ key: p.key, name: p.name, catName: p.catName, catId: p.catId, tint: tintOf(p.key), year, month: ytd ? null : sel })}
       className="w-full text-left grid grid-cols-[30px_minmax(0,1fr)_auto] gap-2.5 items-center py-2 border-t border-slate-100 dark:border-neutral-700 active:bg-slate-50 dark:active:bg-neutral-700/40"
     >
-      <span className={`w-[30px] h-[30px] rounded-[9px] flex items-center justify-center text-[13px] font-bold ${TINTS[i % TINTS.length]}`}>
+      <span className={`w-[30px] h-[30px] rounded-[9px] flex items-center justify-center text-[13px] font-bold ${tintOf(p.key)}`}>
         {p.name.replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || '•'}
       </span>
       <span className="min-w-0 flex flex-col">
@@ -303,8 +305,8 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         </span>
       </span>
       <span className="flex flex-col items-end">
-        <span className="text-[13.5px] font-bold text-slate-900 dark:text-neutral-100">{fmt(p.total)}</span>
-        <span className="text-[10.5px] font-semibold text-slate-500 dark:text-neutral-400">{p.count === 1 ? 'once' : `${p.count}×`}</span>
+        <span className="text-[13.5px] font-bold text-slate-900 dark:text-neutral-100"><Swap text={fmt(p.total)} /></span>
+        <span className="text-[10.5px] font-semibold text-slate-500 dark:text-neutral-400"><Swap text={p.count === 1 ? 'once' : `${p.count}×`} /></span>
       </span>
     </button>
   );
@@ -638,15 +640,31 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
                   key={id}
                   onClick={() => setPlaceRank(id)}
                   aria-pressed={placeRank === id}
-                  className={`px-2.5 py-1 rounded-[7px] text-[11px] transition-colors ${placeRank === id ? 'bg-white dark:bg-neutral-600 font-semibold text-slate-900 dark:text-neutral-100 shadow-sm' : 'text-slate-500 dark:text-neutral-400'}`}
+                  className={`relative px-2.5 py-1 rounded-[7px] text-[11px] transition-colors duration-200 ${placeRank === id ? 'font-semibold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'}`}
                 >
-                  {l}
+                  {placeRank === id && <motion.span layoutId="placeRankPill" transition={{ type: 'spring', stiffness: 500, damping: 40 }} className="absolute inset-0 rounded-[7px] bg-white dark:bg-neutral-600 shadow-sm" />}
+                  <span className="relative">{l}</span>
                 </button>
               ))}
             </div>
           </div>
-          <div key={`${mode}-${sel}-${placeRank}`}>
-            {places.map((p, i) => <Stagger key={p.key} i={i}>{placeRow(p, i)}</Stagger>)}
+          {/* Switching Most visits / Most spent (or the month): rows glide to their new rank,
+              amounts swap softly, and places that come or go fade in or out. */}
+          <div className="relative">
+            <AnimatePresence initial={false} mode="popLayout">
+              {places.map((p, i) => (
+                <motion.div
+                  key={p.key}
+                  layout="position"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  {placeRow(p, i)}
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
           {/* More places open smoothly under the top five, ten at a time */}
           <AnimatePresence initial={false}>
