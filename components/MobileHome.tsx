@@ -127,7 +127,8 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const hasData = Number.isFinite(lastIdx);
   const [picked, setPicked] = useState<number | null>(null);
   const [placeRank, setPlaceRank] = useState<'visits' | 'spent'>('visits');
-  const [mode, setMode] = useState<'month' | 'ytd'>('month');
+  // Opens on the year; tapping a month bar opens that month ("← year" goes back).
+  const [mode, setMode] = useState<'month' | 'ytd'>('ytd');
   // A day tapped in the month's day chart (its payments slide up), and a payment opened from it.
   const [dayPick, setDayPick] = useState<number | null>(null);
   const [dayTx, setDayTx] = useState<string | null>(null);
@@ -373,18 +374,6 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div role="group" aria-label="Period" className="flex gap-0.5 p-[3px] bg-slate-200/70 dark:bg-neutral-800 rounded-[10px]">
-            {([['month', 'Month'], ['ytd', 'YTD']] as const).map(([id, l]) => (
-              <button
-                key={id}
-                onClick={() => setMode(id)}
-                aria-pressed={mode === id}
-                className={`px-2.5 py-1.5 rounded-[7px] text-[11.5px] transition-colors ${mode === id ? 'bg-white dark:bg-neutral-600 font-semibold text-slate-900 dark:text-neutral-100 shadow-sm' : 'text-slate-500 dark:text-neutral-400'}`}
-              >
-                {l}
-              </button>
-            ))}
-          </div>
           <div className="flex items-center bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl p-0.5">
             <button onClick={() => step(-1)} disabled={!canPrev} aria-label={ytd ? 'Previous year' : 'Previous month'} className="w-7 h-8 relative after:absolute after:-inset-y-1.5 after:-inset-x-2 after:content-[''] rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">‹</button>
             <span className="min-w-[70px] text-center text-[13px] font-semibold text-slate-900 dark:text-neutral-100">{ytd ? year : `${MONTHS[sel % 12]} ${year}`}</span>
@@ -1080,7 +1069,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         const dt = dayPick ? new Date(`${dateKey}T12:00:00`) : null;
         const fmt2 = (v: number) => (currency === 'GBP' ? '£' : 'AED ') + v.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         return (
-          <Sheet open={!!dayPick && !ytd} onClose={() => setDayPick(null)} label="Spending that day" heightClass="h-[51dvh]">
+          <Sheet open={!!dayPick && !ytd} onClose={() => setDayPick(null)} label="Spending that day" heightClass="h-[61dvh]">
             {dt && (
               <div className="flex-1 min-h-0 flex flex-col">
                 {/* One slim line: a compact day switcher in the middle (easy reach with either thumb),
