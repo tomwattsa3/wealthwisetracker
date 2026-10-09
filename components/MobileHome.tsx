@@ -564,11 +564,14 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
                 aria-label={`${FULL_MONTHS[i % 12]} ${Math.floor(i / 12)}: ${fmt(v)}`}
                 className="flex-1 basis-0 min-w-0 h-full flex flex-col justify-end gap-1.5 px-[3px]"
               >
-                {/* Full-height bar scaled from the bottom: growing and shrinking is a cheap transform */}
-                <span
-                  className={`block h-[72px] rounded-md origin-bottom transition-[transform,background-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${on ? (ytd ? 'bg-indigo-500' : 'bg-indigo-600') : v ? 'bg-indigo-100 dark:bg-indigo-900/60' : 'bg-slate-100 dark:bg-neutral-700'}`}
-                  style={{ transform: `scaleY(${(v ? Math.max(4, Math.round((v / barMax) * 72)) : 4) / 72})` }}
-                />
+                {/* A full-height bar that slides up from behind the bottom edge: growing and shrinking is a
+                    cheap transform, and its rounded corners never get squashed. */}
+                <span className="relative block h-[72px] overflow-hidden rounded-md">
+                  <span
+                    className={`absolute inset-0 rounded-md transition-[transform,background-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${on ? (ytd ? 'bg-indigo-500' : 'bg-indigo-600') : v ? 'bg-indigo-100 dark:bg-indigo-900/60' : 'bg-slate-100 dark:bg-neutral-700'}`}
+                    style={{ transform: `translateY(${(1 - (v ? Math.max(4, Math.round((v / barMax) * 72)) : 4) / 72) * 100}%)` }}
+                  />
+                </span>
                 <span className={`transition-colors duration-700 text-[10.5px] whitespace-nowrap ${on && !ytd ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-400 dark:text-neutral-500'}`}>{MONTHS[i % 12]}</span>
               </motion.button>
             );
