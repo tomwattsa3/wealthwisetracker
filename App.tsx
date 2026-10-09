@@ -1627,6 +1627,22 @@ const App: React.FC = () => {
     return () => clearTimeout(t);
   }, [transactions, categories, offlineFrom, loading, session?.user?.id]);
 
+  // Category and subcategory picks on the import review: biggest total this year first.
+  const { importCats, importSubs } = useMemo(() => {
+    const year = String(new Date().getFullYear());
+    const byCat = new Map<string, number>();
+    const bySub = new Map<string, number>();
+    transactions.forEach(t => {
+      if (t.excluded || !t.categoryId || !t.date.startsWith(year)) return;
+      const v = Math.abs(t.amountGBP || 0);
+      byCat.set(t.categoryId, (byCat.get(t.categoryId) || 0) + v);
+      if (t.subcategoryName) bySub.set(`${t.categoryId}|${t.subcategoryName}`, (bySub.get(`${t.categoryId}|${t.subcategoryName}`) || 0) + v);
+    });
+    const importCats = [...categories].sort((a, b) => (byCat.get(b.id) || 0) - (byCat.get(a.id) || 0) || a.name.localeCompare(b.name));
+    const importSubs = (c: Category) => [...c.subcategories].sort((a, b) => (bySub.get(`${c.id}|${b}`) || 0) - (bySub.get(`${c.id}|${a}`) || 0));
+    return { importCats, importSubs };
+  }, [transactions, categories]);
+
   // Where your bank data ends, for the import reminder that checks in the background.
   useEffect(() => {
     if (!transactions.length) return;
@@ -2420,7 +2436,7 @@ const App: React.FC = () => {
                               value={t.categoryId}
                               onChange={(e) => {
                                 const cat = categories.find(c => c.id === e.target.value);
-                                const firstSub = cat?.subcategories[0] || '';
+                                const firstSub = (cat && importSubs(cat)[0]) || '';
                                 updatePendingTransaction(t.id, {
                                   categoryId: e.target.value,
                                   categoryName: cat?.name || '',
@@ -2432,7 +2448,7 @@ const App: React.FC = () => {
                               }`}
                             >
                               <option value="">Select...</option>
-                              {categories.map(c => (
+                              {importCats.map(c => (
                                 <option key={c.id} value={c.id}>{c.name}</option>
                               ))}
                             </select>
@@ -2451,7 +2467,7 @@ const App: React.FC = () => {
                               }`}
                             >
                               <option value="">Select...</option>
-                              {currentCategory?.subcategories.map(s => (
+                              {currentCategory && importSubs(currentCategory).map(s => (
                                 <option key={s} value={s}>{s}</option>
                               ))}
                             </select>
