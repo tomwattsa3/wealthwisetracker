@@ -314,11 +314,17 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
                   ? <button onClick={() => { setRange(null); setPayer(null); }} className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">← All {year}</button>
                   : <span className="text-xs text-slate-500 dark:text-neutral-400">Tap a month</span>}
               </div>
-              <div className="relative mt-3" style={{ height: H + 36 }}>
+              {/* The average sits above the chart (not on the line), so bars can't cover it */}
+              {!type && avgIn > 0 && (
+                <div className="mt-1 flex justify-end items-center gap-1.5 text-[10.5px] text-slate-400 dark:text-neutral-500">
+                  <span className="w-4 border-t-[1.5px] border-dashed border-slate-300 dark:border-neutral-600" />
+                  avg {fmt(avgIn)} a month
+                </div>
+              )}
+              <div className="relative mt-2" style={{ height: H + 36 }}>
                 {!type && avgIn > 0 && (
                   <div className="absolute inset-x-0 pointer-events-none" style={{ bottom: 18 + (avgIn / cmax) * H }}>
                     <div className="border-t-[1.5px] border-dashed border-slate-300 dark:border-neutral-600" />
-                    <span className="absolute right-0 -top-[8px] px-1 bg-white dark:bg-neutral-800 text-[9.5px] text-slate-400 dark:text-neutral-500">avg {fmt(avgIn)}</span>
                   </div>
                 )}
                 <div className="absolute inset-0 flex items-end gap-1.5">
@@ -613,7 +619,7 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
           </div>
           <div className="relative mt-4" style={{ height: BAR_H + 44 }}>
             {avgOut > 0 && (
-              <div className="absolute inset-x-0 pointer-events-none" style={{ bottom: 22 + (avgOut / chartMax) * BAR_H }}>
+              <div className="absolute inset-x-0 pointer-events-none z-10" style={{ bottom: 22 + (avgOut / chartMax) * BAR_H }}>
                 <div className="border-t-[1.5px] border-dashed border-slate-300 dark:border-neutral-600" />
                 <span className="absolute right-0 -top-[9px] px-1 bg-white dark:bg-neutral-800 text-[11px] text-slate-400 dark:text-neutral-500">Avg spending {fmt(avgOut)}</span>
               </div>
