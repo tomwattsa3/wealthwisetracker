@@ -11,7 +11,7 @@ interface MoreSheetProps {
   open: boolean;
   onClose: () => void;
   activeTab: string;
-  onNavigate: (tab: 'categories' | 'recurring' | 'settings') => void;
+  onNavigate: (tab: 'income' | 'categories' | 'recurring' | 'settings') => void;
   onAddTransaction: () => void;
   darkMode: boolean;
   onToggleDark: () => void;
@@ -38,7 +38,7 @@ const Toggle: React.FC<{ on: boolean }> = ({ on }) => (
 const MoreSheet: React.FC<MoreSheetProps> = ({ open, onClose, activeTab, onNavigate, onAddTransaction, darkMode, onToggleDark, onLogout }) => {
   const [hideAmounts, toggleHideAmounts] = usePrivacy();
   const install = useInstall();
-  const go = (tab: 'categories' | 'recurring' | 'settings') => { onNavigate(tab); onClose(); };
+  const go = (tab: 'income' | 'categories' | 'recurring' | 'settings') => { onNavigate(tab); onClose(); };
 
   return (
     <Sheet open={open} onClose={onClose} label="More">

@@ -6,8 +6,20 @@ import { MONTHS, FULL_MONTHS, merchantKey, sum, localToday } from '../lib/period
 import { MODAL_TRANSITION } from '../lib/motion';
 import { userNote } from './TxDetail';
 import { useBackClose } from '../lib/backStack';
+import Sheet from './Sheet';
 
-// Desktop page: everything that came in for a year. Who pays you, how much, how often, and
+const useMedia = (q: string) => {
+  const [m, setM] = useState(() => window.matchMedia(q).matches);
+  useEffect(() => {
+    const mql = window.matchMedia(q);
+    const on = () => setM(mql.matches);
+    mql.addEventListener('change', on);
+    return () => mql.removeEventListener('change', on);
+  }, [q]);
+  return m;
+};
+
+// Everything that came in for a year (desktop layout, and a one-column phone layout). Who pays you, how much, how often, and
 // when the next one is likely, with the months that covered your spending.
 // Same rules as the Dashboard's Money in: income rows, not hidden, not "Excluded".
 
@@ -54,6 +66,10 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transactions, currency]);
 
+  const isPhone = useMedia('(max-width: 767px)');
+  const [morePayers, setMorePayers] = useState(false);
+  // Phone sheet: slide down first, then let go of the payer (so it doesn't empty mid-slide)
+  const [sheetClosing, setSheetClosing] = useState(false);
   const today = localToday();
   const [year, setYear] = useState<number>(() => years[years.length - 1] ?? Number(today.slice(0, 4)));
   // The months picked on the strip (null = the whole year); one month or a shift-click range.
@@ -152,13 +168,14 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
   const selAll = payer ? income.filter(r => r.key === payer).sort((a, b) => b.date.localeCompare(a.date)) : [];
   const sel = selAll[0] ? { key: payer!, name: selAll[0].name, type: selAll[0].type } : null;
   // The details slide in from the right; Esc or Back closes them.
-  useBackClose(!!sel, () => setPayer(null));
+  useBackClose(!!sel && !isPhone, () => setPayer(null));
   useEffect(() => {
-    if (!sel) return;
+    if (!sel || isPhone) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPayer(null); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [sel]);
+  }, [sel, isPhone]);
+  useEffect(() => setMorePayers(false), [year, range, type, bank]);
   const selYear = selAll.filter(r => r.year === year);
   const selGaps = selAll.slice(0, -1).map((r, i) => Math.round((new Date(r.date).getTime() - new Date(selAll[i + 1].date).getTime()) / DAY));
   const selAvgGap = typical(selGaps);
@@ -181,6 +198,295 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
       <div className="max-w-xl mx-auto mt-24 text-center">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-neutral-100">Income</h1>
         <p className="mt-2 text-sm text-slate-500 dark:text-neutral-400">No money in yet. Once you import payments in, they'll show here by payer.</p>
+      </div>
+    );
+  }
+
+
+  // ---- Phones: one column, top to bottom ----
+  if (isPhone) {
+    const yi = years.indexOf(year);
+    const stepYear = (d: number) => { const y = years[yi + d]; if (y) { setYear(y); setRange(null); setPayer(null); } };
+    const typeTotalsShown = new Map<string, number>();
+    yearRows.filter(r => inSel(r.month)).forEach(r => typeTotalsShown.set(r.type, (typeTotalsShown.get(r.type) || 0) + r.amount));
+    const allShown = sum(Array.from(typeTotalsShown.values()));
+    const shownPayers = morePayers ? payers : payers.slice(0, 5);
+    const restTotal = sum(payers.slice(5).map(p => p.total));
+    // Where it lands
+    const groups = new Map<string, { name: string; icon: string; cur: string; total: number; native: number; n: number }>();
+    shown.forEach(r => {
+      const b = banks.find(x => x.name.trim().toLowerCase() === r.bank.toLowerCase());
+      const cur = (b?.currency || '').toUpperCase();
+      const k = r.bank.toLowerCase() || '—';
+      const e = groups.get(k) || { name: r.bank || 'No bank set', icon: b?.icon || (r.bank ? r.bank.slice(0, 2).toUpperCase() : '?'), cur, total: 0, native: 0, n: 0 };
+      e.total += r.amount; e.native += cur === 'AED' ? r.aed : cur === 'GBP' ? r.gbp : 0; e.n++;
+      groups.set(k, e);
+    });
+    const lands = Array.from(groups.values()).sort((a, b) => b.total - a.total);
+    const byCur = new Map<string, number>();
+    lands.forEach(g => byCur.set(g.cur || 'Unknown', (byCur.get(g.cur || 'Unknown') || 0) + g.total));
+    const curs = Array.from(byCur.entries()).sort((a, b) => b[1] - a[1]);
+    const CUR_COLOR: Record<string, string> = { AED: '#0EA5E9', GBP: '#6366F1', Unknown: '#CBD5E1' };
+    const pctOf = (v: number) => Math.round((v / Math.max(shownTotal, 1)) * 100);
+    const initial = (n: string) => n.replace(/^from\s+/i, '').replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || '•';
+
+    return (
+      <div className="flex flex-col gap-3 pb-[calc(env(safe-area-inset-bottom)_+_140px)]" style={{ fontVariantNumeric: 'tabular-nums' }}>
+        <div className="flex items-center justify-between px-1 pt-1">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-neutral-100">Income</h1>
+          <div className="flex items-center">
+            <button onClick={() => stepYear(-1)} disabled={yi <= 0} aria-label="Earlier year" className="w-9 h-9 flex items-center justify-center text-slate-500 dark:text-neutral-400 disabled:text-slate-300 dark:disabled:text-neutral-600">‹</button>
+            <span className="text-sm font-bold text-slate-900 dark:text-neutral-100">{year}</span>
+            <button onClick={() => stepYear(1)} disabled={yi < 0 || yi >= years.length - 1} aria-label="Later year" className="w-9 h-9 flex items-center justify-center text-slate-500 dark:text-neutral-400 disabled:text-slate-300 dark:disabled:text-neutral-600">›</button>
+          </div>
+        </div>
+
+        {bankList.length > 1 && (
+          <div role="group" aria-label="Bank account" className="flex gap-0.5 p-[2px] bg-slate-200/70 dark:bg-neutral-700/60 rounded-[10px]">
+            {[{ key: null as string | null, name: 'All banks' }, ...bankList].map(b => {
+              const on = bank === b.key;
+              return (
+                <button key={b.key ?? 'all'} onClick={() => { setBank(b.key); setPayer(null); }} aria-pressed={on} className={`relative flex-1 h-7 px-2 rounded-lg text-[11px] truncate ${on ? 'font-semibold text-slate-900 dark:text-neutral-100' : 'font-medium text-slate-500 dark:text-neutral-400'}`}>
+                  {on && <motion.span layoutId="incomeBankPillPhone" transition={{ type: 'spring', stiffness: 420, damping: 36 }} className="absolute inset-0 rounded-lg bg-white dark:bg-neutral-600 shadow-[0_1px_2px_rgba(15,23,42,0.10)]" />}
+                  <span className="relative">{b.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Money in */}
+        <section className={`${card} p-4`}>
+          <div className="flex justify-between items-baseline gap-2">
+            <span className="text-xs text-slate-500 dark:text-neutral-400">Money in · {range === null ? (isThisYear ? `${year} so far` : `${year}`) : single !== null ? FULL_MONTHS[single] : `${MONTHS[range[0]]} – ${MONTHS[range[1]]}`}</span>
+            {range === null && !type && lastYearTotal > 0 && (
+              <span className={`text-xs font-semibold ${yearTotal >= lastYearTotal ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-neutral-400'}`}>{yearTotal >= lastYearTotal ? '↑' : '↓'} {fmt(Math.abs(yearTotal - lastYearTotal))} on last year</span>
+            )}
+          </div>
+          <div className="text-[32px] leading-tight font-bold tracking-tight text-emerald-700 dark:text-emerald-400">{fmt(shownTotal)}</div>
+          <div className="text-xs text-slate-500 dark:text-neutral-400">
+            {shown.length} {shown.length === 1 ? 'payment' : 'payments'}{range === null && !(overdue && lastMain) ? ` · avg ${fmt(avgIn)} a month` : ''}{bank ? ` · ${bankList.find(b => b.key === bank)?.name}` : ''}
+            {overdue && lastMain && range === null && (
+              <> · <button onClick={() => setPayer(lastMain.key)} className="font-semibold text-amber-700 dark:text-amber-400">no {mainType?.toLowerCase() || 'income'} for {daysSince} days</button></>
+            )}
+          </div>
+          {allShown > 0 && (
+            <div aria-hidden className="mt-3 h-2 rounded-full bg-slate-100 dark:bg-neutral-700 flex overflow-hidden">
+              {types.filter(t => typeTotalsShown.get(t)).map(t => <span key={t} className="transition-[width] duration-500" style={{ width: `${((typeTotalsShown.get(t) || 0) / allShown) * 100}%`, background: colorOf(t) }} />)}
+            </div>
+          )}
+          {types.length > 1 && (
+            <div role="group" aria-label="Type" className="mt-2.5 p-[2px] rounded-[10px] bg-slate-100 dark:bg-neutral-900/60 flex gap-0.5 overflow-x-auto hide-scrollbar" data-no-pull-refresh>
+              {['all', ...types.filter(t => typeTotalsShown.get(t) || type === t)].map(t => {
+                const on = t === 'all' ? !type : type === t;
+                const v = t === 'all' ? allShown : typeTotalsShown.get(t) || 0;
+                return (
+                  <button key={t} onClick={() => setType(t === 'all' ? null : t)} aria-pressed={on} className="relative flex-1 basis-0 min-w-[calc((100%_-_4px)/3)] h-[34px] px-1 rounded-lg">
+                    {on && <motion.span layoutId="incomeTypePhone" transition={{ type: 'spring', stiffness: 500, damping: 40 }} className="absolute inset-0 rounded-lg bg-white dark:bg-neutral-700 shadow-[0_1px_2px_rgba(15,23,42,0.10)]" />}
+                    <span className="relative flex flex-col items-center gap-0.5 leading-[1.1]">
+                      <span className={`flex items-center gap-1 text-[10.5px] capitalize truncate max-w-full ${on ? 'font-semibold text-slate-900 dark:text-neutral-100' : 'font-medium text-slate-600 dark:text-neutral-300'}`}>
+                        {t !== 'all' && <span className="w-[5px] h-[5px] rounded-full shrink-0" style={{ background: colorOf(t) }} />}
+                        {t === 'all' ? 'All' : t.replace(/ interest$/i, '')}
+                      </span>
+                      <span className="text-[9.5px] text-slate-400 dark:text-neutral-500">{fmt(v)}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* Month by month: stacked by type, linked to the month strip */}
+        {(() => {
+          const H = 104;
+          const ms = Array.from({ length: lastMonth + 1 }, (_, m) => m);
+          const cols = ms.map(m => {
+            const t = new Map<string, number>();
+            yearRows.filter(r => r.month === m && (!type || r.type === type)).forEach(r => t.set(r.type, (t.get(r.type) || 0) + r.amount));
+            return t;
+          });
+          const tops = cols.map(t => sum(Array.from(t.values())));
+          const cmax = Math.max(...tops, type ? 0 : avgIn, 1);
+          const short = (v: number) => (v >= 1000 ? `${currency === 'GBP' ? '£' : ''}${(v / 1000).toFixed(1)}k` : fmt(v));
+          const usedTypes = types.filter(t => cols.some(c => c.has(t)));
+          return (
+            <section className={`${card} px-4 pt-3.5 pb-3`}>
+              <div className="flex justify-between items-baseline gap-2">
+                <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100">Month by month</h2>
+                {range !== null
+                  ? <button onClick={() => { setRange(null); setPayer(null); }} className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">← All {year}</button>
+                  : <span className="text-xs text-slate-500 dark:text-neutral-400">Tap a month</span>}
+              </div>
+              <div className="relative mt-3" style={{ height: H + 36 }}>
+                {!type && avgIn > 0 && (
+                  <div className="absolute inset-x-0 pointer-events-none" style={{ bottom: 18 + (avgIn / cmax) * H }}>
+                    <div className="border-t-[1.5px] border-dashed border-slate-300 dark:border-neutral-600" />
+                    <span className="absolute right-0 -top-[8px] px-1 bg-white dark:bg-neutral-800 text-[9.5px] text-slate-400 dark:text-neutral-500">avg {fmt(avgIn)}</span>
+                  </div>
+                )}
+                <div className="absolute inset-0 flex items-end gap-1.5">
+                  {ms.map(m => {
+                    const c = cols[m];
+                    const on = inSel(m);
+                    return (
+                      <button key={m} onClick={() => pickMonth(m)} aria-pressed={range !== null && inSel(m)} aria-label={`${FULL_MONTHS[m]}: ${fmt(tops[m])} in`} className="flex-1 min-w-0 h-full flex flex-col justify-end items-center gap-1">
+                        <span className="text-[9.5px] font-semibold text-slate-500 dark:text-neutral-400 whitespace-nowrap">{tops[m] >= 1 ? short(tops[m]) : ''}</span>
+                        <span className={`w-full max-w-[30px] flex flex-col-reverse rounded-[5px] overflow-hidden transition-opacity duration-300 ${on ? '' : 'opacity-30'}`}>
+                          {usedTypes.filter(k => c.has(k)).map(k => (
+                            <span key={k} className="block w-full transition-[height] duration-500" style={{ height: Math.max(2, Math.round((c.get(k)! / cmax) * H)), background: colorOf(k) }} />
+                          ))}
+                          {!tops[m] && <span className="block w-full h-[3px] bg-slate-100 dark:bg-neutral-700" />}
+                        </span>
+                        <span className={`text-[10.5px] leading-none ${range !== null && inSel(m) ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'}`}>{MONTHS[m]}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {usedTypes.length > 1 && (
+                <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2.5 text-[11px] text-slate-500 dark:text-neutral-400">
+                  {usedTypes.map(t => <span key={t} className="flex items-center gap-1 capitalize"><span className="w-[7px] h-[7px] rounded-full" style={{ background: colorOf(t) }} />{t.replace(/ interest$/i, '')}</span>)}
+                </div>
+              )}
+            </section>
+          );
+        })()}
+
+        {/* Who pays you */}
+        <section className={`${card} px-4 py-1.5`}>
+          <div className="flex justify-between items-baseline pt-2.5 pb-1">
+            <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100">Who pays you</h2>
+            <span className="text-xs text-slate-500 dark:text-neutral-400">Biggest first</span>
+          </div>
+          {shownPayers.map(p => {
+            const byM = Array.from({ length: lastMonth + 1 }, (_, m) => sum(p.rows.filter(r => r.month === m).map(r => r.amount)));
+            const m2 = Math.max(...byM, 1);
+            const last = p.rows.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
+            return (
+              <button key={p.key} onClick={() => setPayer(p.key)} className="w-full grid grid-cols-[32px_minmax(0,1fr)_auto] gap-2.5 items-center min-h-[56px] py-1.5 border-t border-slate-100 dark:border-neutral-700 text-left">
+                <span className="w-8 h-8 rounded-[10px] flex items-center justify-center text-[13px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">{initial(p.name)}</span>
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-semibold text-slate-900 dark:text-neutral-100 truncate">{p.name}</span>
+                  <span className="block text-[11px] text-slate-500 dark:text-neutral-400 truncate"><span className="capitalize">{p.type}</span> · {p.rows.length} {p.rows.length === 1 ? 'payment' : 'payments'} · last {dayLabel(last.date)}</span>
+                </span>
+                <span className="text-right">
+                  <span className="block text-[13.5px] font-bold text-emerald-700 dark:text-emerald-400">{fmt(p.total)}</span>
+                  <span className="flex gap-[2px] justify-end items-end h-3 mt-0.5" aria-hidden>
+                    {byM.map((v, i) => <span key={i} className="block w-1 rounded-[1px]" style={{ height: v ? Math.max(3, Math.round((v / m2) * 12)) : 2, background: v ? colorOf(p.type) : 'rgb(226 232 240)' }} />)}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+          {!payers.length && <p className="py-6 text-center text-sm text-slate-400">Nothing in for this choice.</p>}
+          {payers.length > 5 && (
+            <div className="border-t border-slate-100 dark:border-neutral-700 py-3 text-[12.5px]">
+              <button onClick={() => setMorePayers(v => !v)} aria-expanded={morePayers} className="flex items-center gap-1 font-medium text-slate-600 dark:text-neutral-300">
+                {morePayers ? 'Show less' : `+${payers.length - 5} more · ${fmt(restTotal)}`}
+                <svg viewBox="0 0 12 12" className={`w-3 h-3 transition-transform duration-300 ${morePayers ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m2.5 4.5 3.5 3.5 3.5-3.5" /></svg>
+              </button>
+            </div>
+          )}
+        </section>
+
+        {/* Where it lands */}
+        {lands.length > 0 && (
+          <section className={`${card} px-4 py-3.5`}>
+            <div className="flex justify-between items-baseline gap-2">
+              <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100">Where it lands</h2>
+              <span className="text-xs text-slate-500 dark:text-neutral-400">{curs.map(([c, v]) => `${c === 'Unknown' ? '?' : c} ${pctOf(v)}%`).join(' · ')}</span>
+            </div>
+            <div className="mt-2.5 h-2.5 rounded-full overflow-hidden flex bg-slate-100 dark:bg-neutral-700">
+              {curs.map(([c, v]) => <span key={c} className="h-full transition-[width] duration-500" style={{ width: `${(v / Math.max(shownTotal, 1)) * 100}%`, background: CUR_COLOR[c] || '#94A3B8' }} />)}
+            </div>
+            <div className="mt-1.5">
+              {lands.map(g => (
+                <div key={g.name} className="grid grid-cols-[34px_minmax(0,1fr)_auto] gap-2.5 items-center min-h-[52px] border-t border-slate-100 dark:border-neutral-700 first:border-t-0">
+                  <span className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-[11px] font-bold bg-slate-100 text-slate-600 dark:bg-neutral-700 dark:text-neutral-300">{g.icon}</span>
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-1.5"><span className="text-[13px] font-semibold text-slate-900 dark:text-neutral-100 truncate">{g.name}</span>{g.cur && <span className="px-1 rounded text-[9.5px] font-bold text-white" style={{ background: CUR_COLOR[g.cur] || '#94A3B8' }}>{g.cur}</span>}</span>
+                    <span className="block text-[11px] text-slate-500 dark:text-neutral-400 truncate">{g.n} {g.n === 1 ? 'payment' : 'payments'} · {pctOf(g.total)}%{g.cur && g.cur !== currency ? ` · ${g.cur === 'AED' ? `AED ${Math.round(g.native).toLocaleString('en-GB')}` : `£${Math.round(g.native).toLocaleString('en-GB')}`} received` : ''}</span>
+                  </span>
+                  <span className="text-[13.5px] font-bold text-emerald-700 dark:text-emerald-400">{fmt(g.total)}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* A payer's details slide up */}
+        <Sheet open={!!sel && !sheetClosing} onClose={() => setSheetClosing(true)} onExitComplete={() => { if (sheetClosing) { setPayer(null); setSheetClosing(false); } }} label={`${sel?.name || 'Payer'} details`} heightClass="h-[80dvh]">
+          {sel && (
+            <div className="flex-1 min-h-0 flex flex-col">
+              <div className="shrink-0 px-5 pb-3">
+                <div className="flex items-center gap-3">
+                  <span className="w-12 h-12 shrink-0 rounded-[14px] flex items-center justify-center text-lg font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">{initial(sel.name)}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[16px] font-bold text-slate-900 dark:text-neutral-100 leading-tight truncate">{sel.name}</div>
+                    <div className="flex items-center gap-1 flex-wrap mt-0.5 text-[12px] text-slate-500 dark:text-neutral-400">
+                      <span className="capitalize">{sel.type}</span>
+                      {selBanks.map(b => (
+                        <span key={b} className="inline-flex items-center gap-1 px-1.5 rounded-md bg-slate-100 dark:bg-neutral-700 text-[11px] text-slate-700 dark:text-neutral-200">
+                          {b}{bankCur(b) && <span className={`px-1 rounded text-[9px] font-bold text-white ${bankCur(b) === 'AED' ? 'bg-sky-500' : 'bg-indigo-500'}`}>{bankCur(b)}</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-[19px] font-bold text-emerald-700 dark:text-emerald-400">{fmt(selYearTotal)}</div>
+                    <div className="text-[11px] text-slate-500 dark:text-neutral-400">in {year}</div>
+                  </div>
+                </div>
+                {selAvgGap && nextExpected && nextExpected.getTime() < new Date(`${today}T12:00:00`).getTime() && (
+                  <div className="mt-3 px-3 py-2 rounded-[10px] bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-[11.5px] text-amber-900 dark:text-amber-200">
+                    <strong className="font-semibold">Late by about {Math.round((new Date(`${today}T12:00:00`).getTime() - nextExpected.getTime()) / DAY)} days.</strong> Usually pays every {selAvgGap} days; was due around {nextExpected.getDate()} {MONTHS[nextExpected.getMonth()]}.
+                  </div>
+                )}
+                <div className="grid grid-cols-3 gap-1.5 mt-3">
+                  {[
+                    ['Share', yearTotal ? `${Math.max(selYearTotal ? 1 : 0, Math.round((selYearTotal / yearTotal) * 100))}%` : '—'],
+                    ['Average', fmt(sum(selAll.map(r => r.amount)) / Math.max(selAll.length, 1))],
+                    ['Largest', selLargest ? fmt(selLargest.amount) : '—'],
+                    ['Every', selAvgGap ? `${selAvgGap} days` : 'Paid once'],
+                    selAvgGap
+                      ? [nextExpected && nextExpected.getTime() < new Date(`${today}T12:00:00`).getTime() ? 'Was due' : 'Next due', nextExpected ? `${nextExpected.getDate()} ${MONTHS[nextExpected.getMonth()]}` : '—']
+                      : ['First paid', selFirst ? dayLabel(selFirst.date) : '—'],
+                    ['Payments', String(selAll.length)],
+                  ].map(([k, v]) => (
+                    <div key={k} className="rounded-[10px] bg-slate-50 dark:bg-neutral-900/50 px-2.5 py-[7px]">
+                      <div className="text-[9.5px] text-slate-500 dark:text-neutral-400">{k}</div>
+                      <div className="text-[12.5px] font-bold text-slate-900 dark:text-neutral-100 truncate">{v}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="shrink-0 px-5 pt-1 pb-1 flex justify-between items-baseline border-t border-slate-100 dark:border-neutral-700">
+                <span className="pt-2.5 text-[13.5px] font-semibold text-slate-900 dark:text-neutral-100">Every payment</span>
+                {onViewPayer && <button onClick={() => onViewPayer(sel.name, `${year}-01-01`, `${year}-12-31`)} className="pt-2.5 text-[12.5px] font-semibold text-indigo-700 dark:text-indigo-300">See in Transactions →</button>}
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pb-[max(20px,env(safe-area-inset-bottom))]">
+                {selAll.map((r, i) => {
+                  const nat = bankCur(r.bank) && bankCur(r.bank) !== currency ? native(r) : '';
+                  return (
+                    <div key={r.id} className="grid grid-cols-[58px_minmax(0,1fr)_auto] gap-2.5 items-start py-2.5 border-t border-slate-100 dark:border-neutral-700 first:border-t-0 text-[13px]">
+                      <span className="text-slate-500 dark:text-neutral-400">{dayLabel(r.date)}</span>
+                      <span className="min-w-0">
+                        <span className="block text-slate-700 dark:text-neutral-200 truncate">{r.sub || r.cat}</span>
+                        <span className="block text-[11px] text-slate-400 dark:text-neutral-500 truncate">{r.bank || 'No bank'} · {selGaps[i] ? `${selGaps[i]} days after the last` : i === selAll.length - 1 ? 'first one' : 'same day'}</span>
+                        {r.note && <span className="block mt-0.5 text-[11px] italic text-slate-500 dark:text-neutral-400 truncate">“{r.note}”</span>}
+                      </span>
+                      <span className="text-right">
+                        <span className="block font-semibold text-emerald-700 dark:text-emerald-400">+{fmt2(r.amount)}</span>
+                        {nat && <span className="block text-[10.5px] text-slate-400 dark:text-neutral-500">{nat}</span>}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </Sheet>
       </div>
     );
   }

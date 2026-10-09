@@ -26,6 +26,8 @@ interface MobileHomeProps {
   onOpenBreakdown?: (startMonth: string, endMonth: string) => void;
   onViewTransactions?: (categoryId: string, subcategory: string | null, start: string, end: string) => void;
   onImport?: () => void;
+  // Opens the Income page (every payer, the year by month, where it lands).
+  onOpenIncome?: () => void;
 }
 
 const TOP_N = 6;
@@ -59,7 +61,7 @@ const Glide: React.FC<{ value: number; format: (v: number) => string }> = ({ val
   return <>{format(shown)}</>;
 };
 
-const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCategoryEmoji, onOpenBreakdown, onViewTransactions, onImport }) => {
+const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCategoryEmoji, onOpenBreakdown, onViewTransactions, onImport, onOpenIncome }) => {
   const amt = (t: Transaction) => Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED) || 0;
   const valid = (t: Transaction) => !t.excluded && /^\d{4}-\d{2}-\d{2}/.test(t.date);
 
@@ -872,7 +874,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
                       </motion.div>
                     )}
                   </AnimatePresence>
-                  <div className="border-t border-slate-100 dark:border-neutral-700 py-3 text-[12.5px]">
+                  <div className="border-t border-slate-100 dark:border-neutral-700 py-3 text-[12.5px] flex justify-between items-center gap-3">
                     {sources.length > SHOWN ? (
                       <button onClick={() => setMoreSources(v => !v)} aria-expanded={moreSources} className="flex items-center gap-1 font-medium text-slate-600 dark:text-neutral-300">
                         {moreSources ? 'Show less' : `+${sources.length - SHOWN} more · ${fmt(sources.slice(SHOWN).reduce((a, x) => a + x.total, 0))}`}
@@ -881,6 +883,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
                     ) : (
                       <span className="text-slate-500 dark:text-neutral-400">All sources shown</span>
                     )}
+                    {onOpenIncome && <button onClick={onOpenIncome} className="shrink-0 font-semibold text-indigo-700 dark:text-indigo-300">See all income →</button>}
                   </div>
                 </div>
               )}

@@ -324,8 +324,8 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('activeTab');
     // 'yearly' was the old Analytics tab, now the Dashboard.
     if (saved === 'yearly') return 'home';
-    // Income and Ask are desktop pages; a phone that last had one open starts on Home.
-    if (saved && ['income', 'ask'].includes(saved) && window.innerWidth < 768) return 'home';
+    // Ask is a desktop page; a phone that last had it open starts on Home.
+    if (saved === 'ask' && window.innerWidth < 768) return 'home';
     if (saved && ['home', 'history', 'categories', 'sheets', 'breakdown', 'recurring', 'income', 'ask', 'settings'].includes(saved)) {
       return saved as 'home' | 'history' | 'categories' | 'sheets' | 'breakdown' | 'recurring' | 'income' | 'ask' | 'settings';
     }
@@ -1788,15 +1788,17 @@ const App: React.FC = () => {
            </div>
 
            <div className="flex justify-around items-center px-2 md:flex-col md:h-auto md:gap-1 md:items-stretch md:px-0 overflow-x-auto md:overflow-x-visible no-scrollbar">
+             {/* Listed in phone-bar order; desktopOrder sets the sidebar order. On phones Income takes
+                 Breakdown's place in the bar (Breakdown still opens from Home's "Full breakdown"). */}
              {[
-               { id: 'home', icon: Home, label: 'Dashboard', mobileLabel: 'Home', mobileOnly: true },
-               { id: 'breakdown', icon: Table, label: 'Breakdown', mobileLabel: 'Breakdown', mobileOnly: true },
-               { id: 'sheets', icon: LayoutGrid, label: 'Category Sheets', mobileLabel: 'Sheets', mobileOnly: true },
-               { id: 'history', icon: ArrowRightLeft, label: 'Transactions', mobileLabel: 'Trans', mobileOnly: true },
-               { id: 'income', icon: Wallet, label: 'Income', mobileLabel: 'Income', mobileOnly: false },
-               { id: 'ask', icon: Sparkles, label: 'Ask', mobileLabel: 'Ask', mobileOnly: false },
-               { id: 'categories', icon: FolderCog, label: 'Categories', mobileLabel: 'Cats', mobileOnly: false },
-               { id: 'settings', icon: Settings, label: 'Settings', mobileLabel: 'Settings', mobileOnly: false }
+               { id: 'home', icon: Home, label: 'Dashboard', mobileLabel: 'Home', mobileOnly: true, desktopOrder: 'md:order-1' },
+               { id: 'income', icon: Wallet, label: 'Income', mobileLabel: 'Income', mobileOnly: true, desktopOrder: 'md:order-5' },
+               { id: 'breakdown', icon: Table, label: 'Breakdown', mobileLabel: 'Breakdown', mobileOnly: false, desktopOrder: 'md:order-2' },
+               { id: 'sheets', icon: LayoutGrid, label: 'Category Sheets', mobileLabel: 'Sheets', mobileOnly: true, desktopOrder: 'md:order-3' },
+               { id: 'history', icon: ArrowRightLeft, label: 'Transactions', mobileLabel: 'Trans', mobileOnly: true, desktopOrder: 'md:order-4' },
+               { id: 'ask', icon: Sparkles, label: 'Ask', mobileLabel: 'Ask', mobileOnly: false, desktopOrder: 'md:order-6' },
+               { id: 'categories', icon: FolderCog, label: 'Categories', mobileLabel: 'Cats', mobileOnly: false, desktopOrder: 'md:order-7' },
+               { id: 'settings', icon: Settings, label: 'Settings', mobileLabel: 'Settings', mobileOnly: false, desktopOrder: 'md:order-8' }
              ].map((item) => (
                <button
                  key={item.id}
@@ -1808,6 +1810,7 @@ const App: React.FC = () => {
                      : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-200 hover:bg-slate-50 dark:hover:bg-neutral-700'}
                    ${!isSidebarCollapsed ? 'md:justify-start md:px-3' : ''}
                    ${!item.mobileOnly ? 'hidden md:flex' : ''}
+                   ${item.desktopOrder}
                  `}
                >
                  {activeTab === item.id && (
@@ -2107,6 +2110,7 @@ const App: React.FC = () => {
                       handleTabChange('breakdown');
                     }}
                     onImport={() => setImportOpen(true)}
+                    onOpenIncome={() => handleTabChange('income')}
                     onViewTransactions={(categoryId, subcategory, start, end) => {
                       setFilterCategory(categoryId);
                       setFilterSubcategory(subcategory ?? 'all');
