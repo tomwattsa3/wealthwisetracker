@@ -32,6 +32,8 @@ interface IncomePageProps {
 
 const TYPE_COLORS = ['#22C55E', '#3B82F6', '#8B5CF6', '#F59E0B', '#EC4899', '#14B8A6'];
 const DAY = 86400000;
+// One colour per bank account (biggest first) for Where it lands.
+const BANK_COLORS = ['#0EA5E9', '#6366F1', '#14B8A6', '#F59E0B', '#EC4899', '#94A3B8'];
 // The typical gap (median), so one long break doesn't skew "usually every".
 const typical = (gaps: number[]) => {
   const g = gaps.filter(x => x > 0).sort((a, b) => a - b);
@@ -222,10 +224,7 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
       groups.set(k, e);
     });
     const lands = Array.from(groups.values()).sort((a, b) => b.total - a.total);
-    const byCur = new Map<string, number>();
-    lands.forEach(g => byCur.set(g.cur || 'Unknown', (byCur.get(g.cur || 'Unknown') || 0) + g.total));
-    const curs = Array.from(byCur.entries()).sort((a, b) => b[1] - a[1]);
-    const CUR_COLOR: Record<string, string> = { AED: '#0EA5E9', GBP: '#6366F1', Unknown: '#CBD5E1' };
+    const landColor = (i: number) => BANK_COLORS[Math.min(i, BANK_COLORS.length - 1)];
     const pctOf = (v: number) => Math.round((v / Math.max(shownTotal, 1)) * 100);
     const initial = (n: string) => n.replace(/^from\s+/i, '').replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || '•';
 
@@ -391,17 +390,17 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
           <section className={`${card} px-4 py-3.5`}>
             <div className="flex justify-between items-baseline gap-2">
               <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100">Where it lands</h2>
-              <span className="text-xs text-slate-500 dark:text-neutral-400">{curs.map(([c, v]) => `${c === 'Unknown' ? '?' : c} ${pctOf(v)}%`).join(' · ')}</span>
+              <span className="text-xs text-slate-500 dark:text-neutral-400 truncate">{lands.map(g => `${g.name.replace(/ bank$/i, '')} ${pctOf(g.total)}%`).join(' · ')}</span>
             </div>
             <div className="mt-2.5 h-2.5 rounded-full overflow-hidden flex bg-slate-100 dark:bg-neutral-700">
-              {curs.map(([c, v]) => <span key={c} className="h-full transition-[width] duration-500" style={{ width: `${(v / Math.max(shownTotal, 1)) * 100}%`, background: CUR_COLOR[c] || '#94A3B8' }} />)}
+              {lands.map((g, i) => <span key={g.name} className="h-full transition-[width] duration-500" style={{ width: `${(g.total / Math.max(shownTotal, 1)) * 100}%`, background: landColor(i) }} />)}
             </div>
             <div className="mt-1.5">
-              {lands.map(g => (
+              {lands.map((g, i) => (
                 <div key={g.name} className="grid grid-cols-[34px_minmax(0,1fr)_auto] gap-2.5 items-center min-h-[52px] border-t border-slate-100 dark:border-neutral-700 first:border-t-0">
-                  <span className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-[11px] font-bold bg-slate-100 text-slate-600 dark:bg-neutral-700 dark:text-neutral-300">{g.icon}</span>
+                  <span className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-[11px] font-bold text-white" style={{ background: landColor(i) }}>{g.icon}</span>
                   <span className="min-w-0">
-                    <span className="flex items-center gap-1.5"><span className="text-[13px] font-semibold text-slate-900 dark:text-neutral-100 truncate">{g.name}</span>{g.cur && <span className="px-1 rounded text-[9.5px] font-bold text-white" style={{ background: CUR_COLOR[g.cur] || '#94A3B8' }}>{g.cur}</span>}</span>
+                    <span className="flex items-center gap-1.5"><span className="text-[13px] font-semibold text-slate-900 dark:text-neutral-100 truncate">{g.name}</span>{g.cur && <span className="px-1 rounded text-[9.5px] font-semibold bg-slate-100 text-slate-500 dark:bg-neutral-700 dark:text-neutral-400">{g.cur}</span>}</span>
                     <span className="block text-[11px] text-slate-500 dark:text-neutral-400 truncate">{g.n} {g.n === 1 ? 'payment' : 'payments'} · {pctOf(g.total)}%{g.cur && g.cur !== currency ? ` · ${g.cur === 'AED' ? `AED ${Math.round(g.native).toLocaleString('en-GB')}` : `£${Math.round(g.native).toLocaleString('en-GB')}`} received` : ''}</span>
                   </span>
                   <span className="text-[13.5px] font-bold text-emerald-700 dark:text-emerald-400">{fmt(g.total)}</span>
@@ -642,10 +641,7 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
             groups.set(k, e);
           });
           const list = Array.from(groups.values()).sort((a, b) => b.total - a.total);
-          const byCur = new Map<string, number>();
-          list.forEach(g => byCur.set(g.cur || 'Unknown', (byCur.get(g.cur || 'Unknown') || 0) + g.total));
-          const curs = Array.from(byCur.entries()).sort((a, b) => b[1] - a[1]);
-          const CUR_COLOR: Record<string, string> = { AED: '#0EA5E9', GBP: '#6366F1', Unknown: '#CBD5E1' };
+          const landColor = (i: number) => BANK_COLORS[Math.min(i, BANK_COLORS.length - 1)];
           const nat = (g: { cur: string; native: number }) => g.cur === 'AED' ? `AED ${Math.round(g.native).toLocaleString('en-GB')}` : g.cur === 'GBP' ? `£${Math.round(g.native).toLocaleString('en-GB')}` : '';
           return (
             <section className={`${card} px-5 py-4`}>
@@ -656,18 +652,18 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
               {list.length ? (
                 <div className="mt-3 grid grid-cols-[minmax(0,1fr)_220px] gap-8 items-start">
                   <div>
-                    {list.map(g => {
+                    {list.map((g, i) => {
                       const pct = shownTotal ? (g.total / shownTotal) * 100 : 0;
                       return (
                         <div key={g.name} className="grid grid-cols-[36px_minmax(0,1fr)_auto] gap-3 items-center py-2 border-t border-slate-100 dark:border-neutral-700 first:border-t-0">
-                          <span className="w-9 h-9 rounded-[11px] flex items-center justify-center text-[11.5px] font-bold bg-slate-100 text-slate-600 dark:bg-neutral-700 dark:text-neutral-300">{g.icon}</span>
+                          <span className="w-9 h-9 rounded-[11px] flex items-center justify-center text-[11.5px] font-bold text-white" style={{ background: landColor(i) }}>{g.icon}</span>
                           <span className="min-w-0">
                             <span className="flex items-center gap-1.5">
                               <span className="text-[13px] font-semibold text-slate-900 dark:text-neutral-100 truncate">{g.name}</span>
-                              {g.cur && <span className="px-1.5 rounded text-[10px] font-semibold text-white" style={{ background: CUR_COLOR[g.cur] || '#94A3B8' }}>{g.cur}</span>}
+                              {g.cur && <span className="px-1.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-500 dark:bg-neutral-700 dark:text-neutral-400">{g.cur}</span>}
                             </span>
                             <span className="block mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-neutral-700 overflow-hidden">
-                              <span className="block h-full rounded-full transition-[width] duration-500" style={{ width: `${pct}%`, background: CUR_COLOR[g.cur] || '#94A3B8' }} />
+                              <span className="block h-full rounded-full transition-[width] duration-500" style={{ width: `${pct}%`, background: landColor(i) }} />
                             </span>
                             <span className="block mt-1 text-[11.5px] text-slate-500 dark:text-neutral-400">{g.n} {g.n === 1 ? 'payment' : 'payments'} · {Math.round(pct)}%</span>
                           </span>
@@ -680,16 +676,16 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
                     })}
                   </div>
                   <div>
-                    <div className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400 dark:text-neutral-500">By currency</div>
+                    <div className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400 dark:text-neutral-500">By bank</div>
                     <div className="mt-2 h-3 rounded-full overflow-hidden flex bg-slate-100 dark:bg-neutral-700">
-                      {curs.map(([c, v]) => <span key={c} className="h-full transition-[width] duration-500" style={{ width: `${(v / Math.max(shownTotal, 1)) * 100}%`, background: CUR_COLOR[c] || '#94A3B8' }} />)}
+                      {list.map((g, i) => <span key={g.name} className="h-full transition-[width] duration-500" style={{ width: `${(g.total / Math.max(shownTotal, 1)) * 100}%`, background: landColor(i) }} />)}
                     </div>
                     <div className="mt-2.5 flex flex-col gap-1.5">
-                      {curs.map(([c, v]) => (
-                        <div key={c} className="flex items-center gap-2 text-[12.5px]">
-                          <span className="w-2 h-2 rounded-full" style={{ background: CUR_COLOR[c] || '#94A3B8' }} />
-                          <span className="flex-1 text-slate-600 dark:text-neutral-300">{c === 'AED' ? 'Dirhams' : c === 'GBP' ? 'Pounds' : 'Currency not set'}</span>
-                          <span className="font-semibold text-slate-900 dark:text-neutral-100">{Math.round((v / Math.max(shownTotal, 1)) * 100)}%</span>
+                      {list.map((g, i) => (
+                        <div key={g.name} className="flex items-center gap-2 text-[12.5px]">
+                          <span className="w-2 h-2 rounded-full" style={{ background: landColor(i) }} />
+                          <span className="flex-1 truncate text-slate-600 dark:text-neutral-300">{g.name}</span>
+                          <span className="font-semibold text-slate-900 dark:text-neutral-100">{Math.round((g.total / Math.max(shownTotal, 1)) * 100)}%</span>
                         </div>
                       ))}
                     </div>

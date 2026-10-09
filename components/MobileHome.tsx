@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AnimatePresence, animate, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Eye, EyeOff } from 'lucide-react';
 import { Transaction } from '../types';
 import { usePrivacy } from '../lib/privacy';
@@ -51,15 +51,28 @@ const Stagger: React.FC<{ i: number; children: React.ReactNode }> = ({ i, childr
 );
 
 // A money figure that glides from its old value to the new one instead of jumping.
-const Glide: React.FC<{ value: number; format: (v: number) => string }> = ({ value, format }) => {
-  const [shown, setShown] = useState(value);
-  const from = React.useRef(value);
-  useEffect(() => {
-    const ctl = animate(from.current, value, { duration: 1.1, delay: 0.12, ease: [0.22, 1, 0.36, 1], onUpdate: v => { from.current = v; setShown(v); } });
-    return () => ctl.stop();
-  }, [value]);
-  return <>{format(shown)}</>;
-};
+// Text that changes with a soft fade and slide: the old value drifts up and fades out while the
+// new one rises in from below (with a light blur), in about a quarter of a second.
+const Swap: React.FC<{ text: string }> = ({ text }) => (
+  <span className="relative inline-grid align-baseline">
+    <AnimatePresence initial={false}>
+      <motion.span
+        key={text}
+        style={{ gridArea: '1 / 1' }}
+        className="whitespace-nowrap"
+        initial={{ opacity: 0, y: '0.35em', filter: 'blur(3px)' }}
+        animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+        exit={{ opacity: 0, y: '-0.35em', filter: 'blur(3px)' }}
+        transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+      >
+        {text}
+      </motion.span>
+    </AnimatePresence>
+  </span>
+);
+
+// A money figure that swaps smoothly when it changes.
+const Glide: React.FC<{ value: number; format: (v: number) => string }> = ({ value, format }) => <Swap text={format(value)} />;
 
 const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCategoryEmoji, onOpenBreakdown, onViewTransactions, onImport, onOpenIncome }) => {
   const amt = (t: Transaction) => Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED) || 0;
@@ -234,14 +247,14 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
             <span className="min-w-0 flex flex-col gap-1">
               <span className="flex justify-between gap-2">
                 <span className="text-[13.5px] font-medium text-slate-900 dark:text-neutral-100 truncate">{c.name}</span>
-                <span className="text-[13.5px] font-bold text-slate-900 dark:text-neutral-100">{fmt(c.v)}</span>
+                <span className="text-[13.5px] font-bold text-slate-900 dark:text-neutral-100"><Swap text={fmt(c.v)} /></span>
               </span>
               <span className="block h-1 rounded bg-slate-100 dark:bg-neutral-700">
-                <span className="block h-1 rounded bg-indigo-500 transition-[width] duration-[1100ms] delay-150 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ width: `${(c.v / catMax) * 100}%` }} />
+                <span className="block h-1 rounded bg-indigo-500 transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ width: `${(c.v / catMax) * 100}%` }} />
               </span>
             </span>
             <span className="min-w-[40px] text-right text-[12px] font-semibold text-slate-500 dark:text-neutral-400">
-              {out ? `${Math.round((c.v / out) * 100)}%` : ''}
+              {out ? <Swap text={`${Math.round((c.v / out) * 100)}%`} /> : ''}
             </span>
           </button>
   );
@@ -517,37 +530,45 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
                 </div>
               );
             })() : (
-              <div className={`text-[12.5px] font-semibold mt-0.5 ${compareTone}`}>{compareLine}</div>
+              <div className={`text-[12.5px] font-semibold mt-0.5 ${compareTone}`}><Swap text={compareLine} /></div>
             )}
           </div>
           <div className="text-right text-xs leading-relaxed text-slate-500 dark:text-neutral-400 shrink-0">
             In <strong className="text-emerald-700 dark:text-emerald-400"><Glide value={inc} format={fmt} /></strong>
             <br />
-            Net <strong className={net < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}>{net < 0 ? '−' : '+'}{fmt(Math.abs(net))}</strong>
+            Net <strong className={net < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}><Swap text={`${net < 0 ? '−' : '+'}${fmt(Math.abs(net))}`} /></strong>
           </div>
         </div>
-        <div className={`flex items-end h-24 ${barIdxs.length > 6 ? 'gap-1' : 'gap-2'}`}>
+        {/* Switching between the year and six months: bars that leave shrink away and the rest widen
+            smoothly into the space (and back), rather than jumping. */}
+        <div className="flex items-end h-24">
+          <AnimatePresence initial={false}>
           {barIdxs.map(i => {
             const v = outByMonth.get(i) || 0;
             const on = ytd || i === sel;
             const inRange = i >= firstIdx && i <= lastIdx;
             return (
-              <button
+              <motion.button
                 key={i}
+                initial={{ flexGrow: 0, opacity: 0 }}
+                animate={{ flexGrow: 1, opacity: 1 }}
+                exit={{ flexGrow: 0, opacity: 0 }}
+                transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
                 onClick={() => { if (!inRange) return; toggleMonth(i); }}
                 disabled={!inRange}
                 aria-pressed={on}
                 aria-label={`${FULL_MONTHS[i % 12]} ${Math.floor(i / 12)}: ${fmt(v)}`}
-                className="flex-1 h-full flex flex-col justify-end gap-1.5"
+                className="basis-0 min-w-0 h-full flex flex-col justify-end gap-1.5 overflow-hidden px-[3px]"
               >
                 <span
                   className={`block rounded-md transition-[height,background-color] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${on ? (ytd ? 'bg-indigo-500' : 'bg-indigo-600') : v ? 'bg-indigo-100 dark:bg-indigo-900/60' : 'bg-slate-100 dark:bg-neutral-700'}`}
                   style={{ height: v ? Math.max(4, Math.round((v / barMax) * 72)) : 4 }}
                 />
-                <span className={`transition-colors duration-700 ${barIdxs.length > 6 ? 'text-[10px]' : 'text-[11px]'} ${on && !ytd ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-400 dark:text-neutral-500'}`}>{MONTHS[i % 12]}</span>
-              </button>
+                <span className={`transition-colors duration-700 text-[10.5px] whitespace-nowrap ${on && !ytd ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-400 dark:text-neutral-500'}`}>{MONTHS[i % 12]}</span>
+              </motion.button>
             );
           })}
+          </AnimatePresence>
         </div>
       </section>
 
@@ -556,8 +577,23 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
           <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100">Where it went</h2>
         </div>
         {top.length === 0 && <p className="py-6 text-center text-sm text-slate-400">No spending {ytd ? 'this year' : 'this month'}</p>}
-        <div key={`${mode}-${sel}`}>
-          {top.map((c, i) => <Stagger key={c.name} i={i}>{catRow(c)}</Stagger>)}
+        {/* On a new month the rows stay put: amounts and % swap softly, rows that move glide to
+            their new place, and categories that come or go fade in or out. */}
+        <div className="relative">
+          <AnimatePresence initial={false} mode="popLayout">
+            {top.map(c => (
+              <motion.div
+                key={c.name}
+                layout="position"
+                initial={{ opacity: 0, y: 6, filter: 'blur(3px)' }}
+                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                exit={{ opacity: 0, filter: 'blur(3px)' }}
+                transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+              >
+                {catRow(c)}
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
         {/* The rest of the categories open smoothly under the top six */}
         <AnimatePresence initial={false}>

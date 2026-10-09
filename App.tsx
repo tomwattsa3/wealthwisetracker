@@ -1792,10 +1792,10 @@ const App: React.FC = () => {
                  Breakdown's place in the bar (Breakdown still opens from Home's "Full breakdown"). */}
              {[
                { id: 'home', icon: Home, label: 'Dashboard', mobileLabel: 'Home', mobileOnly: true, desktopOrder: 'md:order-1' },
-               { id: 'income', icon: Wallet, label: 'Income', mobileLabel: 'Income', mobileOnly: true, desktopOrder: 'md:order-5' },
-               { id: 'breakdown', icon: Table, label: 'Breakdown', mobileLabel: 'Breakdown', mobileOnly: false, desktopOrder: 'md:order-2' },
-               { id: 'sheets', icon: LayoutGrid, label: 'Category Sheets', mobileLabel: 'Sheets', mobileOnly: true, desktopOrder: 'md:order-3' },
-               { id: 'history', icon: ArrowRightLeft, label: 'Transactions', mobileLabel: 'Trans', mobileOnly: true, desktopOrder: 'md:order-4' },
+               { id: 'income', icon: Wallet, label: 'Income', mobileLabel: 'Income', mobileOnly: true, desktopOrder: 'md:order-2' },
+               { id: 'breakdown', icon: Table, label: 'Breakdown', mobileLabel: 'Breakdown', mobileOnly: false, desktopOrder: 'md:order-3' },
+               { id: 'sheets', icon: LayoutGrid, label: 'Category Sheets', mobileLabel: 'Sheets', mobileOnly: true, desktopOrder: 'md:order-4' },
+               { id: 'history', icon: ArrowRightLeft, label: 'Transactions', mobileLabel: 'Trans', mobileOnly: true, desktopOrder: 'md:order-5' },
                { id: 'ask', icon: Sparkles, label: 'Ask', mobileLabel: 'Ask', mobileOnly: false, desktopOrder: 'md:order-6' },
                { id: 'categories', icon: FolderCog, label: 'Categories', mobileLabel: 'Cats', mobileOnly: false, desktopOrder: 'md:order-7' },
                { id: 'settings', icon: Settings, label: 'Settings', mobileLabel: 'Settings', mobileOnly: false, desktopOrder: 'md:order-8' }
@@ -2105,10 +2105,8 @@ const App: React.FC = () => {
                     transactions={transactions}
                     currency={currency}
                     getCategoryEmoji={getCategoryEmoji}
-                    onOpenBreakdown={(start, end) => {
-                      setBreakdownJump({ start, end });
-                      handleTabChange('breakdown');
-                    }}
+                    // On phones "Full breakdown" opens Category Sheets (Breakdown has no tab there).
+                    onOpenBreakdown={() => handleTabChange('sheets')}
                     onImport={() => setImportOpen(true)}
                     onOpenIncome={() => handleTabChange('income')}
                     onViewTransactions={(categoryId, subcategory, start, end) => {
