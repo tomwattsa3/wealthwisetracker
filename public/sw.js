@@ -9,7 +9,7 @@
 // - Import reminders: Android wakes this worker about twice a day ('periodicsync'); if you've
 //   turned reminders on and your bank data is older than you chose, it shows a notification.
 
-const VERSION = 'ww-v2';
+const VERSION = 'ww-v3';
 const SHELL = `${VERSION}-shell`;
 const RUNTIME = `${VERSION}-runtime`;
 const SHELL_FILES = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png', '/favicon.png'];

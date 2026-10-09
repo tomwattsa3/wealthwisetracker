@@ -1,32 +1,30 @@
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, Suspense, lazy } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { DURATION, EASE_OUT, STAGGER_CONTAINER, STAGGER_ITEM } from './lib/motion';
 import { Session } from '@supabase/supabase-js';
 import { Transaction, FinancialSummary, Category, Bank, MerchantMapping } from './types';
 import { INITIAL_CATEGORIES, INITIAL_BANKS } from './constants';
 import { supabase } from './supabaseClient';
-import LoginPage from './components/LoginPage';
-import TransactionForm from './components/TransactionForm';
-import TransactionsView from './components/TransactionsView';
-import SpendingPatterns from './components/SpendingPatterns';
 import MobileHome from './components/MobileHome';
-import CategorySheets from './components/CategorySheets';
-import StatsCard from './components/StatsCard';
 import DashboardDateFilter, { DateRange } from './components/DashboardDateFilter';
-import CategoryTrendWidget from './components/CategoryTrendWidget';
-import AllocationSidebar from './components/AllocationSidebar';
-import CategoryManager from './components/CategoryManager';
-import ImportCsvModal from './components/ImportCsvModal';
+// Everything except the phone Home loads only when it's first opened, so the app starts faster.
+const LoginPage = lazy(() => import('./components/LoginPage'));
+const TransactionForm = lazy(() => import('./components/TransactionForm'));
+const TransactionsView = lazy(() => import('./components/TransactionsView'));
+const SpendingPatterns = lazy(() => import('./components/SpendingPatterns'));
+const CategorySheets = lazy(() => import('./components/CategorySheets'));
+const CategoryManager = lazy(() => import('./components/CategoryManager'));
+const ImportCsvModal = lazy(() => import('./components/ImportCsvModal'));
 import { usePrivacy } from './lib/privacy';
 import BlurStrengthSlider from './components/BlurStrengthSlider';
 import { TxActionsContext } from './components/TxDetail';
 import MoreSheet from './components/MoreSheet';
-import SettingsManager from './components/SettingsManager';
-import BreakdownTab from './components/BreakdownTab';
-import RecurringPayments from './components/RecurringPayments';
-import IncomePage from './components/IncomePage';
-import AskPage from './components/AskPage';
+const SettingsManager = lazy(() => import('./components/SettingsManager'));
+const BreakdownTab = lazy(() => import('./components/BreakdownTab'));
+const RecurringPayments = lazy(() => import('./components/RecurringPayments'));
+const IncomePage = lazy(() => import('./components/IncomePage'));
+const AskPage = lazy(() => import('./components/AskPage'));
 import DashboardSkeleton from './components/DashboardSkeleton';
 import { loadSnapshot, saveSnapshot, clearSnapshot, saveLastImport } from './lib/offline';
 import SegmentedControl from './components/SegmentedControl';
@@ -1692,7 +1690,7 @@ const App: React.FC = () => {
 
   // Show login if not authenticated
   if (!session) {
-    return <LoginPage />;
+    return <Suspense fallback={null}><LoginPage /></Suspense>;
   }
 
   // Data loading state — a skeleton shaped like the real dashboard instead of a blank
@@ -2079,6 +2077,8 @@ const App: React.FC = () => {
             exit={{ opacity: 0, y: isPhone ? 0 : -8 }}
             transition={{ duration: isPhone ? 0.16 : DURATION.page, ease: EASE_OUT }}
           >
+          {/* A page that hasn't been opened yet loads in a moment; show a quiet placeholder meanwhile */}
+          <Suspense fallback={<div className="flex flex-col gap-3 animate-pulse" aria-hidden><div className="h-8 w-40 rounded-lg bg-slate-200/70 dark:bg-neutral-800" /><div className="h-40 rounded-2xl bg-white/70 dark:bg-neutral-800/70" /><div className="h-64 rounded-2xl bg-white/70 dark:bg-neutral-800/70" /></div>}>
           {/* DASHBOARD VIEW */}
           {/* CATEGORY SHEETS */}
           {activeTab === 'sheets' && (
@@ -2279,6 +2279,7 @@ const App: React.FC = () => {
               onSelected={() => setTxSelect(null)}
             />
           )}
+          </Suspense>
           </motion.div>
           </AnimatePresence>
 
@@ -2296,6 +2297,7 @@ const App: React.FC = () => {
         onLogout={handleLogout}
       />
 
+      <Suspense fallback={null}>
       <ImportCsvModal
         open={importOpen}
         onClose={() => setImportOpen(false)}
@@ -2314,6 +2316,7 @@ const App: React.FC = () => {
         categories={categories}
         banks={banks}
       />
+      </Suspense>
 
       {/* Widget Delete Confirmation Modal */}
       {widgetToDelete && (

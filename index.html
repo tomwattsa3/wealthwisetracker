@@ -15,12 +15,16 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="WealthWise" />
     <meta name="theme-color" content="#f8fafc" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { numeric: ['Inter', 'sans-serif'] } } } }</script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Dark mode before anything draws, so the loading screen matches -->
+    <script>try { if (localStorage.getItem('darkMode') === 'true') document.documentElement.classList.add('dark'); } catch (e) {}</script>
+    <!-- Fonts load in the background: the app draws straight away in a similar font, then swaps -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'" />
     <style>
       body {
-        font-family: 'Poppins', sans-serif;
+        font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
       }
       /* Hide amounts (lib/privacy.ts): each amount gets a soft blur in its own colour via per-colour
          ::highlight rules the script adds. This element blur is only the fallback for chart labels
@@ -72,25 +76,18 @@
         background: #737373;
       }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@^19.2.4",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.3",
-    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
-    "recharts": "https://esm.sh/recharts@^2.12.0",
-    "react-markdown": "https://esm.sh/react-markdown@^10.1.0",
-    "papaparse": "https://esm.sh/papaparse@5.4.1"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-slate-50 dark:bg-neutral-900 text-slate-900 dark:text-neutral-200 antialiased selection:bg-violet-100 selection:text-violet-700">
-    <div id="root"></div>
+    <!-- Shown the moment the app opens (replaced as soon as it has loaded), so Android's logo
+         screen only flashes by -->
+    <div id="root"><div class="min-h-screen bg-slate-100 dark:bg-neutral-900 p-3 md:pl-[280px] md:p-8" aria-hidden="true">
+      <div class="max-w-md md:max-w-none mx-auto flex flex-col gap-3 animate-pulse">
+        <div class="flex items-center justify-between px-1 pt-1"><div class="h-7 w-24 rounded-lg bg-slate-200 dark:bg-neutral-800"></div><div class="h-8 w-28 rounded-xl bg-slate-200 dark:bg-neutral-800"></div></div>
+        <div class="flex gap-1.5"><div class="h-[30px] w-24 rounded-full bg-slate-200 dark:bg-neutral-800"></div><div class="h-[30px] w-32 rounded-full bg-slate-200/70 dark:bg-neutral-800/70"></div><div class="h-[30px] w-16 rounded-full bg-slate-200/70 dark:bg-neutral-800/70"></div></div>
+        <div class="rounded-2xl bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 p-4"><div class="h-3 w-28 rounded bg-slate-100 dark:bg-neutral-700"></div><div class="h-9 w-36 rounded-lg bg-slate-200 dark:bg-neutral-700 mt-2"></div><div class="h-24 rounded-xl bg-slate-100 dark:bg-neutral-700/60 mt-4"></div></div>
+        <div class="rounded-2xl bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 p-4 flex flex-col gap-3"><div class="h-4 w-32 rounded bg-slate-200 dark:bg-neutral-700"></div><div class="h-9 rounded-lg bg-slate-100 dark:bg-neutral-700/60"></div><div class="h-9 rounded-lg bg-slate-100 dark:bg-neutral-700/60"></div><div class="h-9 rounded-lg bg-slate-100 dark:bg-neutral-700/60"></div></div>
+      </div>
+    </div></div>
   <script type="module" src="/index.tsx"></script>
 </body>
 </html>
