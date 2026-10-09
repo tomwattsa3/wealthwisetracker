@@ -8,6 +8,7 @@ import CategorySheets from './CategorySheets';
 import InstallCard from './InstallCard';
 import PlaceSheet, { PlacePick } from './PlaceSheet';
 import { useBackClose } from '../lib/backStack';
+import Swap, { GlideRow } from './Swap';
 import Sheet from './Sheet';
 import { supabase } from '../supabaseClient';
 import { MONTHS, FULL_MONTHS, monthKey, keyToIndex, indexToKey, daysIn, localToday, merchantKey, sum } from '../lib/periods';
@@ -42,35 +43,6 @@ const TINTS = [
 ];
 
 interface Place { key: string; name: string; total: number; count: number; cats: Map<string, { id: string; amount: number }> }
-
-// Rows of a list arriving one after another after a month change.
-const Stagger: React.FC<{ i: number; children: React.ReactNode }> = ({ i, children }) => (
-  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.06, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}>
-    {children}
-  </motion.div>
-);
-
-// A money figure that glides from its old value to the new one instead of jumping.
-// Text that changes with a soft fade and slide: the old value drifts up and fades out while the
-// new one rises in from below, in about a quarter of a second. Only opacity and position move
-// (no blur), which phones can animate without redrawing the page.
-const Swap: React.FC<{ text: string }> = ({ text }) => (
-  <span className="relative inline-grid align-baseline">
-    <AnimatePresence initial={false}>
-      <motion.span
-        key={text}
-        style={{ gridArea: '1 / 1', willChange: 'transform, opacity' }}
-        className="whitespace-nowrap"
-        initial={{ opacity: 0, y: '0.35em' }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: '-0.35em' }}
-        transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
-      >
-        {text}
-      </motion.span>
-    </AnimatePresence>
-  </span>
-);
 
 // A money figure that swaps smoothly when it changes.
 const Glide: React.FC<{ value: number; format: (v: number) => string }> = ({ value, format }) => <Swap text={format(value)} />;
@@ -814,7 +786,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
               <span className="text-[12.5px] leading-snug font-medium text-slate-900 dark:text-neutral-100 truncate">{src.name}</span>
               <span className="text-[11px] text-slate-500 dark:text-neutral-400 truncate"><span className="capitalize">{src.type}</span> · {src.count > 1 ? `${src.count} payments` : Array.from(src.months).map(m => MONTHS[m % 12]).join(', ')}</span>
             </span>
-            <span className="text-[12.5px] font-bold text-emerald-700 dark:text-emerald-400">+{fmt2(src.total)}</span>
+            <span className="text-[12.5px] font-bold text-emerald-700 dark:text-emerald-400"><Swap text={`+${fmt2(src.total)}`} /></span>
           </button>
         );
         // The chart always shows the year's imported months, like Month by month.
@@ -914,11 +886,11 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
                     </div>
                   )}
                   <div className="mt-2" style={{ height: SHOWN * 52 }}>
-                    <AnimatePresence mode="wait" initial={false}>
-                      <motion.div key={`${activeType}-${mode}-${sel}`} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-                        {sources.slice(0, SHOWN).map((src, i) => <Stagger key={src.key} i={i}>{sourceRow(src)}</Stagger>)}
-                      </motion.div>
-                    </AnimatePresence>
+                    <div className="relative">
+                      <AnimatePresence initial={false} mode="popLayout">
+                        {sources.slice(0, SHOWN).map(src => <GlideRow key={src.key}>{sourceRow(src)}</GlideRow>)}
+                      </AnimatePresence>
+                    </div>
                   </div>
                   <AnimatePresence initial={false}>
                     {moreSources && sources.length > SHOWN && (

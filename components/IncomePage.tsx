@@ -7,6 +7,7 @@ import { MODAL_TRANSITION } from '../lib/motion';
 import { userNote } from './TxDetail';
 import { useBackClose } from '../lib/backStack';
 import Sheet from './Sheet';
+import Swap, { GlideRow } from './Swap';
 
 const useMedia = (q: string) => {
   const [m, setM] = useState(() => window.matchMedia(q).matches);
@@ -261,7 +262,7 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
               <span className={`text-xs font-semibold ${yearTotal >= lastYearTotal ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-neutral-400'}`}>{yearTotal >= lastYearTotal ? '↑' : '↓'} {fmt(Math.abs(yearTotal - lastYearTotal))} on last year</span>
             )}
           </div>
-          <div className="text-[32px] leading-tight font-bold tracking-tight text-emerald-700 dark:text-emerald-400">{fmt(shownTotal)}</div>
+          <div className="text-[32px] leading-tight font-bold tracking-tight text-emerald-700 dark:text-emerald-400"><Swap text={fmt(shownTotal)} /></div>
           <div className="text-xs text-slate-500 dark:text-neutral-400">
             {shown.length} {shown.length === 1 ? 'payment' : 'payments'}{range === null ? ` · avg ${fmt(avgIn)} a month` : ''}{bank ? ` · ${bankList.find(b => b.key === bank)?.name}` : ''}
           </div>
@@ -283,7 +284,7 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
                         {t !== 'all' && <span className="w-[5px] h-[5px] rounded-full shrink-0" style={{ background: colorOf(t) }} />}
                         {t === 'all' ? 'All' : t.replace(/ interest$/i, '')}
                       </span>
-                      <span className="text-[9.5px] text-slate-400 dark:text-neutral-500">{fmt(v)}</span>
+                      <span className="text-[9.5px] text-slate-400 dark:text-neutral-500"><Swap text={fmt(v)} /></span>
                     </span>
                   </button>
                 );
@@ -354,26 +355,32 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
             <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100">Who pays you</h2>
             <span className="text-xs text-slate-500 dark:text-neutral-400">Biggest first</span>
           </div>
+          <div className="relative">
+          <AnimatePresence initial={false} mode="popLayout">
           {shownPayers.map(p => {
             const byM = Array.from({ length: lastMonth + 1 }, (_, m) => sum(p.rows.filter(r => r.month === m).map(r => r.amount)));
             const m2 = Math.max(...byM, 1);
             const last = p.rows.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
             return (
-              <button key={p.key} onClick={() => setPayer(p.key)} className="w-full grid grid-cols-[32px_minmax(0,1fr)_auto] gap-2.5 items-center min-h-[56px] py-1.5 border-t border-slate-100 dark:border-neutral-700 text-left">
+              <GlideRow key={p.key}>
+              <button onClick={() => setPayer(p.key)} className="w-full grid grid-cols-[32px_minmax(0,1fr)_auto] gap-2.5 items-center min-h-[56px] py-1.5 border-t border-slate-100 dark:border-neutral-700 text-left">
                 <span className="w-8 h-8 rounded-[10px] flex items-center justify-center text-[13px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">{initial(p.name)}</span>
                 <span className="min-w-0">
                   <span className="block text-[13px] font-semibold text-slate-900 dark:text-neutral-100 truncate">{p.name}</span>
                   <span className="block text-[11px] text-slate-500 dark:text-neutral-400 truncate"><span className="capitalize">{p.type}</span> · {p.rows.length} {p.rows.length === 1 ? 'payment' : 'payments'} · last {dayLabel(last.date)}</span>
                 </span>
                 <span className="text-right">
-                  <span className="block text-[13.5px] font-bold text-emerald-700 dark:text-emerald-400">{fmt(p.total)}</span>
+                  <span className="block text-[13.5px] font-bold text-emerald-700 dark:text-emerald-400"><Swap text={fmt(p.total)} /></span>
                   <span className="flex gap-[2px] justify-end items-end h-3 mt-0.5" aria-hidden>
                     {byM.map((v, i) => <span key={i} className="block w-1 rounded-[1px]" style={{ height: v ? Math.max(3, Math.round((v / m2) * 12)) : 2, background: v ? colorOf(p.type) : 'rgb(226 232 240)' }} />)}
                   </span>
                 </span>
               </button>
+              </GlideRow>
             );
           })}
+          </AnimatePresence>
+          </div>
           {!payers.length && <p className="py-6 text-center text-sm text-slate-400">Nothing in for this choice.</p>}
           {payers.length > 5 && (
             <div className="border-t border-slate-100 dark:border-neutral-700 py-3 text-[12.5px]">
@@ -395,17 +402,21 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
             <div className="mt-2.5 h-2.5 rounded-full overflow-hidden flex bg-slate-100 dark:bg-neutral-700">
               {lands.map((g, i) => <span key={g.name} className="h-full transition-[width] duration-500" style={{ width: `${(g.total / Math.max(shownTotal, 1)) * 100}%`, background: landColor(i) }} />)}
             </div>
-            <div className="mt-1.5">
+            <div className="mt-1.5 relative">
+              <AnimatePresence initial={false} mode="popLayout">
               {lands.map((g, i) => (
-                <div key={g.name} className="grid grid-cols-[34px_minmax(0,1fr)_auto] gap-2.5 items-center min-h-[52px] border-t border-slate-100 dark:border-neutral-700 first:border-t-0">
+                <GlideRow key={g.name}>
+                <div className={`grid grid-cols-[34px_minmax(0,1fr)_auto] gap-2.5 items-center min-h-[52px] ${i ? 'border-t border-slate-100 dark:border-neutral-700' : ''}`}>
                   <span className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-[11px] font-bold text-white" style={{ background: landColor(i) }}>{g.icon}</span>
                   <span className="min-w-0">
                     <span className="flex items-center gap-1.5"><span className="text-[13px] font-semibold text-slate-900 dark:text-neutral-100 truncate">{g.name}</span>{g.cur && <span className="px-1 rounded text-[9.5px] font-semibold bg-slate-100 text-slate-500 dark:bg-neutral-700 dark:text-neutral-400">{g.cur}</span>}</span>
                     <span className="block text-[11px] text-slate-500 dark:text-neutral-400 truncate">{g.n} {g.n === 1 ? 'payment' : 'payments'} · {pctOf(g.total)}%{g.cur && g.cur !== currency ? ` · ${g.cur === 'AED' ? `AED ${Math.round(g.native).toLocaleString('en-GB')}` : `£${Math.round(g.native).toLocaleString('en-GB')}`} received` : ''}</span>
                   </span>
-                  <span className="text-[13.5px] font-bold text-emerald-700 dark:text-emerald-400">{fmt(g.total)}</span>
+                  <span className="text-[13.5px] font-bold text-emerald-700 dark:text-emerald-400"><Swap text={fmt(g.total)} /></span>
                 </div>
+                </GlideRow>
               ))}
+              </AnimatePresence>
             </div>
           </section>
         )}
@@ -556,7 +567,7 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
       <div className="grid grid-cols-2 xl:grid-cols-[1.3fr_1fr_1fr_1fr] gap-4">
         <div className={`${card} px-5 py-4`}>
           <div className={kicker}>{range === null ? (isThisYear ? 'Money in this year' : `Money in ${year}`) : `Money in · ${single !== null ? FULL_MONTHS[single] : `${MONTHS[range[0]]} – ${MONTHS[range[1]]}`}`}</div>
-          <div className="text-[30px] leading-tight font-bold text-emerald-700 dark:text-emerald-400 mt-1">{fmt(shownTotal)}</div>
+          <div className="text-[30px] leading-tight font-bold text-emerald-700 dark:text-emerald-400 mt-1"><Swap text={fmt(shownTotal)} /></div>
           <div className="text-[12.5px] text-slate-500 dark:text-neutral-400">
             {range === null && !type && lastYearTotal > 0
               ? `${yearTotal >= lastYearTotal ? '↑' : '↓'} ${fmt(Math.abs(yearTotal - lastYearTotal))} on ${isThisYear ? 'this point last year' : `${year - 1}`}`
@@ -565,7 +576,7 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
         </div>
         <div className={`${card} px-5 py-4`}>
           <div className={kicker}>Average a month</div>
-          <div className="text-2xl font-bold text-slate-900 dark:text-neutral-100 mt-1.5">{fmt(avgIn)}</div>
+          <div className="text-2xl font-bold text-slate-900 dark:text-neutral-100 mt-1.5"><Swap text={fmt(avgIn)} /></div>
           <div className="text-[12.5px] text-slate-500 dark:text-neutral-400">Spending averages {fmt(avgOut)}</div>
         </div>
         <div className={`${card} px-5 py-4 min-w-0`}>
@@ -651,11 +662,13 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
               </div>
               {list.length ? (
                 <div className="mt-3 grid grid-cols-[minmax(0,1fr)_220px] gap-8 items-start">
-                  <div>
+                  <div className="relative">
+                    <AnimatePresence initial={false} mode="popLayout">
                     {list.map((g, i) => {
                       const pct = shownTotal ? (g.total / shownTotal) * 100 : 0;
                       return (
-                        <div key={g.name} className="grid grid-cols-[36px_minmax(0,1fr)_auto] gap-3 items-center py-2 border-t border-slate-100 dark:border-neutral-700 first:border-t-0">
+                        <GlideRow key={g.name}>
+                        <div className={`grid grid-cols-[36px_minmax(0,1fr)_auto] gap-3 items-center py-2 ${i ? 'border-t border-slate-100 dark:border-neutral-700' : ''}`}>
                           <span className="w-9 h-9 rounded-[11px] flex items-center justify-center text-[11.5px] font-bold text-white" style={{ background: landColor(i) }}>{g.icon}</span>
                           <span className="min-w-0">
                             <span className="flex items-center gap-1.5">
@@ -668,12 +681,14 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
                             <span className="block mt-1 text-[11.5px] text-slate-500 dark:text-neutral-400">{g.n} {g.n === 1 ? 'payment' : 'payments'} · {Math.round(pct)}%</span>
                           </span>
                           <span className="text-right">
-                            <span className="block text-[13.5px] font-bold text-emerald-700 dark:text-emerald-400">{fmt(g.total)}</span>
+                            <span className="block text-[13.5px] font-bold text-emerald-700 dark:text-emerald-400"><Swap text={fmt(g.total)} /></span>
                             {g.cur && g.cur !== currency && <span className="block text-[11px] text-slate-400 dark:text-neutral-500">{nat(g)} received</span>}
                           </span>
                         </div>
+                        </GlideRow>
                       );
                     })}
+                    </AnimatePresence>
                   </div>
                   <div>
                     <div className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400 dark:text-neutral-500">By bank</div>
@@ -711,13 +726,15 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
           {/* Fills the card to the chart's height and scrolls inside, so the two cards line up */}
           <div className="relative flex-1 min-h-0">
           <div className="absolute inset-0 overflow-y-auto overscroll-contain -mx-2 px-2">
+            <AnimatePresence initial={false} mode="popLayout">
             {payers.map(p => {
               const on = payer === p.key;
               const byM = months.map(m => sum(yearRows.filter(r => r.key === p.key && r.month === m && (!type || r.type === type)).map(r => r.amount)));
               const mx = Math.max(...byM, 1);
               const last = p.rows.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
               return (
-                <button key={p.key} onClick={() => setPayer(p.key)} aria-pressed={on} className={`w-full grid grid-cols-[minmax(0,1fr)_auto_84px] gap-3 items-center h-[54px] px-2 -mx-2 rounded-xl border-t border-slate-100 dark:border-neutral-700 text-left transition-colors ${on ? 'bg-indigo-50 dark:bg-indigo-950/40' : 'hover:bg-slate-50 dark:hover:bg-neutral-700/40'}`}>
+                <GlideRow key={p.key}>
+                <button onClick={() => setPayer(p.key)} aria-pressed={on} className={`w-full grid grid-cols-[minmax(0,1fr)_auto_84px] gap-3 items-center h-[54px] px-2 -mx-2 rounded-xl border-t border-slate-100 dark:border-neutral-700 text-left transition-colors ${on ? 'bg-indigo-50 dark:bg-indigo-950/40' : 'hover:bg-slate-50 dark:hover:bg-neutral-700/40'}`}>
                   <span className="flex items-center gap-2.5 min-w-0">
                     <span className="w-8 h-8 shrink-0 rounded-[10px] flex items-center justify-center text-[13px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">{p.name.replace(/^from\s+/i, '').replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || '•'}</span>
                     <span className="min-w-0">
@@ -728,10 +745,12 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
                   <span className="flex items-end gap-[3px] h-5" aria-hidden>
                     {byM.map((v, i) => <span key={i} className="block w-[7px] rounded-[2px]" style={{ height: v ? Math.max(4, Math.round((v / mx) * 20)) : 2, background: v ? colorOf(p.type) : 'rgb(226 232 240)' }} />)}
                   </span>
-                  <span className="text-right text-[13.5px] font-bold text-emerald-700 dark:text-emerald-400">{fmt(p.total)}</span>
+                  <span className="text-right text-[13.5px] font-bold text-emerald-700 dark:text-emerald-400"><Swap text={fmt(p.total)} /></span>
                 </button>
+                </GlideRow>
               );
             })}
+            </AnimatePresence>
             {!payers.length && <p className="py-8 text-center text-sm text-slate-400">Nothing in for this choice.</p>}
           </div>
           </div>
