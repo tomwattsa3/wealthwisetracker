@@ -550,8 +550,8 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                         ) : (s.top.length > 6 ? (
                           <button onClick={() => setExtraPlaces(x => ({ ...x, [s.cat]: 0 }))} className="md:hidden text-[12px] font-medium text-slate-600 dark:text-neutral-300">Show less ⌃</button>
                         ) : <span className="md:hidden" />)}
-                        <button onClick={() => openSheet(s.cat)} className="md:self-start py-1 text-[12px] md:text-[13px] font-bold md:font-semibold text-indigo-700 dark:text-indigo-300 hover:underline">
-                          See all →
+                        <button onClick={() => openSheet(s.cat)} className="min-w-0 max-w-[60%] md:max-w-full truncate md:self-start py-1 text-[12px] md:text-[13px] font-bold md:font-semibold text-indigo-700 dark:text-indigo-300 hover:underline">
+                          Open {s.cat} →
                         </button>
                       </div>
                     </>
