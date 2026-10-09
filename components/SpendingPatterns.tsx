@@ -1054,7 +1054,11 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
             ...presets.map(p => ({ name: p.label, cats: p.names, builtIn: true })),
             ...views.map(v => ({ ...v, builtIn: false })),
           ];
-          const totalOf = (cats: string[]) => sum(catStats.filter(c => cats.includes(c.name)).map(c => c.total));
+          // With a month (or day) picked on the chart, the amounts are for that month, not the whole period.
+          const focusRows = focusBucket ? inRange.filter(r => (win.single ? Number(r.date.slice(8, 10)) : r.monthIdx) === focusBucket.key) : null;
+          const totalOf = (cats: string[]) => focusRows
+            ? sum(focusRows.filter(r => cats.includes(r.cat)).map(r => r.amount))
+            : sum(catStats.filter(c => cats.includes(c.name)).map(c => c.total));
           const isCurrent = (cats: string[]) => presetActive(cats.filter(n => allNames.includes(n)));
           const label = onNames.length === allNames.length ? 'All' : onNames.length === 0 ? 'None' : onNames.length <= 2 ? onNames.join(', ') : `${onNames.length} of ${allNames.length}`;
           const saveView = () => {

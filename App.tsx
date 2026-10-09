@@ -25,6 +25,8 @@ import MoreSheet from './components/MoreSheet';
 import SettingsManager from './components/SettingsManager';
 import BreakdownTab from './components/BreakdownTab';
 import RecurringPayments from './components/RecurringPayments';
+import IncomePage from './components/IncomePage';
+import AskPage from './components/AskPage';
 import DashboardSkeleton from './components/DashboardSkeleton';
 import { loadSnapshot, saveSnapshot, clearSnapshot, saveLastImport } from './lib/offline';
 import SegmentedControl from './components/SegmentedControl';
@@ -33,7 +35,7 @@ import {
   ChevronLeft, ChevronRight, EyeOff, TrendingUp,
   Car, Plane, Smartphone, Coffee, ShoppingBag, PoundSterling, Activity, X,
   FolderCog, CalendarRange, LayoutGrid, ArrowRightLeft, Settings,
-  RotateCcw, Loader2, LogOut, Sparkles, Sun, Moon, Table, Repeat, Eye, MoreHorizontal
+  RotateCcw, Loader2, LogOut, Sparkles, Sun, Moon, Table, Eye, MoreHorizontal, Wallet
 } from 'lucide-react';
 
 // Helper for category icons
@@ -318,12 +320,14 @@ const App: React.FC = () => {
 
   // 'home' is the Dashboard (spending patterns); 'sheets' is Category Sheets, the per-category
   // merchant cards that used to be the dashboard.
-  const [activeTab, setActiveTab] = useState<'home' | 'history' | 'categories' | 'sheets' | 'breakdown' | 'recurring' | 'settings'>(() => {
+  const [activeTab, setActiveTab] = useState<'home' | 'history' | 'categories' | 'sheets' | 'breakdown' | 'recurring' | 'income' | 'ask' | 'settings'>(() => {
     const saved = localStorage.getItem('activeTab');
     // 'yearly' was the old Analytics tab, now the Dashboard.
     if (saved === 'yearly') return 'home';
-    if (saved && ['home', 'history', 'categories', 'sheets', 'breakdown', 'recurring', 'settings'].includes(saved)) {
-      return saved as 'home' | 'history' | 'categories' | 'sheets' | 'breakdown' | 'recurring' | 'settings';
+    // Income and Ask are desktop pages; a phone that last had one open starts on Home.
+    if (saved && ['income', 'ask'].includes(saved) && window.innerWidth < 768) return 'home';
+    if (saved && ['home', 'history', 'categories', 'sheets', 'breakdown', 'recurring', 'income', 'ask', 'settings'].includes(saved)) {
+      return saved as 'home' | 'history' | 'categories' | 'sheets' | 'breakdown' | 'recurring' | 'income' | 'ask' | 'settings';
     }
     return 'home';
   });
@@ -1049,7 +1053,7 @@ const App: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     const tab = params.get('tab');
     const action = params.get('action');
-    if (tab && ['home', 'history', 'categories', 'sheets', 'breakdown', 'recurring', 'settings'].includes(tab)) setActiveTab(tab as typeof activeTab);
+    if (tab && ['home', 'history', 'categories', 'sheets', 'breakdown', 'recurring', 'income', 'ask', 'settings'].includes(tab)) setActiveTab(tab as typeof activeTab);
     if (action === 'import') setImportOpen(true);
     if (tab || action) window.history.replaceState(null, '', window.location.pathname);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1789,8 +1793,9 @@ const App: React.FC = () => {
                { id: 'breakdown', icon: Table, label: 'Breakdown', mobileLabel: 'Breakdown', mobileOnly: true },
                { id: 'sheets', icon: LayoutGrid, label: 'Category Sheets', mobileLabel: 'Sheets', mobileOnly: true },
                { id: 'history', icon: ArrowRightLeft, label: 'Transactions', mobileLabel: 'Trans', mobileOnly: true },
+               { id: 'income', icon: Wallet, label: 'Income', mobileLabel: 'Income', mobileOnly: false },
+               { id: 'ask', icon: Sparkles, label: 'Ask', mobileLabel: 'Ask', mobileOnly: false },
                { id: 'categories', icon: FolderCog, label: 'Categories', mobileLabel: 'Cats', mobileOnly: false },
-               { id: 'recurring', icon: Repeat, label: 'Recurring', mobileLabel: 'Recurring', mobileOnly: false },
                { id: 'settings', icon: Settings, label: 'Settings', mobileLabel: 'Settings', mobileOnly: false }
              ].map((item) => (
                <button
@@ -1957,7 +1962,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Top Bar with Filter & Search (Hidden in Cat/Yearly View) */}
-          {activeTab !== 'categories' && activeTab !== 'home' && activeTab !== 'sheets' && activeTab !== 'breakdown' && activeTab !== 'settings' && activeTab !== 'history' && (
+          {activeTab !== 'categories' && activeTab !== 'home' && activeTab !== 'sheets' && activeTab !== 'breakdown' && activeTab !== 'settings' && activeTab !== 'history' && activeTab !== 'income' && activeTab !== 'ask' && (
             <div className="flex flex-col gap-2 mb-1 md:gap-4 md:mb-8">
 
                 {/* Mobile Dashboard Headline */}
@@ -2167,6 +2172,40 @@ const App: React.FC = () => {
                  />
              </div>
           )}
+
+           {/* INCOME VIEW (desktop) */}
+           {activeTab === 'income' && (
+             <IncomePage
+               transactions={transactions}
+               currency={currency}
+               banks={banks}
+               onViewPayer={(name, start, end) => {
+                 setSearchQuery(name);
+                 setFilterCategory('all');
+                 setFilterSubcategory('all');
+                 setFilterType('INCOME');
+                 setDateRange({ start, end, label: 'Custom Range' });
+                 handleTabChange('history');
+               }}
+             />
+           )}
+
+           {/* ASK VIEW (desktop) */}
+           {activeTab === 'ask' && (
+             <AskPage
+               transactions={transactions}
+               categories={categories}
+               currency={currency}
+               onOpenTransactions={({ search, start, end, categoryId }) => {
+                 setSearchQuery(search);
+                 setFilterCategory(categoryId || 'all');
+                 setFilterSubcategory('all');
+                 setFilterType('all');
+                 setDateRange({ start, end, label: 'Custom Range' });
+                 handleTabChange('history');
+               }}
+             />
+           )}
 
            {/* RECURRING PAYMENTS VIEW */}
            {activeTab === 'recurring' && (
