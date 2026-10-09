@@ -1069,7 +1069,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         const dt = dayPick ? new Date(`${dateKey}T12:00:00`) : null;
         const fmt2 = (v: number) => (currency === 'GBP' ? '£' : 'AED ') + v.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         return (
-          <Sheet open={!!dayPick && !ytd} onClose={() => setDayPick(null)} label="Spending that day" heightClass="h-[56dvh]">
+          <Sheet open={!!dayPick && !ytd} onClose={() => setDayPick(null)} label="Spending that day" heightClass="h-[52.5dvh]">
             {dt && (
               <div className="flex-1 min-h-0 flex flex-col">
                 {/* One slim line: a compact day switcher in the middle (easy reach with either thumb),
