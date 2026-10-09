@@ -5,6 +5,7 @@ import { Transaction } from '../types';
 import { usePrivacy } from '../lib/privacy';
 import BlurStrengthSlider from './BlurStrengthSlider';
 import CategorySheets from './CategorySheets';
+import TxDetail from './TxDetail';
 import InstallCard from './InstallCard';
 import PlaceSheet, { PlacePick } from './PlaceSheet';
 import { useBackClose } from '../lib/backStack';
@@ -58,8 +59,10 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   useEffect(() => { try { localStorage.setItem('homeCatsOff', JSON.stringify(Array.from(homeOff))); } catch { /* not saved */ } }, [homeOff]);
 
   // Same rule as the Dashboard: spending = every money-out row that isn't excluded.
-  const { outByMonth, inByMonth, catByMonth, catAllByMonth, catInfo, placesByMonth, firstIdx, lastIdx } = useMemo(() => {
+  const { outByMonth, dayByMonth, inByMonth, catByMonth, catAllByMonth, catInfo, placesByMonth, firstIdx, lastIdx } = useMemo(() => {
     const outByMonth = new Map<number, number>();
+    // month -> day of the month -> spent (for the picked-month day chart)
+    const dayByMonth = new Map<number, Map<number, number>>();
     const inByMonth = new Map<number, number>();
     const catByMonth = new Map<string, Map<number, number>>();
     // Every category, whether or not it's switched off (for the picker)
@@ -83,6 +86,10 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         lastIdx = Math.max(lastIdx, idx);
         if (homeOff.has(name)) return;
         outByMonth.set(idx, (outByMonth.get(idx) || 0) + a);
+        const dm = dayByMonth.get(idx) || new Map<number, number>();
+        const day = Number(t.date.slice(8, 10));
+        dm.set(day, (dm.get(day) || 0) + a);
+        dayByMonth.set(idx, dm);
         const m = catByMonth.get(name) || new Map<number, number>();
         m.set(idx, (m.get(idx) || 0) + a);
         catByMonth.set(name, m);
@@ -101,7 +108,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         inByMonth.set(idx, (inByMonth.get(idx) || 0) + a);
       }
     });
-    return { outByMonth, inByMonth, catByMonth, catAllByMonth, catInfo, placesByMonth, firstIdx, lastIdx };
+    return { outByMonth, dayByMonth, inByMonth, catByMonth, catAllByMonth, catInfo, placesByMonth, firstIdx, lastIdx };
   }, [transactions, currency, homeOff]);
 
   // Your saved views come from your account (the same ones as the desktop Dashboard).
@@ -121,6 +128,9 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const [picked, setPicked] = useState<number | null>(null);
   const [placeRank, setPlaceRank] = useState<'visits' | 'spent'>('visits');
   const [mode, setMode] = useState<'month' | 'ytd'>('month');
+  // A day tapped in the month's day chart (its payments slide up), and a payment opened from it.
+  const [dayPick, setDayPick] = useState<number | null>(null);
+  const [dayTx, setDayTx] = useState<string | null>(null);
   // Tapping a month opens it; tapping the month that's already open goes back to the year.
   const toggleMonth = (i: number) => {
     if (mode === 'month' && i === (picked ?? lastIdx)) { setMode('ytd'); return; }
@@ -138,6 +148,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   // The place tapped in Top places, shown in its own slide-up sheet.
   const [placePick, setPlacePick] = useState<PlacePick | null>(null);
   const sel = picked ?? (hasData ? lastIdx : keyToIndex(monthKey(localToday())));
+  useEffect(() => setDayPick(null), [sel, mode]);
   useEffect(() => setExtraPlaces(0), [sel, mode, placeRank]);
   // Money in: every payment in (same rule as the totals above), its type, and who it came from.
   const incomeRows = useMemo(() => transactions
@@ -486,7 +497,15 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
           <div className="flex-1 min-w-0">
             <div className="text-xs text-slate-500 dark:text-neutral-400">Spent in {ytd ? `${year}${partialYear ? ' so far' : ''}` : FULL_MONTHS[sel % 12]}</div>
             <div className="text-[34px] leading-tight font-bold text-slate-900 dark:text-neutral-100"><Glide value={out} format={fmt} /></div>
-            {usual > 0 ? (() => {
+            {!ytd && usual > 0 ? (
+              // A picked month: two quick comparisons with your average month
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                <span className={`px-2.5 py-[3px] rounded-full text-[11.5px] font-semibold ${near ? 'bg-slate-100 text-slate-600 dark:bg-neutral-700 dark:text-neutral-300' : diff > 0 ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'}`}>
+                  <Swap text={near ? 'About your average' : `${fmt(Math.abs(out - usual))} ${diff > 0 ? 'over' : 'under'} your average`} />
+                </span>
+                <span className="px-2.5 py-[3px] rounded-full bg-slate-100 dark:bg-neutral-700 text-[11.5px] text-slate-600 dark:text-neutral-300"><Swap text={`${Math.round((out / usual) * 100)}% of usual`} /></span>
+              </div>
+            ) : usual > 0 ? (() => {
               // How far through your usual month (or last year) you are; the tick is your usual.
               const scale = Math.max(out, usual) * 1.04;
               const tick = (usual / scale) * 100;
@@ -514,42 +533,107 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
             Net <strong className={net < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}><Swap text={`${net < 0 ? '−' : '+'}${fmt(Math.abs(net))}`} /></strong>
           </div>
         </div>
+        {/* The year: a bar per month (tap one to open it). A picked month: its days instead. */}
+        {/* The two views cross-fade (no blank gap), the card eases to its new height, and the bars
+            rise in from the bottom one after another. */}
+        <AutoHeight>
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.div
+            key={ytd ? 'year' : `month-${sel}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="w-full"
+          >
+          {ytd ? (
+          <>
         {/* Switching between the year and six months: bars that leave shrink away and the rest widen
-            smoothly into the space (and back), rather than jumping. */}
-        <div className="flex items-end h-24">
-          <AnimatePresence initial={false} mode="popLayout">
-          {barIdxs.map(i => {
-            const v = outByMonth.get(i) || 0;
-            const on = ytd || i === sel;
-            const inRange = i >= firstIdx && i <= lastIdx;
+              smoothly into the space (and back), rather than jumping. */}
+          <div className="flex items-end h-24">
+            <AnimatePresence initial={false} mode="popLayout">
+            {barIdxs.map(i => {
+              const v = outByMonth.get(i) || 0;
+              const on = ytd || i === sel;
+              const inRange = i >= firstIdx && i <= lastIdx;
+              return (
+                <motion.button
+                  key={i}
+                  layout
+                  initial={{ opacity: 0, scaleX: 0.4 }}
+                  animate={{ opacity: 1, scaleX: 1 }}
+                  exit={{ opacity: 0, scaleX: 0.4 }}
+                  transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                  onClick={() => { if (!inRange) return; toggleMonth(i); }}
+                  disabled={!inRange}
+                  aria-pressed={on}
+                  aria-label={`${FULL_MONTHS[i % 12]} ${Math.floor(i / 12)}: ${fmt(v)}`}
+                  className="flex-1 basis-0 min-w-0 h-full flex flex-col justify-end gap-1.5 px-[3px]"
+                >
+                  {/* A full-height bar that slides up from behind the bottom edge: growing and shrinking is a
+                      cheap transform, and its rounded corners never get squashed. */}
+                  <span className="relative block h-[72px] overflow-hidden rounded-md">
+                    <motion.span
+                      className={`absolute inset-0 rounded-md transition-colors duration-500 will-change-transform ${on ? (ytd ? 'bg-indigo-500' : 'bg-indigo-600') : v ? 'bg-indigo-100 dark:bg-indigo-900/60' : 'bg-slate-100 dark:bg-neutral-700'}`}
+                      initial={{ y: '100%' }}
+                      animate={{ y: `${(1 - (v ? Math.max(4, Math.round((v / barMax) * 72)) : 4) / 72) * 100}%` }}
+                      transition={{ duration: 0.5, delay: 0.05 + barIdxs.indexOf(i) * 0.03, ease: [0.22, 1, 0.36, 1] }}
+                    />
+                  </span>
+                  <span className={`transition-colors duration-700 text-[10.5px] whitespace-nowrap ${on && !ytd ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-400 dark:text-neutral-500'}`}>{MONTHS[i % 12]}</span>
+                </motion.button>
+              );
+            })}
+            </AnimatePresence>
+          </div>
+          </>
+          ) : (
+          <>
+          {(() => {
+            // A picked month: one thin bar per day (tap the chart, or "← year", to go back to the year)
+            const dm = dayByMonth.get(sel) || new Map<number, number>();
+            const nDays = daysIn(sel);
+            const vals = Array.from({ length: nDays }, (_, d) => dm.get(d + 1) || 0);
+            const dmax = Math.max(...vals, 1);
             return (
-              <motion.button
-                key={i}
-                layout
-                initial={{ opacity: 0, scaleX: 0.4 }}
-                animate={{ opacity: 1, scaleX: 1 }}
-                exit={{ opacity: 0, scaleX: 0.4 }}
-                transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-                onClick={() => { if (!inRange) return; toggleMonth(i); }}
-                disabled={!inRange}
-                aria-pressed={on}
-                aria-label={`${FULL_MONTHS[i % 12]} ${Math.floor(i / 12)}: ${fmt(v)}`}
-                className="flex-1 basis-0 min-w-0 h-full flex flex-col justify-end gap-1.5 px-[3px]"
-              >
-                {/* A full-height bar that slides up from behind the bottom edge: growing and shrinking is a
-                    cheap transform, and its rounded corners never get squashed. */}
-                <span className="relative block h-[72px] overflow-hidden rounded-md">
-                  <span
-                    className={`absolute inset-0 rounded-md transition-[transform,background-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${on ? (ytd ? 'bg-indigo-500' : 'bg-indigo-600') : v ? 'bg-indigo-100 dark:bg-indigo-900/60' : 'bg-slate-100 dark:bg-neutral-700'}`}
-                    style={{ transform: `translateY(${(1 - (v ? Math.max(4, Math.round((v / barMax) * 72)) : 4) / 72) * 100}%)` }}
-                  />
+              <>
+              <div aria-label={`Days of ${FULL_MONTHS[sel % 12]}`} className="block w-full">
+                <span className="flex items-end gap-[2px] h-[84px]">
+                  {vals.map((v, d) => (
+                    <button
+                      key={d}
+                      onClick={() => setDayPick(d + 1)}
+                      aria-label={`${d + 1} ${FULL_MONTHS[sel % 12]}: ${fmt(v)}`}
+                      className="relative flex-1 h-full overflow-hidden rounded-[3px]"
+                    >
+                      <motion.span
+                        className={`absolute inset-0 rounded-[3px] will-change-transform transition-colors duration-200 ${v ? (dayPick === d + 1 ? 'bg-indigo-800' : dayPick ? 'bg-indigo-300' : 'bg-indigo-600') : 'bg-slate-200 dark:bg-neutral-700'}`}
+                        initial={{ y: '100%' }}
+                        animate={{ y: `${(1 - (v ? Math.max(4, Math.round((v / dmax) * 84)) : 2) / 84) * 100}%` }}
+                        transition={{ duration: 0.45, delay: 0.05 + d * 0.012, ease: [0.22, 1, 0.36, 1] }}
+                      />
+                    </button>
+                  ))}
                 </span>
-                <span className={`transition-colors duration-700 text-[10.5px] whitespace-nowrap ${on && !ytd ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-400 dark:text-neutral-500'}`}>{MONTHS[i % 12]}</span>
-              </motion.button>
+                <span className="flex justify-between mt-1.5 text-[10.5px] text-slate-400 dark:text-neutral-500"><span>1 {MONTHS[sel % 12]}</span><span>Tap a day</span><span>{nDays}</span></span>
+              </div>
+              {/* "← year" goes back to the whole year; the months beside it jump straight to that month */}
+              <div className="flex items-center gap-1 mt-3">
+                <button onClick={() => setMode('ytd')} className="shrink-0 h-9 px-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-[12px] font-semibold text-indigo-700 dark:text-indigo-300 active:scale-95 transition-transform">← {year}</button>
+                {Array.from({ length: 6 }, (_, k) => barEnd - 5 + k).filter(i => i >= firstIdx && i <= lastIdx).map(i => (
+                  <button key={i} onClick={() => toggleMonth(i)} aria-pressed={i === sel} className={`flex-1 min-w-0 h-9 rounded-xl text-[12px] transition-colors duration-200 ${i === sel ? 'bg-slate-900 text-white font-bold dark:bg-neutral-100 dark:text-neutral-900' : 'text-slate-500 dark:text-neutral-400'}`}>
+                    {MONTHS[i % 12]}
+                  </button>
+                ))}
+              </div>
+              </>
             );
-          })}
-          </AnimatePresence>
-        </div>
+          })()}
+          </>
+          )}
+          </motion.div>
+        </AnimatePresence>
+        </AutoHeight>
       </section>
 
       <section className={`${card} px-4 py-1.5`}>
@@ -925,6 +1009,65 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
           </>
         );
       })()}
+
+      {/* A day's payments, from the month's day chart */}
+      {(() => {
+        const dateKey = dayPick ? `${indexToKey(sel)}-${String(dayPick).padStart(2, '0')}` : '';
+        const list = dayPick
+          ? transactions.filter(t => valid(t) && t.type === 'EXPENSE' && t.categoryName && t.date.slice(0, 10) === dateKey && !homeOff.has(t.categoryName.trim().replace(/Fee's/i, 'Fees')) && amt(t) > 0)
+              .sort((a, b) => amt(b) - amt(a))
+          : [];
+        const total = sum(list.map(amt));
+        const dt = dayPick ? new Date(`${dateKey}T12:00:00`) : null;
+        // Keep the card the height of this month's busiest day, so stepping between days doesn't
+        // make it jump up and down.
+        const monthKeyStr = indexToKey(sel);
+        const perDay = new Map<string, number>();
+        if (dayPick) transactions.forEach(t => {
+          if (!valid(t) || t.type !== 'EXPENSE' || !t.categoryName || !t.date.startsWith(monthKeyStr) || amt(t) <= 0) return;
+          if (homeOff.has(t.categoryName.trim().replace(/Fee's/i, 'Fees'))) return;
+          perDay.set(t.date.slice(0, 10), (perDay.get(t.date.slice(0, 10)) || 0) + 1);
+        });
+        const mostRows = Math.max(1, ...Array.from(perDay.values()));
+        const fmt2 = (v: number) => (currency === 'GBP' ? '£' : 'AED ') + v.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return (
+          <Sheet open={!!dayPick && !ytd} onClose={() => setDayPick(null)} label="Spending that day">
+            {dt && (
+              <div className="flex-1 min-h-0 flex flex-col">
+                {/* One slim line: a compact day switcher in the middle (easy reach with either thumb),
+                    the day's total and count at top right */}
+                <div className="shrink-0 relative px-5 pb-3 flex items-center justify-center min-h-[44px] border-b border-slate-100 dark:border-neutral-700">
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => setDayPick(d => (d && d > 1 ? d - 1 : d))} disabled={dayPick === 1} aria-label="Previous day" className="w-7 h-7 shrink-0 rounded-lg bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-[15px] text-slate-600 dark:text-neutral-300 disabled:opacity-30 active:scale-95 transition-transform">‹</button>
+                    <div className="min-w-[104px] text-center text-[12.5px] font-semibold text-slate-900 dark:text-neutral-100">
+                      <Swap text={`${dt.toLocaleDateString('en-GB', { weekday: 'short' })} ${dt.getDate()} ${MONTHS[dt.getMonth()]}`} />
+                    </div>
+                    <button onClick={() => setDayPick(d => (d && d < daysIn(sel) ? d + 1 : d))} disabled={dayPick === daysIn(sel)} aria-label="Next day" className="w-7 h-7 shrink-0 rounded-lg bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-[15px] text-slate-600 dark:text-neutral-300 disabled:opacity-30 active:scale-95 transition-transform">›</button>
+                  </div>
+                  <div className="absolute right-5 top-0 text-right leading-tight">
+                    <div className="text-[17px] font-bold text-slate-900 dark:text-neutral-100"><Swap text={fmt(total)} /></div>
+                    <div className="text-[10.5px] text-slate-500 dark:text-neutral-400"><Swap text={`${list.length} ${list.length === 1 ? 'payment' : 'payments'}`} /></div>
+                  </div>
+                </div>
+                <motion.div key={dateKey} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} style={{ minHeight: `min(${mostRows * 53 + 20}px, 70dvh)` }} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pb-[max(20px,env(safe-area-inset-bottom))]">
+                  {list.map(t => (
+                    <button key={t.id} onClick={() => setDayTx(t.id)} className="w-full grid grid-cols-[30px_minmax(0,1fr)_auto] gap-2.5 items-center min-h-[52px] py-1.5 border-b border-slate-100 dark:border-neutral-700 last:border-b-0 text-left">
+                      <span className="w-[30px] h-[30px] rounded-[9px] bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-[15px]">{(getCategoryEmoji && t.categoryId && getCategoryEmoji(t.categoryId)) || '•'}</span>
+                      <span className="min-w-0">
+                        <span className="block text-[13.5px] font-medium text-slate-900 dark:text-neutral-100 truncate">{t.description}</span>
+                        <span className="block text-[11px] text-slate-500 dark:text-neutral-400 truncate">{t.categoryName}{t.subcategoryName ? ` › ${t.subcategoryName}` : ''}{t.bankName ? ` · ${t.bankName}` : ''}</span>
+                      </span>
+                      <span className="text-[13.5px] font-bold text-slate-900 dark:text-neutral-100">{fmt2(amt(t))}</span>
+                    </button>
+                  ))}
+                  {!list.length && <p className="py-8 text-center text-sm text-slate-400">Nothing spent this day</p>}
+                </motion.div>
+              </div>
+            )}
+          </Sheet>
+        );
+      })()}
+      <TxDetail id={dayTx} onClose={() => setDayTx(null)} sheet />
 
       <PlaceSheet
         place={placePick}
