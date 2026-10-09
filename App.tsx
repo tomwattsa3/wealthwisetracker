@@ -129,6 +129,8 @@ const guessCategoryEmoji = (name: string): string | undefined => {
     return undefined;
 };
 
+const IS_IOS = typeof navigator !== 'undefined' && (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+
 const App: React.FC = () => {
   // Auth State
   const [session, setSession] = useState<Session | null>(null);
@@ -1750,7 +1752,9 @@ const App: React.FC = () => {
     }}>
     <div
       className="bg-slate-50 dark:bg-neutral-900 h-[100dvh] font-['Poppins'] text-slate-900 dark:text-neutral-200 overflow-hidden"
-      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      // iPhones (newer iOS) soften the strip just under the clock with a blur that spills a little
+      // into the page, which smudged the first row of controls. Start the page a bit lower there.
+      style={{ paddingTop: IS_IOS ? 'calc(env(safe-area-inset-top) + 14px)' : 'env(safe-area-inset-top)' }}
     >
       
       {/* App Wrapper - Updated sidebar gap to md:gap-0 */}
