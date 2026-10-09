@@ -497,15 +497,24 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
           <div className="flex-1 min-w-0">
             <div className="text-xs text-slate-500 dark:text-neutral-400">Spent in {ytd ? `${year}${partialYear ? ' so far' : ''}` : FULL_MONTHS[sel % 12]}</div>
             <div className="text-[34px] leading-tight font-bold text-slate-900 dark:text-neutral-100"><Glide value={out} format={fmt} /></div>
-            {!ytd && usual > 0 ? (
-              // A picked month: two quick comparisons with your average month
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                <span className={`px-2.5 py-[3px] rounded-full text-[11.5px] font-semibold ${near ? 'bg-slate-100 text-slate-600 dark:bg-neutral-700 dark:text-neutral-300' : diff > 0 ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'}`}>
-                  <Swap text={near ? 'About your average' : `${fmt(Math.abs(out - usual))} ${diff > 0 ? 'over' : 'under'} your average`} />
-                </span>
-                <span className="px-2.5 py-[3px] rounded-full bg-slate-100 dark:bg-neutral-700 text-[11.5px] text-slate-600 dark:text-neutral-300"><Swap text={`${Math.round((out / usual) * 100)}% of usual`} /></span>
-              </div>
-            ) : usual > 0 ? (() => {
+            {!ytd ? (() => {
+              // A picked month: one quiet line — against your average month, and spend per day
+              const today = localToday();
+              const isCurrent = indexToKey(sel) === today.slice(0, 7);
+              const daysCounted = isCurrent ? Number(today.slice(8, 10)) : daysIn(sel);
+              const perDay = out / Math.max(daysCounted, 1);
+              return (
+                <div className="mt-1.5 text-[12.5px] text-slate-500 dark:text-neutral-400">
+                  {usual > 0 && (
+                    <span className={`font-semibold ${near ? 'text-slate-600 dark:text-neutral-300' : diff > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                      <Swap text={near ? 'About your average' : `${diff > 0 ? '↑' : '↓'} ${fmt(Math.abs(out - usual))} ${diff > 0 ? 'over' : 'under'} average`} />
+                    </span>
+                  )}
+                  {usual > 0 && <span className="mx-1.5 text-slate-300 dark:text-neutral-600">·</span>}
+                  <span><Swap text={`${fmt(perDay)} a day`} /></span>
+                </div>
+              );
+            })() : usual > 0 ? (() => {
               // How far through your usual month (or last year) you are; the tick is your usual.
               const scale = Math.max(out, usual) * 1.04;
               const tick = (usual / scale) * 100;
@@ -539,7 +548,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         <AutoHeight>
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.div
-            key={ytd ? 'year' : `month-${sel}`}
+            key={ytd ? 'year' : 'month'}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -593,36 +602,58 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
             // A picked month: one thin bar per day (tap the chart, or "← year", to go back to the year)
             const dm = dayByMonth.get(sel) || new Map<number, number>();
             const nDays = daysIn(sel);
-            const vals = Array.from({ length: nDays }, (_, d) => dm.get(d + 1) || 0);
+            // Always 31 slots (days a month doesn't have stay empty), so switching months morphs the
+            // bars in place instead of rebuilding the chart.
+            const vals = Array.from({ length: 31 }, (_, d) => (d < nDays ? dm.get(d + 1) || 0 : 0));
             const dmax = Math.max(...vals, 1);
+            const todayStr = localToday();
+            const daysCounted = indexToKey(sel) === todayStr.slice(0, 7) ? Number(todayStr.slice(8, 10)) : nDays;
+            const perDay = out / Math.max(daysCounted, 1);
             return (
               <>
+              {perDay > 0 && (
+                <div className="mb-1.5 flex justify-end items-center gap-1.5 text-[10.5px] text-slate-400 dark:text-neutral-500">
+                  <span className="w-4 border-t border-dashed border-slate-300 dark:border-neutral-600" />
+                  <Swap text={`avg ${fmt(perDay)}/day`} />
+                </div>
+              )}
               <div aria-label={`Days of ${FULL_MONTHS[sel % 12]}`} className="block w-full">
-                <span className="flex items-end gap-[2px] h-[84px]">
+                <span className="relative flex items-end gap-[2px] h-[84px]">
                   {vals.map((v, d) => (
                     <button
                       key={d}
-                      onClick={() => setDayPick(d + 1)}
+                      onClick={() => d < nDays && setDayPick(d + 1)}
+                      disabled={d >= nDays}
+                      aria-hidden={d >= nDays}
                       aria-label={`${d + 1} ${FULL_MONTHS[sel % 12]}: ${fmt(v)}`}
-                      className="relative flex-1 h-full overflow-hidden rounded-[3px]"
+                      className={`relative flex-1 h-full overflow-hidden rounded-[3px] transition-opacity duration-300 ${d >= nDays ? 'opacity-0' : ''}`}
                     >
                       <motion.span
                         className={`absolute inset-0 rounded-[3px] will-change-transform transition-colors duration-200 ${v ? (dayPick === d + 1 ? 'bg-indigo-800' : dayPick ? 'bg-indigo-300' : 'bg-indigo-600') : 'bg-slate-200 dark:bg-neutral-700'}`}
                         initial={{ y: '100%' }}
                         animate={{ y: `${(1 - (v ? Math.max(4, Math.round((v / dmax) * 84)) : 2) / 84) * 100}%` }}
-                        transition={{ duration: 0.45, delay: 0.05 + d * 0.012, ease: [0.22, 1, 0.36, 1] }}
+                        transition={{ duration: 0.4, delay: d * 0.006, ease: [0.22, 1, 0.36, 1] }}
                       />
                     </button>
                   ))}
+                  {/* The month's average per day: bars above it were bigger-than-usual days */}
+                  {perDay > 0 && (
+                    <span
+                      aria-hidden
+                      className="absolute inset-x-0 pointer-events-none border-t border-dashed border-slate-300/60 dark:border-neutral-600/60 transition-[bottom] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                      style={{ bottom: Math.min(84, (perDay / dmax) * 84) }}
+                    />
+                  )}
                 </span>
-                <span className="flex justify-between mt-1.5 text-[10.5px] text-slate-400 dark:text-neutral-500"><span>1 {MONTHS[sel % 12]}</span><span>Tap a day</span><span>{nDays}</span></span>
+                <span className="flex justify-between mt-1.5 text-[10.5px] text-slate-400 dark:text-neutral-500"><span><Swap text={`1 ${MONTHS[sel % 12]}`} /></span><span>Tap a day</span><span><Swap text={String(nDays)} /></span></span>
               </div>
               {/* "← year" goes back to the whole year; the months beside it jump straight to that month */}
               <div className="flex items-center gap-1 mt-3">
                 <button onClick={() => setMode('ytd')} className="shrink-0 h-9 px-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-[12px] font-semibold text-indigo-700 dark:text-indigo-300 active:scale-95 transition-transform">← {year}</button>
                 {Array.from({ length: 6 }, (_, k) => barEnd - 5 + k).filter(i => i >= firstIdx && i <= lastIdx).map(i => (
-                  <button key={i} onClick={() => toggleMonth(i)} aria-pressed={i === sel} className={`flex-1 min-w-0 h-9 rounded-xl text-[12px] transition-colors duration-200 ${i === sel ? 'bg-slate-900 text-white font-bold dark:bg-neutral-100 dark:text-neutral-900' : 'text-slate-500 dark:text-neutral-400'}`}>
-                    {MONTHS[i % 12]}
+                  <button key={i} onClick={() => toggleMonth(i)} aria-pressed={i === sel} className={`relative flex-1 min-w-0 h-9 rounded-xl text-[12px] transition-colors duration-200 ${i === sel ? 'text-white font-bold dark:text-neutral-900' : 'text-slate-500 dark:text-neutral-400'}`}>
+                    {i === sel && <motion.span layoutId="homeMonthPill" transition={{ type: 'spring', stiffness: 420, damping: 36 }} className="absolute inset-0 rounded-xl bg-slate-900 dark:bg-neutral-100" />}
+                    <span className="relative">{MONTHS[i % 12]}</span>
                   </button>
                 ))}
               </div>
