@@ -103,6 +103,8 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
   // The open "See all" panel and its filters. Laid out like the Breakdown panel: a side panel on
   // desktop, a bottom sheet on phones. `pm` narrows it to one month (null = the whole scope).
   const [open, setOpen] = useState<string | null>(panelOnly?.cat ?? null);
+  // Phones: extra places opened under a card's top six, ten at a time (by category).
+  const [extraPlaces, setExtraPlaces] = useState<Record<string, number>>({});
   const [sub, setSub] = useState<string>('all');
   const [pm, setPm] = useState<number | null>(panelOnly?.month ?? null);
   // Date/Amount and Summarise share the Breakdown panel's saved choices.
@@ -226,7 +228,7 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
     const byCat = new Map<string, Row[]>();
     scoped.forEach(r => byCat.set(r.cat, [...(byCat.get(r.cat) || []), r]));
     return Array.from(byCat.entries())
-      .map(([cat, list]) => ({ cat, catId: list[0].catId, list, total: sum(list.map(r => r.amount)), top: groupMerchants(list).slice(0, 3) }))
+      .map(([cat, list]) => ({ cat, catId: list[0].catId, list, total: sum(list.map(r => r.amount)), top: groupMerchants(list) }))
       .sort((a, b) => b.total - a.total);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scoped]);
@@ -512,26 +514,49 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
           {sheets.map(s => {
             const emoji = getCategoryEmoji && s.catId ? getCategoryEmoji(s.catId) : '';
             return (
-              <article key={s.cat} className={`${card} p-4 md:p-5 flex flex-col gap-2.5 ${open === s.cat ? 'ring-2 ring-indigo-500 border-transparent' : ''}`}>
+              <article key={s.cat} className={`${card} px-3.5 pt-3 pb-1 md:p-5 flex flex-col gap-1.5 md:gap-2.5 ${open === s.cat ? 'ring-2 ring-indigo-500 border-transparent' : ''}`}>
                 <div className="flex justify-between items-baseline gap-2">
-                  <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100 truncate">{emoji && <span className="mr-1">{emoji}</span>}{s.cat}</h2>
-                  <span className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100 whitespace-nowrap">{fmt(s.total, 2)}</span>
+                  <h2 className="text-[14.5px] md:text-[15px] font-bold md:font-semibold text-slate-900 dark:text-neutral-100 truncate">{emoji && <span className="mr-1">{emoji}</span>}{s.cat}</h2>
+                  <span className="text-[14.5px] md:text-[15px] font-bold md:font-semibold text-slate-900 dark:text-neutral-100 whitespace-nowrap">{fmt(s.total, 2)}</span>
                 </div>
-                <div className="h-1.5 rounded bg-slate-100 dark:bg-neutral-700 overflow-hidden">
-                  <div className="h-full rounded bg-indigo-500" style={{ width: `${Math.max(1, (s.total / total) * 100)}%` }} />
+                {/* Phones: a thin bar with the share and count beside it. Desktop: bar, then the line under it. */}
+                <div className="flex items-center gap-2 md:block">
+                  <div className="flex-1 h-1 md:h-1.5 rounded bg-slate-100 dark:bg-neutral-700 overflow-hidden">
+                    <div className="h-full rounded bg-indigo-500" style={{ width: `${Math.max(1, (s.total / total) * 100)}%` }} />
+                  </div>
+                  <span className="md:hidden shrink-0 text-[10.5px] text-slate-400 dark:text-neutral-500">{pct(s.total)} · {s.list.length} {s.list.length === 1 ? 'payment' : 'payments'}</span>
                 </div>
-                <span className="text-[11px] text-slate-500 dark:text-neutral-400">{pct(s.total)} of spending · {s.list.length} {s.list.length === 1 ? 'transaction' : 'transactions'}</span>
-                <div className="border-t border-slate-100 dark:border-neutral-700 pt-0.5">
-                  {s.top.map(m => (
-                    <div key={m.name} className="flex justify-between gap-2 py-1.5 text-xs">
-                      <span className="truncate text-slate-700 dark:text-neutral-300">{m.name}</span>
-                      <span className="font-medium whitespace-nowrap text-slate-900 dark:text-neutral-100">{fmt(m.total, 2)}</span>
-                    </div>
-                  ))}
-                </div>
-                <button onClick={() => openSheet(s.cat)} className="mt-auto self-start py-1 text-[13px] font-semibold text-indigo-700 dark:text-indigo-300 hover:underline">
-                  See all →
-                </button>
+                <span className="hidden md:block text-[11px] text-slate-500 dark:text-neutral-400">{pct(s.total)} of spending · {s.list.length} {s.list.length === 1 ? 'transaction' : 'transactions'}</span>
+                {(() => {
+                  // Phones: the top six (plus any opened ten at a time). Desktop: the top three.
+                  const phoneShown = 6 + (extraPlaces[s.cat] || 0);
+                  const left = s.top.length - phoneShown;
+                  return (
+                    <>
+                      <div className="md:border-t border-slate-100 dark:border-neutral-700 md:pt-0.5">
+                        {s.top.slice(0, Math.max(phoneShown, 3)).map((m, i) => (
+                          <div key={m.name} className={`${i >= 3 ? 'md:hidden' : ''} grid grid-cols-[minmax(0,1fr)_auto_auto] md:flex md:justify-between gap-2 items-center min-h-[32px] md:min-h-0 md:py-1.5 border-t border-slate-50 dark:border-neutral-700/60 md:border-0 text-[12.5px] md:text-xs`}>
+                            <span className="truncate text-slate-800 md:text-slate-700 dark:text-neutral-300">{m.name}</span>
+                            <span className="md:hidden text-right text-[10.5px] text-slate-400 dark:text-neutral-500 min-w-[24px]">×{m.count}</span>
+                            <span className="min-w-[70px] md:min-w-0 text-right font-semibold md:font-medium whitespace-nowrap text-slate-900 dark:text-neutral-100">{fmt(m.total, 2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center justify-between gap-2 border-t md:border-0 border-slate-100 dark:border-neutral-700 py-2 md:py-0 md:mt-auto">
+                        {left > 0 ? (
+                          <button onClick={() => setExtraPlaces(x => ({ ...x, [s.cat]: (x[s.cat] || 0) + 10 }))} className="md:hidden text-[12px] font-medium text-slate-600 dark:text-neutral-300">
+                            +{left} more {left === 1 ? 'place' : 'places'} ⌄
+                          </button>
+                        ) : (s.top.length > 6 ? (
+                          <button onClick={() => setExtraPlaces(x => ({ ...x, [s.cat]: 0 }))} className="md:hidden text-[12px] font-medium text-slate-600 dark:text-neutral-300">Show less ⌃</button>
+                        ) : <span className="md:hidden" />)}
+                        <button onClick={() => openSheet(s.cat)} className="md:self-start py-1 text-[12px] md:text-[13px] font-bold md:font-semibold text-indigo-700 dark:text-indigo-300 hover:underline">
+                          See all →
+                        </button>
+                      </div>
+                    </>
+                  );
+                })()}
               </article>
             );
           })}

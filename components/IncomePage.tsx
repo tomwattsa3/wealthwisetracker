@@ -154,7 +154,6 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
   const gaps = mainRows.slice(1).map((r, i) => (new Date(r.date).getTime() - new Date(mainRows[i].date).getTime()) / DAY).filter(g => g > 0);
   const avgGap = typical(gaps);
   const daysSince = lastMain ? Math.round((new Date(today).getTime() - new Date(lastMain.date).getTime()) / DAY) : null;
-  const overdue = daysSince !== null && avgGap !== null && daysSince > avgGap * 1.5;
 
   // Chart
   const byMonthType = months.map(m => {
@@ -265,10 +264,7 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
           </div>
           <div className="text-[32px] leading-tight font-bold tracking-tight text-emerald-700 dark:text-emerald-400">{fmt(shownTotal)}</div>
           <div className="text-xs text-slate-500 dark:text-neutral-400">
-            {shown.length} {shown.length === 1 ? 'payment' : 'payments'}{range === null && !(overdue && lastMain) ? ` · avg ${fmt(avgIn)} a month` : ''}{bank ? ` · ${bankList.find(b => b.key === bank)?.name}` : ''}
-            {overdue && lastMain && range === null && (
-              <> · <button onClick={() => setPayer(lastMain.key)} className="font-semibold text-amber-700 dark:text-amber-400">no {mainType?.toLowerCase() || 'income'} for {daysSince} days</button></>
-            )}
+            {shown.length} {shown.length === 1 ? 'payment' : 'payments'}{range === null ? ` · avg ${fmt(avgIn)} a month` : ''}{bank ? ` · ${bankList.find(b => b.key === bank)?.name}` : ''}
           </div>
           {allShown > 0 && (
             <div aria-hidden className="mt-3 h-2 rounded-full bg-slate-100 dark:bg-neutral-700 flex overflow-hidden">
@@ -438,11 +434,6 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
                     <div className="text-[11px] text-slate-500 dark:text-neutral-400">in {year}</div>
                   </div>
                 </div>
-                {selAvgGap && nextExpected && nextExpected.getTime() < new Date(`${today}T12:00:00`).getTime() && (
-                  <div className="mt-3 px-3 py-2 rounded-[10px] bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-[11.5px] text-amber-900 dark:text-amber-200">
-                    <strong className="font-semibold">Late by about {Math.round((new Date(`${today}T12:00:00`).getTime() - nextExpected.getTime()) / DAY)} days.</strong> Usually pays every {selAvgGap} days; was due around {nextExpected.getDate()} {MONTHS[nextExpected.getMonth()]}.
-                  </div>
-                )}
                 <div className="grid grid-cols-3 gap-1.5 mt-3">
                   {[
                     ['Share', yearTotal ? `${Math.max(selYearTotal ? 1 : 0, Math.round((selYearTotal / yearTotal) * 100))}%` : '—'],
@@ -586,8 +577,8 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
         <div className={`${card} px-5 py-4 min-w-0`}>
           <div className={kicker}>Last {mainType ? mainType.toLowerCase() : 'payment'}</div>
           <div className="text-[17px] font-bold text-slate-900 dark:text-neutral-100 mt-2 truncate">{lastMain ? `${dayLabel(lastMain.date)} · ${lastMain.name}` : '—'}</div>
-          <div className={`text-[12.5px] ${overdue ? 'font-semibold text-amber-700 dark:text-amber-400' : 'text-slate-500 dark:text-neutral-400'}`}>
-            {daysSince === null ? '' : `${daysSince === 0 ? 'Today' : daysSince === 1 ? 'Yesterday' : `${daysSince} days ago`}${avgGap ? `${overdue ? ', longer than usual' : ''} (usually every ${avgGap} days)` : ''}`}
+          <div className="text-[12.5px] text-slate-500 dark:text-neutral-400">
+            {daysSince === null ? '' : `${daysSince === 0 ? 'Today' : daysSince === 1 ? 'Yesterday' : `${daysSince} days ago`}${avgGap ? ` · usually every ${avgGap} days` : ''}`}
           </div>
         </div>
       </div>
