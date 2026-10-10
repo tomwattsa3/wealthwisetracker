@@ -379,7 +379,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
                   <button onClick={toggleHideAmounts} aria-pressed={hideAmounts} className="flex items-center justify-between gap-3 text-left" data-amt-skip>
                     <span>
                       <span className="block text-sm font-semibold text-slate-900 dark:text-neutral-100">Hide amounts</span>
-                      <span className="block text-xs text-slate-500 dark:text-neutral-400">Blur every £ figure in the app</span>
+                      <span className="block text-xs text-slate-500 dark:text-neutral-400">Hide every £ figure in the app</span>
                     </span>
                     <span className={`relative w-11 h-[26px] shrink-0 rounded-full transition-colors ${hideAmounts ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-neutral-600'}`}>
                       <span className={`absolute top-[3px] w-5 h-5 rounded-full bg-white shadow transition-all ${hideAmounts ? 'left-[21px]' : 'left-[3px]'}`} />

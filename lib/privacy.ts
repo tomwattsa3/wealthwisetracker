@@ -1,7 +1,14 @@
 import { useSyncExternalStore } from 'react';
 
-// "Hide amounts": softly blurs every money figure on screen so you can see a number is there
-// but not what it is. Only the amount's text blurs — whatever it sits in (a coloured Breakdown
+// "Hide amounts": hides every money figure on screen so you can see a number is there but not
+// what it is. Two styles: X's (the default) swaps each digit for an X, so £21,552.19 reads
+// £XX,XXX.XX; Blur softly blurs the figure instead.
+//
+// X's: the matched amounts in each text node are rewritten, and the real text is kept so it can be
+// put back. When React later changes that text, the observer sees the new value, keeps it and
+// masks it again (React compares against its own copy, never the page, so this is safe).
+//
+// Blur: Only the amount's text blurs — whatever it sits in (a coloured Breakdown
 // cell, a card) stays sharp — and the blur fades out naturally rather than stopping at an edge.
 //
 // Amounts are formatted in many places, so a MutationObserver finds them in the page text
@@ -13,6 +20,12 @@ import { useSyncExternalStore } from 'react';
 
 const STORAGE_KEY = 'privacyMode';
 const STRENGTH_KEY = 'privacyBlurStrength';
+const STYLE_KEY = 'privacyStyle';
+export type PrivacyStyle = 'x' | 'blur';
+let style: PrivacyStyle = (() => { try { return localStorage.getItem(STYLE_KEY) === 'blur' ? 'blur' : 'x'; } catch { return 'x'; } })();
+// X's: each masked text node and the real text it holds
+const originals = new Map<Text, string>();
+const maskText = (t: string) => t.replace(AMOUNT_G, m => m.replace(/\d/g, 'X'));
 // Blur strength as a multiplier of the default (1 = 100%), set from the slider.
 export const STRENGTH_MIN = 0.5;
 export const STRENGTH_MAX = 2;
@@ -66,11 +79,26 @@ const dropRanges = (node: Text) => {
   rangesByNode.delete(node);
 };
 
+const restore = (node: Text) => {
+  const real = originals.get(node);
+  if (real === undefined) return;
+  if (node.nodeValue === maskText(real)) node.nodeValue = real;
+  originals.delete(node);
+};
+
 const process = (node: Text) => {
   const el = node.parentElement;
   dropRanges(node);
   if (!el || SKIP.has(el.tagName) || el.closest('[data-amt-skip]')) return;
   const text = node.nodeValue || '';
+  if (style === 'x') {
+    const real = originals.get(node);
+    if (real !== undefined && text === maskText(real)) return; // our own change
+    if (!HAS_AMOUNT.test(text)) { originals.delete(node); return; }
+    originals.set(node, text);
+    node.nodeValue = maskText(text);
+    return;
+  }
   const has = HAS_AMOUNT.test(text);
   // Fallback: blur the whole element (chart labels, browsers without highlights).
   if (!cssHighlights || el instanceof SVGElement) {
@@ -99,16 +127,20 @@ const scan = (root: Node) => {
 };
 
 const forget = (root: Node) => {
-  if (rangesByNode.size === 0) return;
-  if (root.nodeType === Node.TEXT_NODE) { dropRanges(root as Text); return; }
+  if (rangesByNode.size === 0 && originals.size === 0) return;
+  // A node React only moved (rows reordering) is back in the page by now: keep its real text.
+  const drop = (n: Text) => { dropRanges(n); if (!n.isConnected) originals.delete(n); };
+  if (root.nodeType === Node.TEXT_NODE) { drop(root as Text); return; }
   if (root.nodeType !== Node.ELEMENT_NODE) return;
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  for (let n = walker.nextNode(); n; n = walker.nextNode()) dropRanges(n as Text);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) drop(n as Text);
 };
 
 const clearAll = () => {
   byColor.forEach(({ h }) => h.clear());
   rangesByNode.clear();
+  Array.from(originals.keys()).forEach(restore);
+  document.querySelectorAll('[data-amt]').forEach(el => el.removeAttribute('data-amt'));
 };
 
 const start = () => {
@@ -125,7 +157,7 @@ const start = () => {
   });
   observer.observe(document.body, { subtree: true, childList: true, characterData: true });
   // Text colours change with dark mode, so re-pick each number's highlight when it flips.
-  themeObserver = new MutationObserver(() => { clearAll(); scan(document.body); });
+  themeObserver = new MutationObserver(() => { if (style === 'blur') { clearAll(); scan(document.body); } });
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 };
 
@@ -139,7 +171,7 @@ const stop = () => {
 
 const apply = () => {
   if (on) start(); else stop();
-  document.documentElement.classList.toggle('privacy', on);
+  document.documentElement.classList.toggle('privacy', on && style === 'blur');
 };
 if (typeof document !== 'undefined') { writeRules(); apply(); }
 
@@ -148,6 +180,24 @@ export const setPrivacy = (next: boolean) => {
   try { localStorage.setItem(STORAGE_KEY, next ? '1' : '0'); } catch { /* not saved */ }
   apply();
   listeners.forEach(l => l());
+};
+
+export const setPrivacyStyle = (next: PrivacyStyle) => {
+  if (next === style) return;
+  try { localStorage.setItem(STYLE_KEY, next); } catch { /* not saved */ }
+  const wasOn = on;
+  if (wasOn) { on = false; apply(); }
+  style = next;
+  if (wasOn) { on = true; apply(); }
+  listeners.forEach(l => l());
+};
+
+export const usePrivacyStyle = (): [PrivacyStyle, (s: PrivacyStyle) => void] => {
+  const value = useSyncExternalStore(
+    (cb) => { listeners.add(cb); return () => listeners.delete(cb); },
+    () => style
+  );
+  return [value, setPrivacyStyle];
 };
 
 export const setBlurStrength = (k: number) => {
