@@ -4,6 +4,7 @@ import { Save, Trash2, Webhook, CheckCircle2, Building, Plus, CreditCard, Chevro
 import { supabase } from '../supabaseClient';
 import { Bank, MerchantMapping } from '../types';
 import { loadReminder, saveReminder, registerReminderSync, reminderSupport, ReminderPrefs, DEFAULT_REMINDER } from '../lib/offline';
+import { bankLogo } from '../lib/bankLogos';
 
 interface SettingsManagerProps {
   webhookUrl: string;
@@ -474,8 +475,8 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
                      {banks.map(bank => (
                        <div key={bank.id} className="bg-white dark:bg-neutral-800 p-4 rounded-xl border border-slate-200 dark:border-neutral-600 shadow-sm flex items-center justify-between group">
                           <div className="flex items-center gap-4">
-                             <div className="w-12 h-12 bg-slate-900 dark:bg-neutral-600 text-white rounded-lg flex items-center justify-center font-bold text-lg shadow-md">
-                                {bank.icon}
+                             <div className="w-12 h-12 bg-slate-900 dark:bg-neutral-600 text-white rounded-lg overflow-hidden flex items-center justify-center font-bold text-lg shadow-md">
+                                {bankLogo(bank.name) ? <img src={bankLogo(bank.name)} alt="" className="w-full h-full object-cover" /> : bank.icon}
                              </div>
                              <div>
                                 <h4 className="font-bold text-slate-900 dark:text-neutral-200">{bank.name}</h4>

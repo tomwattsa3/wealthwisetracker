@@ -1172,22 +1172,17 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
       {/* Where it went beside Top places */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 md:gap-6 items-stretch">
         <section aria-label="Where it went" className={`${bigCard} p-6 md:p-7 flex flex-col`}>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-neutral-100">Where it went</h2>
-              <p className="text-[13px] text-slate-500 dark:text-neutral-400 mt-0.5">{focus ? focusLabel : win.label} · {focusRows.length} {level === 'category' ? (focusRows.length === 1 ? 'category' : 'categories') : 'subcategories'}</p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-neutral-100">Where it went</h2>
+            <div role="group" aria-label="Group by" className="flex gap-0.5 p-[3px] bg-slate-100 dark:bg-neutral-700/60 rounded-full">
+              {([['category', 'Categories'], ['subcategory', 'Subcategories']] as const).map(([id, l]) => (
+                <button key={id} onClick={() => setLevel(id)} aria-pressed={level === id} className={pill(level === id)}>{l}</button>
+              ))}
             </div>
-            <div className="flex items-center gap-3">
-              <div role="group" aria-label="Group by" className="flex gap-0.5 p-[3px] bg-slate-100 dark:bg-neutral-700/60 rounded-full">
-                {([['category', 'Categories'], ['subcategory', 'Subcategories']] as const).map(([id, l]) => (
-                  <button key={id} onClick={() => setLevel(id)} aria-pressed={level === id} className={pill(level === id)}>{l}</button>
-                ))}
-              </div>
-              <div className="text-right">
-                <div className="text-xs text-slate-500 dark:text-neutral-400">Total</div>
-                <div className="text-lg font-bold text-slate-900 dark:text-neutral-100">{fmt(focusTotal, 2)}</div>
-              </div>
-            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+            <span className="text-[28px] leading-none font-bold tracking-tight tabular-nums text-slate-900 dark:text-neutral-100">{fmt(focusTotal, 2)}</span>
+            <span className="text-[13px] text-slate-500 dark:text-neutral-400">{focus ? focusLabel : win.label} · {focusRows.length} {level === 'category' ? (focusRows.length === 1 ? 'category' : 'categories') : 'subcategories'}</span>
           </div>
           {focusRows.length === 0 ? (
             <p className="text-sm text-slate-500 py-6">Nothing selected.</p>

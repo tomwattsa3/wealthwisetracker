@@ -8,6 +8,7 @@ import { userNote } from './TxDetail';
 import { useBackClose } from '../lib/backStack';
 import Sheet from './Sheet';
 import Swap, { GlideRow, AutoHeight } from './Swap';
+import { bankLogo } from '../lib/bankLogos';
 
 const useMedia = (q: string) => {
   const [m, setM] = useState(() => window.matchMedia(q).matches);
@@ -413,7 +414,7 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
               {lands.map((g, i) => (
                 <GlideRow key={g.name}>
                 <div className={`grid grid-cols-[34px_minmax(0,1fr)_auto] gap-2.5 items-center min-h-[52px] ${i ? 'border-t border-slate-100 dark:border-neutral-700' : ''}`}>
-                  <span className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-[11px] font-bold text-white" style={{ background: landColor(i) }}>{g.icon}</span>
+                  <span className="w-[34px] h-[34px] rounded-[10px] overflow-hidden flex items-center justify-center text-[11px] font-bold text-white" style={{ background: landColor(i) }}>{bankLogo(g.name) ? <img src={bankLogo(g.name)} alt="" className="w-full h-full object-cover" /> : g.icon}</span>
                   <span className="min-w-0">
                     <span className="flex items-center gap-1.5"><span className="text-[13px] font-semibold text-slate-900 dark:text-neutral-100 truncate">{g.name}</span>{g.cur && <span className="px-1 rounded text-[9.5px] font-semibold bg-slate-100 text-slate-500 dark:bg-neutral-700 dark:text-neutral-400">{g.cur}</span>}</span>
                     <span className="block text-[11px] text-slate-500 dark:text-neutral-400 truncate">{g.n} {g.n === 1 ? 'payment' : 'payments'} · {pctOf(g.total)}%{g.cur && g.cur !== currency ? ` · ${g.cur === 'AED' ? `AED ${Math.round(g.native).toLocaleString('en-GB')}` : `£${Math.round(g.native).toLocaleString('en-GB')}`} received` : ''}</span>
@@ -675,7 +676,7 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
                       return (
                         <GlideRow key={g.name}>
                         <div className={`grid grid-cols-[36px_minmax(0,1fr)_auto] gap-3 items-center py-2 ${i ? 'border-t border-slate-100 dark:border-neutral-700' : ''}`}>
-                          <span className="w-9 h-9 rounded-[11px] flex items-center justify-center text-[11.5px] font-bold text-white" style={{ background: landColor(i) }}>{g.icon}</span>
+                          <span className="w-9 h-9 rounded-[11px] overflow-hidden flex items-center justify-center text-[11.5px] font-bold text-white" style={{ background: landColor(i) }}>{bankLogo(g.name) ? <img src={bankLogo(g.name)} alt="" className="w-full h-full object-cover" /> : g.icon}</span>
                           <span className="min-w-0">
                             <span className="flex items-center gap-1.5">
                               <span className="text-[13px] font-semibold text-slate-900 dark:text-neutral-100 truncate">{g.name}</span>

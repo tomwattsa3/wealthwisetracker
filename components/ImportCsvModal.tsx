@@ -7,6 +7,7 @@ import { parseBankCsv, sendImportWebhook } from '../lib/csvImport';
 import { MODAL_TRANSITION } from '../lib/motion';
 import Sheet from './Sheet';
 import { useBackClose } from '../lib/backStack';
+import { bankLogo } from '../lib/bankLogos';
 
 // Import CSV pop-up: pick the bank, drop (or browse for) its statement, see what's in it, then
 // hand the new rows to the existing review step. Rows already in the app (same date, merchant
@@ -171,7 +172,7 @@ const ImportCsvModal: React.FC<ImportCsvModalProps> = ({ open, onClose, banks, l
               aria-pressed={on}
               className={`flex items-center gap-2.5 p-3 rounded-xl border-2 text-left transition-colors ${on ? 'border-indigo-600 bg-indigo-50/60 dark:bg-indigo-950/30' : 'border-slate-200 dark:border-neutral-700 hover:border-slate-300 dark:hover:border-neutral-600'}`}
             >
-              <span className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-xs font-bold ${on ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-neutral-700 text-slate-600 dark:text-neutral-300'}`}>{b.icon}</span>
+              <span className={`w-10 h-10 shrink-0 rounded-xl overflow-hidden flex items-center justify-center text-xs font-bold ${on ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-neutral-700 text-slate-600 dark:text-neutral-300'}`}>{bankLogo(b.name) ? <img src={bankLogo(b.name)} alt="" className="w-full h-full object-cover" /> : b.icon}</span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center justify-between gap-2">
                   <span className="text-sm font-semibold text-slate-900 dark:text-neutral-100 truncate">{b.name}</span>
