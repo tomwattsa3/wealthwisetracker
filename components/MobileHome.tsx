@@ -59,12 +59,14 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   useEffect(() => { try { localStorage.setItem('homeCatsOff', JSON.stringify(Array.from(homeOff))); } catch { /* not saved */ } }, [homeOff]);
 
   // Same rule as the Dashboard: spending = every money-out row that isn't excluded.
-  const { outByMonth, dayByMonth, inByMonth, catByMonth, catAllByMonth, catInfo, placesByMonth, firstIdx, lastIdx } = useMemo(() => {
+  const { outByMonth, dayByMonth, inByMonth, catByMonth, subByMonth, catAllByMonth, catInfo, placesByMonth, firstIdx, lastIdx } = useMemo(() => {
     const outByMonth = new Map<number, number>();
     // month -> day of the month -> spent (for the picked-month day chart)
     const dayByMonth = new Map<number, Map<number, number>>();
     const inByMonth = new Map<number, number>();
     const catByMonth = new Map<string, Map<number, number>>();
+    // "category\u0001subcategory" -> month -> spent (Where it went by subcategory)
+    const subByMonth = new Map<string, Map<number, number>>();
     // Every category, whether or not it's switched off (for the picker)
     const catAllByMonth = new Map<string, Map<number, number>>();
     const catInfo = new Map<string, { name: string; id: string }>();
@@ -93,6 +95,10 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         const m = catByMonth.get(name) || new Map<number, number>();
         m.set(idx, (m.get(idx) || 0) + a);
         catByMonth.set(name, m);
+        const subKey = `${name}\u0001${(t.subcategoryName || '').trim()}`;
+        const sm = subByMonth.get(subKey) || new Map<number, number>();
+        sm.set(idx, (sm.get(idx) || 0) + a);
+        subByMonth.set(subKey, sm);
         const desc = (t.description || 'Unknown').trim();
         const key = merchantKey(desc) || desc.toLowerCase();
         const pm = placesByMonth.get(idx) || new Map<string, Place>();
@@ -108,7 +114,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         inByMonth.set(idx, (inByMonth.get(idx) || 0) + a);
       }
     });
-    return { outByMonth, dayByMonth, inByMonth, catByMonth, catAllByMonth, catInfo, placesByMonth, firstIdx, lastIdx };
+    return { outByMonth, dayByMonth, inByMonth, catByMonth, subByMonth, catAllByMonth, catInfo, placesByMonth, firstIdx, lastIdx };
   }, [transactions, currency, homeOff]);
 
   // Your saved views come from your account (the same ones as the desktop Dashboard).
@@ -127,6 +133,8 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const hasData = Number.isFinite(lastIdx);
   const [picked, setPicked] = useState<number | null>(null);
   const [placeRank, setPlaceRank] = useState<'visits' | 'spent'>('visits');
+  // Where it went: by category, or by subcategory (handy once you've picked one or two categories)
+  const [whereLevel, setWhereLevel] = useState<'cat' | 'sub'>('cat');
   // Opens on the year; tapping a month bar opens that month ("← year" goes back).
   const [mode, setMode] = useState<'month' | 'ytd'>('ytd');
   // A day tapped in the month's day chart (its payments slide up), and a payment opened from it.
@@ -224,17 +232,27 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const barIdxs = ytd ? idxs : Array.from({ length: 6 }, (_, i) => barEnd - 5 + i);
   const barMax = Math.max(...barIdxs.map(i => outByMonth.get(i) || 0), 1);
 
-  const cats = Array.from(catByMonth.entries())
-    .map(([name, m]) => ({ name, id: catInfo.get(name)!.id, v: sumOver(m, idxs) }))
+  const catRows = Array.from(catByMonth.entries())
+    .map(([name, m]) => ({ key: name, name, cat: name, id: catInfo.get(name)!.id, v: sumOver(m, idxs) }))
     .filter(c => c.v > 0)
     .sort((a, b) => b.v - a.v);
+  const subRows = Array.from(subByMonth.entries())
+    .map(([key, m]) => {
+      const [cat, sub] = key.split('\u0001');
+      return { key, name: sub || `${cat} (no subcategory)`, cat, id: catInfo.get(cat)!.id, v: sumOver(m, idxs) };
+    })
+    .filter(c => c.v > 0)
+    .sort((a, b) => b.v - a.v);
+  // Only name the parent category when more than one is showing
+  const manyCats = catRows.length > 1;
+  const cats = whereLevel === 'sub' ? subRows : catRows;
   const top = cats.slice(0, TOP_N);
   const rest = cats.slice(TOP_N);
   const catMax = top.length ? top[0].v : 1;
-  const catRow = (c: { name: string; id: string; v: number }) => (
+  const catRow = (c: { key: string; name: string; cat: string; id: string; v: number }) => (
           <button
-            key={c.name}
-            onClick={() => setCatPanel({ cat: c.name, year, month: ytd ? null : sel, n: Date.now() })}
+            key={c.key}
+            onClick={() => setCatPanel({ cat: c.cat, year, month: ytd ? null : sel, n: Date.now() })}
             className="w-full grid grid-cols-[30px_minmax(0,1fr)_auto] gap-2.5 items-center py-2 border-t border-slate-100 dark:border-neutral-700 text-left"
           >
             <span className="w-[30px] h-[30px] rounded-[9px] bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-[15px]">
@@ -242,7 +260,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
             </span>
             <span className="min-w-0 flex flex-col gap-1">
               <span className="flex justify-between gap-2">
-                <span className="text-[13.5px] font-medium text-slate-900 dark:text-neutral-100 truncate">{c.name}</span>
+                <span className="text-[13.5px] font-medium text-slate-900 dark:text-neutral-100 truncate">{c.name}{whereLevel === 'sub' && manyCats && c.name !== `${c.cat} (no subcategory)` && <span className="text-[11.5px] font-normal text-slate-400 dark:text-neutral-500"> · {c.cat}</span>}</span>
                 <span className="text-[13.5px] font-bold text-slate-900 dark:text-neutral-100"><Swap text={fmt(c.v)} /></span>
               </span>
               <span className="block h-1 rounded bg-slate-100 dark:bg-neutral-700">
@@ -685,8 +703,21 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
       </section>
 
       <section className={`${card} px-4 py-1.5`}>
-        <div className="flex justify-between items-baseline pt-2.5 pb-1">
+        <div className="flex justify-between items-center pt-2.5 pb-1.5">
           <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100">Where it went</h2>
+          <div role="group" aria-label="Group by" className="flex p-[2px] -translate-y-[3px] bg-slate-100 dark:bg-neutral-700/60 rounded-[7px]">
+            {([['cat', 'Category'], ['sub', 'Sub']] as const).map(([id, l]) => (
+              <button
+                key={id}
+                onClick={() => { setWhereLevel(id); setShowAllCats(false); }}
+                aria-pressed={whereLevel === id}
+                className={`relative h-[20px] px-2 rounded-[5px] text-[10px] leading-none transition-colors duration-200 ${whereLevel === id ? 'font-semibold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'}`}
+              >
+                {whereLevel === id && <motion.span layoutId="whereLevelPill" transition={{ type: 'spring', stiffness: 500, damping: 40 }} className="absolute inset-0 rounded-[5px] bg-white dark:bg-neutral-600 shadow-sm" />}
+                <span className="relative">{l}</span>
+              </button>
+            ))}
+          </div>
         </div>
         {top.length === 0 && <p className="py-6 text-center text-sm text-slate-400">No spending {ytd ? 'this year' : 'this month'}</p>}
         {/* On a new month the rows stay put: amounts and % swap softly, rows that move glide to
@@ -695,7 +726,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
           <AnimatePresence initial={false} mode="popLayout">
             {top.map(c => (
               <motion.div
-                key={c.name}
+                key={c.key}
                 layout="position"
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -729,7 +760,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
               <svg viewBox="0 0 12 12" className={`w-3 h-3 transition-transform duration-300 ${showAllCats ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m2.5 4.5 3.5 3.5 3.5-3.5" /></svg>
             </button>
           ) : (
-            <span className="text-slate-500 dark:text-neutral-400">All categories shown</span>
+            <span className="text-slate-500 dark:text-neutral-400">All {whereLevel === 'sub' ? 'subcategories' : 'categories'} shown</span>
           )}
           {onOpenBreakdown && (
             <button onClick={openBreakdown} className="font-semibold text-indigo-700 dark:text-indigo-300">Full breakdown →</button>
