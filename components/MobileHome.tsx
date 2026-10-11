@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Search } from 'lucide-react';
 import { Transaction } from '../types';
 import CategorySheets from './CategorySheets';
 import TxDetail from './TxDetail';
@@ -9,6 +8,7 @@ import PlaceSheet, { PlacePick } from './PlaceSheet';
 import { useBackClose } from '../lib/backStack';
 import Swap, { GlideRow, AutoHeight } from './Swap';
 import Sheet from './Sheet';
+import SearchPill from './SearchPill';
 import { supabase } from '../supabaseClient';
 import { MONTHS, FULL_MONTHS, monthKey, keyToIndex, indexToKey, daysIn, localToday, merchantKey, sum } from '../lib/periods';
 
@@ -368,27 +368,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         <div className="flex items-center gap-1 min-w-0">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-neutral-100">Home</h1>
         </div>
-        {/* Search: the pill grows into the search bubble (shared layoutId) and back again. While
-            search is open the pill's place is kept empty so the header doesn't shift. */}
-        {onSearch && (
-          <div className="w-[104px] h-8" data-search-pill>
-            {!searchOpen && (
-              <motion.button
-                layoutId="homeSearch"
-                onClick={onSearch}
-                aria-label="Search"
-                style={{ borderRadius: 16 }}
-                transition={{ layout: { type: 'spring', stiffness: 400, damping: 36, mass: 0.9 } }}
-                className="w-full h-full px-3 flex items-center justify-center gap-1.5 bg-slate-400/[0.14] dark:bg-neutral-700/60 text-slate-500 dark:text-neutral-400"
-              >
-                <motion.span className="flex items-center gap-1.5" initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { delay: 0.12, duration: 0.18 } }}>
-                  <Search size={14} strokeWidth={2.2} className="shrink-0" />
-                  <span className="text-[12.5px] truncate">Search</span>
-                </motion.span>
-              </motion.button>
-            )}
-          </div>
-        )}
+        {onSearch && <SearchPill onSearch={onSearch} searchOpen={searchOpen} />}
         <div className="col-start-3 justify-self-end flex items-center gap-1.5">
           <div className="flex items-center bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl p-0.5">
             <button onClick={() => step(-1)} disabled={!canPrev} aria-label={ytd ? 'Previous year' : 'Previous month'} className="w-6 h-8 relative after:absolute after:-inset-y-1.5 after:-inset-x-2 after:content-[''] rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">‹</button>

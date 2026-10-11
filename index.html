@@ -4,6 +4,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <script>
+      // iPhones: standard sizes (13/14/15 Pro and similar, not the Max or Plus) show the whole app
+      // about 7% smaller, so a little more fits on screen. The page scale is also capped, so tapping
+      // into a search box or note doesn't zoom the page in (iPhones do that for small text).
+      try {
+        if (/iPhone/.test(navigator.userAgent)) {
+          var k = Math.min(screen.width, screen.height) <= 393 ? '0.93' : '1';
+          document.querySelector('meta[name=viewport]').setAttribute('content', 'width=device-width, initial-scale=' + k + ', maximum-scale=' + k + ', viewport-fit=cover');
+        }
+      } catch (e) {}
+    </script>
     <meta name="robots" content="noindex, nofollow" />
     <meta name="googlebot" content="noindex, nofollow" />
     <title>WealthWise Tracker</title>

@@ -2,6 +2,7 @@ import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Sheet from './Sheet';
+import SearchPill from './SearchPill';
 import { useBackClose } from '../lib/backStack';
 import { X } from 'lucide-react';
 import { Transaction } from '../types';
@@ -23,6 +24,9 @@ interface CategorySheetsProps {
   // and optionally one month of it. onPanelClose runs once it has slid away.
   panelOnly?: { cat: string; year: number; month: number | null } | null;
   onPanelClose?: () => void;
+  // Phones: the Search pill (same as Home), under the year picker
+  onSearch?: () => void;
+  searchOpen?: boolean;
 }
 
 const STORAGE_KEY = 'categorySheets';
@@ -87,7 +91,7 @@ const SubTabs: React.FC<{ items: [string, number][]; value: string; onChange: (k
   );
 };
 
-const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency, getCategoryEmoji, onViewTransactions, panelOnly, onPanelClose }) => {
+const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency, getCategoryEmoji, onViewTransactions, panelOnly, onPanelClose, onSearch, searchOpen }) => {
   const [period, setPeriod] = useState<PeriodId>(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}').period;
@@ -449,11 +453,14 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
             {scopeLabel} · {fmt(total)} spent
           </p>
         </div>
-        {/* Phones: just a year picker */}
-        <div className="md:hidden shrink-0 self-start mt-1 flex items-center bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl p-0.5 shadow-sm">
+        {/* Phones: the year picker, with Search under it */}
+        <div className="md:hidden shrink-0 self-start mt-1 flex flex-col items-end gap-2">
+        <div className="flex items-center bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl p-0.5 shadow-sm">
           <button onClick={() => setPhoneYear(year - 1)} disabled={year <= Math.floor(firstIdx / 12)} aria-label="Previous year" className="w-8 h-8 relative after:absolute after:-inset-1.5 after:content-[''] rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">‹</button>
           <span className="min-w-[48px] text-center text-[13px] font-semibold text-slate-900 dark:text-neutral-100">{year}</span>
           <button onClick={() => setPhoneYear(year + 1)} disabled={year >= Math.floor(lastIdx / 12)} aria-label="Next year" className="w-8 h-8 relative after:absolute after:-inset-1.5 after:content-[''] rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">›</button>
+        </div>
+        {onSearch && isPhone && <SearchPill onSearch={onSearch} searchOpen={searchOpen} />}
         </div>
         <div role="group" aria-label="Period" className="hidden md:flex gap-1 p-1 bg-slate-200/70 dark:bg-neutral-800 rounded-xl self-start max-w-full overflow-x-auto hide-scrollbar">
           {PERIODS.map(p => (

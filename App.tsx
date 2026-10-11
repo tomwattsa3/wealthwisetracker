@@ -2130,6 +2130,8 @@ const App: React.FC = () => {
                   transactions={transactions}
                   currency={currency}
                   getCategoryEmoji={getCategoryEmoji}
+                  onSearch={isPhone ? openSearch : undefined}
+                  searchOpen={searchOpen}
                   onViewTransactions={(categoryId, subcategory, start, end) => {
                     setFilterCategory(categoryId);
                     setFilterSubcategory(subcategory ?? 'all');
@@ -2226,6 +2228,8 @@ const App: React.FC = () => {
                transactions={transactions}
                currency={currency}
                banks={banks}
+               onSearch={isPhone ? openSearch : undefined}
+               searchOpen={searchOpen}
                onViewPayer={(name, start, end) => {
                  setSearchQuery(name);
                  setFilterCategory('all');

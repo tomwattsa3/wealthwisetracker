@@ -8,6 +8,7 @@ import { userNote } from './TxDetail';
 import { useBackClose } from '../lib/backStack';
 import Sheet from './Sheet';
 import Swap, { GlideRow, AutoHeight } from './Swap';
+import SearchPill from './SearchPill';
 import { bankLogo } from '../lib/bankLogos';
 
 const useMedia = (q: string) => {
@@ -30,6 +31,9 @@ interface IncomePageProps {
   currency: 'GBP' | 'AED';
   banks?: Bank[];
   onViewPayer?: (name: string, start: string, end: string) => void;
+  // Phones: the Search pill in the header (same as Home)
+  onSearch?: () => void;
+  searchOpen?: boolean;
 }
 
 const TYPE_COLORS = ['#22C55E', '#3B82F6', '#8B5CF6', '#F59E0B', '#EC4899', '#14B8A6'];
@@ -45,7 +49,7 @@ const typical = (gaps: number[]) => {
 
 interface Row { id: string; date: string; year: number; month: number; amount: number; type: string; key: string; name: string; bank: string; gbp: number; aed: number; cat: string; sub: string; note: string }
 
-const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks = [], onViewPayer }) => {
+const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks = [], onViewPayer, onSearch, searchOpen }) => {
   const amt = (t: Transaction) => Math.abs((currency === 'GBP' ? t.amountGBP : t.amountAED) || 0);
   const fmt = (v: number) => (currency === 'GBP' ? '£' : 'AED ') + (v > 0 && v < 10 ? v.toFixed(2) : Math.round(v).toLocaleString('en-GB'));
   const fmt2 = (v: number) => (currency === 'GBP' ? '£' : 'AED ') + v.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -232,9 +236,10 @@ const IncomePage: React.FC<IncomePageProps> = ({ transactions, currency, banks =
 
     return (
       <div className="flex flex-col gap-3 pb-[calc(env(safe-area-inset-bottom)_+_140px)]" style={{ fontVariantNumeric: 'tabular-nums' }}>
-        <div className="flex items-center justify-between px-1 pt-1">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-1 pt-1">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-neutral-100">Income</h1>
-          <div className="flex items-center">
+          {onSearch ? <SearchPill onSearch={onSearch} searchOpen={searchOpen} /> : <span />}
+          <div className="justify-self-end flex items-center">
             <button onClick={() => stepYear(-1)} disabled={yi <= 0} aria-label="Earlier year" className="w-9 h-9 flex items-center justify-center text-slate-500 dark:text-neutral-400 disabled:text-slate-300 dark:disabled:text-neutral-600">‹</button>
             <span className="text-sm font-bold text-slate-900 dark:text-neutral-100">{year}</span>
             <button onClick={() => stepYear(1)} disabled={yi < 0 || yi >= years.length - 1} aria-label="Later year" className="w-9 h-9 flex items-center justify-center text-slate-500 dark:text-neutral-400 disabled:text-slate-300 dark:disabled:text-neutral-600">›</button>

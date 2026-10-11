@@ -204,14 +204,22 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
   };
   useEffect(() => () => { if (closeTimer.current) window.clearTimeout(closeTimer.current); }, []);
   useBackClose(open && !!phone, requestClose);
-  // While search is open, the page behind it stays put: the app scrolls inside <main>, so lock
-  // that (and the page itself) and put them back as they were on close.
+  // While search is open, the page behind it stays put. Scrolling outside the search box is
+  // blocked rather than switching the page's scrollbar off, because putting the scrollbar back on
+  // close shifted the whole page sideways mid-animation (the jitter on closing).
   useEffect(() => {
     if (!open) return;
-    const els = [document.querySelector('main'), document.body].filter(Boolean) as HTMLElement[];
-    const prev = els.map(el => el.style.overflow);
-    els.forEach(el => { el.style.overflow = 'hidden'; });
-    return () => els.forEach((el, i) => { el.style.overflow = prev[i]; });
+    const block = (e: Event) => {
+      const inside = (e.target as Element | null)?.closest?.('[role="dialog"]');
+      // inside the results list, only stop the scroll from carrying on to the page
+      if (!inside && e.cancelable) e.preventDefault();
+    };
+    window.addEventListener('wheel', block, { passive: false });
+    window.addEventListener('touchmove', block, { passive: false });
+    return () => {
+      window.removeEventListener('wheel', block);
+      window.removeEventListener('touchmove', block);
+    };
   }, [open]);
   // Phones: keep the bubble above the keyboard. The visual viewport shrinks when the keyboard
   // opens, so the bubble's height follows it (with a fallback where it isn't available).
