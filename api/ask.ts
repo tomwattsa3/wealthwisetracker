@@ -48,6 +48,15 @@ const SEARCH_TOOL = {
 const list = (v: unknown, max: number) => (Array.isArray(v) ? v.filter(x => typeof x === 'string').map(x => x.slice(0, 80)).slice(0, max) : []);
 
 export default async function handler(req: any, res: any) {
+  try {
+    await answer(req, res);
+  } catch (err) {
+    console.error('Ask failed:', err);
+    if (!res.headersSent) res.status(500).json({ error: `Ask hit an error: ${String((err as Error)?.message || err).slice(0, 200)}` });
+  }
+}
+
+async function answer(req: any, res: any) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST' }); return; }
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) { res.status(503).json({ error: 'not_configured' }); return; }
@@ -67,6 +76,8 @@ export default async function handler(req: any, res: any) {
     : [];
   const places = list(body.places, 400);
   const payers = list(body.payers, 150);
+  // Earlier questions in a search-box chat, so a follow-up ("and last month?") can lean on them
+  const history = list(body.history, 3).map(h => h.slice(0, 300));
 
   // The lists of names only change when you import, so they go first and are cached; today's date
   // and the question come after the cache point.
@@ -96,12 +107,23 @@ export default async function handler(req: any, res: any) {
         { type: 'text', text: `Today is ${today}.` },
       ],
       tools: [SEARCH_TOOL],
-      messages: [{ role: 'user', content: question }],
+      messages: [{ role: 'user', content: history.length
+        ? `Earlier questions in this conversation (the new one may follow on from them):\n${history.map(h => `- ${h}`).join('\n')}\n\nNew question: ${question}`
+        : question }],
     });
   } catch (err) {
+    // Shown in Vercel's function logs, and the reason is passed back so the app can show it
+    console.error('Anthropic request failed:', err);
     if (err instanceof Anthropic.AuthenticationError) { res.status(503).json({ error: 'The Anthropic API key was not accepted. Check ANTHROPIC_API_KEY in Vercel.' }); return; }
+    if (err instanceof Anthropic.PermissionDeniedError) { res.status(503).json({ error: `The Anthropic account can't use this yet: ${err.message}` }); return; }
     if (err instanceof Anthropic.RateLimitError) { res.status(503).json({ error: 'Too many questions at once. Try again in a moment.' }); return; }
-    res.status(502).json({ error: 'The AI service did not answer. Try again in a moment.' });
+    if (err instanceof Anthropic.BadRequestError) {
+      const credit = /credit balance/i.test(err.message);
+      res.status(502).json({ error: credit ? 'Your Anthropic account is out of credit. Add some in the Claude Console (Billing).' : `The AI service rejected the request: ${err.message.slice(0, 300)}` });
+      return;
+    }
+    if (err instanceof Anthropic.APIError) { res.status(502).json({ error: `The AI service had a problem (${err.status ?? 'no status'}): ${err.message.slice(0, 300)}` }); return; }
+    res.status(502).json({ error: `Couldn't reach the AI service: ${String((err as Error)?.message || err).slice(0, 200)}` });
     return;
   }
   if (data.stop_reason === 'refusal') { res.status(200).json({ search: { metric: 'unsupported', reason: "That question couldn't be answered. Try asking another way." } }); return; }

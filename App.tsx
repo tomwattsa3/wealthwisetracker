@@ -2607,6 +2607,14 @@ const App: React.FC = () => {
           onGo={(tab) => handleTabChange(tab)}
           onImport={() => setImportOpen(true)}
           onAsk={(question) => { setAskSeed({ q: question, n: Date.now() }); handleTabChange('ask'); }}
+          onOpenTransactions={({ search, start, end, categoryId }) => {
+            setSearchQuery(search);
+            setFilterCategory(categoryId || 'all');
+            setFilterSubcategory('all');
+            setFilterType('all');
+            setDateRange({ start, end, label: 'Custom Range' });
+            handleTabChange('history');
+          }}
           onViewCategory={(categoryId, subcategory, start, end) => {
             handleResetFilters();
             setSearchQuery('');

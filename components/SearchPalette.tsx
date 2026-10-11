@@ -9,6 +9,7 @@ import { merchantKey, monthKey, keyToIndex } from '../lib/periods';
 import { usePrivacy } from '../lib/privacy';
 import { MODAL_TRANSITION } from '../lib/motion';
 import { useBackClose } from '../lib/backStack';
+import { AskAnswer, buildVocab, askAI, runSearch } from '../lib/ask';
 
 // Search: ⌘K on desktop (a centred box), or the search button on phone Home (a bubble that
 // drops in near the top, over a blurred Home, and grows down as results come in). One box for places, payments (and their notes), categories, pages and
@@ -29,6 +30,8 @@ interface SearchPaletteProps {
   onImport: () => void;
   onAsk: (question: string) => void;
   onViewCategory: (categoryId: string, subcategory: string | null, start: string, end: string) => void;
+  // Opens Transactions on exactly what an Ask answer counted
+  onOpenTransactions?: (o: { search: string; start: string; end: string; categoryId: string | null }) => void;
 }
 
 type Scope = 'all' | 'places' | 'payments' | 'categories';
@@ -84,7 +87,7 @@ const dayLabel = (iso: string) => { const d = new Date(`${iso.slice(0, 10)}T12:0
 
 const iconBox = 'w-9 h-9 shrink-0 rounded-[10px] flex items-center justify-center text-[15px] font-bold';
 
-const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, transactions, categories, currency, getCategoryEmoji, onGo, onImport, onAsk, onViewCategory }) => {
+const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, transactions, categories, currency, getCategoryEmoji, onGo, onImport, onAsk, onViewCategory, onOpenTransactions }) => {
   const [q, setQ] = useState('');
   const [scope, setScope] = useState<Scope>('all');
   const [sel, setSel] = useState(0);
@@ -144,6 +147,36 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
     const id = window.setTimeout(() => inputRef.current?.focus(), phone ? 300 : 30);
     return () => window.clearTimeout(id);
   }, [open, phone]);
+
+  // Ask, as a quick chat inside the search box: each question and its short answer stay in a
+  // thread (until the app reloads), the box clears for the next one, and follow-ups ("and last
+  // month?") are sent with the earlier questions so they make sense. The Ask page is still there
+  // for the full answer.
+  type AiTurn = { id: number; q: string; status: 'thinking' | 'done' | 'error'; ans?: AskAnswer; error?: string };
+  const [thread, setThread] = useState<AiTurn[]>([]);
+  const vocab = useMemo(() => buildVocab(transactions, categories), [transactions, categories]);
+  const runAsk = async (question: string) => {
+    if (!question) return;
+    remember(question);
+    const id = Date.now();
+    const history = thread.slice(-3).map(t => t.q);
+    setThread(t => [...t, { id, q: question, status: 'thinking' }]);
+    setQ('');
+    inputRef.current?.focus();
+    const res = await askAI(question, vocab, history);
+    const update: Partial<AiTurn> = 'error' in res
+      ? { status: 'error', error: res.error }
+      : res.search.metric === 'unsupported'
+        ? { status: 'error', error: res.search.reason || "That isn't something your transactions can answer." }
+        : { status: 'done', ans: runSearch(res.search, transactions, categories, currency) };
+    setThread(t => t.map(x => (x.id === id ? { ...x, ...update } : x)));
+  };
+  // Keep the newest answer in view
+  useEffect(() => {
+    if (!thread.length || q.trim()) return;
+    const el = listRef.current;
+    if (el) requestAnimationFrame(() => el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }));
+  }, [thread, q]);
 
   const amt = (t: Transaction) => Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED) || 0;
   const sym = currency === 'GBP' ? '£' : 'AED ';
@@ -215,6 +248,8 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
     const actionClass = `${iconBox} bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300`;
     const pageClass = `${iconBox} bg-slate-100 text-slate-600 dark:bg-neutral-700 dark:text-neutral-300`;
 
+    // An Ask chat is going: the thread shows on its own; typing offers Ask first (a follow-up)
+    if (!query && thread.length) return out;
     if (!query) {
       recent.forEach((r, i) => out.push({ id: `r-${i}`, group: 'Recent', icon: <Search size={15} />, title: r, run: () => { setQ(r); setSel(0); } }));
       ACTIONS.forEach(a => out.push({ ...a, icon: <span className={actionClass}>{a.icon}</span> }));
@@ -226,9 +261,9 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
     const askItem: Item = {
       id: 'ask', group: 'Ask', icon: <span className={`${iconBox} bg-indigo-600 text-white`}><Sparkles size={16} /></span>,
       title: <>Ask: “{q.trim()}”</>, sub: 'Answers from your own transactions', right: <CornerDownLeft size={14} className="text-slate-400" />,
-      run: done(() => onAsk(q.trim())),
+      run: () => { void runAsk(q.trim()); },
     };
-    const isQuestion = QUESTION.test(q.trim()) && query.split(' ').length >= 2;
+    const isQuestion = thread.length > 0 || (QUESTION.test(q.trim()) && query.split(' ').length >= 2);
     if (isQuestion && scope === 'all') out.push(askItem);
 
     if (scope === 'all' || scope === 'places') {
@@ -301,7 +336,7 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
       if (!isQuestion) out.push(askItem);
     }
     return out;
-  }, [q, scope, index, categories, recent, hideAmounts, currency, phone]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [q, scope, index, categories, recent, hideAmounts, currency, phone, thread, vocab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { setSel(0); }, [q, scope]);
   useEffect(() => {
@@ -369,7 +404,7 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
                     ref={inputRef}
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
-                    placeholder={phone ? 'Search or ask…' : 'Search places, payments, notes, categories… or ask a question'}
+                    placeholder={thread.length ? 'Ask a follow-up, or search…' : phone ? 'Search or ask…' : 'Search places, payments, notes, categories… or ask a question'}
                     enterKeyHint="search"
                     className="flex-1 min-w-0 bg-transparent outline-none text-[16px] md:text-[15px] text-slate-900 dark:text-neutral-100 placeholder:text-slate-400"
                     spellCheck={false}
@@ -389,7 +424,41 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
                   </div>
                 )}
                 <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-2 pb-2" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                  {items.length === 0 && <p className="py-10 text-center text-sm text-slate-400">Nothing found for “{q.trim()}”</p>}
+                  {!q.trim() && thread.length > 0 && (
+                    <div className="px-2 pt-2 pb-1 flex flex-col gap-3">
+                      <div className="flex justify-between items-center px-1">
+                        <span className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400 dark:text-neutral-500">Ask</span>
+                        <button onClick={() => { setThread([]); inputRef.current?.focus(); }} className="text-[11.5px] text-slate-400 hover:text-slate-600 dark:hover:text-neutral-300">Clear</button>
+                      </div>
+                      {thread.map(turn => (
+                        <motion.div key={turn.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }} className="flex flex-col gap-1.5">
+                          <div className="self-end max-w-[85%] rounded-2xl rounded-br-md bg-slate-100 dark:bg-neutral-700 px-3 py-1.5 text-[13px] text-slate-800 dark:text-neutral-100">{turn.q}</div>
+                          {turn.status === 'thinking' && (
+                            <div className="flex items-center gap-2 h-9 px-1 text-[12.5px] text-slate-500 dark:text-neutral-400">
+                              <span className="flex gap-1">{[0, 1, 2].map(d => <motion.span key={d} className="w-1.5 h-1.5 rounded-full bg-indigo-400" animate={{ opacity: [0.25, 1, 0.25] }} transition={{ duration: 1, repeat: Infinity, delay: d * 0.15 }} />)}</span>
+                              Thinking…
+                            </div>
+                          )}
+                          {turn.status === 'error' && <p className="px-1 text-[12.5px] text-rose-600 dark:text-rose-400">{turn.error}</p>}
+                          {turn.status === 'done' && turn.ans && (
+                            <div className="max-w-[92%] rounded-2xl rounded-bl-md bg-indigo-50/80 dark:bg-indigo-950/40 px-3.5 py-3">
+                              <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">{turn.ans.scope}</div>
+                              <div className="flex items-baseline gap-2 flex-wrap">
+                                <span className={`text-[22px] leading-tight font-bold ${turn.ans.green ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-neutral-100'}`}>{turn.ans.big}</span>
+                                <span className="text-[12px] text-slate-500 dark:text-neutral-400">{turn.ans.unit}</span>
+                              </div>
+                              <p className="mt-1 text-[12px] leading-snug text-slate-600 dark:text-neutral-300 line-clamp-2">{turn.ans.text}</p>
+                              <div className="mt-2 flex gap-3 text-[12px] font-semibold">
+                                {onOpenTransactions && turn.ans.rows.length > 0 && <button onClick={done(() => onOpenTransactions(turn.ans!.open))} className="text-indigo-700 dark:text-indigo-300">See payments →</button>}
+                                <button onClick={done(() => onAsk(turn.q))} className="text-slate-500 dark:text-neutral-400">Open in Ask</button>
+                              </div>
+                            </div>
+                          )}
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                  {items.length === 0 && q.trim() && <p className="py-10 text-center text-sm text-slate-400">Nothing found for “{q.trim()}”</p>}
                   {items.map((it, i) => {
                     const head = it.group !== lastGroup;
                     lastGroup = it.group;
