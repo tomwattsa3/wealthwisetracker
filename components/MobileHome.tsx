@@ -1,9 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Eye, EyeOff } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { Transaction } from '../types';
-import { usePrivacy } from '../lib/privacy';
-import BlurStrengthSlider from './BlurStrengthSlider';
 import CategorySheets from './CategorySheets';
 import TxDetail from './TxDetail';
 import InstallCard from './InstallCard';
@@ -30,6 +28,7 @@ interface MobileHomeProps {
   onImport?: () => void;
   // Opens the Income page (every payer, the year by month, where it lands).
   onOpenIncome?: () => void;
+  onSearch?: () => void;
 }
 
 const TOP_N = 6;
@@ -48,7 +47,7 @@ interface Place { key: string; name: string; total: number; count: number; cats:
 // A money figure that swaps smoothly when it changes.
 const Glide: React.FC<{ value: number; format: (v: number) => string }> = ({ value, format }) => <Swap text={format(value)} />;
 
-const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCategoryEmoji, onOpenBreakdown, onViewTransactions, onImport, onOpenIncome }) => {
+const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCategoryEmoji, onOpenBreakdown, onViewTransactions, onImport, onOpenIncome, onSearch }) => {
   const amt = (t: Transaction) => Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED) || 0;
   const valid = (t: Transaction) => !t.excluded && /^\d{4}-\d{2}-\d{2}/.test(t.date);
 
@@ -146,9 +145,6 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
     setPicked(i);
     setMode('month');
   };
-  const [hideAmounts, toggleHideAmounts] = usePrivacy();
-  const [privacyOpen, setPrivacyOpen] = useState(false);
-  useBackClose(privacyOpen, () => setPrivacyOpen(false));
   const [showAllCats, setShowAllCats] = useState(false);
   // The category tapped in "Where it went", shown in the same panel as Sheets' See all.
   const [catPanel, setCatPanel] = useState<{ cat: string; year: number; month: number | null; n: number } | null>(null);
@@ -368,29 +364,13 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
       <div className="flex items-center justify-between gap-2 pt-1">
         <div className="flex items-center gap-1">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-neutral-100">Home</h1>
-          <span className="relative">
-            <button onClick={() => setPrivacyOpen(o => !o)} aria-expanded={privacyOpen} aria-label="Hide amounts settings" data-amt-skip className={`w-8 h-8 relative after:absolute after:-inset-1.5 after:content-[''] rounded-lg flex items-center justify-center ${hideAmounts ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/50 dark:text-indigo-300' : 'text-slate-400'}`}>
-              {hideAmounts ? <EyeOff size={17} /> : <Eye size={17} />}
-            </button>
-            {privacyOpen && (
-              <>
-                <button aria-label="Close" className="fixed inset-0 z-40 cursor-default" onClick={() => setPrivacyOpen(false)} />
-                <div className="absolute left-0 top-10 z-50 w-64 p-3.5 flex flex-col gap-3 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-2xl shadow-lg">
-                  <button onClick={toggleHideAmounts} aria-pressed={hideAmounts} className="flex items-center justify-between gap-3 text-left" data-amt-skip>
-                    <span>
-                      <span className="block text-sm font-semibold text-slate-900 dark:text-neutral-100">Hide amounts</span>
-                      <span className="block text-xs text-slate-500 dark:text-neutral-400">Hide every £ figure in the app</span>
-                    </span>
-                    <span className={`relative w-11 h-[26px] shrink-0 rounded-full transition-colors ${hideAmounts ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-neutral-600'}`}>
-                      <span className={`absolute top-[3px] w-5 h-5 rounded-full bg-white shadow transition-all ${hideAmounts ? 'left-[21px]' : 'left-[3px]'}`} />
-                    </span>
-                  </button>
-                  <BlurStrengthSlider disabled={!hideAmounts} />
-                </div>
-              </>
-            )}
-          </span>
         </div>
+        {onSearch && (
+          <button onClick={onSearch} aria-label="Search" className="w-[104px] shrink min-w-0 mx-auto h-8 px-3 rounded-full flex items-center justify-center gap-1.5 bg-slate-400/[0.14] dark:bg-neutral-700/60 text-slate-500 dark:text-neutral-400 active:scale-[0.98] transition-transform">
+            <Search size={14} strokeWidth={2.2} className="shrink-0" />
+            <span className="text-[12.5px] truncate">Search</span>
+          </button>
+        )}
         <div className="flex items-center gap-1.5">
           <div className="flex items-center bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl p-0.5">
             <button onClick={() => step(-1)} disabled={!canPrev} aria-label={ytd ? 'Previous year' : 'Previous month'} className="w-7 h-8 relative after:absolute after:-inset-y-1.5 after:-inset-x-2 after:content-[''] rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">‹</button>

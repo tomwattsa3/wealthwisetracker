@@ -8,8 +8,10 @@ import TxDetail, { userNote } from './TxDetail';
 import { merchantKey, monthKey, keyToIndex } from '../lib/periods';
 import { usePrivacy } from '../lib/privacy';
 import { MODAL_TRANSITION } from '../lib/motion';
+import { useBackClose } from '../lib/backStack';
 
-// ⌘K search (desktop): one box for places, payments (and their notes), categories, pages and
+// Search: ⌘K on desktop (a centred box), or the search button on phone Home (a bubble that
+// drops in near the top, over a blurred Home, and grows down as results come in). One box for places, payments (and their notes), categories, pages and
 // actions. Spelling is matched loosely, so "kareem" finds Careem. A question goes to Ask.
 // Picking a place opens its panel (every payment, by month); a payment opens its details.
 
@@ -17,6 +19,7 @@ type Tab = 'home' | 'history' | 'categories' | 'sheets' | 'breakdown' | 'recurri
 
 interface SearchPaletteProps {
   open: boolean;
+  phone?: boolean;
   onClose: () => void;
   transactions: Transaction[];
   categories: Category[];
@@ -81,7 +84,7 @@ const dayLabel = (iso: string) => { const d = new Date(`${iso.slice(0, 10)}T12:0
 
 const iconBox = 'w-9 h-9 shrink-0 rounded-[10px] flex items-center justify-center text-[15px] font-bold';
 
-const SearchPalette: React.FC<SearchPaletteProps> = ({ open, onClose, transactions, categories, currency, getCategoryEmoji, onGo, onImport, onAsk, onViewCategory }) => {
+const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, transactions, categories, currency, getCategoryEmoji, onGo, onImport, onAsk, onViewCategory }) => {
   const [q, setQ] = useState('');
   const [scope, setScope] = useState<Scope>('all');
   const [sel, setSel] = useState(0);
@@ -92,6 +95,7 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, onClose, transactio
   const listRef = useRef<HTMLDivElement>(null);
   const [recent, setRecent] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('searchRecent') || '[]'); } catch { return []; } });
 
+  useBackClose(open && !!phone, onClose);
   useEffect(() => {
     if (!open) return;
     setQ(''); setScope('all'); setSel(0);
@@ -172,7 +176,8 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, onClose, transactio
     if (!query) {
       recent.forEach((r, i) => out.push({ id: `r-${i}`, group: 'Recent', icon: <Search size={15} />, title: r, run: () => { setQ(r); setSel(0); } }));
       ACTIONS.forEach(a => out.push({ ...a, icon: <span className={actionClass}>{a.icon}</span> }));
-      PAGES.forEach(([tab, label, icon]) => out.push({ id: `p-${tab}`, group: 'Go to', icon: <span className={pageClass}>{icon}</span>, title: label, run: done(() => onGo(tab)) }));
+      // Phones keep the bubble short: just the pages you'd jump to from Home
+      PAGES.filter(([tab]) => !phone || ['income', 'history', 'sheets'].includes(tab)).forEach(([tab, label, icon]) => out.push({ id: `p-${tab}`, group: 'Go to', icon: <span className={pageClass}>{icon}</span>, title: label, run: done(() => onGo(tab)) }));
       return out;
     }
 
@@ -254,7 +259,7 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, onClose, transactio
       if (!isQuestion) out.push(askItem);
     }
     return out;
-  }, [q, scope, index, categories, recent, hideAmounts, currency]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [q, scope, index, categories, recent, hideAmounts, currency, phone]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { setSel(0); }, [q, scope]);
   useEffect(() => {
@@ -279,34 +284,41 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, onClose, transactio
       {createPortal(
         <AnimatePresence>
           {open && (
-            <motion.div key="search" className="fixed inset-0 z-[130] flex justify-center items-start pt-[12vh]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
-              <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-[3px]" onClick={onClose} />
+            <motion.div key="search" className={`fixed inset-0 z-[130] flex justify-center items-start ${phone ? 'px-3 pt-[calc(env(safe-area-inset-top)_+_56px)]' : 'pt-[12vh]'}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
+              <div className={`absolute inset-0 ${phone ? 'bg-slate-900/25 backdrop-blur-md' : 'bg-slate-900/30 backdrop-blur-[3px]'}`} onClick={onClose} />
               <motion.div
                 role="dialog"
                 aria-modal="true"
                 aria-label="Search"
-                className="relative w-[640px] max-w-[calc(100vw-48px)] rounded-[18px] bg-white dark:bg-neutral-800 border border-slate-200/80 dark:border-neutral-700 shadow-[0_24px_60px_rgba(15,23,42,0.30)] overflow-hidden flex flex-col max-h-[72vh]"
+                className={phone
+                  ? 'relative w-full rounded-[22px] bg-white/95 dark:bg-neutral-800/95 shadow-[0_18px_50px_rgba(15,23,42,0.28)] ring-1 ring-slate-900/5 dark:ring-white/10 overflow-hidden flex flex-col max-h-[58dvh]'
+                  : 'relative w-[640px] max-w-[calc(100vw-48px)] rounded-[18px] bg-white dark:bg-neutral-800 border border-slate-200/80 dark:border-neutral-700 shadow-[0_24px_60px_rgba(15,23,42,0.30)] overflow-hidden flex flex-col max-h-[72vh]'}
                 initial={{ opacity: 0, y: -10, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -6, scale: 0.98 }}
                 transition={MODAL_TRANSITION}
                 onKeyDown={onKey}
               >
-                <div className="flex items-center gap-3 h-14 px-5 border-b border-slate-100 dark:border-neutral-700 shrink-0">
-                  <Search size={18} className="text-slate-400 shrink-0" />
+                <div className={`flex items-center gap-3 shrink-0 ${phone ? 'h-12 px-4' : 'h-14 px-5'} ${phone && !q.trim() && items.length === 0 ? '' : 'border-b border-slate-100 dark:border-neutral-700'}`}>
+                  <Search size={phone ? 16 : 18} className={`${phone ? 'text-indigo-500' : 'text-slate-400'} shrink-0`} />
                   <input
                     ref={inputRef}
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
-                    placeholder="Search places, payments, notes, categories… or ask a question"
-                    className="flex-1 bg-transparent outline-none text-[15px] text-slate-900 dark:text-neutral-100 placeholder:text-slate-400"
+                    placeholder={phone ? 'Search or ask…' : 'Search places, payments, notes, categories… or ask a question'}
+                    enterKeyHint="search"
+                    className="flex-1 min-w-0 bg-transparent outline-none text-[16px] md:text-[15px] text-slate-900 dark:text-neutral-100 placeholder:text-slate-400"
                     spellCheck={false}
                     autoComplete="off"
                   />
-                  <kbd className="px-1.5 h-5 rounded-[5px] border border-slate-200 dark:border-neutral-600 bg-slate-50 dark:bg-neutral-700 text-[10px] font-semibold text-slate-500 dark:text-neutral-400 flex items-center">esc</kbd>
+                  {phone ? (
+                    q ? <button onClick={() => { setQ(''); inputRef.current?.focus(); }} aria-label="Clear" className="w-6 h-6 shrink-0 rounded-full bg-slate-200 dark:bg-neutral-600 text-slate-500 dark:text-neutral-300 text-[11px] flex items-center justify-center">✕</button> : null
+                  ) : (
+                    <kbd className="px-1.5 h-5 rounded-[5px] border border-slate-200 dark:border-neutral-600 bg-slate-50 dark:bg-neutral-700 text-[10px] font-semibold text-slate-500 dark:text-neutral-400 flex items-center">esc</kbd>
+                  )}
                 </div>
                 {q.trim() && (
-                  <div className="flex gap-1.5 px-4 pt-2.5 pb-1 shrink-0">
+                  <div className={`flex gap-1.5 pt-2.5 pb-1 shrink-0 ${phone ? 'px-3 overflow-x-auto hide-scrollbar' : 'px-4'}`}>
                     {SCOPES.map(([s, l]) => (
                       <button key={s} onClick={() => { setScope(s); inputRef.current?.focus(); }} className={`h-[26px] px-2.5 rounded-full text-[11.5px] transition-colors ${scope === s ? 'bg-slate-900 text-white dark:bg-neutral-100 dark:text-neutral-900 font-semibold' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-neutral-700 dark:text-neutral-300'}`}>{l}</button>
                     ))}
@@ -324,7 +336,7 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, onClose, transactio
                           data-i={i}
                           onMouseMove={() => sel !== i && setSel(i)}
                           onClick={it.run}
-                          className={`w-full flex items-center gap-3 min-h-[50px] px-3 py-1.5 rounded-xl text-left ${sel === i ? 'bg-indigo-50 dark:bg-indigo-950/40' : ''}`}
+                          className={`w-full flex items-center gap-3 min-h-[50px] px-3 py-1.5 rounded-xl text-left ${!phone && sel === i ? 'bg-indigo-50 dark:bg-indigo-950/40' : ''} ${phone ? 'active:bg-slate-100 dark:active:bg-neutral-700/60' : ''}`}
                         >
                           {typeof it.icon === 'object' && React.isValidElement(it.icon) && (it.icon.type === 'span') ? it.icon : <span className={`${iconBox} bg-slate-100 text-slate-500 dark:bg-neutral-700 dark:text-neutral-300`}>{it.icon}</span>}
                           <span className="flex-1 min-w-0">
@@ -337,12 +349,12 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, onClose, transactio
                     );
                   })}
                 </div>
-                <div className="flex items-center gap-4 h-9 px-4 border-t border-slate-100 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800/80 text-[11px] text-slate-500 dark:text-neutral-400 shrink-0">
+                {!phone && <div className="flex items-center gap-4 h-9 px-4 border-t border-slate-100 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800/80 text-[11px] text-slate-500 dark:text-neutral-400 shrink-0">
                   <span><kbd className="font-sans font-semibold">↑↓</kbd> move</span>
                   <span><kbd className="font-sans font-semibold">↵</kbd> open</span>
                   {q.trim() && <span><kbd className="font-sans font-semibold">tab</kbd> filter</span>}
                   <span className="ml-auto">Places &amp; categories: {index.latestYear} totals</span>
-                </div>
+                </div>}
               </motion.div>
             </motion.div>
           )}
@@ -350,7 +362,7 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, onClose, transactio
         document.body
       )}
       <PlaceSheet
-        side
+        side={!phone}
         place={place}
         onClose={() => setPlace(null)}
         transactions={transactions}
@@ -359,7 +371,7 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, onClose, transactio
         firstIdx={Number.isFinite(index.firstIdx) ? index.firstIdx : 0}
         lastIdx={Number.isFinite(index.lastIdx) ? index.lastIdx : 0}
       />
-      <TxDetail id={txId} onClose={() => setTxId(null)} sheet={false} />
+      <TxDetail id={txId} onClose={() => setTxId(null)} sheet={!!phone} />
     </>
   );
 };

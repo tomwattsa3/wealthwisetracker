@@ -2148,6 +2148,7 @@ const App: React.FC = () => {
                     onOpenBreakdown={() => handleTabChange('sheets')}
                     onImport={() => setImportOpen(true)}
                     onOpenIncome={() => handleTabChange('income')}
+                    onSearch={openSearch}
                     onViewTransactions={(categoryId, subcategory, start, end) => {
                       setFilterCategory(categoryId);
                       setFilterSubcategory(subcategory ?? 'all');
@@ -2592,9 +2593,10 @@ const App: React.FC = () => {
       )}
 
     </div>
-    {searchLoaded && !isPhone && (
+    {searchLoaded && (
       <Suspense fallback={null}>
         <SearchPalette
+          phone={isPhone}
           open={searchOpen}
           onClose={() => setSearchOpen(false)}
           transactions={transactions}
