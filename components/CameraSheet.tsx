@@ -100,45 +100,46 @@ const CameraSheet: React.FC<{ open: boolean; onClose: () => void }> = ({ open, o
           <motion.div
             role="dialog"
             aria-label="Scan a receipt"
-            className="absolute inset-x-3 bottom-[calc(env(safe-area-inset-bottom)_+_12px)] top-[calc(env(safe-area-inset-top)_+_230px)] bg-[#0B0F19] rounded-[26px] overflow-hidden flex flex-col shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
-            initial={{ y: '110%' }}
+            className="absolute inset-x-0 bottom-0 top-[calc(env(safe-area-inset-top)_+_230px)] bg-[#0B0F19] rounded-t-[26px] overflow-hidden shadow-[0_-10px_30px_rgba(0,0,0,0.25)]"
+            initial={{ y: '100%' }}
             animate={{ y: 0 }}
-            exit={{ y: '110%' }}
+            exit={{ y: '100%' }}
             transition={SHEET_SPRING}
             drag="y"
             dragConstraints={{ top: 0, bottom: 0 }}
             dragElastic={{ top: 0, bottom: 0.6 }}
             onDragEnd={(_, i) => { if (i.offset.y > 110 || i.velocity.y > 550) onClose(); }}
           >
-            <div className="shrink-0 pt-2 pb-1">
-              <div className="w-9 h-[5px] rounded-full bg-white/30 mx-auto" />
-              <div className="flex items-center justify-between px-5 pt-2 text-white">
-                <span className="text-[14px] font-semibold">Scan a receipt</span>
-                <button onClick={onClose} aria-label="Close" className="w-8 h-8 -mr-1.5 rounded-full flex items-center justify-center text-white/80 active:bg-white/10"><X size={18} /></button>
-              </div>
-            </div>
-
             {/* Viewfinder */}
-            <div className="relative flex-1 min-h-0 mx-3 mt-1 mb-3 rounded-[20px] overflow-hidden bg-[radial-gradient(circle_at_50%_35%,#374151,#0B0F19)]">
+            <div className="absolute inset-0 overflow-hidden bg-[radial-gradient(circle_at_50%_35%,#374151,#0B0F19)]">
               <video ref={videoRef} playsInline muted autoPlay className={`absolute inset-0 w-full h-full object-cover ${phase === 'live' ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`} />
               {photo && <img src={photo} alt="Your photo" className="absolute inset-0 w-full h-full object-contain bg-black" />}
-              {phase !== 'taken' && <div className="absolute inset-x-[14%] top-[7%] bottom-[30%] rounded-2xl border-2 border-white/80 pointer-events-none" />}
+              {phase !== 'taken' && <div className="absolute inset-x-[14%] top-[64px] bottom-[calc(env(safe-area-inset-bottom)_+_148px)] rounded-2xl border-2 border-white/80 pointer-events-none" />}
               <AnimatePresence>
                 {flash > 0 && phase === 'taken' && (
                   <motion.div key={flash} className="absolute inset-0 bg-white pointer-events-none" initial={{ opacity: 0.85 }} animate={{ opacity: 0 }} transition={{ duration: 0.45 }} />
                 )}
               </AnimatePresence>
-              {phase === 'starting' && <p className="absolute inset-x-0 bottom-[96px] text-center text-[12px] text-white/70">Starting the camera…</p>}
-              {phase === 'live' && <p className="absolute inset-x-0 bottom-[96px] text-center text-[12px] text-white/80 [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Fit the receipt in the frame</p>}
+              {phase === 'starting' && <p className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)_+_120px)] text-center text-[12px] text-white/70">Starting the camera…</p>}
+              {phase === 'live' && <p className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)_+_120px)] text-center text-[12px] text-white/80 [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Fit the receipt in the frame</p>}
               {phase === 'error' && (
-                <div className="absolute inset-x-0 top-0 bottom-[92px] flex items-center justify-center p-6">
+                <div className="absolute inset-x-0 top-[56px] bottom-[calc(env(safe-area-inset-bottom)_+_116px)] flex items-center justify-center p-6">
                   <p className="text-center text-[13px] leading-relaxed text-white/85">{error}</p>
                 </div>
               )}
 
+              {/* Handle, title and close float over the top of the camera view */}
+              <div className="absolute inset-x-0 top-0 pt-2 pb-6 bg-gradient-to-b from-black/55 to-transparent text-white pointer-events-none">
+                <div className="w-9 h-[5px] rounded-full bg-white/45 mx-auto" />
+                <div className="flex items-center justify-between px-5 pt-1.5">
+                  <span className="text-[14px] font-semibold [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]">Scan a receipt</span>
+                  <button onClick={onClose} aria-label="Close" className="pointer-events-auto w-8 h-8 -mr-1.5 rounded-full bg-black/25 backdrop-blur-sm flex items-center justify-center text-white active:bg-black/40"><X size={17} /></button>
+                </div>
+              </div>
+
               {/* Controls sit inside the viewfinder, over a soft dark fade */}
               {phase === 'taken' ? (
-                <div className="absolute inset-x-2.5 bottom-2.5 rounded-[16px] bg-white/95 dark:bg-neutral-800/95 px-4 py-3">
+                <div className="absolute inset-x-3 bottom-[calc(env(safe-area-inset-bottom)_+_12px)] rounded-[16px] bg-white/95 dark:bg-neutral-800/95 px-4 py-3">
                   <p className="text-[13.5px] font-semibold text-slate-900 dark:text-neutral-100">Photo taken</p>
                   <p className="text-[11.5px] text-slate-500 dark:text-neutral-400">Demo: receipts aren't read or saved yet.</p>
                   <div className="mt-2.5 flex gap-2">
@@ -147,7 +148,7 @@ const CameraSheet: React.FC<{ open: boolean; onClose: () => void }> = ({ open, o
                   </div>
                 </div>
               ) : (
-                <div className="absolute inset-x-0 bottom-0 h-[92px] bg-gradient-to-t from-black/60 to-transparent flex items-center justify-between px-6">
+                <div className="absolute inset-x-0 bottom-0 pt-6 pb-[calc(env(safe-area-inset-bottom)_+_36px)] bg-gradient-to-t from-black/60 to-transparent flex items-center justify-between px-7">
                   <button onClick={() => fileRef.current?.click()} aria-label="Choose a photo" className="w-11 h-11 rounded-full bg-white/15 backdrop-blur-sm text-white flex items-center justify-center active:scale-95 transition-transform"><ImageIcon size={19} /></button>
                   <button onClick={capture} disabled={phase !== 'live'} aria-label="Take photo" className="w-[62px] h-[62px] rounded-full border-[3.5px] border-white flex items-center justify-center disabled:opacity-40 active:scale-95 transition-transform">
                     <span className="w-[48px] h-[48px] rounded-full bg-white" />
