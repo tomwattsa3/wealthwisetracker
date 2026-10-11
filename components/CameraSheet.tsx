@@ -100,10 +100,10 @@ const CameraSheet: React.FC<{ open: boolean; onClose: () => void }> = ({ open, o
           <motion.div
             role="dialog"
             aria-label="Scan a receipt"
-            className="absolute inset-x-0 bottom-0 top-[calc(env(safe-area-inset-top)_+_150px)] bg-[#0B0F19] rounded-t-[26px] overflow-hidden flex flex-col shadow-[0_-10px_30px_rgba(0,0,0,0.25)]"
-            initial={{ y: '100%' }}
+            className="absolute inset-x-3 bottom-[calc(env(safe-area-inset-bottom)_+_12px)] top-[calc(env(safe-area-inset-top)_+_230px)] bg-[#0B0F19] rounded-[26px] overflow-hidden flex flex-col shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
+            initial={{ y: '110%' }}
             animate={{ y: 0 }}
-            exit={{ y: '100%' }}
+            exit={{ y: '110%' }}
             transition={SHEET_SPRING}
             drag="y"
             dragConstraints={{ top: 0, bottom: 0 }}
@@ -138,7 +138,7 @@ const CameraSheet: React.FC<{ open: boolean; onClose: () => void }> = ({ open, o
             </div>
 
             {/* Controls, or what to do with the photo */}
-            <div className="shrink-0 h-[118px] pb-[env(safe-area-inset-bottom)] flex items-center">
+            <div className="shrink-0 h-[112px] flex items-center">
               {phase === 'taken' ? (
                 <div className="w-full mx-3 rounded-[18px] bg-white dark:bg-neutral-800 px-4 py-3">
                   <p className="text-[13.5px] font-semibold text-slate-900 dark:text-neutral-100">Photo taken</p>
