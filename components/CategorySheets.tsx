@@ -22,7 +22,7 @@ interface CategorySheetsProps {
   onViewTransactions: (categoryId: string, subcategory: string | null, start: string, end: string) => void;
   // Render only the See all panel for one category (e.g. opened from the phone Home), on a year
   // and optionally one month of it. onPanelClose runs once it has slid away.
-  panelOnly?: { cat: string; year: number; month: number | null } | null;
+  panelOnly?: { cat: string; year: number; month: number | null; sub?: string } | null;
   onPanelClose?: () => void;
   // Phones: the Search pill (same as Home), under the year picker
   onSearch?: () => void;
@@ -109,7 +109,7 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
   const [open, setOpen] = useState<string | null>(panelOnly?.cat ?? null);
   // Phones: extra places opened under a card's top six, ten at a time (by category).
   const [extraPlaces, setExtraPlaces] = useState<Record<string, number>>({});
-  const [sub, setSub] = useState<string>('all');
+  const [sub, setSub] = useState<string>(panelOnly?.sub ?? 'all');
   const [pm, setPm] = useState<number | null>(panelOnly?.month ?? null);
   // Date/Amount and Summarise share the Breakdown panel's saved choices.
   const [sortBy, setSortBy] = useState<'date' | 'amount'>(() => {

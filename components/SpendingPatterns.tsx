@@ -88,7 +88,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   // The place clicked in Top places, shown in a panel from the right (its months and payments).
   const [placePick, setPlacePick] = useState<PlacePick | null>(null);
   // The category clicked in "Where it went", shown in the same panel as Category Sheets' See all.
-  const [catPanel, setCatPanel] = useState<{ cat: string; year: number; month: number | null; n: number } | null>(null);
+  const [catPanel, setCatPanel] = useState<{ cat: string; year: number; month: number | null; sub?: string; n: number } | null>(null);
   const [periodMenu, setPeriodMenu] = useState(false);
   const [pickerMenu, setPickerMenu] = useState(false);
   // How the category line reads: "everything except …" (chips = left out) or "only …" (chips = shown).
@@ -1280,7 +1280,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                 {shownRows.map(r => (
                   <button
                     key={r.key}
-                    onClick={() => setCatPanel({ cat: r.cat, year: panelYear, month: panelMonth, n: Date.now() })}
+                    onClick={() => setCatPanel({ cat: r.cat, year: panelYear, month: panelMonth, sub: r.sub || undefined, n: Date.now() })}
                     title={`Open ${r.cat}`}
                     className="grid grid-cols-[10px_minmax(0,1.15fr)_minmax(0,1fr)_40px_96px] gap-3.5 items-center min-h-[44px] px-2 -mx-2 rounded-xl border-t border-slate-100 dark:border-neutral-700/70 text-left hover:bg-slate-50 dark:hover:bg-neutral-700/30"
                   >

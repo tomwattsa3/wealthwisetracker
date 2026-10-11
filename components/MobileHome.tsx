@@ -148,7 +148,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   };
   const [showAllCats, setShowAllCats] = useState(false);
   // The category tapped in "Where it went", shown in the same panel as Sheets' See all.
-  const [catPanel, setCatPanel] = useState<{ cat: string; year: number; month: number | null; n: number } | null>(null);
+  const [catPanel, setCatPanel] = useState<{ cat: string; year: number; month: number | null; sub?: string; n: number } | null>(null);
   // Extra places opened under the top five, ten at a time.
   const [extraPlaces, setExtraPlaces] = useState(0);
   // The place tapped in Top places, shown in its own slide-up sheet.
@@ -249,7 +249,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const catRow = (c: { key: string; name: string; cat: string; id: string; v: number }) => (
           <button
             key={c.key}
-            onClick={() => setCatPanel({ cat: c.cat, year, month: ytd ? null : sel, n: Date.now() })}
+            onClick={() => setCatPanel({ cat: c.cat, year, month: ytd ? null : sel, sub: whereLevel === 'sub' ? (c.key.split('\u0001')[1] || 'No subcategory') : undefined, n: Date.now() })}
             className="w-full grid grid-cols-[30px_minmax(0,1fr)_auto] gap-2.5 items-center py-2 border-t border-slate-100 dark:border-neutral-700 text-left"
           >
             <span className="w-[30px] h-[30px] rounded-[9px] bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-[15px]">
