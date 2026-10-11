@@ -136,15 +136,17 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
   useEffect(() => { setVisible(PAGE); }, [list]);
 
   // ---- Summary strip (hidden rows never count) ----
+  // While you search, the totals are for the matching transactions; otherwise the whole period.
+  const searching = searchQuery.trim() !== '';
   const summary = useMemo(() => {
     let spent = 0, spentAed = 0, moneyIn = 0, outCount = 0;
-    periodTransactions.forEach(t => {
+    (searching ? transactions : periodTransactions).forEach(t => {
       if (isHidden(t)) return;
       const g = Math.abs(t.amountGBP || 0);
       if (t.type === 'EXPENSE') { spent += g; spentAed += Math.abs(t.amountAED || 0); outCount++; } else moneyIn += g;
     });
     return { spent, spentAed, moneyIn, outCount, net: moneyIn - spent };
-  }, [periodTransactions]);
+  }, [periodTransactions, transactions, searching]);
   const reviewCount = useMemo(() => transactions.filter(needsReview).length, [transactions]);
   // Merchants filed under more than one category, across all your transactions.
   const { mixed, hiddenCount: mixedOk, markOk, resetOk } = useMixedMerchants(allTransactions);
@@ -570,7 +572,7 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
       {/* Summary strip */}
       <div className={`${card} shrink-0 hidden md:grid grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1.3fr]`}>
         <div className="px-4 md:px-5 py-3 md:py-4 border-r border-b lg:border-b-0 border-slate-100 dark:border-neutral-700">
-          <div className="text-[10px] md:text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-neutral-400">Spent</div>
+          <div className="text-[10px] md:text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-neutral-400 truncate">Spent{searching && <span className="normal-case tracking-normal font-medium text-indigo-600 dark:text-indigo-400"> · “{searchQuery.trim()}”</span>}</div>
           <div className="text-lg md:text-2xl font-bold text-slate-900 dark:text-neutral-100">{gbp0(summary.spent)}</div>
           <div className="text-[11px] md:text-xs text-slate-400 dark:text-neutral-500 truncate">{aed(summary.spentAed)}</div>
         </div>
