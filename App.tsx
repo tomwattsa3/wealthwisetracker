@@ -26,6 +26,7 @@ const RecurringPayments = lazy(() => import('./components/RecurringPayments'));
 const IncomePage = lazy(() => import('./components/IncomePage'));
 const AskPage = lazy(() => import('./components/AskPage'));
 const SearchPalette = lazy(() => import('./components/SearchPalette'));
+const CameraSheet = lazy(() => import('./components/CameraSheet'));
 import DashboardSkeleton from './components/DashboardSkeleton';
 import { loadSnapshot, saveSnapshot, clearSnapshot, saveLastImport } from './lib/offline';
 import SegmentedControl from './components/SegmentedControl';
@@ -1046,6 +1047,9 @@ const App: React.FC = () => {
   // ⌘K search (desktop). Loaded the first time it opens, then kept so its panels can close softly.
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchLoaded, setSearchLoaded] = useState(false);
+  // Scan a receipt (demo camera), opened from More on phones
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraLoaded, setCameraLoaded] = useState(false);
   const openSearch = useCallback(() => { setSearchLoaded(true); setSearchOpen(true); }, []);
   // A question typed into search, handed to Ask (n makes asking the same thing twice re-run it)
   const [askSeed, setAskSeed] = useState<{ q: string; n: number } | null>(null);
@@ -2335,6 +2339,7 @@ const App: React.FC = () => {
         activeTab={activeTab}
         onNavigate={(tab) => handleTabChange(tab)}
         onAddTransaction={() => setIsModalOpen(true)}
+        onScanReceipt={() => { setCameraLoaded(true); window.setTimeout(() => setCameraOpen(true), 180); }}
         darkMode={darkMode}
         onToggleDark={() => setDarkMode(!darkMode)}
         onLogout={handleLogout}
@@ -2594,6 +2599,11 @@ const App: React.FC = () => {
       )}
 
     </div>
+    {cameraLoaded && (
+      <Suspense fallback={null}>
+        <CameraSheet open={cameraOpen} onClose={() => setCameraOpen(false)} />
+      </Suspense>
+    )}
     {searchLoaded && (
       <Suspense fallback={null}>
         <SearchPalette

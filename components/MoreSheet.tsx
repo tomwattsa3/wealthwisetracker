@@ -1,5 +1,5 @@
 import React from 'react';
-import { FolderCog, Repeat, Settings, Eye, EyeOff, Moon, Sun, Download, Share, LogOut, Plus, ChevronRight } from 'lucide-react';
+import { FolderCog, Repeat, Settings, Eye, EyeOff, Moon, Sun, Download, Share, LogOut, Plus, ChevronRight, Camera } from 'lucide-react';
 import Sheet from './Sheet';
 import BlurStrengthSlider from './BlurStrengthSlider';
 import { usePrivacy } from '../lib/privacy';
@@ -13,6 +13,7 @@ interface MoreSheetProps {
   activeTab: string;
   onNavigate: (tab: 'income' | 'categories' | 'recurring' | 'settings') => void;
   onAddTransaction: () => void;
+  onScanReceipt?: () => void;
   darkMode: boolean;
   onToggleDark: () => void;
   onLogout: () => void;
@@ -35,7 +36,7 @@ const Toggle: React.FC<{ on: boolean }> = ({ on }) => (
   </span>
 );
 
-const MoreSheet: React.FC<MoreSheetProps> = ({ open, onClose, activeTab, onNavigate, onAddTransaction, darkMode, onToggleDark, onLogout }) => {
+const MoreSheet: React.FC<MoreSheetProps> = ({ open, onClose, activeTab, onNavigate, onAddTransaction, onScanReceipt, darkMode, onToggleDark, onLogout }) => {
   const [hideAmounts, toggleHideAmounts] = usePrivacy();
   const install = useInstall();
   const go = (tab: 'income' | 'categories' | 'recurring' | 'settings') => { onNavigate(tab); onClose(); };
@@ -45,6 +46,7 @@ const MoreSheet: React.FC<MoreSheetProps> = ({ open, onClose, activeTab, onNavig
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-[max(16px,env(safe-area-inset-bottom))]">
         <p className="px-5 pt-1 pb-2 text-lg font-bold text-slate-900 dark:text-neutral-100">More</p>
         <Row icon={<Plus size={18} />} label="Add a transaction" onClick={() => { onClose(); onAddTransaction(); }} />
+        {onScanReceipt && <Row icon={<Camera size={18} />} label="Scan a receipt" detail={<span className="text-xs font-semibold text-indigo-600 dark:text-indigo-300">Camera</span>} onClick={() => { onClose(); onScanReceipt(); }} />}
         <Row icon={<FolderCog size={18} />} label="Categories" on={activeTab === 'categories'} onClick={() => go('categories')} />
         <Row icon={<Repeat size={18} />} label="Recurring" on={activeTab === 'recurring'} onClick={() => go('recurring')} />
         <Row icon={<Settings size={18} />} label="Settings" on={activeTab === 'settings'} onClick={() => go('settings')} />
