@@ -73,6 +73,9 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   // Chart style: one bar per month/day (click one for its breakdown), or a category × time table.
   const [view, setView] = useState<'total' | 'category'>(saved.view === 'category' ? 'category' : 'total');
   const [focusKey, setFocusKey] = useState<number | null>(null);
+  // A month picked on the Totals chart opens its days; this is the day clicked there (1–31)
+  const [dayPick, setDayPick] = useState<number | null>(null);
+  useEffect(() => { setDayPick(null); }, [focusKey]);
   // Whether the breakdown list and by-category table group by category or by subcategory.
   const [level, setLevel] = useState<'category' | 'subcategory'>(saved.level === 'subcategory' ? 'subcategory' : 'category');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -932,11 +935,11 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
             {/* One line: what's going on (cut short if needed) · average · chart switch */}
             <div className="flex items-center justify-between gap-3 mb-2">
               {(() => {
-                const note = focus ? `Click ${win.single ? 'that day' : MONTHS[focus.key % 12]} again, or Back, for the whole period` : `${shortTrend}${shortTrend ? ' · ' : ''}click a ${win.single ? 'day' : 'month'} to see just that ${win.single ? 'day' : 'month'}`;
+                const note = focus && !win.single && view === 'total' ? `${FULL_MONTHS[focus.key % 12]} ${Math.floor(focus.key / 12)} by day · click a day to see what you spent` : focus ? `Click ${win.single ? 'that day' : MONTHS[focus.key % 12]} again, or Back, for the whole period` : `${shortTrend}${shortTrend ? ' · ' : ''}click a ${win.single ? 'day' : 'month'} to see just that ${win.single ? 'day' : 'month'}`;
                 return <p title={note} className="min-w-0 truncate text-[13px] text-slate-500 dark:text-neutral-400">{note}</p>;
               })()}
               <div className="shrink-0 flex items-center gap-3">
-                {selected.size > 0 && total > 0 && (
+                {selected.size > 0 && total > 0 && !(focus && !win.single && view === 'total') && (
                   <span className="hidden xl:flex items-center gap-2 text-xs text-slate-500 dark:text-neutral-400 whitespace-nowrap"><span className="w-[18px] border-t-2 border-dashed border-slate-400" />Avg {fmt(avg)}</span>
                 )}
                 <div role="group" aria-label="Chart view" className="flex gap-0.5 p-[3px] bg-slate-100 dark:bg-neutral-700/60 rounded-full">
@@ -947,7 +950,87 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
               </div>
             </div>
 
-            {view === 'total' ? (
+            {view === 'total' && focus && !win.single ? (() => {
+              // A month picked inside a longer period: that month's days, like on the phone.
+              const mi = focus.key;
+              const y = Math.floor(mi / 12), m = mi % 12;
+              const dim = new Date(y, m + 1, 0).getDate();
+              const today = new Date();
+              const isNow = today.getFullYear() === y && today.getMonth() === m;
+              const daysSoFar = isNow ? today.getDate() : dim;
+              const rows = chosen.filter(r => r.monthIdx === mi);
+              const perDay = Array.from({ length: dim }, (_, i) => sum(rows.filter(r => Number(r.date.slice(8, 10)) === i + 1).map(r => r.amount)));
+              const dayMax = Math.max(...perDay, 1);
+              const dayAvg = focus.total / Math.max(1, daysSoFar);
+              const H = BAR_H - 10;
+              const picked = dayPick !== null ? rows.filter(r => Number(r.date.slice(8, 10)) === dayPick).sort((a, b) => b.amount - a.amount) : [];
+              const dayLabel = dayPick !== null ? new Date(y, m, dayPick).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+              const step = (d: number) => { let n = (dayPick ?? 1) + d; while (n >= 1 && n <= dim && !perDay[n - 1]) n += d; if (n >= 1 && n <= dim) setDayPick(n); };
+              return (
+                <div className="relative">
+                  {/* Month row: back to the whole period, or hop to another month */}
+                  <div className="flex items-center gap-1.5 mb-3 overflow-x-auto hide-scrollbar">
+                    <button onClick={() => setFocusKey(null)} className="shrink-0 h-[30px] px-3 rounded-full bg-slate-100 dark:bg-neutral-700/60 text-[12.5px] font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-slate-200">← {periodLabel}</button>
+                    {shownBuckets.filter(b => b.total > 0).map(b => (
+                      <button key={b.key} onClick={() => setFocusKey(b.key)} aria-pressed={b.key === mi} className={`shrink-0 h-[30px] px-3 rounded-full text-[12.5px] transition-colors ${b.key === mi ? 'bg-slate-900 text-white font-semibold dark:bg-neutral-100 dark:text-neutral-900' : 'text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-700/50'}`}>{MONTHS[b.key % 12]}</button>
+                    ))}
+                    <span className="ml-auto shrink-0 flex items-center gap-2 text-xs text-slate-500 dark:text-neutral-400 whitespace-nowrap pl-3"><span className="w-[18px] border-t-2 border-dashed border-slate-400" />Avg {fmt(dayAvg)} a day</span>
+                  </div>
+                  <motion.div key={mi} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }} className="relative grid items-end gap-[3px]" style={{ gridTemplateColumns: `repeat(${dim}, minmax(6px, 1fr))`, height: H + 30 }}>
+                    <div aria-hidden className="absolute left-0 right-0 border-t-2 border-dashed border-slate-400/60 pointer-events-none z-[1]" style={{ bottom: Math.round((dayAvg / dayMax) * H) + 24 }} />
+                    {perDay.map((v, i) => {
+                      const d = i + 1;
+                      const on = dayPick === d;
+                      return (
+                        <button key={d} onClick={() => v > 0 && setDayPick(on ? null : d)} disabled={v === 0} aria-pressed={on} aria-label={`${d} ${MONTHS[m]}: ${fmt(v, 2)}`} className="flex flex-col items-stretch justify-end gap-2 h-full group disabled:cursor-default min-w-0">
+                          <motion.span
+                            className={`block w-full rounded-[4px] ${v === 0 ? 'bg-slate-100 dark:bg-neutral-700' : on ? 'bg-indigo-600' : dayPick !== null ? 'bg-indigo-200 dark:bg-indigo-900 group-hover:bg-indigo-300' : 'bg-indigo-400 dark:bg-indigo-500 group-hover:bg-indigo-500'}`}
+                            initial={{ height: 3 }}
+                            animate={{ height: v > 0 ? Math.max(4, Math.round((v / dayMax) * H)) : 3 }}
+                            transition={{ duration: 0.45, delay: i * 0.008, ease: [0.22, 1, 0.36, 1] }}
+                          />
+                          <span className={`h-[16px] text-[11px] text-center ${on ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-400 dark:text-neutral-500'} ${d !== 1 && d % 5 !== 0 && d !== dim && !on ? 'invisible' : ''}`}>{d}</span>
+                        </button>
+                      );
+                    })}
+                  </motion.div>
+                  {/* The day you clicked: its payments */}
+                  <AnimatePresence>
+                    {dayPick !== null && (
+                      <motion.div
+                        key="day"
+                        initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                        className="absolute right-0 top-11 z-10 w-[340px] max-w-full rounded-[18px] border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 shadow-2xl p-4"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="flex items-center gap-1">
+                            <button onClick={() => step(-1)} aria-label="Previous day" className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-neutral-700 text-slate-600 dark:text-neutral-300">‹</button>
+                            <span className="min-w-[96px] text-center text-[13.5px] font-semibold text-slate-900 dark:text-neutral-100">{dayLabel}</span>
+                            <button onClick={() => step(1)} aria-label="Next day" className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-neutral-700 text-slate-600 dark:text-neutral-300">›</button>
+                          </span>
+                          <span className="text-right">
+                            <span className="block text-[17px] font-bold text-slate-900 dark:text-neutral-100">{fmt(sum(picked.map(r => r.amount)), 2)}</span>
+                            <span className="block text-[11px] text-slate-400">{picked.length} {picked.length === 1 ? 'payment' : 'payments'}</span>
+                          </span>
+                        </div>
+                        <div className="mt-2 max-h-[220px] overflow-y-auto">
+                          {picked.map((r, i) => (
+                            <div key={i} className="flex justify-between items-center gap-3 min-h-[44px] border-t border-slate-100 dark:border-neutral-700 text-[13px]">
+                              <span className="min-w-0"><span className="block font-semibold text-slate-900 dark:text-neutral-100 truncate">{r.desc}</span><span className="block text-[11px] text-slate-400 truncate">{r.cat}{r.sub && r.sub !== NO_SUB ? ` › ${r.sub}` : ''}</span></span>
+                              <span className="font-bold text-slate-900 dark:text-neutral-100 whitespace-nowrap">{fmt(r.amount, 2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <button onClick={() => setDayPick(null)} className="mt-2 w-full h-8 rounded-lg bg-slate-100 dark:bg-neutral-700 text-[12px] font-semibold text-slate-600 dark:text-neutral-300">Close</button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })() : view === 'total' ? (
               <div className="relative overflow-x-auto">
                 <div
                   className={`relative grid items-end ${win.single ? 'gap-[3px]' : monthIdxs.length >= 12 ? 'gap-2.5' : 'gap-4 xl:gap-5'}`}
