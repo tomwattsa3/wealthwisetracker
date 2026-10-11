@@ -119,28 +119,26 @@ const CameraSheet: React.FC<{ open: boolean; onClose: () => void }> = ({ open, o
             </div>
 
             {/* Viewfinder */}
-            <div className="relative flex-1 min-h-0 mx-3 mt-1 rounded-[20px] overflow-hidden bg-[radial-gradient(circle_at_50%_35%,#374151,#0B0F19)]">
+            <div className="relative flex-1 min-h-0 mx-3 mt-1 mb-3 rounded-[20px] overflow-hidden bg-[radial-gradient(circle_at_50%_35%,#374151,#0B0F19)]">
               <video ref={videoRef} playsInline muted autoPlay className={`absolute inset-0 w-full h-full object-cover ${phase === 'live' ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`} />
               {photo && <img src={photo} alt="Your photo" className="absolute inset-0 w-full h-full object-contain bg-black" />}
-              {phase !== 'taken' && <div className="absolute inset-x-[14%] inset-y-[9%] rounded-2xl border-2 border-white/80 pointer-events-none" />}
+              {phase !== 'taken' && <div className="absolute inset-x-[14%] top-[7%] bottom-[30%] rounded-2xl border-2 border-white/80 pointer-events-none" />}
               <AnimatePresence>
                 {flash > 0 && phase === 'taken' && (
                   <motion.div key={flash} className="absolute inset-0 bg-white pointer-events-none" initial={{ opacity: 0.85 }} animate={{ opacity: 0 }} transition={{ duration: 0.45 }} />
                 )}
               </AnimatePresence>
-              {phase === 'starting' && <p className="absolute inset-x-0 bottom-3 text-center text-[12px] text-white/70">Starting the camera…</p>}
-              {phase === 'live' && <p className="absolute inset-x-0 bottom-3 text-center text-[12px] text-white/80">Fit the receipt in the frame</p>}
+              {phase === 'starting' && <p className="absolute inset-x-0 bottom-[96px] text-center text-[12px] text-white/70">Starting the camera…</p>}
+              {phase === 'live' && <p className="absolute inset-x-0 bottom-[96px] text-center text-[12px] text-white/80 [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Fit the receipt in the frame</p>}
               {phase === 'error' && (
-                <div className="absolute inset-0 flex items-center justify-center p-6">
+                <div className="absolute inset-x-0 top-0 bottom-[92px] flex items-center justify-center p-6">
                   <p className="text-center text-[13px] leading-relaxed text-white/85">{error}</p>
                 </div>
               )}
-            </div>
 
-            {/* Controls, or what to do with the photo */}
-            <div className="shrink-0 h-[112px] flex items-center">
+              {/* Controls sit inside the viewfinder, over a soft dark fade */}
               {phase === 'taken' ? (
-                <div className="w-full mx-3 rounded-[18px] bg-white dark:bg-neutral-800 px-4 py-3">
+                <div className="absolute inset-x-2.5 bottom-2.5 rounded-[16px] bg-white/95 dark:bg-neutral-800/95 px-4 py-3">
                   <p className="text-[13.5px] font-semibold text-slate-900 dark:text-neutral-100">Photo taken</p>
                   <p className="text-[11.5px] text-slate-500 dark:text-neutral-400">Demo: receipts aren't read or saved yet.</p>
                   <div className="mt-2.5 flex gap-2">
@@ -149,17 +147,18 @@ const CameraSheet: React.FC<{ open: boolean; onClose: () => void }> = ({ open, o
                   </div>
                 </div>
               ) : (
-                <div className="w-full flex items-center justify-between px-7">
-                  <button onClick={() => fileRef.current?.click()} className="w-16 flex flex-col items-center gap-1 text-white/85 text-[11px]"><ImageIcon size={20} /> Photos</button>
-                  <button onClick={capture} disabled={phase !== 'live'} aria-label="Take photo" className="w-[66px] h-[66px] rounded-full border-4 border-white flex items-center justify-center disabled:opacity-40 active:scale-95 transition-transform">
-                    <span className="w-[50px] h-[50px] rounded-full bg-white" />
+                <div className="absolute inset-x-0 bottom-0 h-[92px] bg-gradient-to-t from-black/60 to-transparent flex items-center justify-between px-6">
+                  <button onClick={() => fileRef.current?.click()} aria-label="Choose a photo" className="w-11 h-11 rounded-full bg-white/15 backdrop-blur-sm text-white flex items-center justify-center active:scale-95 transition-transform"><ImageIcon size={19} /></button>
+                  <button onClick={capture} disabled={phase !== 'live'} aria-label="Take photo" className="w-[62px] h-[62px] rounded-full border-[3.5px] border-white flex items-center justify-center disabled:opacity-40 active:scale-95 transition-transform">
+                    <span className="w-[48px] h-[48px] rounded-full bg-white" />
                   </button>
-                  {torch === null ? <span className="w-16" /> : (
-                    <button onClick={toggleTorch} className="w-16 flex flex-col items-center gap-1 text-white/85 text-[11px]">{torch ? <Zap size={20} /> : <ZapOff size={20} />} Flash</button>
+                  {torch === null ? <span className="w-11" /> : (
+                    <button onClick={toggleTorch} aria-label={torch ? 'Flash off' : 'Flash on'} className={`w-11 h-11 rounded-full backdrop-blur-sm flex items-center justify-center active:scale-95 transition-transform ${torch ? 'bg-amber-300 text-slate-900' : 'bg-white/15 text-white'}`}>{torch ? <Zap size={19} /> : <ZapOff size={19} />}</button>
                   )}
                 </div>
               )}
             </div>
+
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }} />
           </motion.div>
         </motion.div>
