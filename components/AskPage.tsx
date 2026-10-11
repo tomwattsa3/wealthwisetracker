@@ -118,7 +118,7 @@ const AskPage: React.FC<AskPageProps> = ({ transactions, categories, currency, o
             <div className="text-xs text-slate-500 dark:text-neutral-400">{answer.scope}</div>
             <div className="flex items-baseline gap-3.5 mt-1 flex-wrap">
               <span className={`text-[40px] leading-tight font-bold tracking-tight ${answer.green ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-neutral-100'}`}>{answer.big}</span>
-              <span className="text-sm text-slate-600 dark:text-neutral-300">{answer.unit}</span>
+              <span className="text-sm text-slate-600 dark:text-neutral-300">{answer.per && !answer.unit.startsWith(answer.per) ? <><b className="font-semibold">{answer.per}</b> · </> : null}{answer.unit}</span>
             </div>
             <p className="mt-2 text-[14.5px] leading-relaxed text-slate-700 dark:text-neutral-300">{answer.text}</p>
 

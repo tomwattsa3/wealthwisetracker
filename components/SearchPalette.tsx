@@ -97,6 +97,8 @@ const QuickAnswer: React.FC<{ ans: AskAnswer; onSee?: () => void }> = ({ ans, on
   const monthly = ans.bars.length >= 2 && ans.bars.length <= 12 && ans.bars.some(b => b.label.length === 3);
   const bars = monthly && ans.bars.filter(b => b.value > 0).length >= 2 ? ans.bars : null;
   const big = roundBig(ans.big);
+  // Budgeting answers carry one useful line (the verdict, or how much a day is left), so show it
+  const budgetLine = ['on_track', 'suggest_budget', 'budget_left', 'net'].includes(ans.metric) ? ans.text : '';
   const tone = ans.green ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-neutral-100';
   // "Each month" / "each day": the total, then a short row per month or day with a thin bar
   if (ans.breakdown && ans.breakdown.length) {
@@ -138,6 +140,7 @@ const QuickAnswer: React.FC<{ ans: AskAnswer; onSee?: () => void }> = ({ ans, on
             {ans.per && <span className="text-[12.5px] text-slate-500 dark:text-neutral-400">{ans.per}</span>}
           </div>
           {ans.per && <div className="text-[11px] text-slate-400 dark:text-neutral-500">{ans.unit.replace(`${ans.per} · `, '')}</div>}
+          {budgetLine && <div className="mt-1 text-[12px] leading-snug text-slate-600 dark:text-neutral-300">{budgetLine}</div>}
           {onSee && n > 0 && <button onClick={onSee} className="mt-1 text-[11.5px] font-semibold text-indigo-600 dark:text-indigo-300">{seeText}</button>}
         </div>
         <div className="shrink-0 flex items-end gap-[5px] h-[58px]">
@@ -163,6 +166,7 @@ const QuickAnswer: React.FC<{ ans: AskAnswer; onSee?: () => void }> = ({ ans, on
         {ans.understood.replace(/\.$/, '')}: <span className={`text-[17px] font-bold ${tone}`}>{big}</span>{ans.per && <span className="text-[13px] text-slate-500"> {ans.per}</span>}
       </p>
       <p className="mt-0.5 text-[12px] text-slate-400 dark:text-neutral-500">
+        {budgetLine && <span className="block text-slate-600 dark:text-neutral-300 mb-0.5">{budgetLine}</span>}
         {ans.per ? ans.unit.replace(`${ans.per} · `, '') : ans.unit}{onSee && n > 0 && <> · <button onClick={onSee} className="font-semibold text-indigo-600 dark:text-indigo-300">See them →</button></>}
       </p>
     </div>

@@ -25,8 +25,8 @@ const SEARCH_TOOL = {
     properties: {
       metric: {
         type: 'string',
-        enum: ['total', 'count', 'average', 'per_month', 'per_week', 'per_day', 'by_month', 'by_day', 'biggest_payment', 'biggest_day', 'compare', 'unsupported'],
-        description: 'total = add up amounts; count = how many payments; average = average payment (per payment); per_month / per_week / per_day = the total spread over the months / weeks / days in the range ("how much a month", "per week", "monthly average", "on average each month"); by_month / by_day = the total split into each month / each day ("each month", "month by month", "break it down by month", "each day this week"); biggest_payment = the single largest payment; biggest_day = the day with the highest total; compare = total in range A vs range B; unsupported = the question cannot be answered from transactions.',
+        enum: ['total', 'count', 'average', 'per_month', 'per_week', 'per_day', 'by_month', 'by_day', 'biggest_payment', 'biggest_day', 'compare', 'on_track', 'suggest_budget', 'budget_left', 'net', 'unsupported'],
+        description: 'total = add up amounts; count = how many payments; average = average payment (per payment); per_month / per_week / per_day = the total spread over the months / weeks / days in the range ("how much a month", "per week", "monthly average", "on average each month"); by_month / by_day = the total split into each month / each day ("each month", "month by month", "break it down by month", "each day this week"); biggest_payment = the single largest payment; biggest_day = the day with the highest total; compare = total in range A vs range B; on_track = how this month is going against a usual month, with a month-end projection; suggest_budget = a sensible monthly budget from recent months; budget_left = what is left of a budget the user names (budget_amount) and how much a day that leaves; net = money in minus money out (what they saved); unsupported = the question cannot be answered from transactions.',
       },
       direction: { type: 'string', enum: ['out', 'in', 'both'], description: 'out = spending, in = money received. Default out unless the question is about being paid, income, refunds or money in.' },
       places: { type: 'array', items: { type: 'string' }, description: 'Exact names from the PLACES/PAYERS lists to match. Empty for any.' },
@@ -39,8 +39,9 @@ const SEARCH_TOOL = {
       title: { type: 'string', description: 'Short label for what is measured, e.g. "Uber · August 2026" or "Food · 2026 vs 2025".' },
       understood: { type: 'string', description: 'One plain-English sentence restating the search, e.g. "Spending at Uber from 1 to 31 August 2026".' },
       reason: { type: 'string', description: 'For unsupported only: a short, friendly reason. Empty string otherwise.' },
+      budget_amount: { type: 'number', description: 'For budget_left: the budget the user gave, in their own currency (e.g. 500 for "I have £500 for food"). 0 otherwise.' },
     },
-    required: ['metric', 'direction', 'places', 'categories', 'subcategories', 'start', 'end', 'compare_start', 'compare_end', 'title', 'understood', 'reason'],
+    required: ['metric', 'direction', 'places', 'categories', 'subcategories', 'start', 'end', 'compare_start', 'compare_end', 'title', 'understood', 'reason', 'budget_amount'],
     additionalProperties: false,
   },
 } as const;
@@ -92,6 +93,11 @@ async function answer(req: any, res: any) {
       '- Several months ("January to March", "Jan > March", "Jan-Mar", "since March", "Q1", "the last 3 months"): from the 1st of the first month to the end of the last month (or today if it is the current month). "The last N months" counts back from today; "the last N days" = today and the N-1 days before.',
       '- "This year" / "so far this year" = 1 January this year to today. "Last year" = the whole of last year. If no dates are given, use 1 January this year to today.',
       'Pick the metric from the wording: "how much" = total; "per day" / "a day" / "daily average" = per_day; "per month" / "a month" / "monthly average" = per_month; "each month" / "month by month" = by_month; "each day" = by_day; "how many times" = count; "average payment" = average.',
+      'Budgeting (the app has no saved budgets, so these work from their history or a figure they give):',
+      '- "Am I on track", "on pace", "will I go over", "how am I doing this month" = on_track, with start = 1st of this month and end = the last day of this month.',
+      '- "How much should I budget", "what is a good budget", "set a budget for X" = suggest_budget, with start/end = the last 6 full calendar months before this one.',
+      '- "I have £X (for Y) this month, how much is left / how much can I spend a day" = budget_left with budget_amount = X and start/end = the whole of that month (this month if not said).',
+      '- "How much did I save", "net", "income minus spending", "did I spend more than I earned" = net with direction both.',
     ].join('\n'),
     'For "more/less than last year" questions use compare, with the same days of last year as compare_start/compare_end.',
     `CATEGORIES (subcategories in brackets):\n${categories.join('\n')}`,

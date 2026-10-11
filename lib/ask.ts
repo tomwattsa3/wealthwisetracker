@@ -7,7 +7,7 @@ import { MONTHS, merchantKey, sum, localToday } from './periods';
 // everything up here, so every number is the app's own.
 
 export interface AskSearch {
-  metric: 'total' | 'count' | 'average' | 'per_month' | 'per_week' | 'per_day' | 'by_month' | 'by_day' | 'biggest_payment' | 'biggest_day' | 'compare' | 'unsupported';
+  metric: 'total' | 'count' | 'average' | 'per_month' | 'per_week' | 'per_day' | 'by_month' | 'by_day' | 'biggest_payment' | 'biggest_day' | 'compare' | 'on_track' | 'suggest_budget' | 'budget_left' | 'net' | 'unsupported';
   direction: 'out' | 'in' | 'both';
   places: string[];
   categories: string[];
@@ -19,6 +19,7 @@ export interface AskSearch {
   title: string;
   understood: string;
   reason?: string;
+  budget_amount?: number;
 }
 
 export interface Row { t: Transaction; date: string; amount: number; name: string }
@@ -104,6 +105,76 @@ export const runSearch = (s: AskSearch, transactions: Transaction[], categories:
   const catId = s.categories?.length === 1 ? categories.find(c => lc(c.name) === lc(s.categories[0]))?.id || null : null;
   const open = { search: s.places?.length === 1 ? s.places[0] : '', start: s.start, end: s.end, categoryId: catId };
   const base = { metric: s.metric, scope: s.title, understood: s.understood, green, open };
+
+  // ---- Budgeting (worked out from your history; the app keeps no saved budgets) ----
+  const monthKeyOf = (y: number, m: number) => `${y}-${String(m + 1).padStart(2, '0')}`;
+  const monthEnd = (y: number, m: number) => `${monthKeyOf(y, m)}-${String(new Date(y, m + 1, 0).getDate()).padStart(2, '0')}`;
+  const monthTotal = (y: number, m: number, upToDay?: number) => {
+    const end = upToDay ? `${monthKeyOf(y, m)}-${String(upToDay).padStart(2, '0')}` : monthEnd(y, m);
+    return sum(pick(`${monthKeyOf(y, m)}-01`, end).map(r => r.amount));
+  };
+  const back = (y: number, m: number, k: number) => { const d = new Date(y, m - k, 1); return [d.getFullYear(), d.getMonth()] as const; };
+  const todayStr = localToday();
+  const ty = Number(todayStr.slice(0, 4)), tm = Number(todayStr.slice(5, 7)) - 1, td = Number(todayStr.slice(8, 10));
+
+  if (s.metric === 'on_track') {
+    // This month so far, against the last 3 full months (both up to the same day, and in full)
+    const y = Number(s.start.slice(0, 4)) || ty, m = (Number(s.start.slice(5, 7)) || tm + 1) - 1;
+    const current = y === ty && m === tm;
+    const dim = new Date(y, m + 1, 0).getDate();
+    const day = current ? td : dim;
+    const so = monthTotal(y, m, day);
+    const prev = [3, 2, 1].map(k => back(y, m, k));
+    const full = prev.map(([py, pm]) => monthTotal(py, pm));
+    const usual = sum(full) / 3;
+    const usualSoFar = sum(prev.map(([py, pm]) => monthTotal(py, pm, Math.min(day, new Date(py, pm + 1, 0).getDate())))) / 3;
+    const projected = current ? (so / Math.max(day, 1)) * dim : so;
+    const diff = projected - usual;
+    const near = usual > 0 && Math.abs(diff) / usual < 0.05;
+    const verdict = !usual ? 'Not enough history to compare yet.' : near ? 'Right in line with a usual month.' : diff > 0 ? `About ${fmt(diff)} more than a usual month.` : `About ${fmt(-diff)} less than a usual month.`;
+    return { ...base, green: usual > 0 && diff <= 0, per: current ? 'by month end' : 'this month',
+      big: fmt(projected), unit: `${fmt(so)} so far · usual month ${fmt(usual)}`,
+      text: `${verdict}${current ? ` By day ${day} you'd usually have spent ${fmt(usualSoFar)}.` : ''}`,
+      bars: [...prev.map(([py, pm], i) => ({ label: MONTHS[pm], value: full[i], hi: false })), { label: MONTHS[m], value: projected, hi: true }],
+      listTitle: `${pay(n)} this month`, rows };
+  }
+  if (s.metric === 'suggest_budget') {
+    // The last 6 full months before this one
+    const months = [6, 5, 4, 3, 2, 1].map(k => back(ty, tm, k));
+    const totals = months.map(([py, pm]) => monthTotal(py, pm));
+    const used = totals.filter(v => v > 0);
+    const avg = used.length ? sum(used) / used.length : 0;
+    const step = avg >= 1000 ? 50 : avg >= 200 ? 25 : 10;
+    const suggest = Math.ceil((avg * 1.05) / step) * step;
+    const covered = totals.filter(v => v <= suggest).length;
+    return { ...base, per: 'a month', big: fmt(suggest),
+      unit: used.length ? `your last ${totals.length} months averaged ${fmt(avg)}` : 'no recent spending to go on',
+      text: used.length ? `That covers ${covered} of the last ${totals.length} months. They ranged from ${fmt(Math.min(...totals))} to ${fmt(Math.max(...totals))}.` : 'Nothing matched in the last 6 months.',
+      bars: months.map(([, pm], i) => ({ label: MONTHS[pm], value: totals[i], hi: false })), listTitle: `${pay(n)}`, rows };
+  }
+  if (s.metric === 'budget_left') {
+    const budget = Math.max(0, Number(s.budget_amount) || 0);
+    const spent = total;
+    const left = budget - spent;
+    const endUsed = s.end;
+    const daysLeft = endUsed >= todayStr ? Math.round((new Date(`${endUsed}T12:00:00`).getTime() - new Date(`${todayStr}T12:00:00`).getTime()) / DAY) + 1 : 0;
+    return { ...base, green: left >= 0, per: left >= 0 ? 'left' : 'over',
+      big: fmt(Math.abs(left)), unit: `of ${fmt(budget)} · ${fmt(spent)} spent`,
+      text: left >= 0 ? (daysLeft ? `That's about ${fmt(left / daysLeft)} a day for the ${daysLeft} day${daysLeft === 1 ? '' : 's'} left (today included).` : 'That period has finished.') : `You've gone ${fmt(-left)} over.`,
+      bars, listTitle: `${pay(n)}, newest first`, rows };
+  }
+  if (s.metric === 'net') {
+    const both = (dir: 'in' | 'out') => transactions.filter(t => {
+      if (hidden(t) || !/^\d{4}-\d{2}-\d{2}/.test(t.date)) return false;
+      const d = t.date.slice(0, 10);
+      return d >= s.start && d <= s.end && t.type === (dir === 'in' ? 'INCOME' : 'EXPENSE');
+    }).reduce((a, t) => a + amt(t), 0);
+    const inn = both('in'), out = both('out'), net = inn - out;
+    return { ...base, green: net >= 0, per: net >= 0 ? 'saved' : 'overspent',
+      big: fmt(Math.abs(net)), unit: `${fmt(inn)} in · ${fmt(out)} out`,
+      text: inn > 0 ? `${net >= 0 ? 'You kept' : 'You spent'} ${Math.abs(Math.round((net / inn) * 100))}% ${net >= 0 ? 'of what came in' : 'more than came in'}.` : 'Nothing came in during that period.',
+      bars: [], listTitle: '', rows: [] };
+  }
 
   if (!n && s.metric !== 'compare') {
     return { ...base, big: green ? fmt(0) : '—', unit: 'nothing found', text: 'No payments match that. Try a wider date range, or check the name is spelt the way it appears in Transactions.', bars, listTitle: 'No payments', rows: [] };
