@@ -167,6 +167,27 @@ const App: React.FC = () => {
   const [banks, setBanks] = useState<Bank[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [merchantMappings, setMerchantMappings] = useState<MerchantMapping[]>([]);
+  // Subcategories switched to "not counted" in Categories ("categoryId\u0001subcategory"). Their
+  // payments still show everywhere but are left out of totals, by treating them like hidden
+  // payments (excluded) in every view; notCounted lets the views label them. Saved to the account.
+  const [notCounted, setNotCounted] = useState<Set<string>>(new Set());
+  const countedTransactions = useMemo(() => (notCounted.size === 0 ? transactions : transactions.map(t =>
+    !t.excluded && t.categoryId && notCounted.has(`${t.categoryId}\u0001${(t.subcategoryName || '').trim()}`) ? { ...t, excluded: true, notCounted: true } : t
+  )), [transactions, notCounted]);
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    const list = session.user.user_metadata?.notCounted;
+    setNotCounted(new Set(Array.isArray(list) ? list.filter((x: unknown) => typeof x === 'string') : []));
+  }, [session?.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const toggleCounted = (categoryId: string, subcategory: string, counted: boolean) => {
+    const key = `${categoryId}\u0001${subcategory.trim()}`;
+    setNotCounted(prev => {
+      const next = new Set(prev);
+      if (counted) next.delete(key); else next.add(key);
+      void supabase.auth.updateUser({ data: { notCounted: Array.from(next) } });
+      return next;
+    });
+  };
   const [loading, setLoading] = useState(true);
   // Set when there's no connection and you're looking at the copy saved on this device (when it was saved).
   const [offlineFrom, setOfflineFrom] = useState<string | null>(null);
@@ -744,6 +765,9 @@ const App: React.FC = () => {
     if (categoryToUpdate.subcategories.includes(trimmed)) return; // would collide with an existing one
 
     const updatedSubs = categoryToUpdate.subcategories.map(s => s === oldName ? trimmed : s);
+    // Keep a "not counted" switch with the subcategory when it's renamed
+    const oldKey = `${catId}\u0001${oldName}`;
+    if (notCounted.has(oldKey)) { toggleCounted(catId, oldName, true); toggleCounted(catId, trimmed, false); }
     setCategories(prev => prev.map(c => c.id === catId ? { ...c, subcategories: updatedSubs } : c));
     const { error } = await supabase.from('Categories').update({ subcategories: updatedSubs }).eq('id', catId);
     if (error) console.error('Failed to rename subcategory:', error);
@@ -1415,10 +1439,10 @@ const App: React.FC = () => {
 
   // 1. Base Filter: By Date Range (Used for Dashboard KPI Summary)
   const dateFilteredTransactions = useMemo(() => {
-     return transactions.filter(t => {
+     return countedTransactions.filter(t => {
       return t.date >= dateRange.start && t.date <= dateRange.end;
      });
-  }, [transactions, dateRange]);
+  }, [countedTransactions, dateRange]);
 
   // 2. Date-Filtered Active Status (For KPI Summary Calculations)
   const activeTransactions = useMemo(() => {
@@ -1427,13 +1451,13 @@ const App: React.FC = () => {
 
   // 3. Global Active Status (For Breakdown & Widgets - Pulls ALL history)
   const globalActiveTransactions = useMemo(() => {
-    return transactions.filter(t => !t.excluded && t.categoryId !== 'excluded');
-  }, [transactions]);
+    return countedTransactions.filter(t => !t.excluded && t.categoryId !== 'excluded');
+  }, [countedTransactions]);
 
   // 4. Global Excluded Status
   const excludedTransactions = useMemo(() => {
-    return transactions.filter(t => t.excluded || t.categoryId === 'excluded');
-  }, [transactions]);
+    return countedTransactions.filter(t => t.excluded || t.categoryId === 'excluded');
+  }, [countedTransactions]);
 
   // 5. Search & Filter Logic (For Transaction List - Uses date-filtered transactions)
   // Excluded transactions ARE shown in the list but not counted in totals
@@ -1758,7 +1782,7 @@ const App: React.FC = () => {
     // MotionConfig: animations calm down for anyone with "Reduce motion" turned on.
     <MotionConfig reducedMotion="user">
     <TxActionsContext.Provider value={{
-      transactions,
+      transactions: countedTransactions,
       banks,
       getCategoryEmoji,
       onUpdate: updateTransaction,
@@ -2127,7 +2151,7 @@ const App: React.FC = () => {
           {activeTab === 'sheets' && (
              <div>
                 <CategorySheets
-                  transactions={transactions}
+                  transactions={countedTransactions}
                   currency={currency}
                   getCategoryEmoji={getCategoryEmoji}
                   onSearch={isPhone ? openSearch : undefined}
@@ -2147,7 +2171,7 @@ const App: React.FC = () => {
              <div>
                 {isPhone ? (
                   <MobileHome
-                    transactions={transactions}
+                    transactions={countedTransactions}
                     currency={currency}
                     getCategoryEmoji={getCategoryEmoji}
                     // On phones "Full breakdown" opens Category Sheets (Breakdown has no tab there).
@@ -2165,7 +2189,7 @@ const App: React.FC = () => {
                   />
                 ) : (
                   <SpendingPatterns
-                    transactions={transactions}
+                    transactions={countedTransactions}
                     categories={categories}
                     currency={currency}
                     getCategoryEmoji={getCategoryEmoji}
@@ -2187,7 +2211,7 @@ const App: React.FC = () => {
           {activeTab === 'breakdown' && (
              <div className="h-full">
                 <BreakdownTab
-                  transactions={transactions}
+                  transactions={countedTransactions}
                   categories={categories}
                   getCategoryEmoji={getCategoryEmoji}
                   jumpTo={breakdownJump}
@@ -2218,6 +2242,19 @@ const App: React.FC = () => {
                     getCategoryEmoji={getCategoryEmoji}
                     onEmojiChange={handleEmojiChange}
                     onReapplyAllEmojis={reapplyAllCategoryEmojis}
+                    currency={currency}
+                    notCounted={notCounted}
+                    onToggleCounted={toggleCounted}
+                    mappings={merchantMappings}
+                    onShowPayments={(categoryId, subcategory) => {
+                      handleResetFilters();
+                      setSearchQuery('');
+                      setFilterCategory(categoryId);
+                      setFilterSubcategory(subcategory ?? 'all');
+                      const dates = transactions.filter(t => t.categoryId === categoryId).map(t => t.date.slice(0, 10)).sort();
+                      if (dates.length) setDateRange({ start: dates[0], end: dates[dates.length - 1], label: 'Custom Range' });
+                      handleTabChange('history');
+                    }}
                  />
              </div>
           )}
@@ -2225,7 +2262,7 @@ const App: React.FC = () => {
            {/* INCOME VIEW (desktop) */}
            {activeTab === 'income' && (
              <IncomePage
-               transactions={transactions}
+               transactions={countedTransactions}
                currency={currency}
                banks={banks}
                onSearch={isPhone ? openSearch : undefined}
@@ -2244,7 +2281,7 @@ const App: React.FC = () => {
            {/* ASK VIEW (desktop) */}
            {activeTab === 'ask' && (
              <AskPage
-               transactions={transactions}
+               transactions={countedTransactions}
                categories={categories}
                currency={currency}
                initialQuestion={askSeed}
@@ -2263,7 +2300,7 @@ const App: React.FC = () => {
            {/* RECURRING PAYMENTS VIEW */}
            {activeTab === 'recurring' && (
              <div className="h-full">
-                 <RecurringPayments transactions={transactions} categories={categories} />
+                 <RecurringPayments transactions={countedTransactions} categories={categories} />
              </div>
           )}
 

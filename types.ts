@@ -33,6 +33,8 @@ export interface Transaction {
   description: string;
   notes?: string;
   excluded?: boolean;
+  // Set by the app (never saved): its subcategory is switched to "not counted" in Categories
+  notCounted?: boolean;
   bankName?: string;
   createdAt?: string;
 }
