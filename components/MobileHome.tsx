@@ -361,21 +361,23 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
 
   return (
     <div className="pb-24 flex flex-col gap-3" style={{ fontVariantNumeric: 'tabular-nums' }}>
-      <div className="flex items-center justify-between gap-2 pt-1">
-        <div className="flex items-center gap-1">
+      {/* Title, search and year: the outer columns share the spare room equally, so Search sits in
+          the true middle of the screen whatever the title and year widths are. */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 pt-1">
+        <div className="flex items-center gap-1 min-w-0">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-neutral-100">Home</h1>
         </div>
         {onSearch && (
-          <button onClick={onSearch} aria-label="Search" className="w-[104px] shrink min-w-0 mx-auto h-8 px-3 rounded-full flex items-center justify-center gap-1.5 bg-slate-400/[0.14] dark:bg-neutral-700/60 text-slate-500 dark:text-neutral-400 active:scale-[0.98] transition-transform">
+          <button onClick={onSearch} aria-label="Search" className="w-[104px] h-8 px-3 rounded-full flex items-center justify-center gap-1.5 bg-slate-400/[0.14] dark:bg-neutral-700/60 text-slate-500 dark:text-neutral-400 active:scale-[0.98] transition-transform">
             <Search size={14} strokeWidth={2.2} className="shrink-0" />
             <span className="text-[12.5px] truncate">Search</span>
           </button>
         )}
-        <div className="flex items-center gap-1.5">
+        <div className="col-start-3 justify-self-end flex items-center gap-1.5">
           <div className="flex items-center bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl p-0.5">
-            <button onClick={() => step(-1)} disabled={!canPrev} aria-label={ytd ? 'Previous year' : 'Previous month'} className="w-7 h-8 relative after:absolute after:-inset-y-1.5 after:-inset-x-2 after:content-[''] rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">‹</button>
-            <span className="min-w-[70px] text-center text-[13px] font-semibold text-slate-900 dark:text-neutral-100">{ytd ? year : `${MONTHS[sel % 12]} ${year}`}</span>
-            <button onClick={() => step(1)} disabled={!canNext} aria-label={ytd ? 'Next year' : 'Next month'} className="w-7 h-8 relative after:absolute after:-inset-y-1.5 after:-inset-x-2 after:content-[''] rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">›</button>
+            <button onClick={() => step(-1)} disabled={!canPrev} aria-label={ytd ? 'Previous year' : 'Previous month'} className="w-6 h-8 relative after:absolute after:-inset-y-1.5 after:-inset-x-2 after:content-[''] rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">‹</button>
+            <span className="min-w-[48px] text-center text-[13px] font-semibold text-slate-900 dark:text-neutral-100">{ytd ? year : `${MONTHS[sel % 12]} ${year}`}</span>
+            <button onClick={() => step(1)} disabled={!canNext} aria-label={ytd ? 'Next year' : 'Next month'} className="w-6 h-8 relative after:absolute after:-inset-y-1.5 after:-inset-x-2 after:content-[''] rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">›</button>
           </div>
         </div>
       </div>

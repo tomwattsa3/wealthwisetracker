@@ -96,12 +96,35 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
   const [recent, setRecent] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('searchRecent') || '[]'); } catch { return []; } });
 
   useBackClose(open && !!phone, onClose);
+  // While search is open, the page behind it stays put: the app scrolls inside <main>, so lock
+  // that (and the page itself) and put them back as they were on close.
+  useEffect(() => {
+    if (!open) return;
+    const els = [document.querySelector('main'), document.body].filter(Boolean) as HTMLElement[];
+    const prev = els.map(el => el.style.overflow);
+    els.forEach(el => { el.style.overflow = 'hidden'; });
+    return () => els.forEach((el, i) => { el.style.overflow = prev[i]; });
+  }, [open]);
+  // Phones: keep the bubble above the keyboard. The visual viewport shrinks when the keyboard
+  // opens, so the bubble's height follows it (with a fallback where it isn't available).
+  const [viewH, setViewH] = useState<number | null>(null);
+  useEffect(() => {
+    if (!open || !phone || typeof window === 'undefined' || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    const update = () => setViewH(vv.height + vv.offsetTop);
+    update();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    return () => { vv.removeEventListener('resize', update); vv.removeEventListener('scroll', update); };
+  }, [open, phone]);
   useEffect(() => {
     if (!open) return;
     setQ(''); setScope('all'); setSel(0);
-    const id = window.setTimeout(() => inputRef.current?.focus(), 30);
+    // Phones: wait until the bubble has settled before the keyboard opens (it resizes the screen,
+    // which would otherwise jolt the bubble mid-animation).
+    const id = window.setTimeout(() => inputRef.current?.focus(), phone ? 240 : 30);
     return () => window.clearTimeout(id);
-  }, [open]);
+  }, [open, phone]);
 
   const amt = (t: Transaction) => Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED) || 0;
   const sym = currency === 'GBP' ? '£' : 'AED ';
@@ -284,19 +307,21 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
       {createPortal(
         <AnimatePresence>
           {open && (
-            <motion.div key="search" className={`fixed inset-0 z-[130] flex justify-center items-start ${phone ? 'px-3 pt-[calc(env(safe-area-inset-top)_+_56px)]' : 'pt-[12vh]'}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
-              <div className={`absolute inset-0 ${phone ? 'bg-slate-900/25 backdrop-blur-md' : 'bg-slate-900/30 backdrop-blur-[3px]'}`} onClick={onClose} />
+            <motion.div key="search" className={`fixed inset-0 z-[130] flex justify-center items-start ${phone ? 'px-3 pt-[calc(env(safe-area-inset-top)_+_20px)]' : 'pt-[12vh]'}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={phone ? { duration: 0.24, ease: [0.22, 1, 0.36, 1] } : { duration: 0.16 }}>
+              <div className={`absolute inset-0 touch-none ${phone ? 'bg-slate-900/25 backdrop-blur-md' : 'bg-slate-900/30 backdrop-blur-[3px]'}`} onClick={onClose} />
               <motion.div
                 role="dialog"
                 aria-modal="true"
                 aria-label="Search"
                 className={phone
-                  ? 'relative w-full rounded-[22px] bg-white/95 dark:bg-neutral-800/95 shadow-[0_18px_50px_rgba(15,23,42,0.28)] ring-1 ring-slate-900/5 dark:ring-white/10 overflow-hidden flex flex-col max-h-[58dvh]'
+                  ? 'relative w-full origin-top rounded-[22px] bg-white/95 dark:bg-neutral-800/95 shadow-[0_18px_50px_rgba(15,23,42,0.28)] ring-1 ring-slate-900/5 dark:ring-white/10 overflow-hidden flex flex-col max-h-[46dvh]'
                   : 'relative w-[640px] max-w-[calc(100vw-48px)] rounded-[18px] bg-white dark:bg-neutral-800 border border-slate-200/80 dark:border-neutral-700 shadow-[0_24px_60px_rgba(15,23,42,0.30)] overflow-hidden flex flex-col max-h-[72vh]'}
-                initial={{ opacity: 0, y: -10, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                transition={MODAL_TRANSITION}
+                // top padding (safe area + 20px) and 12px clear of the keyboard
+                style={phone && viewH ? { maxHeight: `calc(${viewH}px - env(safe-area-inset-top) - 32px)` } : undefined}
+                // Phones: the bubble eases down from the Search pill, growing slightly as it lands
+                initial={phone ? { opacity: 0, y: -14, scale: 0.94 } : { opacity: 0, y: -10, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1, transition: phone ? { type: 'spring', stiffness: 380, damping: 32, mass: 0.9 } : MODAL_TRANSITION }}
+                exit={{ opacity: 0, y: phone ? -10 : -6, scale: phone ? 0.96 : 0.98, transition: { duration: 0.16, ease: [0.4, 0, 1, 1] } }}
                 onKeyDown={onKey}
               >
                 <div className={`flex items-center gap-3 shrink-0 ${phone ? 'h-12 px-4' : 'h-14 px-5'} ${phone && !q.trim() && items.length === 0 ? '' : 'border-b border-slate-100 dark:border-neutral-700'}`}>
@@ -324,7 +349,7 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
                     ))}
                   </div>
                 )}
-                <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto px-2 pb-2" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-2 pb-2" style={{ fontVariantNumeric: 'tabular-nums' }}>
                   {items.length === 0 && <p className="py-10 text-center text-sm text-slate-400">Nothing found for “{q.trim()}”</p>}
                   {items.map((it, i) => {
                     const head = it.group !== lastGroup;
