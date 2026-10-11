@@ -7,7 +7,7 @@ import { MONTHS, merchantKey, sum, localToday } from './periods';
 // everything up here, so every number is the app's own.
 
 export interface AskSearch {
-  metric: 'total' | 'count' | 'average' | 'biggest_payment' | 'biggest_day' | 'compare' | 'unsupported';
+  metric: 'total' | 'count' | 'average' | 'per_month' | 'per_week' | 'per_day' | 'by_month' | 'by_day' | 'biggest_payment' | 'biggest_day' | 'compare' | 'unsupported';
   direction: 'out' | 'in' | 'both';
   places: string[];
   categories: string[];
@@ -25,6 +25,10 @@ export interface Row { t: Transaction; date: string; amount: number; name: strin
 
 export interface AskAnswer {
   metric: AskSearch['metric'];
+  // For per_month / per_week / per_day: shown after the big figure ("a month")
+  per?: string;
+  // For by_month / by_day: each month's or day's total, oldest first
+  breakdown?: { label: string; value: number }[];
   scope: string;
   big: string;
   unit: string;
@@ -112,6 +116,46 @@ export const runSearch = (s: AskSearch, transactions: Transaction[], categories:
       return { ...base, big: pay(n), unit: `${fmt(total)} in total`,
         text: `${often}Average ${fmt2(total / n)} each${biggest ? `; the biggest was ${fmt2(biggest.amount)} on ${shortDate(biggest.date)}` : ''}.`,
         bars, listTitle: `Latest ${Math.min(n, 8)} of ${n}`, rows };
+    }
+    case 'by_month':
+    case 'by_day': {
+      // Each month (or day) in the range, up to today, with its own total
+      const today = localToday();
+      const endUsed = s.end > today ? today : s.end;
+      const breakdown: { label: string; value: number }[] = [];
+      if (s.metric === 'by_month') {
+        const a = new Date(`${s.start}T12:00:00`), b = new Date(`${endUsed}T12:00:00`);
+        const multiYear = a.getFullYear() !== b.getFullYear();
+        for (let y = a.getFullYear(), m = a.getMonth(); (y < b.getFullYear() || (y === b.getFullYear() && m <= b.getMonth())) && breakdown.length < 36; m === 11 ? (y++, m = 0) : m++) {
+          const key = `${y}-${String(m + 1).padStart(2, '0')}`;
+          breakdown.push({ label: multiYear ? `${MONTHS[m]} ${String(y).slice(2)}` : MONTHS[m], value: sum(rows.filter(r => r.date.startsWith(key)).map(r => r.amount)) });
+        }
+      } else {
+        for (let t = new Date(`${s.start}T12:00:00`).getTime(); t <= new Date(`${endUsed}T12:00:00`).getTime() && breakdown.length < 62; t += DAY) {
+          const d = new Date(t);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          breakdown.push({ label: shortDate(key), value: sum(rows.filter(r => r.date === key).map(r => r.amount)) });
+        }
+      }
+      const word = s.metric === 'by_month' ? 'month' : 'day';
+      return { ...base, breakdown, big: fmt(total), unit: `over ${breakdown.length} ${word}${breakdown.length === 1 ? '' : 's'} · ${pay(n)}`,
+        text: breakdown.map(b => `${b.label} ${fmt(b.value)}`).join(' · '),
+        bars, listTitle: `${pay(n)}, newest first`, rows };
+    }
+    case 'per_month':
+    case 'per_week':
+    case 'per_day': {
+      // Spread over the range, up to today (a month that has started counts as one)
+      const today = localToday();
+      const endUsed = s.end > today ? today : s.end;
+      const days = Math.max(1, Math.round((new Date(`${endUsed}T12:00:00`).getTime() - new Date(`${s.start}T12:00:00`).getTime()) / DAY) + 1);
+      const months = Math.max(1, (Number(endUsed.slice(0, 4)) - Number(s.start.slice(0, 4))) * 12 + Number(endUsed.slice(5, 7)) - Number(s.start.slice(5, 7)) + 1);
+      const [per, units, word] = s.metric === 'per_month' ? ['a month', months, 'month'] : s.metric === 'per_week' ? ['a week', days / 7, 'week'] : ['a day', days, 'day'];
+      const each = total / units;
+      const shown = Math.round(units);
+      return { ...base, per, big: each >= 100 ? fmt(each) : fmt2(each), unit: `${per} · ${fmt(total)} over ${shown} ${word}${shown === 1 ? '' : 's'}`,
+        text: `${fmt(total)} in total across ${pay(n)}.${biggest ? ` The biggest was ${fmt2(biggest.amount)} at ${biggest.name} on ${shortDate(biggest.date)}.` : ''}`,
+        bars, listTitle: `${pay(n)}, newest first`, rows };
     }
     case 'average':
       return { ...base, big: fmt2(total / n), unit: `per payment · ${pay(n)}`,

@@ -98,6 +98,33 @@ const QuickAnswer: React.FC<{ ans: AskAnswer; onSee?: () => void }> = ({ ans, on
   const bars = monthly && ans.bars.filter(b => b.value > 0).length >= 2 ? ans.bars : null;
   const big = roundBig(ans.big);
   const tone = ans.green ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-neutral-100';
+  // "Each month" / "each day": the total, then a short row per month or day with a thin bar
+  if (ans.breakdown && ans.breakdown.length) {
+    const rows = ans.breakdown;
+    const max = Math.max(...rows.map(r => r.value), 1);
+    return (
+      <div className="rounded-2xl bg-slate-50 dark:bg-neutral-700/40 px-3.5 py-3">
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">{ans.scope}</div>
+            <div className={`text-[22px] leading-tight font-bold ${tone}`}>{big}</div>
+          </div>
+          {onSee && n > 0 && <button onClick={onSee} className="shrink-0 text-[11.5px] font-semibold text-indigo-600 dark:text-indigo-300">{seeText}</button>}
+        </div>
+        <div className="mt-2 flex flex-col gap-1 max-h-[180px] overflow-y-auto overscroll-contain">
+          {rows.map((r, i) => (
+            <div key={i} className="grid grid-cols-[56px_1fr_auto] items-center gap-2 text-[12px]">
+              <span className="text-slate-500 dark:text-neutral-400 truncate">{r.label}</span>
+              <span className="h-1.5 rounded-full bg-slate-200/70 dark:bg-neutral-600/60 overflow-hidden">
+                <motion.span className={`block h-full rounded-full ${r.value === max ? 'bg-indigo-500' : 'bg-indigo-300 dark:bg-indigo-400/60'}`} initial={{ width: 0 }} animate={{ width: `${(r.value / max) * 100}%` }} transition={{ duration: 0.45, delay: 0.04 * i, ease: [0.22, 1, 0.36, 1] }} />
+              </span>
+              <span className="font-semibold text-slate-900 dark:text-neutral-100 tabular-nums">{roundBig(`${ans.big.startsWith('AED') ? 'AED ' : '£'}${r.value.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
   if (bars) {
     const max = Math.max(...bars.map(b => b.value), 1);
     const peak = bars.findIndex(b => b.value === max);
@@ -106,7 +133,11 @@ const QuickAnswer: React.FC<{ ans: AskAnswer; onSee?: () => void }> = ({ ans, on
       <div className="flex items-end justify-between gap-3 rounded-2xl bg-slate-50 dark:bg-neutral-700/40 px-3.5 py-3">
         <div className="min-w-0">
           <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">{ans.scope}</div>
-          <div className={`text-[24px] leading-tight font-bold ${tone}`}>{big}</div>
+          <div className="flex items-baseline gap-1.5">
+            <span className={`text-[24px] leading-tight font-bold ${tone}`}>{big}</span>
+            {ans.per && <span className="text-[12.5px] text-slate-500 dark:text-neutral-400">{ans.per}</span>}
+          </div>
+          {ans.per && <div className="text-[11px] text-slate-400 dark:text-neutral-500">{ans.unit.replace(`${ans.per} · `, '')}</div>}
           {onSee && n > 0 && <button onClick={onSee} className="mt-1 text-[11.5px] font-semibold text-indigo-600 dark:text-indigo-300">{seeText}</button>}
         </div>
         <div className="shrink-0 flex items-end gap-[5px] h-[58px]">
@@ -129,10 +160,10 @@ const QuickAnswer: React.FC<{ ans: AskAnswer; onSee?: () => void }> = ({ ans, on
   return (
     <div className="px-1">
       <p className="text-[14px] leading-snug text-slate-600 dark:text-neutral-300">
-        {ans.understood.replace(/\.$/, '')}: <span className={`text-[17px] font-bold ${tone}`}>{big}</span>
+        {ans.understood.replace(/\.$/, '')}: <span className={`text-[17px] font-bold ${tone}`}>{big}</span>{ans.per && <span className="text-[13px] text-slate-500"> {ans.per}</span>}
       </p>
       <p className="mt-0.5 text-[12px] text-slate-400 dark:text-neutral-500">
-        {ans.unit}{onSee && n > 0 && <> · <button onClick={onSee} className="font-semibold text-indigo-600 dark:text-indigo-300">See them →</button></>}
+        {ans.per ? ans.unit.replace(`${ans.per} · `, '') : ans.unit}{onSee && n > 0 && <> · <button onClick={onSee} className="font-semibold text-indigo-600 dark:text-indigo-300">See them →</button></>}
       </p>
     </div>
   );

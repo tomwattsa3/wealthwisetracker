@@ -25,8 +25,8 @@ const SEARCH_TOOL = {
     properties: {
       metric: {
         type: 'string',
-        enum: ['total', 'count', 'average', 'biggest_payment', 'biggest_day', 'compare', 'unsupported'],
-        description: 'total = add up amounts; count = how many payments; average = average payment; biggest_payment = the single largest payment; biggest_day = the day with the highest total; compare = total in range A vs range B; unsupported = the question cannot be answered from transactions.',
+        enum: ['total', 'count', 'average', 'per_month', 'per_week', 'per_day', 'by_month', 'by_day', 'biggest_payment', 'biggest_day', 'compare', 'unsupported'],
+        description: 'total = add up amounts; count = how many payments; average = average payment (per payment); per_month / per_week / per_day = the total spread over the months / weeks / days in the range ("how much a month", "per week", "monthly average", "on average each month"); by_month / by_day = the total split into each month / each day ("each month", "month by month", "break it down by month", "each day this week"); biggest_payment = the single largest payment; biggest_day = the day with the highest total; compare = total in range A vs range B; unsupported = the question cannot be answered from transactions.',
       },
       direction: { type: 'string', enum: ['out', 'in', 'both'], description: 'out = spending, in = money received. Default out unless the question is about being paid, income, refunds or money in.' },
       places: { type: 'array', items: { type: 'string' }, description: 'Exact names from the PLACES/PAYERS lists to match. Empty for any.' },
@@ -84,7 +84,15 @@ async function answer(req: any, res: any) {
   const lists = [
     `You turn a question about someone's personal spending and income into a search over their bank transactions, by calling the search tool. Weeks start on Monday. Currency doesn't matter; the app handles it.`,
     'Only use names that appear in the lists below, copied exactly. Match loosely: "uber" can mean "Uber" and "Uber Eats" if both exist; "food" can mean the Food category. If nothing fits, leave the list empty and rely on the dates and direction.',
-    '"This year" means 1 January this year to today. "Last month" means the whole previous calendar month. If no dates are given, use 1 January this year to today.',
+    [
+      'Dates (always fill start and end, inclusive):',
+      '- A single day ("today", "yesterday", "on 3 March", "last Saturday"): start = end = that day.',
+      '- "This week" = Monday of this week to today; "last week" = the previous Monday to Sunday; "this weekend" / "last weekend" = that Saturday to Sunday.',
+      '- A month by name ("in March", "September") = the whole month; use this year unless that month has not started yet, then last year. "This month" = the 1st to today. "Last month" = the whole previous calendar month.',
+      '- Several months ("January to March", "Jan > March", "Jan-Mar", "since March", "Q1", "the last 3 months"): from the 1st of the first month to the end of the last month (or today if it is the current month). "The last N months" counts back from today; "the last N days" = today and the N-1 days before.',
+      '- "This year" / "so far this year" = 1 January this year to today. "Last year" = the whole of last year. If no dates are given, use 1 January this year to today.',
+      'Pick the metric from the wording: "how much" = total; "per day" / "a day" / "daily average" = per_day; "per month" / "a month" / "monthly average" = per_month; "each month" / "month by month" = by_month; "each day" = by_day; "how many times" = count; "average payment" = average.',
+    ].join('\n'),
     'For "more/less than last year" questions use compare, with the same days of last year as compare_start/compare_end.',
     `CATEGORIES (subcategories in brackets):\n${categories.join('\n')}`,
     `PLACES (where they spend):\n${places.join(' | ')}`,
