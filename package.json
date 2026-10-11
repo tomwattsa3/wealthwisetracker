@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "@google/genai": "^1.38.0",
     "@supabase/supabase-js": "2.39.3",
     "framer-motion": "^13.1.0",
