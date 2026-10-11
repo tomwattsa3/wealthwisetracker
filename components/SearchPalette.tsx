@@ -464,7 +464,19 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
                     lastGroup = it.group;
                     return (
                       <React.Fragment key={it.id}>
-                        {head && <div className="px-3 pt-3 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-slate-400 dark:text-neutral-500">{it.group}</div>}
+                        {head && (
+                          <div className="flex justify-between items-center px-3 pt-3 pb-1">
+                            <span className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400 dark:text-neutral-500">{it.group}</span>
+                            {it.group === 'Recent' && (
+                              <button
+                                onClick={() => { setRecent([]); try { localStorage.removeItem('searchRecent'); } catch { /* not saved */ } inputRef.current?.focus(); }}
+                                className="text-[11.5px] text-slate-400 hover:text-slate-600 dark:hover:text-neutral-300"
+                              >
+                                Clear
+                              </button>
+                            )}
+                          </div>
+                        )}
                         <button
                           data-i={i}
                           onMouseMove={() => sel !== i && setSel(i)}
