@@ -2149,6 +2149,7 @@ const App: React.FC = () => {
                     onImport={() => setImportOpen(true)}
                     onOpenIncome={() => handleTabChange('income')}
                     onSearch={openSearch}
+                    searchOpen={searchOpen}
                     onViewTransactions={(categoryId, subcategory, start, end) => {
                       setFilterCategory(categoryId);
                       setFilterSubcategory(subcategory ?? 'all');

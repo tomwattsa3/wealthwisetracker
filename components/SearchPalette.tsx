@@ -122,7 +122,7 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
     setQ(''); setScope('all'); setSel(0);
     // Phones: wait until the bubble has settled before the keyboard opens (it resizes the screen,
     // which would otherwise jolt the bubble mid-animation).
-    const id = window.setTimeout(() => inputRef.current?.focus(), phone ? 240 : 30);
+    const id = window.setTimeout(() => inputRef.current?.focus(), phone ? 300 : 30);
     return () => window.clearTimeout(id);
   }, [open, phone]);
 
@@ -314,16 +314,27 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
                 aria-modal="true"
                 aria-label="Search"
                 className={phone
-                  ? 'relative w-full origin-top rounded-[22px] bg-white/95 dark:bg-neutral-800/95 shadow-[0_18px_50px_rgba(15,23,42,0.28)] ring-1 ring-slate-900/5 dark:ring-white/10 overflow-hidden flex flex-col max-h-[46dvh]'
+                  ? 'relative w-full bg-white/95 dark:bg-neutral-800/95 shadow-[0_18px_50px_rgba(15,23,42,0.28)] ring-1 ring-slate-900/5 dark:ring-white/10 overflow-hidden flex flex-col max-h-[46dvh]'
                   : 'relative w-[640px] max-w-[calc(100vw-48px)] rounded-[18px] bg-white dark:bg-neutral-800 border border-slate-200/80 dark:border-neutral-700 shadow-[0_24px_60px_rgba(15,23,42,0.30)] overflow-hidden flex flex-col max-h-[72vh]'}
                 // top padding (safe area + 20px) and 12px clear of the keyboard
-                style={phone && viewH ? { maxHeight: `calc(${viewH}px - env(safe-area-inset-top) - 32px)` } : undefined}
-                // Phones: the bubble eases down from the Search pill, growing slightly as it lands
-                initial={phone ? { opacity: 0, y: -14, scale: 0.94 } : { opacity: 0, y: -10, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1, transition: phone ? { type: 'spring', stiffness: 380, damping: 32, mass: 0.9 } : MODAL_TRANSITION }}
-                exit={{ opacity: 0, y: phone ? -10 : -6, scale: phone ? 0.96 : 0.98, transition: { duration: 0.16, ease: [0.4, 0, 1, 1] } }}
+                style={phone ? { borderRadius: 22, ...(viewH ? { maxHeight: `calc(${viewH}px - env(safe-area-inset-top) - 32px)` } : {}) } : undefined}
+                // Phones: the bubble grows out of the Home Search pill (they share a layoutId) and
+                // shrinks back into it on close. layoutDependency keeps that morph to opening and
+                // closing, so results coming and going just resize it instead of stretching it.
+                layoutId={phone ? 'homeSearch' : undefined}
+                layoutDependency={open}
+                initial={phone ? { opacity: 1 } : { opacity: 0, y: -10, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1, transition: phone ? { duration: 0 } : MODAL_TRANSITION }}
+                exit={phone ? { opacity: 0, transition: { duration: 0.1 } } : { opacity: 0, y: -6, scale: 0.98, transition: { duration: 0.16, ease: [0.4, 0, 1, 1] } }}
+                transition={{ layout: { type: 'spring', stiffness: 400, damping: 36, mass: 0.9 } }}
                 onKeyDown={onKey}
               >
+                {/* The contents fade in once the bubble has mostly opened */}
+                <motion.div
+                  className="flex-1 min-h-0 flex flex-col"
+                  initial={phone ? { opacity: 0 } : false}
+                  animate={{ opacity: 1, transition: { delay: phone ? 0.14 : 0, duration: 0.2 } }}
+                >
                 <div className={`flex items-center gap-3 shrink-0 ${phone ? 'h-12 px-4' : 'h-14 px-5'} ${phone && !q.trim() && items.length === 0 ? '' : 'border-b border-slate-100 dark:border-neutral-700'}`}>
                   <Search size={phone ? 16 : 18} className={`${phone ? 'text-indigo-500' : 'text-slate-400'} shrink-0`} />
                   <input
@@ -380,6 +391,7 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
                   {q.trim() && <span><kbd className="font-sans font-semibold">tab</kbd> filter</span>}
                   <span className="ml-auto">Places &amp; categories: {index.latestYear} totals</span>
                 </div>}
+                </motion.div>
               </motion.div>
             </motion.div>
           )}

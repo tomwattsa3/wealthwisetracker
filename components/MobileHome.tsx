@@ -29,6 +29,7 @@ interface MobileHomeProps {
   // Opens the Income page (every payer, the year by month, where it lands).
   onOpenIncome?: () => void;
   onSearch?: () => void;
+  searchOpen?: boolean;
 }
 
 const TOP_N = 6;
@@ -47,7 +48,7 @@ interface Place { key: string; name: string; total: number; count: number; cats:
 // A money figure that swaps smoothly when it changes.
 const Glide: React.FC<{ value: number; format: (v: number) => string }> = ({ value, format }) => <Swap text={format(value)} />;
 
-const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCategoryEmoji, onOpenBreakdown, onViewTransactions, onImport, onOpenIncome, onSearch }) => {
+const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCategoryEmoji, onOpenBreakdown, onViewTransactions, onImport, onOpenIncome, onSearch, searchOpen }) => {
   const amt = (t: Transaction) => Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED) || 0;
   const valid = (t: Transaction) => !t.excluded && /^\d{4}-\d{2}-\d{2}/.test(t.date);
 
@@ -367,11 +368,26 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         <div className="flex items-center gap-1 min-w-0">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-neutral-100">Home</h1>
         </div>
+        {/* Search: the pill grows into the search bubble (shared layoutId) and back again. While
+            search is open the pill's place is kept empty so the header doesn't shift. */}
         {onSearch && (
-          <button onClick={onSearch} aria-label="Search" className="w-[104px] h-8 px-3 rounded-full flex items-center justify-center gap-1.5 bg-slate-400/[0.14] dark:bg-neutral-700/60 text-slate-500 dark:text-neutral-400 active:scale-[0.98] transition-transform">
-            <Search size={14} strokeWidth={2.2} className="shrink-0" />
-            <span className="text-[12.5px] truncate">Search</span>
-          </button>
+          <div className="w-[104px] h-8">
+            {!searchOpen && (
+              <motion.button
+                layoutId="homeSearch"
+                onClick={onSearch}
+                aria-label="Search"
+                style={{ borderRadius: 16 }}
+                transition={{ layout: { type: 'spring', stiffness: 400, damping: 36, mass: 0.9 } }}
+                className="w-full h-full px-3 flex items-center justify-center gap-1.5 bg-slate-400/[0.14] dark:bg-neutral-700/60 text-slate-500 dark:text-neutral-400"
+              >
+                <motion.span className="flex items-center gap-1.5" initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { delay: 0.12, duration: 0.18 } }}>
+                  <Search size={14} strokeWidth={2.2} className="shrink-0" />
+                  <span className="text-[12.5px] truncate">Search</span>
+                </motion.span>
+              </motion.button>
+            )}
+          </div>
         )}
         <div className="col-start-3 justify-self-end flex items-center gap-1.5">
           <div className="flex items-center bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl p-0.5">
