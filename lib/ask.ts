@@ -24,6 +24,7 @@ export interface AskSearch {
 export interface Row { t: Transaction; date: string; amount: number; name: string }
 
 export interface AskAnswer {
+  metric: AskSearch['metric'];
   scope: string;
   big: string;
   unit: string;
@@ -98,7 +99,7 @@ export const runSearch = (s: AskSearch, transactions: Transaction[], categories:
   const biggest = rows.reduce<Row | null>((m, r) => (!m || r.amount > m.amount ? r : m), null);
   const catId = s.categories?.length === 1 ? categories.find(c => lc(c.name) === lc(s.categories[0]))?.id || null : null;
   const open = { search: s.places?.length === 1 ? s.places[0] : '', start: s.start, end: s.end, categoryId: catId };
-  const base = { scope: s.title, understood: s.understood, green, open };
+  const base = { metric: s.metric, scope: s.title, understood: s.understood, green, open };
 
   if (!n && s.metric !== 'compare') {
     return { ...base, big: green ? fmt(0) : '—', unit: 'nothing found', text: 'No payments match that. Try a wider date range, or check the name is spelt the way it appears in Transactions.', bars, listTitle: 'No payments', rows: [] };

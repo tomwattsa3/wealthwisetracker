@@ -79,13 +79,64 @@ const score = (text: string, q: string, loose = true) => {
   }
   return 0;
 };
-const QUESTION = /^(how|what|when|which|did|do|am|is|was|where|who|why|show|total|biggest|compare)\b|\?$/i;
+// Reads as a question about your money (anywhere in it, so "groceries, how much in March" counts)
+const QUESTION = /^(how|what|when|which|did|do|am|is|was|where|who|why|show|total|biggest|compare)\b|\b(how much|how many|how often|did i|have i|am i|spend|spent|paid|earn|earned|average|biggest|most|least|vs|versus|compared?)\b|\?$/i;
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const dayLabel = (iso: string) => { const d = new Date(`${iso.slice(0, 10)}T12:00:00`); return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`; };
 
 const iconBox = 'w-9 h-9 shrink-0 rounded-[10px] flex items-center justify-center text-[15px] font-bold';
+
+// A quick Ask answer in the search chat. With a few months to compare it's the total plus tiny
+// month bars (the busiest one darker); otherwise it's a single plain sentence.
+const roundBig = (big: string) => big.replace(/^([£]|AED )([\d,]+)\.\d\d$/, (m, sym, whole) => (Number(whole.replace(/,/g, '')) >= 100 ? `${sym}${whole}` : m));
+const QuickAnswer: React.FC<{ ans: AskAnswer; onSee?: () => void }> = ({ ans, onSee }) => {
+  const n = ans.rows.length;
+  const seeText = ans.metric === 'count' ? 'See them →' : `${n} ${n === 1 ? 'payment' : 'payments'} →`;
+  const monthly = ans.bars.length >= 2 && ans.bars.length <= 12 && ans.bars.some(b => b.label.length === 3);
+  const bars = monthly && ans.bars.filter(b => b.value > 0).length >= 2 ? ans.bars : null;
+  const big = roundBig(ans.big);
+  const tone = ans.green ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-neutral-100';
+  if (bars) {
+    const max = Math.max(...bars.map(b => b.value), 1);
+    const peak = bars.findIndex(b => b.value === max);
+    const w = bars.length <= 4 ? 16 : bars.length <= 7 ? 11 : 7;
+    return (
+      <div className="flex items-end justify-between gap-3 rounded-2xl bg-slate-50 dark:bg-neutral-700/40 px-3.5 py-3">
+        <div className="min-w-0">
+          <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">{ans.scope}</div>
+          <div className={`text-[24px] leading-tight font-bold ${tone}`}>{big}</div>
+          {onSee && n > 0 && <button onClick={onSee} className="mt-1 text-[11.5px] font-semibold text-indigo-600 dark:text-indigo-300">{seeText}</button>}
+        </div>
+        <div className="shrink-0 flex items-end gap-[5px] h-[58px]">
+          {bars.map((b, i) => (
+            <div key={i} className="flex flex-col items-center gap-[3px]">
+              <motion.div
+                className={`rounded-[4px] ${i === peak ? 'bg-indigo-500' : 'bg-indigo-300/70 dark:bg-indigo-400/40'}`}
+                style={{ width: w }}
+                initial={{ height: 2 }}
+                animate={{ height: Math.max(2, (b.value / max) * 44) }}
+                transition={{ duration: 0.4, delay: 0.05 + i * 0.03, ease: [0.22, 1, 0.36, 1] }}
+              />
+              {bars.length <= 7 && <span className="text-[9px] leading-none text-slate-400">{b.label.charAt(0)}</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="px-1">
+      <p className="text-[14px] leading-snug text-slate-600 dark:text-neutral-300">
+        {ans.understood.replace(/\.$/, '')}: <span className={`text-[17px] font-bold ${tone}`}>{big}</span>
+      </p>
+      <p className="mt-0.5 text-[12px] text-slate-400 dark:text-neutral-500">
+        {ans.unit}{onSee && n > 0 && <> · <button onClick={onSee} className="font-semibold text-indigo-600 dark:text-indigo-300">See them →</button></>}
+      </p>
+    </div>
+  );
+};
 
 const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, transactions, categories, currency, getCategoryEmoji, onGo, onImport, onAsk, onViewCategory, onOpenTransactions }) => {
   const [q, setQ] = useState('');
@@ -263,7 +314,7 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
       title: <>Ask: “{q.trim()}”</>, sub: 'Answers from your own transactions', right: <CornerDownLeft size={14} className="text-slate-400" />,
       run: () => { void runAsk(q.trim()); },
     };
-    const isQuestion = thread.length > 0 || (QUESTION.test(q.trim()) && query.split(' ').length >= 2);
+    const isQuestion = thread.length > 0 || (QUESTION.test(q.trim()) && query.split(' ').length >= 3);
     if (isQuestion && scope === 'all') out.push(askItem);
 
     if (scope === 'all' || scope === 'places') {
@@ -440,20 +491,7 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
                             </div>
                           )}
                           {turn.status === 'error' && <p className="px-1 text-[12.5px] text-rose-600 dark:text-rose-400">{turn.error}</p>}
-                          {turn.status === 'done' && turn.ans && (
-                            <div className="max-w-[92%] rounded-2xl rounded-bl-md bg-indigo-50/80 dark:bg-indigo-950/40 px-3.5 py-3">
-                              <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">{turn.ans.scope}</div>
-                              <div className="flex items-baseline gap-2 flex-wrap">
-                                <span className={`text-[22px] leading-tight font-bold ${turn.ans.green ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-neutral-100'}`}>{turn.ans.big}</span>
-                                <span className="text-[12px] text-slate-500 dark:text-neutral-400">{turn.ans.unit}</span>
-                              </div>
-                              <p className="mt-1 text-[12px] leading-snug text-slate-600 dark:text-neutral-300 line-clamp-2">{turn.ans.text}</p>
-                              <div className="mt-2 flex gap-3 text-[12px] font-semibold">
-                                {onOpenTransactions && turn.ans.rows.length > 0 && <button onClick={done(() => onOpenTransactions(turn.ans!.open))} className="text-indigo-700 dark:text-indigo-300">See payments →</button>}
-                                <button onClick={done(() => onAsk(turn.q))} className="text-slate-500 dark:text-neutral-400">Open in Ask</button>
-                              </div>
-                            </div>
-                          )}
+                          {turn.status === 'done' && turn.ans && <QuickAnswer ans={turn.ans} onSee={onOpenTransactions ? done(() => onOpenTransactions(turn.ans!.open)) : undefined} />}
                         </motion.div>
                       ))}
                     </div>
