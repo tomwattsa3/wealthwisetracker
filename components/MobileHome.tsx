@@ -13,7 +13,7 @@ import { supabase } from '../supabaseClient';
 import { MONTHS, FULL_MONTHS, monthKey, keyToIndex, indexToKey, daysIn, localToday, merchantKey, sum } from '../lib/periods';
 
 // The phone Home screen: one month at a time, fitting on a single screen. How much went out vs
-// your usual month, money in and net, six month bars to jump between, and the top categories
+// your usual month, six month bars to jump between, and the top categories
 // with their share of the month, then the places you went most (or spent most at). A Month / YTD
 // switch shows the same cards for the whole year so far.
 // The full Dashboard (SpendingPatterns) stays on tablet and desktop.
@@ -201,7 +201,6 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const sumOver = (m: Map<number, number> | undefined, list: number[]) => list.reduce((s, i) => s + (m?.get(i) || 0), 0);
   const out = sumOver(outByMonth, idxs);
   const inc = sumOver(inByMonth, idxs);
-  const net = inc - out;
 
   // Month: vs the monthly average of that year so far (January up to your latest import).
   // YTD: vs the same months last year, when those were imported too.
@@ -532,11 +531,6 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
             })() : (
               <div className={`text-[12.5px] font-semibold mt-0.5 ${compareTone}`}><Swap text={compareLine} /></div>
             )}
-          </div>
-          <div className="text-right text-xs leading-relaxed text-slate-500 dark:text-neutral-400 shrink-0">
-            In <strong className="text-emerald-700 dark:text-emerald-400"><Glide value={inc} format={fmt} /></strong>
-            <br />
-            Net <strong className={net < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}><Swap text={`${net < 0 ? '−' : '+'}${fmt(Math.abs(net))}`} /></strong>
           </div>
         </div>
         {/* The year: a bar per month (tap one to open it). A picked month: its days instead. */}

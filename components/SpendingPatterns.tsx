@@ -123,12 +123,9 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   const [srcType, setSrcType] = useState('all');
   // The bar you're pointing at in the By category chart (its split shows above the chart).
   const [hoverKey, setHoverKey] = useState<number | null>(null);
-  // The small card under the headline you flip through with ‹ ›; remembers the last one shown.
+  // The old flip-through card under the headline; kept only so saved preferences still load.
   const SNAPSHOTS = ['ring', 'links', 'housing', 'costs', 'net'] as const;
   const [snapshot, setSnapshot] = useState<typeof SNAPSHOTS[number]>(() => (SNAPSHOTS as readonly string[]).includes(saved.snapshot || '') ? saved.snapshot as typeof SNAPSHOTS[number] : 'ring');
-  // Which way the last flip went, so the next view slides in from that side.
-  const [snapDir, setSnapDir] = useState<1 | -1>(1);
-  const flipSnapshot = (dir: 1 | -1) => { setSnapDir(dir); setSnapshot(cur => SNAPSHOTS[(SNAPSHOTS.indexOf(cur) + dir + SNAPSHOTS.length) % SNAPSHOTS.length]); };
   const reviewCount = useMemo(() => transactions.filter(needsReview).length, [transactions]);
   const { mixed: mixedMerchants } = useMixedMerchants(transactions);
 
@@ -644,23 +641,10 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   // A type picked for another period that has none here falls back to All.
   const activeSrc = income.types.some(t => t.name === srcType) ? srcType : 'all';
   const srcList = (activeSrc === 'all' ? income.sources : income.sources.filter(x => x.type === activeSrc)).slice(0, 8);
-  // Snapshot data for what's on screen: the picked month, or the whole period.
+  // In and out for what's on screen: the picked month, or the whole period.
   const inScope = (s: Spend) => !focus || (win.single ? Number(s.date.slice(8, 10)) === focus.key : s.monthIdx === focus.key);
-  const scopeCats = (() => {
-    const m = new Map<string, number>();
-    chosen.filter(inScope).forEach(s => m.set(s.cat, (m.get(s.cat) || 0) + s.amount));
-    return Array.from(m.entries()).map(([name, v]) => ({ name, v })).sort((a, b) => b.v - a.v);
-  })();
-  const scopeTotal = sum(scopeCats.map(c => c.v));
-  const housingV = scopeCats.filter(c => c.name.trim().toLowerCase() === 'housing').reduce((a, c) => a + c.v, 0);
-  const everyday = scopeTotal - housingV;
   const spentAll = sum(inRange.filter(inScope).map(s => s.amount));
   const netV = income.total - spentAll;
-  const ringParts = (() => {
-    const top = scopeCats.slice(0, 4).map(c => ({ name: c.name, v: c.v, color: catColor(c.name) }));
-    const rest = scopeTotal - sum(top.map(t => t.v));
-    return rest > 0.005 ? [...top, { name: 'The rest', v: rest, color: '#CBD5E1' }] : top;
-  })();
   // The chart shows only imported months (no empty slots for months you haven't imported yet).
   const shownBuckets = win.single ? buckets : buckets.filter(b => b.key <= lastIdx);
   // By category: your top 3 categories in this period, then everything else, as one stacked bar.
@@ -763,158 +747,33 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                 : selected.size && peak.total > 0 ? `Busiest ${unit}: ${peak.label} · ${fmt(peak.total)}` : ''}
             </div>
 
-            {/* Side by side when there's room: the snapshot takes the space, Money in stays a small square */}
-            <div className="mt-5 flex-1 flex flex-wrap gap-3 items-stretch">
-            {/* Snapshot: flip through with ‹ › (remembered) */}
-            <div className="flex-[1_1_260px] min-w-0 rounded-2xl bg-slate-50 dark:bg-neutral-700/40 px-4 pt-3 pb-4 overflow-hidden flex flex-col">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium text-slate-500 dark:text-neutral-400">
-                  {{ ring: 'Where it went', links: 'Quick links', housing: 'Without housing', costs: 'Biggest costs', net: 'Net position' }[snapshot]}
-                </span>
-                <span className="flex items-center gap-2">
-                  <span className="flex items-center gap-1" aria-hidden>
-                    {SNAPSHOTS.map(k => <span key={k} className={`h-1.5 rounded-full transition-all duration-300 ${k === snapshot ? 'w-4 bg-indigo-500 dark:bg-indigo-400' : 'w-1.5 bg-slate-300 dark:bg-neutral-500'}`} />)}
-                  </span>
-                  <span className="flex">
-                    <button onClick={() => flipSnapshot(-1)} aria-label="Previous snapshot" className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:bg-white hover:text-slate-800 hover:shadow-sm dark:hover:bg-neutral-600 dark:hover:text-neutral-100 transition-colors">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
-                    </button>
-                    <button onClick={() => flipSnapshot(1)} aria-label="Next snapshot" className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:bg-white hover:text-slate-800 hover:shadow-sm dark:hover:bg-neutral-600 dark:hover:text-neutral-100 transition-colors">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
-                    </button>
-                  </span>
-                </span>
-              </div>
-              <div className="relative flex-1 min-h-[104px] mt-2">
-                <AnimatePresence initial={false} custom={snapDir} mode="popLayout">
-                  <motion.div
-                    key={snapshot}
-                    custom={snapDir}
-                    variants={{
-                      enter: (d: number) => ({ x: d * 28, opacity: 0 }),
-                      center: { x: 0, opacity: 1 },
-                      exit: (d: number) => ({ x: d * -28, opacity: 0 }),
-                    }}
-                    initial="enter"
-                    animate="center"
-                    exit="exit"
-                    transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                    className="absolute inset-0"
-                  >
-                {snapshot === 'ring' && (
-                  scopeTotal > 0 ? (
-                    <div className="h-full flex items-center gap-4">
-                      <svg width="92" height="92" viewBox="0 0 42 42" role="img" aria-label={ringParts.map(p => `${p.name} ${pct(p.v, scopeTotal)}%`).join(', ')} className="shrink-0 -rotate-90">
-                        <circle cx="21" cy="21" r="15.9155" fill="none" strokeWidth="5" className="stroke-slate-200 dark:stroke-neutral-600" />
-                        {(() => {
-                          let acc = 0;
-                          return ringParts.map(p => {
-                            const len = (p.v / scopeTotal) * 100;
-                            const el = <circle key={p.name} cx="21" cy="21" r="15.9155" fill="none" stroke={p.color} strokeWidth="5" strokeLinecap="butt" strokeDasharray={`${Math.max(0, len - 0.8)} ${100 - Math.max(0, len - 0.8)}`} strokeDashoffset={-acc} />;
-                            acc += len;
-                            return el;
-                          });
-                        })()}
-                      </svg>
-                      <div className="min-w-0 flex-1 flex flex-col gap-1 text-xs">
-                        {ringParts.map(p => (
-                          <span key={p.name} className="flex items-center gap-2 min-w-0">
-                            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />
-                            <span className={`flex-1 truncate ${p.name === 'The rest' ? 'text-slate-500 dark:text-neutral-400' : 'text-slate-700 dark:text-neutral-200'}`}>{p.name}</span>
-                            <span className="text-slate-500 dark:text-neutral-400">{pct(p.v, scopeTotal)}%</span>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ) : <p className="pt-3 text-xs text-slate-500">Nothing selected.</p>
-                )}
-                {snapshot === 'links' && (
-                  <div className="h-full flex flex-col justify-center gap-1.5">
-                    {[
-                      { label: reviewCount ? `Review ${reviewCount} transaction${reviewCount === 1 ? '' : 's'}` : 'Nothing to review', on: () => onOpenTransactions?.('review'), dot: reviewCount ? '#F59E0B' : '#CBD5E1' },
-                      { label: mixedMerchants.length ? `${mixedMerchants.length} mixed categor${mixedMerchants.length === 1 ? 'y' : 'ies'}` : 'No mixed categories', on: () => onOpenTransactions?.('mixed'), dot: mixedMerchants.length ? '#8B5CF6' : '#CBD5E1' },
-                      { label: lastImport ? `Import · last ${lastImport}` : 'Import statements', on: () => onImport?.(), dot: '#4F46E5' },
-                    ].map(l => (
-                      <button key={l.label} onClick={l.on} className="min-h-[30px] px-3 rounded-[10px] bg-white dark:bg-neutral-800 text-[13px] font-medium text-slate-700 dark:text-neutral-200 flex items-center gap-2.5 hover:shadow-sm transition-shadow">
-                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: l.dot }} />
-                        <span className="flex-1 truncate text-left">{l.label}</span>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400"><path d="m9 18 6-6-6-6" /></svg>
-                      </button>
-                    ))}
+            {/* In and out: money in against everything spent in the same period (or the month you
+                picked), then what came from savings or was left over */}
+            {(() => {
+              const scale = Math.max(income.total, spentAll, 1);
+              const bar = (v: number, cls: string) => (
+                <div className="h-2.5 rounded-full bg-slate-200/70 dark:bg-neutral-700 mt-1.5 overflow-hidden">
+                  <div className={`h-full rounded-full ${cls} transition-[width] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]`} style={{ width: `${v > 0 ? Math.max(2, (v / scale) * 100) : 0}%` }} />
+                </div>
+              );
+              return (
+                <div className="mt-5 rounded-2xl bg-slate-50 dark:bg-neutral-700/40 px-5 pt-4 pb-4">
+                  <div className="text-[13px] font-semibold text-slate-900 dark:text-neutral-100">In and out</div>
+                  <div className="mt-3">
+                    <div className="flex justify-between text-[13px]"><span className="text-slate-500 dark:text-neutral-400">Money in</span><span className="font-semibold text-emerald-700 dark:text-emerald-400">{fmt(income.total)}</span></div>
+                    {bar(income.total, 'bg-emerald-500')}
                   </div>
-                )}
-                {snapshot === 'housing' && (
-                  <div className="h-full flex flex-col justify-center">
-                    <div className="flex items-baseline gap-2 flex-wrap">
-                      <span className="text-[26px] leading-none font-bold tracking-tight text-slate-900 dark:text-neutral-100">{fmt(everyday)}</span>
-                      {!focus && !win.single && <span className="text-[13px] text-slate-500 dark:text-neutral-400">{fmt(everyday / dataMonths)} a month</span>}
-                    </div>
-                    <div className="mt-3 h-1.5 flex gap-1">
-                      {housingV > 0 && <span className="h-full rounded-full" style={{ width: `${(housingV / scopeTotal) * 100}%`, background: catColor('Housing') }} />}
-                      <span className="h-full rounded-full flex-1 bg-slate-300 dark:bg-neutral-500" />
-                    </div>
-                    <div className="mt-2 flex gap-4 text-[11px] text-slate-500 dark:text-neutral-400">
-                      {housingV > 0
-                        ? <>
-                            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ background: catColor('Housing') }} />Housing {fmt(housingV)}</span>
-                            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-neutral-500" />Everyday {fmt(everyday)}</span>
-                          </>
-                        : <span>No housing in this selection</span>}
-                    </div>
+                  <div className="mt-3">
+                    <div className="flex justify-between text-[13px]"><span className="text-slate-500 dark:text-neutral-400">{unselected.size ? 'All spending' : 'Spent'}</span><span className="font-semibold text-slate-900 dark:text-neutral-100">{fmt(spentAll)}</span></div>
+                    {bar(spentAll, 'bg-indigo-500')}
                   </div>
-                )}
-                {snapshot === 'costs' && (
-                  <div className="h-full flex flex-col justify-center gap-3">
-                    {scopeCats.slice(0, 3).map(c => (
-                      <div key={c.name} className="grid grid-cols-[84px_minmax(0,1fr)_34px] gap-2.5 items-center text-[13px]">
-                        <span className="truncate text-slate-700 dark:text-neutral-200">{c.name}</span>
-                        <span className="h-1.5 rounded-full bg-slate-200 dark:bg-neutral-600 overflow-hidden"><span className="block h-full rounded-full" style={{ width: `${(c.v / (scopeCats[0]?.v || 1)) * 100}%`, background: catColor(c.name) }} /></span>
-                        <span className="text-right text-xs text-slate-500 dark:text-neutral-400">{pct(c.v, scopeTotal)}%</span>
-                      </div>
-                    ))}
-                    {scopeCats.length === 0 && <p className="text-xs text-slate-500">Nothing selected.</p>}
+                  <div className="mt-3.5 pt-3 border-t border-slate-200 dark:border-neutral-600 flex justify-between text-[13px]">
+                    <span className="text-slate-500 dark:text-neutral-400">{netV < 0 ? 'From savings' : 'Left over'}</span>
+                    <span className={`font-semibold ${netV < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>{netV < 0 ? '−' : '+'}{fmt(Math.abs(netV))}</span>
                   </div>
-                )}
-                {snapshot === 'net' && (
-                  <div className="h-full flex flex-col justify-center">
-                    <div className="flex items-baseline gap-2 flex-wrap">
-                      <span className={`text-[26px] leading-none font-bold tracking-tight ${netV < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>{netV < 0 ? '−' : '+'}{fmt(Math.abs(netV))}</span>
-                      <span className="text-[13px] text-slate-500 dark:text-neutral-400">{spentAll > 0 ? Math.round((income.total / spentAll) * 100) : 0}% covered</span>
-                    </div>
-                    <div className="mt-3 h-1.5 flex gap-1">
-                      <span className="h-full rounded-full bg-emerald-500" style={{ width: `${income.total + spentAll > 0 ? (income.total / (income.total + spentAll)) * 100 : 0}%` }} />
-                      <span className="h-full rounded-full flex-1 bg-slate-300 dark:bg-neutral-500" />
-                    </div>
-                    <div className="mt-2 flex gap-4 text-[11px] text-slate-500 dark:text-neutral-400">
-                      <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />In {fmt(income.total)}</span>
-                      <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-neutral-500" />Out {fmt(spentAll)}</span>
-                    </div>
-                  </div>
-                )}
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-            </div>
-
-            {/* Money in at a glance: follows the period, or the month you picked */}
-            <div className="flex-[1_1_180px] max-w-[220px] min-w-[170px] rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/20 px-4 pt-3 pb-3.5 flex flex-col">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium text-slate-500 dark:text-neutral-400">Money in</span>
-                {income.coverage !== null && <span className="text-xs text-slate-500 dark:text-neutral-400">{Math.round(income.coverage * 100)}% covered</span>}
-              </div>
-              <div className="mt-1 text-[22px] leading-none font-bold tracking-tight text-emerald-700 dark:text-emerald-400">{fmt(income.total)}</div>
-              {/* A small bar per imported month, under the number */}
-              <div aria-hidden className="mt-auto pt-3 flex items-end gap-[3px] h-[48px]">
-                {cols.map((c, i) => {
-                  if (!win.single && (c.key as number) > lastIdx) return null;
-                  const mx = Math.max(...income.perCol, 1);
-                  const v = income.perCol[i];
-                  const on = focusCol === null || c.key === focusCol;
-                  return <span key={c.key} title={`${c.label}: ${fmt(v)}`} className={`w-2 rounded-[3px] ${v <= 0 ? 'bg-emerald-100 dark:bg-emerald-950' : on ? 'bg-emerald-500' : 'bg-emerald-200 dark:bg-emerald-900'}`} style={{ height: v > 0 ? Math.max(4, Math.round((v / mx) * 36)) : 3 }} />;
-                })}
-              </div>
-            </div>
-            </div>
+                </div>
+              );
+            })()}
           </div>
 
           {heroWide && (
