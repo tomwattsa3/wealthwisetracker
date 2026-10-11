@@ -95,7 +95,26 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
   const listRef = useRef<HTMLDivElement>(null);
   const [recent, setRecent] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('searchRecent') || '[]'); } catch { return []; } });
 
-  useBackClose(open && !!phone, onClose);
+  // Phones close the same way they open: the contents fade, then the bubble shrinks back down
+  // onto the Search pill (its spot on Home is marked data-search-pill) while the blur fades, and
+  // only then does it hand back to the pill. Desktop just closes.
+  const [closing, setClosing] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+  const closeTimer = useRef<number | null>(null);
+  const finishClose = () => {
+    if (closeTimer.current) { window.clearTimeout(closeTimer.current); closeTimer.current = null; }
+    onClose();
+  };
+  const requestClose = () => {
+    const pill = phone ? document.querySelector('[data-search-pill]') : null;
+    if (!pill || closing) { if (!closing) onClose(); return; }
+    inputRef.current?.blur();
+    const r = pill.getBoundingClientRect();
+    setClosing({ left: r.left, top: r.top, width: r.width, height: r.height });
+    // in case the animation's end is never reported
+    closeTimer.current = window.setTimeout(finishClose, 380);
+  };
+  useEffect(() => () => { if (closeTimer.current) window.clearTimeout(closeTimer.current); }, []);
+  useBackClose(open && !!phone, requestClose);
   // While search is open, the page behind it stays put: the app scrolls inside <main>, so lock
   // that (and the page itself) and put them back as they were on close.
   useEffect(() => {
@@ -119,7 +138,7 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
   }, [open, phone]);
   useEffect(() => {
     if (!open) return;
-    setQ(''); setScope('all'); setSel(0);
+    setQ(''); setScope('all'); setSel(0); setClosing(null);
     // Phones: wait until the bubble has settled before the keyboard opens (it resizes the screen,
     // which would otherwise jolt the bubble mid-animation).
     const id = window.setTimeout(() => inputRef.current?.focus(), phone ? 300 : 30);
@@ -293,7 +312,7 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
     if (e.key === 'ArrowDown') { e.preventDefault(); setSel(s => Math.min(items.length - 1, s + 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setSel(s => Math.max(0, s - 1)); }
     else if (e.key === 'Enter') { e.preventDefault(); items[sel]?.run(); }
-    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose(); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); requestClose(); }
     else if (e.key === 'Tab') {
       e.preventDefault();
       const i = SCOPES.findIndex(([s]) => s === scope);
@@ -307,8 +326,13 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
       {createPortal(
         <AnimatePresence>
           {open && (
-            <motion.div key="search" className={`fixed inset-0 z-[130] flex justify-center items-start ${phone ? 'px-3 pt-[calc(env(safe-area-inset-top)_+_20px)]' : 'pt-[12vh]'}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={phone ? { duration: 0.24, ease: [0.22, 1, 0.36, 1] } : { duration: 0.16 }}>
-              <div className={`absolute inset-0 touch-none ${phone ? 'bg-slate-900/25 backdrop-blur-md' : 'bg-slate-900/30 backdrop-blur-[3px]'}`} onClick={onClose} />
+            <motion.div key="search" className={`fixed inset-0 z-[130] flex justify-center items-start ${phone ? 'px-3 pt-[calc(env(safe-area-inset-top)_+_20px)]' : 'pt-[12vh]'}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: phone ? 0.14 : 0.16 } }} transition={phone ? { duration: 0.24, ease: [0.22, 1, 0.36, 1] } : { duration: 0.16 }}>
+              <motion.div
+                className={`absolute inset-0 touch-none ${phone ? 'bg-slate-900/25 backdrop-blur-md' : 'bg-slate-900/30 backdrop-blur-[3px]'}`}
+                onClick={requestClose}
+                animate={{ opacity: closing ? 0 : 1 }}
+                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              />
               <motion.div
                 role="dialog"
                 aria-modal="true"
@@ -317,23 +341,27 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
                   ? 'relative w-full bg-white/95 dark:bg-neutral-800/95 shadow-[0_18px_50px_rgba(15,23,42,0.28)] ring-1 ring-slate-900/5 dark:ring-white/10 overflow-hidden flex flex-col max-h-[46dvh]'
                   : 'relative w-[640px] max-w-[calc(100vw-48px)] rounded-[18px] bg-white dark:bg-neutral-800 border border-slate-200/80 dark:border-neutral-700 shadow-[0_24px_60px_rgba(15,23,42,0.30)] overflow-hidden flex flex-col max-h-[72vh]'}
                 // top padding (safe area + 20px) and 12px clear of the keyboard
-                style={phone ? { borderRadius: 22, ...(viewH ? { maxHeight: `calc(${viewH}px - env(safe-area-inset-top) - 32px)` } : {}) } : undefined}
+                style={!phone ? undefined : closing
+                  ? { position: 'absolute', left: closing.left, top: closing.top, width: closing.width, height: closing.height, maxHeight: 'none', borderRadius: 16 }
+                  : { borderRadius: 22, ...(viewH ? { maxHeight: `calc(${viewH}px - env(safe-area-inset-top) - 32px)` } : {}) }}
                 // Phones: the bubble grows out of the Home Search pill (they share a layoutId) and
                 // shrinks back into it on close. layoutDependency keeps that morph to opening and
                 // closing, so results coming and going just resize it instead of stretching it.
                 layoutId={phone ? 'homeSearch' : undefined}
-                layoutDependency={open}
+                layoutDependency={closing ? 'closing' : open}
+                onLayoutAnimationComplete={() => { if (closing) finishClose(); }}
                 initial={phone ? { opacity: 1 } : { opacity: 0, y: -10, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1, transition: phone ? { duration: 0 } : MODAL_TRANSITION }}
                 exit={phone ? { opacity: 0, transition: { duration: 0.1 } } : { opacity: 0, y: -6, scale: 0.98, transition: { duration: 0.16, ease: [0.4, 0, 1, 1] } }}
-                transition={{ layout: { type: 'spring', stiffness: 400, damping: 36, mass: 0.9 } }}
+                // Opening springs out; closing glides back on a fixed curve, so it ends cleanly
+                transition={{ layout: closing ? { type: 'tween', duration: 0.34, ease: [0.32, 0.72, 0, 1] } : { type: 'spring', stiffness: 400, damping: 36, mass: 0.9 } }}
                 onKeyDown={onKey}
               >
                 {/* The contents fade in once the bubble has mostly opened */}
                 <motion.div
                   className="flex-1 min-h-0 flex flex-col"
                   initial={phone ? { opacity: 0 } : false}
-                  animate={{ opacity: 1, transition: { delay: phone ? 0.14 : 0, duration: 0.2 } }}
+                  animate={closing ? { opacity: 0, transition: { duration: 0.1 } } : { opacity: 1, transition: { delay: phone ? 0.14 : 0, duration: 0.2 } }}
                 >
                 <div className={`flex items-center gap-3 shrink-0 ${phone ? 'h-12 px-4' : 'h-14 px-5'} ${phone && !q.trim() && items.length === 0 ? '' : 'border-b border-slate-100 dark:border-neutral-700'}`}>
                   <Search size={phone ? 16 : 18} className={`${phone ? 'text-indigo-500' : 'text-slate-400'} shrink-0`} />

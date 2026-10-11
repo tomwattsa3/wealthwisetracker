@@ -371,7 +371,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         {/* Search: the pill grows into the search bubble (shared layoutId) and back again. While
             search is open the pill's place is kept empty so the header doesn't shift. */}
         {onSearch && (
-          <div className="w-[104px] h-8">
+          <div className="w-[104px] h-8" data-search-pill>
             {!searchOpen && (
               <motion.button
                 layoutId="homeSearch"
