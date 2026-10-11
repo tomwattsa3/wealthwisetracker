@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Transaction, Category } from '../types';
 import { supabase } from '../supabaseClient';
@@ -167,9 +167,12 @@ interface AskPageProps {
   categories: Category[];
   currency: 'GBP' | 'AED';
   onOpenTransactions?: (o: { search: string; start: string; end: string; categoryId: string | null }) => void;
+  // A question typed into ⌘K search: asked straight away
+  initialQuestion?: { q: string; n: number } | null;
+  onInitialQuestionUsed?: () => void;
 }
 
-const AskPage: React.FC<AskPageProps> = ({ transactions, categories, currency, onOpenTransactions }) => {
+const AskPage: React.FC<AskPageProps> = ({ transactions, categories, currency, onOpenTransactions, initialQuestion, onInitialQuestionUsed }) => {
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -247,6 +250,8 @@ const AskPage: React.FC<AskPageProps> = ({ transactions, categories, currency, o
       setBusy(false);
     }
   };
+
+  useEffect(() => { if (initialQuestion?.q) { void ask(initialQuestion.q); onInitialQuestionUsed?.(); } }, [initialQuestion?.n]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const max = Math.max(...(answer?.bars.map(b => b.value) || [0]), 1);
   const anyHi = answer?.bars.some(b => b.hi);

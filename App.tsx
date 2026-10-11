@@ -25,6 +25,7 @@ const BreakdownTab = lazy(() => import('./components/BreakdownTab'));
 const RecurringPayments = lazy(() => import('./components/RecurringPayments'));
 const IncomePage = lazy(() => import('./components/IncomePage'));
 const AskPage = lazy(() => import('./components/AskPage'));
+const SearchPalette = lazy(() => import('./components/SearchPalette'));
 import DashboardSkeleton from './components/DashboardSkeleton';
 import { loadSnapshot, saveSnapshot, clearSnapshot, saveLastImport } from './lib/offline';
 import SegmentedControl from './components/SegmentedControl';
@@ -33,7 +34,7 @@ import {
   ChevronLeft, ChevronRight, EyeOff, TrendingUp,
   Car, Plane, Smartphone, Coffee, ShoppingBag, PoundSterling, Activity, X,
   FolderCog, CalendarRange, LayoutGrid, ArrowRightLeft, Settings,
-  RotateCcw, Loader2, LogOut, Sparkles, Sun, Moon, Table, Eye, MoreHorizontal, Wallet
+  RotateCcw, Loader2, LogOut, Sparkles, Sun, Moon, Table, Eye, MoreHorizontal, Wallet, Search
 } from 'lucide-react';
 
 // Helper for category icons
@@ -1042,6 +1043,24 @@ const App: React.FC = () => {
   };
 
   const [importOpen, setImportOpen] = useState(false);
+  // ⌘K search (desktop). Loaded the first time it opens, then kept so its panels can close softly.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchLoaded, setSearchLoaded] = useState(false);
+  const openSearch = useCallback(() => { setSearchLoaded(true); setSearchOpen(true); }, []);
+  // A question typed into search, handed to Ask (n makes asking the same thing twice re-run it)
+  const [askSeed, setAskSeed] = useState<{ q: string; n: number } | null>(null);
+  useEffect(() => {
+    if (isPhone) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchLoaded(true);
+        setSearchOpen(o => !o);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isPhone]);
   const [hideAmounts, toggleHideAmounts] = usePrivacy();
   const [moreOpen, setMoreOpen] = useState(false);
   // A Dashboard quick link asking Transactions to open on its review list or mixed categories.
@@ -1789,6 +1808,22 @@ const App: React.FC = () => {
              )}
            </div>
 
+           {/* Search (⌘K) - Desktop */}
+           <button
+             onClick={openSearch}
+             aria-label="Search"
+             title="Search (⌘K)"
+             className={`hidden md:flex items-center gap-2.5 -mt-6 mb-5 h-9 rounded-xl border border-slate-200 dark:border-neutral-600 text-slate-400 dark:text-neutral-500 hover:border-slate-300 hover:text-slate-600 dark:hover:text-neutral-300 transition-colors ${isSidebarCollapsed ? 'justify-center px-0' : 'px-3'}`}
+           >
+             <Search size={15} className="shrink-0" />
+             {!isSidebarCollapsed && (
+               <>
+                 <span className="text-[13px]">Search</span>
+                 <kbd className="ml-auto px-1.5 h-5 rounded-[5px] border border-slate-200 dark:border-neutral-600 bg-slate-50 dark:bg-neutral-700 text-[10px] font-semibold font-sans flex items-center">⌘K</kbd>
+               </>
+             )}
+           </button>
+
            <div className="flex justify-around items-center px-2 md:flex-col md:h-auto md:gap-1 md:items-stretch md:px-0 overflow-x-auto md:overflow-x-visible no-scrollbar">
              {/* Listed in phone-bar order; desktopOrder sets the sidebar order. On phones Income takes
                  Breakdown's place in the bar (Breakdown still opens from Home's "Full breakdown"). */}
@@ -2202,6 +2237,8 @@ const App: React.FC = () => {
                transactions={transactions}
                categories={categories}
                currency={currency}
+               initialQuestion={askSeed}
+               onInitialQuestionUsed={() => setAskSeed(null)}
                onOpenTransactions={({ search, start, end, categoryId }) => {
                  setSearchQuery(search);
                  setFilterCategory(categoryId || 'all');
@@ -2555,6 +2592,29 @@ const App: React.FC = () => {
       )}
 
     </div>
+    {searchLoaded && !isPhone && (
+      <Suspense fallback={null}>
+        <SearchPalette
+          open={searchOpen}
+          onClose={() => setSearchOpen(false)}
+          transactions={transactions}
+          categories={categories}
+          currency={currency}
+          getCategoryEmoji={getCategoryEmoji}
+          onGo={(tab) => handleTabChange(tab)}
+          onImport={() => setImportOpen(true)}
+          onAsk={(question) => { setAskSeed({ q: question, n: Date.now() }); handleTabChange('ask'); }}
+          onViewCategory={(categoryId, subcategory, start, end) => {
+            handleResetFilters();
+            setSearchQuery('');
+            setFilterCategory(categoryId);
+            setFilterSubcategory(subcategory ?? 'all');
+            setDateRange({ start, end, label: 'Custom Range' });
+            handleTabChange('history');
+          }}
+        />
+      </Suspense>
+    )}
     </TxActionsContext.Provider>
     </MotionConfig>
   );
