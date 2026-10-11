@@ -752,22 +752,22 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
             {(() => {
               const scale = Math.max(income.total, spentAll, 1);
               const bar = (v: number, cls: string) => (
-                <div className="h-2 rounded-full bg-slate-200/70 dark:bg-neutral-700 mt-1 overflow-hidden">
+                <div className="h-1.5 rounded-full bg-slate-200/70 dark:bg-neutral-700 mt-1 overflow-hidden">
                   <div className={`h-full rounded-full ${cls} transition-[width] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]`} style={{ width: `${v > 0 ? Math.max(2, (v / scale) * 100) : 0}%` }} />
                 </div>
               );
               return (
-                <div className="mt-4 rounded-2xl bg-slate-50 dark:bg-neutral-700/40 px-4 pt-3 pb-3">
-                  <div className="text-xs font-semibold text-slate-900 dark:text-neutral-100">In and out</div>
-                  <div className="mt-2">
-                    <div className="flex justify-between text-xs"><span className="text-slate-500 dark:text-neutral-400">Money in</span><span className="font-semibold text-emerald-700 dark:text-emerald-400">{fmt(income.total)}</span></div>
+                <div className="mt-3 rounded-xl bg-slate-50 dark:bg-neutral-700/40 px-3.5 pt-2.5 pb-2.5">
+                  <div className="text-[11px] font-semibold text-slate-900 dark:text-neutral-100">In and out</div>
+                  <div className="mt-1.5">
+                    <div className="flex justify-between text-[11px]"><span className="text-slate-500 dark:text-neutral-400">Money in</span><span className="font-semibold text-emerald-700 dark:text-emerald-400">{fmt(income.total)}</span></div>
                     {bar(income.total, 'bg-emerald-500')}
                   </div>
-                  <div className="mt-2">
-                    <div className="flex justify-between text-xs"><span className="text-slate-500 dark:text-neutral-400">{unselected.size ? 'All spending' : 'Spent'}</span><span className="font-semibold text-slate-900 dark:text-neutral-100">{fmt(spentAll)}</span></div>
+                  <div className="mt-1.5">
+                    <div className="flex justify-between text-[11px]"><span className="text-slate-500 dark:text-neutral-400">{unselected.size ? 'All spending' : 'Spent'}</span><span className="font-semibold text-slate-900 dark:text-neutral-100">{fmt(spentAll)}</span></div>
                     {bar(spentAll, 'bg-indigo-500')}
                   </div>
-                  <div className="mt-2.5 pt-2 border-t border-slate-200 dark:border-neutral-600 flex justify-between text-xs">
+                  <div className="mt-2 pt-1.5 border-t border-slate-200 dark:border-neutral-600 flex justify-between text-[11px]">
                     <span className="text-slate-500 dark:text-neutral-400">{netV < 0 ? 'From savings' : 'Left over'}</span>
                     <span className={`font-semibold ${netV < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>{netV < 0 ? '−' : '+'}{fmt(Math.abs(netV))}</span>
                   </div>
