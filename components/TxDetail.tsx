@@ -89,7 +89,6 @@ const Body: React.FC<{ t: Transaction; sheet: boolean; onClose: () => void; flus
   const paidAED = (bank?.currency || '').toUpperCase() === 'AED';
   const sign = income ? '+' : '−';
   const initial = (t.description || '').replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || '•';
-  const hasBoth = t.amountGBP > 0 && t.amountAED > 0;
 
   return (
     <div className="flex flex-col">
@@ -106,14 +105,6 @@ const Body: React.FC<{ t: Transaction; sheet: boolean; onClose: () => void; flus
 
       <div className="mt-4 rounded-2xl bg-slate-50 dark:bg-neutral-700/40 px-4 py-3">
         <div className={`text-[26px] leading-tight font-bold ${income ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-neutral-100'}`}>{sign}{money('£', t.amountGBP)}</div>
-        {hasBoth && (
-          <>
-            <div className="text-[13px] text-slate-600 dark:text-neutral-300 mt-0.5">
-              {paidAED ? `Paid in dirhams · ${money('AED ', t.amountAED)}` : bank ? `Paid in pounds · ${money('AED ', t.amountAED)} equivalent` : money('AED ', t.amountAED)}
-            </div>
-            <div className="text-[11px] text-slate-400 dark:text-neutral-500">£1 = AED {(t.amountAED / t.amountGBP).toFixed(2)}</div>
-          </>
-        )}
       </div>
 
       <div className="mt-1 flex flex-col text-[13px]">
@@ -127,6 +118,14 @@ const Body: React.FC<{ t: Transaction; sheet: boolean; onClose: () => void; flus
           <div className="flex justify-between items-center gap-3 min-h-[44px] border-b border-slate-100 dark:border-neutral-700">
             <span className="text-slate-500 dark:text-neutral-400">Bank</span>
             <span className="font-medium text-slate-900 dark:text-neutral-100">{t.bankName}</span>
+          </div>
+        )}
+        {/* The currency it was paid in (from the bank's currency). The AED amount is still saved,
+            just not shown. */}
+        {bank && (
+          <div className="flex justify-between items-center gap-3 min-h-[44px] border-b border-slate-100 dark:border-neutral-700">
+            <span className="text-slate-500 dark:text-neutral-400">Paid in</span>
+            <span className="font-medium text-slate-900 dark:text-neutral-100">{paidAED ? 'Dirhams (AED)' : (bank.currency || 'GBP').toUpperCase() === 'GBP' ? 'Pounds (GBP)' : (bank.currency || '').toUpperCase()}</span>
           </div>
         )}
       </div>

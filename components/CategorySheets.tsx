@@ -380,20 +380,17 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                               return (
                                 <button
                                   key={r.id}
-                                  onClick={() => setTxOpen(r.id)}
+                                  onClick={() => setTxOpen(cur => (cur === r.id ? null : r.id))}
                                   aria-haspopup="dialog"
-                                  className={`w-full text-left grid grid-cols-[44px_minmax(0,1fr)_auto_10px] gap-3 items-center py-2.5 px-1 border-b border-slate-100 dark:border-neutral-700 rounded-md hover:bg-slate-50 dark:hover:bg-neutral-700/40 ${txOpen === r.id ? 'bg-indigo-50/70 dark:bg-indigo-950/30' : ''}`}
+                                  className={`w-full text-left grid grid-cols-[44px_minmax(0,1fr)_auto_10px] gap-3 items-center py-2.5 border-b border-slate-100 dark:border-neutral-700 rounded-md hover:bg-slate-50 dark:hover:bg-neutral-700/40 ${txOpen === r.id ? 'bg-indigo-50/70 dark:bg-indigo-950/30' : ''}`}
                                 >
-                                  <span className="text-center leading-tight">
-                                    <span className="block text-[15px] font-bold text-slate-900 dark:text-neutral-100">{d.getDate()}</span>
-                                    <span className="block text-[10px] uppercase text-slate-500 dark:text-neutral-400">{MONTHS[d.getMonth()]}</span>
-                                  </span>
+                                  <span className="text-xs text-slate-500 dark:text-neutral-400 whitespace-nowrap">{d.getDate()} {MONTHS[d.getMonth()]}</span>
                                   <span className="min-w-0">
-                                    <span className="block text-[14px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={r.desc}>{r.desc}</span>
-                                    <span className="block text-[11.5px] text-slate-500 dark:text-neutral-400 truncate">{r.sub !== NO_SUB ? `${r.sub} · ` : ''}{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]}</span>
-                                    {r.note && <span className="block text-[11.5px] italic text-amber-800 dark:text-amber-300 truncate" title={r.note}>📝 {r.note}</span>}
+                                    <span className="block text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={r.desc}>{r.desc}</span>
+                                    <span className="block text-[11px] text-slate-500 dark:text-neutral-400 truncate">{r.sub !== NO_SUB ? `${r.sub} · ` : ''}{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]}</span>
+                                    {r.note && <span className="block text-[11px] italic text-amber-800 dark:text-amber-300 truncate" title={r.note}>📝 {r.note}</span>}
                                   </span>
-                                  <span className="text-[14px] font-semibold text-right text-slate-900 dark:text-neutral-100">{fmt(r.amount, 2)}</span>
+                                  <span className="text-[13px] font-semibold text-right text-slate-900 dark:text-neutral-100">{fmt(r.amount, 2)}</span>
                                   <span className="text-slate-300 dark:text-neutral-500">›</span>
                                 </button>
                               );
@@ -401,7 +398,7 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                           : panel.tx.map(r => (
                               <button
                                 key={r.id}
-                                onClick={() => setTxOpen(r.id)}
+                                onClick={() => setTxOpen(cur => (cur === r.id ? null : r.id))}
                                 aria-haspopup="dialog"
                                 className={`w-full text-left grid grid-cols-[52px_minmax(0,1fr)_90px] gap-3 items-center py-2.5 border-b border-slate-100 dark:border-neutral-700 rounded-md hover:bg-slate-50 dark:hover:bg-neutral-700/40 ${txOpen === r.id ? 'bg-indigo-50/70 dark:bg-indigo-950/30' : ''}`}
                               >
