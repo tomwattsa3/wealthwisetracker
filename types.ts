@@ -35,6 +35,8 @@ export interface Transaction {
   excluded?: boolean;
   // Set by the app (never saved): its subcategory is switched to "not counted" in Categories
   notCounted?: boolean;
+  // Set by the app (never saved): linked to a debt as a repayment, so left out of totals
+  debtRepayment?: string;
   bankName?: string;
   createdAt?: string;
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FolderCog, Repeat, Settings, Eye, EyeOff, Moon, Sun, Download, Share, LogOut, Plus, ChevronRight, Camera } from 'lucide-react';
+import { FolderCog, Repeat, HandCoins, Settings, Eye, EyeOff, Moon, Sun, Download, Share, LogOut, Plus, ChevronRight, Camera } from 'lucide-react';
 import Sheet from './Sheet';
 import BlurStrengthSlider from './BlurStrengthSlider';
 import { usePrivacy } from '../lib/privacy';
@@ -11,7 +11,7 @@ interface MoreSheetProps {
   open: boolean;
   onClose: () => void;
   activeTab: string;
-  onNavigate: (tab: 'income' | 'categories' | 'recurring' | 'settings') => void;
+  onNavigate: (tab: 'income' | 'categories' | 'recurring' | 'debts' | 'settings') => void;
   onAddTransaction: () => void;
   onScanReceipt?: () => void;
   darkMode: boolean;
@@ -39,7 +39,7 @@ const Toggle: React.FC<{ on: boolean }> = ({ on }) => (
 const MoreSheet: React.FC<MoreSheetProps> = ({ open, onClose, activeTab, onNavigate, onAddTransaction, onScanReceipt, darkMode, onToggleDark, onLogout }) => {
   const [hideAmounts, toggleHideAmounts] = usePrivacy();
   const install = useInstall();
-  const go = (tab: 'income' | 'categories' | 'recurring' | 'settings') => { onNavigate(tab); onClose(); };
+  const go = (tab: 'income' | 'categories' | 'recurring' | 'debts' | 'settings') => { onNavigate(tab); onClose(); };
 
   return (
     <Sheet open={open} onClose={onClose} label="More">
@@ -49,6 +49,7 @@ const MoreSheet: React.FC<MoreSheetProps> = ({ open, onClose, activeTab, onNavig
         {onScanReceipt && <Row icon={<Camera size={18} />} label="Scan a receipt" detail={<span className="text-xs font-semibold text-indigo-600 dark:text-indigo-300">Camera</span>} onClick={() => { onClose(); onScanReceipt(); }} />}
         <Row icon={<FolderCog size={18} />} label="Categories" on={activeTab === 'categories'} onClick={() => go('categories')} />
         <Row icon={<Repeat size={18} />} label="Recurring" on={activeTab === 'recurring'} onClick={() => go('recurring')} />
+        <Row icon={<HandCoins size={18} />} label="Debts" on={activeTab === 'debts'} onClick={() => go('debts')} />
         <Row icon={<Settings size={18} />} label="Settings" on={activeTab === 'settings'} onClick={() => go('settings')} />
 
         <div className="mx-5 my-2 border-t border-slate-100 dark:border-neutral-700" />

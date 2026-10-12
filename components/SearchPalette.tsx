@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Search, Upload, EyeOff, Eye, Sparkles, Home, Wallet, Table, LayoutGrid, ArrowRightLeft, FolderCog, Settings, CornerDownLeft } from 'lucide-react';
+import { Search, Upload, EyeOff, Eye, Sparkles, Home, Wallet, Table, LayoutGrid, ArrowRightLeft, FolderCog, Settings, CornerDownLeft, HandCoins } from 'lucide-react';
 import { Transaction, Category } from '../types';
 import PlaceSheet, { PlacePick, PLACE_TINTS } from './PlaceSheet';
 import TxDetail, { userNote } from './TxDetail';
@@ -10,13 +10,15 @@ import { usePrivacy } from '../lib/privacy';
 import { MODAL_TRANSITION } from '../lib/motion';
 import { useBackClose } from '../lib/backStack';
 import { AskAnswer, buildVocab, askAI, runSearch } from '../lib/ask';
+import { balanceOf } from './DebtsPage';
+import type { Debt } from './DebtsPage';
 
 // Search: ⌘K on desktop (a centred box), or the search button on phone Home (a bubble that
 // drops in near the top, over a blurred Home, and grows down as results come in). One box for places, payments (and their notes), categories, pages and
 // actions. Spelling is matched loosely, so "kareem" finds Careem. A question goes to Ask.
 // Picking a place opens its panel (every payment, by month); a payment opens its details.
 
-type Tab = 'home' | 'history' | 'categories' | 'sheets' | 'breakdown' | 'recurring' | 'income' | 'ask' | 'settings';
+type Tab = 'home' | 'history' | 'categories' | 'sheets' | 'breakdown' | 'recurring' | 'income' | 'ask' | 'debts' | 'settings';
 
 interface SearchPaletteProps {
   open: boolean;
@@ -32,6 +34,9 @@ interface SearchPaletteProps {
   onViewCategory: (categoryId: string, subcategory: string | null, start: string, end: string) => void;
   // Opens Transactions on exactly what an Ask answer counted
   onOpenTransactions?: (o: { search: string; start: string; end: string; categoryId: string | null }) => void;
+  // Your debts, found by name; picking one opens it on the Debts page
+  debts?: Debt[];
+  onOpenDebt?: (id: string) => void;
 }
 
 type Scope = 'all' | 'places' | 'payments' | 'categories';
@@ -173,7 +178,7 @@ const QuickAnswer: React.FC<{ ans: AskAnswer; onSee?: () => void }> = ({ ans, on
   );
 };
 
-const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, transactions, categories, currency, getCategoryEmoji, onGo, onImport, onAsk, onViewCategory, onOpenTransactions }) => {
+const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, transactions, categories, currency, getCategoryEmoji, onGo, onImport, onAsk, onViewCategory, onOpenTransactions, debts = [], onOpenDebt }) => {
   const [q, setQ] = useState('');
   const [scope, setScope] = useState<Scope>('all');
   const [sel, setSel] = useState(0);
@@ -332,7 +337,7 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
     const PAGES: [Tab, string, React.ReactNode][] = [
       ['home', 'Dashboard', <Home size={16} />], ['income', 'Income', <Wallet size={16} />], ['breakdown', 'Breakdown', <Table size={16} />],
       ['sheets', 'Category Sheets', <LayoutGrid size={16} />], ['history', 'Transactions', <ArrowRightLeft size={16} />], ['ask', 'Ask', <Sparkles size={16} />],
-      ['categories', 'Categories', <FolderCog size={16} />], ['settings', 'Settings', <Settings size={16} />],
+      ['debts', 'Debts', <HandCoins size={16} />], ['categories', 'Categories', <FolderCog size={16} />], ['settings', 'Settings', <Settings size={16} />],
     ];
     const ACTIONS: Item[] = [
       { id: 'a-import', group: 'Actions', icon: <Upload size={16} />, title: 'Import a statement', sub: 'Upload a CSV from your bank', run: done(onImport) },
@@ -398,6 +403,24 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
       out.push(...hits);
     }
 
+    // Debts by name (e.g. "dad" finds "Loan from Dad"), the ones still owed first
+    if (scope === 'all' && onOpenDebt) {
+      debts
+        .map(d => ({ d, s: score(d.name, query) }))
+        .filter(x => x.s)
+        .sort((a, b) => Number(!!a.d.clearedAt) - Number(!!b.d.clearedAt) || b.s - a.s)
+        .slice(0, 4)
+        .forEach(({ d }) => {
+          const left = balanceOf(d).left;
+          out.push({
+            id: `d-${d.id}`, group: 'Debts', icon: <span className={`${iconBox} bg-indigo-50 dark:bg-indigo-950/50`}>{d.emoji}</span>,
+            title: d.name, sub: d.clearedAt ? 'Cleared' : `£${Math.round(left).toLocaleString('en-GB')} left of £${Math.round(d.borrowed).toLocaleString('en-GB')}`,
+            right: <span className="text-[11px] text-slate-400">Debt</span>,
+            run: done(() => onOpenDebt(d.id)),
+          });
+        });
+    }
+
     if (scope === 'all' || scope === 'categories') {
       const year = index.latestYear;
       const start = `${year}-01-01`, end = `${year}-12-31`;
@@ -425,12 +448,13 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ open, phone, onClose, tra
     }
 
     if (scope === 'all') {
-      PAGES.filter(([, label]) => score(label, query, false)).forEach(([tab, label, icon]) => out.push({ id: `p-${tab}`, group: 'Go to', icon: <span className={pageClass}>{icon}</span>, title: label, run: done(() => onGo(tab)) }));
+      // Debts also answers to loan / owe / borrowed / repay
+      PAGES.filter(([tab, label]) => score(label, query, false) || (tab === 'debts' && /^(loan|owe|borrow|repa|debt)/.test(query))).forEach(([tab, label, icon]) => out.push({ id: `p-${tab}`, group: 'Go to', icon: <span className={pageClass}>{icon}</span>, title: label, run: done(() => onGo(tab)) }));
       ACTIONS.filter(a => score(String(a.title), query, false)).forEach(a => out.push({ ...a, icon: <span className={actionClass}>{a.icon}</span> }));
       if (!isQuestion) out.push(askItem);
     }
     return out;
-  }, [q, scope, index, categories, recent, hideAmounts, currency, phone, thread, vocab]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [q, scope, index, categories, recent, hideAmounts, currency, phone, thread, vocab, debts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { setSel(0); }, [q, scope]);
   useEffect(() => {

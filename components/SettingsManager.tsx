@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Save, Trash2, Webhook, CheckCircle2, Building, Plus, CreditCard, ChevronRight, LogOut, Sparkles, X, Loader2, Sun, Moon, KeyRound, Eye, EyeOff, Bell } from 'lucide-react';
+import { Save, Trash2, Webhook, CheckCircle2, Building, Plus, CreditCard, ChevronRight, LogOut, Sparkles, X, Loader2, Sun, Moon, KeyRound, Eye, EyeOff, Bell, Table, FolderCog } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { Bank, MerchantMapping } from '../types';
 import { loadReminder, saveReminder, registerReminderSync, reminderSupport, ReminderPrefs, DEFAULT_REMINDER } from '../lib/offline';
@@ -15,6 +15,8 @@ interface SettingsManagerProps {
   darkMode?: boolean;
   onToggleDarkMode?: (val: boolean) => void;
   onLogout?: () => void;
+  // Pages that live in Settings rather than the sidebar
+  onOpenPage?: (tab: 'breakdown' | 'categories') => void;
   merchantMemory?: {
     totalCount: number;
     readyCount: number;
@@ -178,6 +180,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
   darkMode,
   onToggleDarkMode,
   onLogout,
+  onOpenPage,
   merchantMemory
 }) => {
   const [activeTab, setActiveTab] = useState<'general' | 'banks'>('general');
@@ -260,6 +263,23 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
           {/* GENERAL TAB */}
           {activeTab === 'general' && (
             <>
+            {onOpenPage && (
+              <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 mb-6 divide-y divide-slate-100 dark:divide-neutral-700 overflow-hidden">
+                {([
+                  ['breakdown', Table, 'Breakdown', 'Every category, month by month'],
+                  ['categories', FolderCog, 'Categories', 'Add, rename, colours and what counts'],
+                ] as const).map(([tab, Icon, title, sub]) => (
+                  <button key={tab} onClick={() => onOpenPage(tab)} className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-slate-50 dark:hover:bg-neutral-700/40 transition-colors">
+                    <Icon size={18} className="text-slate-500 dark:text-neutral-400" />
+                    <div className="flex-1">
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-neutral-200">{title}</h3>
+                      <p className="text-xs text-slate-500 dark:text-neutral-500">{sub}</p>
+                    </div>
+                    <ChevronRight size={16} className="text-slate-400" />
+                  </button>
+                ))}
+              </div>
+            )}
             {/* Dark Mode Toggle */}
             <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700 p-5 mb-6">
               <div className="flex items-center justify-between">

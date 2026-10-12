@@ -744,7 +744,7 @@ const TransactionsView: React.FC<TransactionsViewProps> = (p) => {
                   const hidden = isHidden(t);
                   const review = needsReview(t);
                   const income = t.type === 'INCOME';
-                  const catText = hidden ? (t.notCounted ? `Not counted${t.subcategoryName ? ` · ${t.subcategoryName}` : ''}` : 'Hidden from totals') : t.categoryId ? `${getCategoryEmoji(t.categoryId)} ${t.categoryName}` : 'Not categorised';
+                  const catText = hidden ? (t.debtRepayment ? `Debt repayment · ${t.debtRepayment}` : t.notCounted ? `Not counted${t.subcategoryName ? ` · ${t.subcategoryName}` : ''}` : 'Hidden from totals') : t.categoryId ? `${getCategoryEmoji(t.categoryId)} ${t.categoryName}` : 'Not categorised';
                   return (
                     <button
                       key={t.id}

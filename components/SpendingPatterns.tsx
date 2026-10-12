@@ -8,6 +8,8 @@ import {
 } from '../lib/periods';
 
 import PlaceSheet, { PlacePick, PLACE_TINTS } from './PlaceSheet';
+import { DebtsCard } from './DebtsPage';
+import type { Debt } from './DebtsPage';
 import CategorySheets from './CategorySheets';
 import { useMixedMerchants } from './MixedMerchants';
 import { needsReview } from './TransactionsView';
@@ -22,6 +24,9 @@ interface SpendingPatternsProps {
   lastImport?: string;
   onImport?: () => void;
   onOpenTransactions?: (view: 'review' | 'mixed') => void;
+  // The Debts card (in place of Regular payments) and where its button goes
+  debts?: Debt[];
+  onOpenDebts?: () => void;
 }
 
 
@@ -44,20 +49,7 @@ interface Spend {
   amount: number;
 }
 
-interface RegularPayment {
-  key: string; // merchantKey, to look the merchant's payments up again for a given month
-  gap: number; // 1 = monthly, 2 = every 2 months, 0 = no fixed schedule
-  name: string;
-  category: string;
-  months: number[];
-  count: number;
-  avg: number;
-  total: number;
-  note: string;
-  stale: boolean;
-}
-
-const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categories, currency, getCategoryEmoji, onViewTransactions, lastImport, onImport, onOpenTransactions }) => {
+const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categories, currency, getCategoryEmoji, onViewTransactions, lastImport, onImport, onOpenTransactions, debts, onOpenDebts }) => {
   const saved = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as { period?: PeriodId; unselected?: string[]; view?: 'total' | 'category'; level?: 'category' | 'subcategory'; merchantAmount?: 'month' | 'total'; placeRank?: 'spent' | 'visits'; snapshot?: string; catMode?: 'except' | 'only'; views?: { name: string; cats: string[] }[]; heroSplit?: number };
@@ -396,73 +388,6 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   const rankedMerchants = (placeRank === 'visits' ? [...merchants].sort((a, b) => b.count - a.count || b.total - a.total) : merchants).slice(0, 40);
   const merchantsShown = rankedMerchants.slice(0, moreMerchants ? 32 : 16);
   const merchantHalf = Math.ceil(merchantsShown.length / 2);
-  const shortDate = (d: string) => `${Number(d.slice(8, 10))} ${MONTHS[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}`;
-
-  // --- Regular payments, detected from repeat payments across all categories ---
-  // Always based on the last 6 imported months, whatever period is picked above — a single
-  // month can't show whether something repeats.
-  const regMonths = useMemo(() => Array.from({ length: 6 }, (_, i) => lastIdx - 5 + i), [lastIdx]);
-  const { bills, habits, billsPerMonth } = useMemo(() => {
-    const regRows = spends.filter(s => s.monthIdx >= regMonths[0] && s.monthIdx <= lastIdx);
-    const groups = new Map<string, Spend[]>();
-    regRows.forEach(s => { const k = merchantKey(s.desc); groups.set(k, [...(groups.get(k) || []), s]); });
-    const bills: RegularPayment[] = [];
-    const habits: RegularPayment[] = [];
-    groups.forEach((rows, key) => {
-      const ms = Array.from(new Set(rows.map(r => r.monthIdx))).sort((a, b) => a - b);
-      if (ms.length < 3) return;
-      const amounts = rows.map(r => r.amount);
-      const avgAmt = mean(amounts);
-      const cv = Math.sqrt(mean(amounts.map(x => (x - avgAmt) ** 2))) / avgAmt;
-      const nameCounts = new Map<string, number>();
-      rows.forEach(r => nameCounts.set(r.desc, (nameCounts.get(r.desc) || 0) + 1));
-      // Most common spelling, minus any month/year it carries ("Subscription fee for May 2026").
-      const name = Array.from(nameCounts.entries()).sort((a, b) => b[1] - a[1])[0][0]
-        .replace(/\s*(for\s+)?\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4}\b/i, '')
-        .trim();
-      const cats = new Map<string, number>();
-      rows.forEach(r => cats.set(r.cat, (cats.get(r.cat) || 0) + 1));
-      const category = Array.from(cats.entries()).sort((a, b) => b[1] - a[1])[0][0];
-      const totalAmt = sum(amounts);
-      const base = { key, gap: 0, name, category, months: ms, count: rows.length, avg: avgAmt, total: totalAmt };
-      if (cv < 0.25 && rows.length / ms.length <= 1.5) {
-        const gaps = ms.slice(1).map((m, i) => m - ms[i]);
-        const gap = gaps.every(g => g === 1) ? 1 : gaps.every(g => g === 2) ? 2 : 0;
-        const schedule = gap === 1 ? 'monthly' : gap === 2 ? 'every 2 months' : 'regular';
-        const stale = gap > 0 && lastIdx - ms[ms.length - 1] > gap;
-        bills.push({ ...base, gap, stale, note: `${category} · ${schedule}${stale ? ` · nothing since ${FULL_MONTHS[ms[ms.length - 1] % 12]}` : ''}` });
-      } else if (rows.length >= 8 && totalAmt >= (currency === 'GBP' ? 50 : 230)) {
-        habits.push({ ...base, stale: false, note: `${category} · ${rows.length} payments · ${fmt(totalAmt, 2)} total` });
-      }
-    });
-    bills.sort((a, b) => b.avg - a.avg);
-    habits.sort((a, b) => b.total - a.total);
-    const dataMonths = Math.max(1, new Set(regRows.map(s => s.monthIdx)).size);
-    return { bills: bills.slice(0, 8), habits: habits.slice(0, 6), billsPerMonth: sum(bills.map(b => b.total)) / dataMonths };
-    // fmt depends only on currency
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spends, regMonths, lastIdx, currency]);
-
-  // Month the regular-payments section checks: the bar selected in the chart, or the month of a
-  // single-month period. null = no month picked, so it shows the 6-month overview.
-  const checkMonth: number | null = win.single ? monthIdxs[0] : focusBucket ? focusBucket.key : null;
-  const checkLabel = checkMonth === null ? '' : `${FULL_MONTHS[checkMonth % 12]} ${Math.floor(checkMonth / 12)}`;
-  const paymentsIn = (key: string, mi: number) => spends.filter(s => s.monthIdx === mi && merchantKey(s.desc) === key);
-  const billStatus = (b: RegularPayment) => {
-    const mi = checkMonth!;
-    if (mi > lastIdx) return { tone: 'muted' as const, icon: '·', text: 'not imported yet', amount: null as number | null };
-    const rows = paymentsIn(b.key, mi);
-    if (rows.length) {
-      const d = rows.map(r => r.date.slice(0, 10)).sort()[0];
-      return { tone: 'ok' as const, icon: '✓', text: `paid ${Number(d.slice(8, 10))} ${MONTHS[mi % 12]}`, amount: sum(rows.map(r => r.amount)) };
-    }
-    const first = b.months[0], last = b.months[b.months.length - 1];
-    if (mi < first) return { tone: 'muted' as const, icon: '–', text: `started ${MONTHS[first % 12]}`, amount: null };
-    if (b.gap === 2 && (mi - first) % 2 !== 0) return { tone: 'muted' as const, icon: '–', text: 'not due this month', amount: null };
-    if (mi > last) return { tone: 'warn' as const, icon: '✗', text: `none since ${MONTHS[last % 12]}`, amount: null };
-    return { tone: 'warn' as const, icon: '✗', text: 'not paid this month', amount: null };
-  };
-  const billChecks = checkMonth === null ? [] : bills.map(b => ({ b, st: billStatus(b) }));
 
   // --- Money in: income for the period (or the selected month/day). Not affected by the
   // spending category ticks.
@@ -531,13 +456,6 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
     return { subject, now, base, diff: base > 0 ? (now - base) / base : null, partial: partial < 1 };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spends, unselected, inRange, win, monthIdxs, focusBucket?.key, lastIdx, period, total]);
-  const billsPaid = billChecks.filter(x => x.st.tone === 'ok');
-  const habitChecks = checkMonth === null ? [] : habits.map(h => {
-    const now = checkMonth > lastIdx ? null : sum(paymentsIn(h.key, checkMonth).map(r => r.amount));
-    const usual = h.total / Math.max(1, h.months.length);
-    return { h, now, usual, change: now === null || usual === 0 ? null : (now - usual) / usual };
-  });
-
   const trendText = trend === null ? '' : Math.abs(trend) < 0.05 ? 'about the same' : `${trend > 0 ? 'up' : 'down'} ${Math.round(Math.abs(trend) * 100)}%`;
   const trendClause = trend === null ? '' : trendLabel.startsWith('vs ')
     ? ` That's ${trendText} ${trendLabel.replace('vs ', Math.abs(trend) < 0.05 ? 'as ' : 'on ')}.`
@@ -601,20 +519,6 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
     return { cols, rows };
   }, [cols, colOf, catStats, chosen, level]);
   const compact = (v: number) => (v >= 1000 ? `${currency === 'GBP' ? '£' : 'AED '}${(v / 1000).toFixed(1)}k` : fmt(v));
-
-  const renderDots = (p: RegularPayment, color: string) => (
-    <div className="flex gap-1" aria-label={`Paid in ${p.months.map(m => MONTHS[m % 12]).join(', ')}`}>
-      {regMonths.map(mi => (
-        <span key={mi} className="flex flex-col items-center gap-0.5">
-          <span
-            className={`w-3.5 h-3.5 md:w-4 md:h-4 rounded ${p.months.includes(mi) ? '' : 'bg-slate-100 dark:bg-neutral-700'} ${mi === checkMonth ? 'ring-2 ring-offset-1 ring-slate-900 dark:ring-neutral-100 dark:ring-offset-neutral-800' : ''}`}
-            style={p.months.includes(mi) ? { background: color } : undefined}
-          />
-          <span className={`text-[8px] ${mi === checkMonth ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-400'}`}>{MONTHS[mi % 12][0]}</span>
-        </span>
-      ))}
-    </div>
-  );
 
   if (spends.length === 0) {
     return <div className={`${card} p-10 text-center text-sm text-slate-500`}>No spending to analyse yet.</div>;
@@ -1342,101 +1246,8 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
       </>
       )}
 
-      {/* Regular payments: a 6-month overview, or a check of the selected month */}
-      <section className={`${bigCard} p-6 md:p-7`}>
-        <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-1">
-          <h2 className="text-base md:text-lg font-semibold text-slate-900 dark:text-neutral-100">
-            Regular payments{checkMonth !== null && <> · <span className="text-indigo-700 dark:text-indigo-300">{checkLabel}</span></>}
-          </h2>
-          <span className="text-[11px] md:text-xs text-slate-500 dark:text-neutral-400">
-            {checkMonth !== null
-              ? <>Checked against your usual pattern.{!win.single && <> <button onClick={() => setFocusKey(null)} className="font-medium text-indigo-700 dark:text-indigo-300 hover:underline">Back to overview</button></>}</>
-              : 'Found automatically from your last 6 months. Select a month in the chart to check it.'}
-          </span>
-        </div>
-
-        {checkMonth === null ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 mt-4">
-            {[
-              { title: 'Bills · same amount, on a schedule', side: bills.length ? `≈ ${fmt(billsPerMonth)} a month` : '', rows: bills, color: '#312e81', empty: 'No regular bills found.' },
-              { title: 'Habits · frequent, amounts vary', side: 'Average per payment', rows: habits, color: '#f59e0b', empty: 'No frequent habits found.' },
-            ].map(col => (
-              <div key={col.title}>
-                <div className="flex justify-between items-baseline pb-2">
-                  <h3 className="text-sm font-semibold text-slate-900 dark:text-neutral-100">{col.title}</h3>
-                  <span className="text-[11px] text-slate-500 dark:text-neutral-400">{col.side}</span>
-                </div>
-                {col.rows.length === 0 && <p className="text-xs text-slate-500 py-2">{col.empty}</p>}
-                {col.rows.map(p => (
-                  <div key={p.name} className="grid grid-cols-[minmax(0,1fr)_auto_80px] md:grid-cols-[minmax(0,1fr)_auto_96px] gap-3 items-center py-2.5 border-t border-slate-100 dark:border-neutral-700">
-                    <div className="min-w-0">
-                      <div className="text-[13px] md:text-sm font-medium truncate text-slate-900 dark:text-neutral-100">{p.name}</div>
-                      <div className={`text-[11px] md:text-xs truncate ${p.stale ? 'text-amber-700 dark:text-amber-400' : 'text-slate-500 dark:text-neutral-400'}`}>{p.note}</div>
-                    </div>
-                    <div>{renderDots(p, col.color)}</div>
-                    <span className="text-[13px] md:text-sm font-semibold text-right text-slate-900 dark:text-neutral-100">{fmt(p.avg, 2)}</span>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 mt-4">
-            <div>
-              <div className="flex justify-between items-baseline pb-2">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-neutral-100">Bills · {MONTHS[checkMonth % 12]}</h3>
-                <span className="text-[11px] text-slate-500 dark:text-neutral-400">
-                  {billChecks.length ? `${billsPaid.length} of ${billChecks.filter(x => x.st.tone !== 'muted').length || billChecks.length} due paid · ${fmt(sum(billsPaid.map(x => x.st.amount || 0)), 2)}` : ''}
-                </span>
-              </div>
-              {billChecks.length === 0 && <p className="text-xs text-slate-500 py-2">No regular bills found.</p>}
-              {billChecks.map(({ b, st }) => (
-                <div key={b.name} className="grid grid-cols-[22px_minmax(0,1fr)_auto_80px] md:grid-cols-[22px_minmax(0,1fr)_auto_96px] gap-3 items-center py-2.5 border-t border-slate-100 dark:border-neutral-700">
-                  <span
-                    aria-label={st.tone === 'ok' ? 'Paid' : st.tone === 'warn' ? 'Not paid' : 'Not due'}
-                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${st.tone === 'ok' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : st.tone === 'warn' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' : 'bg-slate-100 text-slate-400 dark:bg-neutral-700'}`}
-                  >
-                    {st.icon}
-                  </span>
-                  <div className="min-w-0">
-                    <div className={`text-[13px] md:text-sm font-medium truncate ${st.tone === 'muted' ? 'text-slate-500 dark:text-neutral-400' : 'text-slate-900 dark:text-neutral-100'}`}>{b.name}</div>
-                    <div className={`text-[11px] md:text-xs truncate ${st.tone === 'warn' ? 'text-amber-700 dark:text-amber-400' : 'text-slate-500 dark:text-neutral-400'}`}>{b.category} · {st.text}</div>
-                  </div>
-                  <div className="hidden sm:block">{renderDots(b, '#312e81')}</div>
-                  <span className={`text-[13px] md:text-sm text-right ${st.amount !== null ? 'font-semibold text-slate-900 dark:text-neutral-100' : 'text-slate-400 dark:text-neutral-500'}`}>
-                    {st.amount !== null ? fmt(st.amount, 2) : `~${fmt(b.avg, 2)}`}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div>
-              <div className="flex justify-between items-baseline pb-2">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-neutral-100">Habits · {MONTHS[checkMonth % 12]} vs your usual month</h3>
-              </div>
-              {habitChecks.length === 0 && <p className="text-xs text-slate-500 py-2">No frequent habits found.</p>}
-              {habitChecks.map(({ h, now, usual, change }) => (
-                <div key={h.name} className="grid grid-cols-[minmax(0,1fr)_auto_80px] md:grid-cols-[minmax(0,1fr)_auto_96px] gap-3 items-center py-2.5 border-t border-slate-100 dark:border-neutral-700">
-                  <div className="min-w-0">
-                    <div className="text-[13px] md:text-sm font-medium truncate text-slate-900 dark:text-neutral-100">{h.name}</div>
-                    <div className="text-[11px] md:text-xs truncate text-slate-500 dark:text-neutral-400">
-                      {h.category} · usually {fmt(usual)} a month{' '}
-                      {change !== null && (
-                        <span className={`font-semibold ${now === 0 || Math.abs(change) < 0.15 ? 'text-slate-500 dark:text-neutral-400' : change > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
-                          · {now === 0 ? 'none this month' : Math.abs(change) < 0.15 ? 'about usual' : `${change > 0 ? '↑' : '↓'} ${Math.round(Math.abs(change) * 100)}%`}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="hidden sm:block">{renderDots(h, '#f59e0b')}</div>
-                  <span className={`text-[13px] md:text-sm text-right ${now ? 'font-semibold text-slate-900 dark:text-neutral-100' : 'text-slate-400 dark:text-neutral-500'}`}>
-                    {now === null ? 'no data' : now > 0 ? fmt(now, 2) : 'none'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </section>
+      {/* Debts: what you owe, at a glance (the full list is on the Debts page) */}
+      <DebtsCard debts={debts || []} onOpen={onOpenDebts} />
       {catPanel && (
         <CategorySheets
           key={catPanel.n}

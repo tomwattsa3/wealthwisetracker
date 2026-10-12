@@ -27,6 +27,8 @@ const IncomePage = lazy(() => import('./components/IncomePage'));
 const AskPage = lazy(() => import('./components/AskPage'));
 const SearchPalette = lazy(() => import('./components/SearchPalette'));
 const CameraSheet = lazy(() => import('./components/CameraSheet'));
+const DebtsPage = lazy(() => import('./components/DebtsPage'));
+import { useDebts } from './lib/debts';
 import DashboardSkeleton from './components/DashboardSkeleton';
 import { loadSnapshot, saveSnapshot, clearSnapshot, saveLastImport } from './lib/offline';
 import SegmentedControl from './components/SegmentedControl';
@@ -34,8 +36,8 @@ import {
   LayoutDashboard, Plus, Home,
   ChevronLeft, ChevronRight, EyeOff, TrendingUp,
   Car, Plane, Smartphone, Coffee, ShoppingBag, PoundSterling, Activity, X,
-  FolderCog, CalendarRange, LayoutGrid, ArrowRightLeft, Settings,
-  RotateCcw, Loader2, LogOut, Sparkles, Sun, Moon, Table, Eye, MoreHorizontal, Wallet, Search
+  CalendarRange, LayoutGrid, ArrowRightLeft, Settings,
+  RotateCcw, Loader2, LogOut, Sparkles, Sun, Moon, Eye, MoreHorizontal, Wallet, Search, HandCoins
 } from 'lucide-react';
 
 // Helper for category icons
@@ -171,9 +173,24 @@ const App: React.FC = () => {
   // payments still show everywhere but are left out of totals, by treating them like hidden
   // payments (excluded) in every view; notCounted lets the views label them. Saved to the account.
   const [notCounted, setNotCounted] = useState<Set<string>>(new Set());
-  const countedTransactions = useMemo(() => (notCounted.size === 0 ? transactions : transactions.map(t =>
-    !t.excluded && t.categoryId && notCounted.has(`${t.categoryId}\u0001${(t.subcategoryName || '').trim()}`) ? { ...t, excluded: true, notCounted: true } : t
-  )), [transactions, notCounted]);
+  // Debts (the Debts page and the Dashboard card), from the debts and debt_payments tables
+  const { debts, actions: debtActions, error: debtsError, clearError: clearDebtsError, reload: reloadDebts } = useDebts(session?.user?.id);
+  // A debt picked in search, opened once the Debts page shows
+  const [debtToOpen, setDebtToOpen] = useState<string | null>(null);
+  // Bank payments linked to a debt as repayments: transaction id -> the debt's name. Like
+  // not-counted subcategories, they still show but are left out of totals.
+  // Only the ones left out of spending (a debt's default, or the payment's own choice) are listed.
+  const debtLinks = useMemo(() => {
+    const m = new Map<string, string>();
+    debts.forEach(d => d.payments.forEach(p => { if (p.transactionId && !(p.counted ?? d.countAsSpending)) m.set(p.transactionId, d.name); }));
+    return m;
+  }, [debts]);
+  const countedTransactions = useMemo(() => (notCounted.size === 0 && debtLinks.size === 0 ? transactions : transactions.map(t => {
+    if (t.excluded) return t;
+    const debt = debtLinks.get(String(t.id));
+    if (debt) return { ...t, excluded: true, notCounted: true, debtRepayment: debt };
+    return t.categoryId && notCounted.has(`${t.categoryId}\u0001${(t.subcategoryName || '').trim()}`) ? { ...t, excluded: true, notCounted: true } : t;
+  })), [transactions, notCounted, debtLinks]);
   useEffect(() => {
     if (!session?.user?.id) return;
     const list = session.user.user_metadata?.notCounted;
@@ -343,14 +360,14 @@ const App: React.FC = () => {
 
   // 'home' is the Dashboard (spending patterns); 'sheets' is Category Sheets, the per-category
   // merchant cards that used to be the dashboard.
-  const [activeTab, setActiveTab] = useState<'home' | 'history' | 'categories' | 'sheets' | 'breakdown' | 'recurring' | 'income' | 'ask' | 'settings'>(() => {
+  const [activeTab, setActiveTab] = useState<'home' | 'history' | 'categories' | 'sheets' | 'breakdown' | 'recurring' | 'income' | 'ask' | 'debts' | 'settings'>(() => {
     const saved = localStorage.getItem('activeTab');
     // 'yearly' was the old Analytics tab, now the Dashboard.
     if (saved === 'yearly') return 'home';
     // Ask is a desktop page; a phone that last had it open starts on Home.
     if (saved === 'ask' && window.innerWidth < 768) return 'home';
-    if (saved && ['home', 'history', 'categories', 'sheets', 'breakdown', 'recurring', 'income', 'ask', 'settings'].includes(saved)) {
-      return saved as 'home' | 'history' | 'categories' | 'sheets' | 'breakdown' | 'recurring' | 'income' | 'ask' | 'settings';
+    if (saved && ['home', 'history', 'categories', 'sheets', 'breakdown', 'recurring', 'income', 'ask', 'debts', 'settings'].includes(saved)) {
+      return saved as 'home' | 'history' | 'categories' | 'sheets' | 'breakdown' | 'recurring' | 'income' | 'ask' | 'debts' | 'settings';
     }
     return 'home';
   });
@@ -377,12 +394,19 @@ const App: React.FC = () => {
     return () => mql.removeEventListener('change', onChange);
   }, []);
 
+  // Breakdown and Categories open from Settings, so Settings stays lit in the sidebar while you're in them.
+  const navOn = (id: string) => activeTab === id || (id === 'settings' && (activeTab === 'breakdown' || activeTab === 'categories'));
   const handleTabChange = useCallback((newTab: typeof activeTab) => {
     if (mainRef.current) {
       scrollPositions.current[activeTab] = mainRef.current.scrollTop;
     }
     setActiveTab(newTab);
   }, [activeTab]);
+  // Fetch debts again when you open the Debts page or the Dashboard, so changes made on another
+  // device show up.
+  useEffect(() => {
+    if (activeTab === 'debts' || activeTab === 'home') void reloadDebts();
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
   const restoreScrollOnMount = useCallback((el: HTMLDivElement | null) => {
     if (el && mainRef.current) {
       mainRef.current.scrollTop = scrollPositions.current[activeTab] ?? 0;
@@ -1100,7 +1124,7 @@ const App: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     const tab = params.get('tab');
     const action = params.get('action');
-    if (tab && ['home', 'history', 'categories', 'sheets', 'breakdown', 'recurring', 'income', 'ask', 'settings'].includes(tab)) setActiveTab(tab as typeof activeTab);
+    if (tab && ['home', 'history', 'categories', 'sheets', 'breakdown', 'recurring', 'income', 'ask', 'debts', 'settings'].includes(tab)) setActiveTab(tab as typeof activeTab);
     if (action === 'import') setImportOpen(true);
     if (tab || action) window.history.replaceState(null, '', window.location.pathname);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1858,19 +1882,18 @@ const App: React.FC = () => {
              {[
                { id: 'home', icon: Home, label: 'Dashboard', mobileLabel: 'Home', mobileOnly: true, desktopOrder: 'md:order-1' },
                { id: 'income', icon: Wallet, label: 'Income', mobileLabel: 'Income', mobileOnly: true, desktopOrder: 'md:order-2' },
-               { id: 'breakdown', icon: Table, label: 'Breakdown', mobileLabel: 'Breakdown', mobileOnly: false, desktopOrder: 'md:order-3' },
                { id: 'sheets', icon: LayoutGrid, label: 'Category Sheets', mobileLabel: 'Sheets', mobileOnly: true, desktopOrder: 'md:order-4' },
                { id: 'history', icon: ArrowRightLeft, label: 'Transactions', mobileLabel: 'Trans', mobileOnly: true, desktopOrder: 'md:order-5' },
                { id: 'ask', icon: Sparkles, label: 'Ask', mobileLabel: 'Ask', mobileOnly: false, desktopOrder: 'md:order-6' },
-               { id: 'categories', icon: FolderCog, label: 'Categories', mobileLabel: 'Cats', mobileOnly: false, desktopOrder: 'md:order-7' },
-               { id: 'settings', icon: Settings, label: 'Settings', mobileLabel: 'Settings', mobileOnly: false, desktopOrder: 'md:order-8' }
+               { id: 'debts', icon: HandCoins, label: 'Debts', mobileLabel: 'Debts', mobileOnly: false, desktopOrder: 'md:order-7' },
+               { id: 'settings', icon: Settings, label: 'Settings', mobileLabel: 'Settings', mobileOnly: false, desktopOrder: 'md:order-9' }
              ].map((item) => (
                <button
                  key={item.id}
                  onClick={() => handleTabChange(item.id as any)}
                  className={`
                    flex flex-col md:flex-row md:gap-3 p-1.5 md:p-2.5 min-h-[48px] min-w-[56px] md:min-h-0 md:min-w-0 items-center justify-center rounded-lg md:rounded-xl transition-colors duration-150 active:scale-95 group relative flex-shrink-0
-                   ${activeTab === item.id
+                   ${navOn(item.id)
                      ? 'text-slate-900 dark:text-neutral-200 font-semibold'
                      : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-200 hover:bg-slate-50 dark:hover:bg-neutral-700'}
                    ${!isSidebarCollapsed ? 'md:justify-start md:px-3' : ''}
@@ -1878,14 +1901,14 @@ const App: React.FC = () => {
                    ${item.desktopOrder}
                  `}
                >
-                 {activeTab === item.id && (
+                 {navOn(item.id) && (
                    <motion.div
                      layoutId="activeNavPill"
                      className="absolute inset-0 bg-slate-100 dark:bg-neutral-700 rounded-lg md:rounded-xl -z-10"
                      transition={{ duration: DURATION.page, ease: EASE_OUT }}
                    />
                  )}
-                 <item.icon size={18} strokeWidth={activeTab === item.id ? 2.5 : 2} />
+                 <item.icon size={18} strokeWidth={navOn(item.id) ? 2.5 : 2} />
                  {/* Mobile label */}
                  <span className="text-[9px] mt-0.5 md:hidden">{item.mobileLabel}</span>
                  {/* Desktop label */}
@@ -1904,9 +1927,9 @@ const App: React.FC = () => {
                onClick={() => setMoreOpen(true)}
                aria-haspopup="dialog"
                aria-expanded={moreOpen}
-               className={`md:hidden flex flex-col p-1.5 min-h-[48px] min-w-[56px] items-center justify-center rounded-lg transition-colors duration-150 active:scale-95 relative flex-shrink-0 ${moreOpen || ['categories', 'recurring', 'settings'].includes(activeTab) ? 'text-slate-900 dark:text-neutral-200 font-semibold' : 'text-slate-500 dark:text-neutral-500'}`}
+               className={`md:hidden flex flex-col p-1.5 min-h-[48px] min-w-[56px] items-center justify-center rounded-lg transition-colors duration-150 active:scale-95 relative flex-shrink-0 ${moreOpen || ['categories', 'recurring', 'debts', 'settings'].includes(activeTab) ? 'text-slate-900 dark:text-neutral-200 font-semibold' : 'text-slate-500 dark:text-neutral-500'}`}
              >
-               {['categories', 'recurring', 'settings'].includes(activeTab) && (
+               {['categories', 'recurring', 'debts', 'settings'].includes(activeTab) && (
                  <span className="absolute inset-0 bg-slate-100 dark:bg-neutral-700 rounded-lg -z-10" />
                )}
                <MoreHorizontal size={18} strokeWidth={moreOpen ? 2.5 : 2} />
@@ -2030,7 +2053,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Top Bar with Filter & Search (Hidden in Cat/Yearly View) */}
-          {activeTab !== 'categories' && activeTab !== 'home' && activeTab !== 'sheets' && activeTab !== 'breakdown' && activeTab !== 'settings' && activeTab !== 'history' && activeTab !== 'income' && activeTab !== 'ask' && (
+          {activeTab !== 'categories' && activeTab !== 'home' && activeTab !== 'sheets' && activeTab !== 'breakdown' && activeTab !== 'settings' && activeTab !== 'history' && activeTab !== 'income' && activeTab !== 'ask' && activeTab !== 'debts' && (
             <div className="flex flex-col gap-2 mb-1 md:gap-4 md:mb-8">
 
                 {/* Mobile Dashboard Headline */}
@@ -2189,6 +2212,8 @@ const App: React.FC = () => {
                   />
                 ) : (
                   <SpendingPatterns
+                    debts={debts}
+                    onOpenDebts={() => handleTabChange('debts')}
                     transactions={countedTransactions}
                     categories={categories}
                     currency={currency}
@@ -2304,6 +2329,11 @@ const App: React.FC = () => {
              </div>
           )}
 
+           {/* DEBTS VIEW */}
+           {activeTab === 'debts' && (
+             <DebtsPage debts={debts} actions={debtActions} error={debtsError} onDismissError={clearDebtsError} transactions={transactions} openId={debtToOpen} onOpened={() => setDebtToOpen(null)} />
+           )}
+
            {/* SETTINGS VIEW */}
            {activeTab === 'settings' && (
              <div className="h-full">
@@ -2316,6 +2346,7 @@ const App: React.FC = () => {
                     onLogout={handleLogout}
                     darkMode={darkMode}
                     onToggleDarkMode={setDarkMode}
+                    onOpenPage={(tab) => handleTabChange(tab)}
                     merchantMemory={{
                       totalCount: merchantMappings.length,
                       readyCount: merchantMappings.filter(m => (m.count || 0) >= MAPPING_THRESHOLD).length,
@@ -2656,6 +2687,8 @@ const App: React.FC = () => {
           currency={currency}
           getCategoryEmoji={getCategoryEmoji}
           onGo={(tab) => handleTabChange(tab)}
+          debts={debts}
+          onOpenDebt={(id) => { setDebtToOpen(id); handleTabChange('debts'); }}
           onImport={() => setImportOpen(true)}
           onAsk={(question) => { setAskSeed({ q: question, n: Date.now() }); handleTabChange('ask'); }}
           onOpenTransactions={({ search, start, end, categoryId }) => {
