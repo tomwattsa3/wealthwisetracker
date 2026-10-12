@@ -6,8 +6,11 @@ import { MONTHS, merchantKey, sum, localToday } from './periods';
 // question into a search; runSearch runs that search on your own transactions and adds
 // everything up here, so every number is the app's own.
 
+export interface AskGroup { label: string; places: string[]; categories: string[]; subcategories: string[] }
+export type GroupBy = '' | 'category' | 'subcategory' | 'place' | 'month' | 'weekday' | 'day' | 'payment' | 'bank';
 export interface AskSearch {
-  metric: 'total' | 'count' | 'average' | 'per_month' | 'per_week' | 'per_day' | 'by_month' | 'by_day' | 'biggest_payment' | 'biggest_day' | 'compare' | 'on_track' | 'suggest_budget' | 'budget_left' | 'net' | 'unsupported';
+  metric: 'total' | 'count' | 'average' | 'per_month' | 'per_week' | 'per_day' | 'by_month' | 'by_day' | 'biggest_payment' | 'biggest_day' | 'compare' | 'on_track' | 'suggest_budget' | 'budget_left' | 'net'
+    | 'compare_groups' | 'top' | 'list' | 'last_payment' | 'share_of_income' | 'net_by_month' | 'what_if' | 'projection' | 'duplicates' | 'new_places' | 'unsupported';
   direction: 'out' | 'in' | 'both';
   places: string[];
   categories: string[];
@@ -20,6 +23,21 @@ export interface AskSearch {
   understood: string;
   reason?: string;
   budget_amount?: number;
+  // Two or more things side by side over the same dates (compare_groups)
+  groups?: AskGroup[];
+  // Rankings (top): what to group by, highest or lowest first, by money / how often / average
+  group_by?: GroupBy;
+  rank?: 'top' | 'bottom';
+  rank_by?: 'amount' | 'count' | 'average';
+  limit?: number;
+  // Extra filters (0 / empty = none)
+  min_amount?: number;
+  max_amount?: number;
+  weekdays?: number[]; // 1 = Monday … 7 = Sunday
+  days_of_month?: number[];
+  include_hidden?: boolean; // also look at payments left out of totals (transfers, refunds, excluded…)
+  uncategorised?: boolean; // only payments with no category
+  change_pct?: number; // what_if: e.g. -50 for "cut by half"
 }
 
 export interface Row { t: Transaction; date: string; amount: number; name: string }
@@ -28,8 +46,10 @@ export interface AskAnswer {
   metric: AskSearch['metric'];
   // For per_month / per_week / per_day: shown after the big figure ("a month")
   per?: string;
-  // For by_month / by_day: each month's or day's total, oldest first
-  breakdown?: { label: string; value: number }[];
+  // For by_month / by_day: each month's or day's total, oldest first. Also rankings and side-by-side
+  // groups (value may be a count or a percentage, see breakdownUnit; net can be negative).
+  breakdown?: { label: string; value: number; sub?: string }[];
+  breakdownUnit?: 'money' | 'count';
   scope: string;
   big: string;
   unit: string;
@@ -57,22 +77,34 @@ export const runSearch = (s: AskSearch, transactions: Transaction[], categories:
   const cats = (s.categories || []).map(lc);
   const subs = (s.subcategories || []).map(lc);
 
-  const match = (t: Transaction, start: string, end: string) => {
-    if (hidden(t) || !/^\d{4}-\d{2}-\d{2}/.test(t.date)) return false;
+  type Filter = { places: { key: string; raw: string }[]; cats: string[]; subs: string[] };
+  const mainFilter: Filter = { places, cats, subs };
+  const minA = Number(s.min_amount) || 0, maxA = Number(s.max_amount) || 0;
+  const weekdays = (s.weekdays || []).filter(n => n >= 1 && n <= 7);
+  const dom = (s.days_of_month || []).filter(n => n >= 1 && n <= 31);
+  const weekdayOf = (d: string) => { const g = new Date(`${d}T12:00:00`).getDay(); return g === 0 ? 7 : g; };
+  const match = (t: Transaction, start: string, end: string, f: Filter = mainFilter) => {
+    if ((!s.include_hidden && hidden(t)) || !/^\d{4}-\d{2}-\d{2}/.test(t.date)) return false;
     const d = t.date.slice(0, 10);
     if (d < start || d > end) return false;
     if (s.direction === 'out' && t.type !== 'EXPENSE') return false;
     if (s.direction === 'in' && t.type !== 'INCOME') return false;
-    if (places.length) {
+    if (f.places.length) {
       const desc = lc(t.description), k = merchantKey(t.description || '');
-      if (!places.some(p => (p.key && p.key === k) || (p.raw && desc.includes(p.raw)))) return false;
+      if (!f.places.some(p => (p.key && p.key === k) || (p.raw && desc.includes(p.raw)))) return false;
     }
-    if (cats.length && !cats.includes(lc(t.categoryName))) return false;
-    if (subs.length && !subs.includes(lc(t.subcategoryName))) return false;
+    if (f.cats.length && !f.cats.includes(lc(t.categoryName))) return false;
+    if (f.subs.length && !f.subs.includes(lc(t.subcategoryName))) return false;
+    if (s.uncategorised && t.categoryId && lc(t.categoryName)) return false;
+    const a = amt(t);
+    if (minA && a < minA) return false;
+    if (maxA && a > maxA) return false;
+    if (weekdays.length && !weekdays.includes(weekdayOf(d))) return false;
+    if (dom.length && !dom.includes(Number(d.slice(8, 10)))) return false;
     return true;
   };
-  const pick = (start: string, end: string): Row[] => transactions
-    .filter(t => match(t, start, end))
+  const pick = (start: string, end: string, f: Filter = mainFilter): Row[] => transactions
+    .filter(t => match(t, start, end, f))
     .map(t => ({ t, date: t.date.slice(0, 10), amount: amt(t), name: (t.description || '').trim() }))
     .sort((a, b) => b.date.localeCompare(a.date));
 
@@ -176,6 +208,110 @@ export const runSearch = (s: AskSearch, transactions: Transaction[], categories:
       bars: [], listTitle: '', rows: [] };
   }
 
+
+  // ---- Side by side, rankings, lists and checks ----
+  const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const endToday = s.end > todayStr ? todayStr : s.end;
+  const monthsIn = (a: string, b: string) => {
+    const out: { key: string; label: string; y: number; m: number }[] = [];
+    const A = new Date(`${a}T12:00:00`), B = new Date(`${b}T12:00:00`);
+    const multi = A.getFullYear() !== B.getFullYear();
+    for (let y = A.getFullYear(), m = A.getMonth(); (y < B.getFullYear() || (y === B.getFullYear() && m <= B.getMonth())) && out.length < 36; m === 11 ? (y++, m = 0) : m++) {
+      out.push({ key: monthKeyOf(y, m), label: multi ? `${MONTHS[m]} ${String(y).slice(2)}` : MONTHS[m], y, m });
+    }
+    return out;
+  };
+  const countWeekday = (wd: number, a: string, b: string) => {
+    let c = 0;
+    for (let t = new Date(`${a}T12:00:00`).getTime(); t <= new Date(`${b}T12:00:00`).getTime(); t += DAY) {
+      const g = new Date(t).getDay(); if ((g === 0 ? 7 : g) === wd) c++;
+    }
+    return Math.max(1, c);
+  };
+
+  if (s.metric === 'compare_groups') {
+    const groups = (s.groups || []).filter(g => g && (g.places?.length || g.categories?.length || g.subcategories?.length)).slice(0, 6);
+    if (groups.length < 2) return { ...base, big: '—', unit: 'needs two things to compare', text: 'Name two things to compare, e.g. "Meals Out vs Food Delivery last month".', bars: [], listTitle: '', rows: [] };
+    const res = groups.map(g => {
+      const f: Filter = { places: (g.places || []).map(p => ({ key: merchantKey(p), raw: lc(p) })), cats: (g.categories || []).map(lc), subs: (g.subcategories || []).map(lc) };
+      const r = pick(s.start, s.end, f);
+      return { label: g.label || [...(g.subcategories || []), ...(g.categories || []), ...(g.places || [])].join(' + ') || 'Other', rows: r, total: sum(r.map(x => x.amount)) };
+    });
+    const sorted = [...res].sort((a, b) => b.total - a.total);
+    const all = res.reduce((acc, g) => acc + g.total, 0);
+    const [hi, lo] = sorted;
+    const seen = new Set<Transaction>();
+    const union = res.flatMap(g => g.rows).filter(r => (seen.has(r.t) ? false : (seen.add(r.t), true))).sort((a, b) => b.date.localeCompare(a.date));
+    const two = res.length === 2;
+    return { ...base, breakdownUnit: 'money', breakdown: res.map(g => ({ label: g.label, value: g.total, sub: `${pay(g.rows.length)}` })),
+      big: two ? (lo.total > 0 ? `${fmt(hi.total - lo.total)}` : fmt(hi.total)) : fmt(all), per: two ? `more on ${hi.label}` : 'in total',
+      unit: res.map(g => `${g.label} ${fmt(g.total)}`).join(' · '),
+      text: `${two ? `${hi.label} was ${fmt(hi.total)} and ${lo.label} ${fmt(lo.total)}${lo.total > 0 ? ` (${Math.round((hi.total / lo.total) * 10) / 10}× as much)` : ''}.` : `${hi.label} was the highest at ${fmt(hi.total)}.`} Together ${fmt(all)}.`,
+      bars: [], listTitle: `${pay(union.length)}, newest first`, rows: union };
+  }
+
+  if (s.metric === 'share_of_income') {
+    const income = transactions.filter(t => !hidden(t) && t.type === 'INCOME' && /^\d{4}-\d{2}-\d{2}/.test(t.date) && t.date.slice(0, 10) >= s.start && t.date.slice(0, 10) <= s.end).reduce((a, t) => a + amt(t), 0);
+    const pct = income > 0 ? (total / income) * 100 : 0;
+    return { ...base, per: 'of your income', big: income > 0 ? `${Math.round(pct)}%` : '—', unit: `${fmt(total)} of ${fmt(income)} that came in`,
+      text: income > 0 ? `${fmt(total)} went on this, out of ${fmt(income)} income over the same dates.` : 'No income recorded over those dates.', bars, listTitle: `${pay(n)}, newest first`, rows };
+  }
+
+  if (s.metric === 'net_by_month') {
+    const ms = monthsIn(s.start, endToday);
+    const inOut = (dir: 'INCOME' | 'EXPENSE', key: string) => transactions.filter(t => !hidden(t) && t.type === dir && (t.date || '').startsWith(key)).reduce((a, t) => a + amt(t), 0);
+    const breakdown = ms.map(m => { const i = inOut('INCOME', m.key), o = inOut('EXPENSE', m.key); return { label: m.label, value: i - o, sub: `${fmt(i)} in · ${fmt(o)} out${i > 0 ? ` · kept ${Math.round(((i - o) / i) * 100)}%` : ''}` }; });
+    const tot = sum(breakdown.map(b => b.value));
+    const bad = breakdown.filter(b => b.value < 0);
+    return { ...base, breakdownUnit: 'money', breakdown, green: tot >= 0, per: tot >= 0 ? 'saved in total' : 'overspent in total', big: fmt(Math.abs(tot)),
+      unit: `over ${ms.length} month${ms.length === 1 ? '' : 's'}`,
+      text: bad.length ? `You spent more than came in during ${bad.map(b => b.label).join(', ')}.` : 'You kept money back every month.', bars: [], listTitle: '', rows: [] };
+  }
+
+  if (s.metric === 'what_if') {
+    const ms = monthsIn(s.start, endToday).length || 1;
+    const perMonth = total / ms;
+    const pct = Math.max(-100, Math.min(100, Number(s.change_pct) || -50));
+    const save = -perMonth * (pct / 100);
+    return { ...base, green: save >= 0, per: save >= 0 ? 'a year saved' : 'a year extra', big: fmt(Math.abs(save * 12)),
+      unit: `${fmt(Math.abs(save))} a month · now about ${fmt(perMonth)} a month`,
+      text: `You spend about ${fmt(perMonth)} a month on this. ${pct < 0 ? `Cutting it by ${Math.abs(pct)}%` : `Raising it by ${pct}%`} ${save >= 0 ? 'saves' : 'costs'} about ${fmt(Math.abs(save))} a month, or ${fmt(Math.abs(save * 12))} a year.`,
+      bars, listTitle: `${pay(n)}, newest first`, rows };
+  }
+
+  if (s.metric === 'projection') {
+    const days = Math.max(1, Math.round((new Date(`${endToday}T12:00:00`).getTime() - new Date(`${s.start}T12:00:00`).getTime()) / DAY) + 1);
+    const full = Math.max(days, Math.round((new Date(`${s.end}T12:00:00`).getTime() - new Date(`${s.start}T12:00:00`).getTime()) / DAY) + 1);
+    const projected = (total / days) * full;
+    return { ...base, per: `by ${dateLabel(s.end)}`, big: fmt(projected), unit: `${fmt(total)} so far after ${days} of ${full} days`,
+      text: `At your pace so far (${total / days >= 100 ? fmt(total / days) : fmt2(total / days)} a day), you'd reach about ${fmt(projected)} by ${dateLabel(s.end)}.`, bars, listTitle: `${pay(n)}, newest first`, rows };
+  }
+
+  if (s.metric === 'new_places') {
+    const first = new Map<string, { name: string; date: string }>();
+    transactions.filter(t => !hidden(t) && t.type === 'EXPENSE' && t.description && /^\d{4}-\d{2}-\d{2}/.test(t.date)).forEach(t => {
+      const k = merchantKey(t.description) || lc(t.description); const d = t.date.slice(0, 10);
+      const e = first.get(k); if (!e || d < e.date) first.set(k, { name: t.description.trim(), date: d });
+    });
+    const fresh = rows.filter(r => { const e = first.get(merchantKey(r.name) || lc(r.name)); return e && e.date >= s.start && e.date <= s.end; });
+    const byPlace = new Map<string, { name: string; v: number; n: number; d: string }>();
+    fresh.forEach(r => { const k = merchantKey(r.name) || lc(r.name); const e = byPlace.get(k) || { name: r.name, v: 0, n: 0, d: r.date }; e.v += r.amount; e.n++; if (r.date < e.d) e.d = r.date; byPlace.set(k, e); });
+    const list = Array.from(byPlace.values()).sort((a, b) => b.v - a.v);
+    return { ...base, breakdownUnit: 'money', breakdown: list.slice(0, 15).map(e => ({ label: e.name, value: e.v, sub: `first on ${shortDate(e.d)} · ${pay(e.n)}` })),
+      big: `${list.length}`, per: list.length === 1 ? 'new place' : 'new places', unit: `${fmt(sum(list.map(e => e.v)))} spent at them`,
+      text: list.length ? `First-time places: ${list.slice(0, 5).map(e => e.name).join(', ')}${list.length > 5 ? '…' : ''}.` : 'No new places in that period.', bars: [], listTitle: `${pay(fresh.length)} at new places`, rows: fresh };
+  }
+
+  if (s.metric === 'duplicates') {
+    const key = (r: Row) => `${r.date}|${r.amount.toFixed(2)}|${merchantKey(r.name) || lc(r.name)}`;
+    const counts = new Map<string, number>();
+    rows.forEach(r => counts.set(key(r), (counts.get(key(r)) || 0) + 1));
+    const dup = rows.filter(r => (counts.get(key(r)) || 0) > 1);
+    const sets = Array.from(new Set(dup.map(key))).length;
+    return { ...base, big: `${sets}`, per: sets === 1 ? 'possible double charge' : 'possible double charges', unit: dup.length ? `${fmt(sum(dup.map(r => r.amount)) / 2)} or so charged twice` : 'nothing charged twice',
+      text: dup.length ? 'Same place, same amount, same day. Check them in Transactions.' : 'No payments with the same place, amount and day.', bars: [], listTitle: `${pay(dup.length)} that look doubled`, rows: dup };
+  }
+
   if (!n && s.metric !== 'compare') {
     return { ...base, big: green ? fmt(0) : '—', unit: 'nothing found', text: 'No payments match that. Try a wider date range, or check the name is spelt the way it appears in Transactions.', bars, listTitle: 'No payments', rows: [] };
   }
@@ -209,8 +345,17 @@ export const runSearch = (s: AskSearch, transactions: Transaction[], categories:
         }
       }
       const word = s.metric === 'by_month' ? 'month' : 'day';
-      return { ...base, breakdown, big: fmt(total), unit: `over ${breakdown.length} ${word}${breakdown.length === 1 ? '' : 's'} · ${pay(n)}`,
-        text: breakdown.map(b => `${b.label} ${fmt(b.value)}`).join(' · '),
+      // Going up or down: the later half of the months against the earlier half
+      let trend = '';
+      if (s.metric === 'by_month' && breakdown.length >= 3) {
+        const half = Math.floor(breakdown.length / 2);
+        const early = sum(breakdown.slice(0, half).map(b => b.value)) / half;
+        const late = sum(breakdown.slice(-half).map(b => b.value)) / half;
+        const ch = early > 0 ? (late - early) / early : 0;
+        trend = early <= 0 ? '' : Math.abs(ch) < 0.1 ? 'Steady. ' : `Going ${ch > 0 ? 'up' : 'down'}: about ${Math.round(Math.abs(ch) * 100)}% ${ch > 0 ? 'more' : 'less'} in the later months. `;
+      }
+      return { ...base, breakdown, breakdownUnit: 'money', big: fmt(total), unit: `over ${breakdown.length} ${word}${breakdown.length === 1 ? '' : 's'} · ${pay(n)}`,
+        text: trend + breakdown.map(b => `${b.label} ${fmt(b.value)}`).join(' · '),
         bars, listTitle: `${pay(n)}, newest first`, rows };
     }
     case 'per_month':
@@ -227,6 +372,54 @@ export const runSearch = (s: AskSearch, transactions: Transaction[], categories:
       return { ...base, per, big: each >= 100 ? fmt(each) : fmt2(each), unit: `${per} · ${fmt(total)} over ${shown} ${word}${shown === 1 ? '' : 's'}`,
         text: `${fmt(total)} in total across ${pay(n)}.${biggest ? ` The biggest was ${fmt2(biggest.amount)} at ${biggest.name} on ${shortDate(biggest.date)}.` : ''}`,
         bars, listTitle: `${pay(n)}, newest first`, rows };
+    }
+    case 'list':
+      return { ...base, big: fmt2(total), unit: `across ${pay(n)}`,
+        text: `${pay(n)} from ${dateLabel(s.start)} to ${dateLabel(endToday)}${biggest ? `; the biggest was ${fmt2(biggest.amount)} at ${biggest.name}` : ''}.`,
+        bars, listTitle: `${pay(n)}, newest first`, rows };
+    case 'last_payment': {
+      const last = rows[0];
+      const ago = Math.round((new Date(`${todayStr}T12:00:00`).getTime() - new Date(`${last.date}T12:00:00`).getTime()) / DAY);
+      return { ...base, big: dateLabel(last.date), unit: `${last.name} · ${fmt2(last.amount)}`,
+        text: `${ago <= 0 ? 'Today' : ago === 1 ? 'Yesterday' : `${ago} days ago`}.${rows[1] ? ` The time before was ${dateLabel(rows[1].date)}.` : ''}`,
+        bars, listTitle: `${pay(n)}, newest first`, rows };
+    }
+    case 'top': {
+      const by: GroupBy = s.group_by || 'category';
+      const limit = Math.max(1, Math.min(25, Number(s.limit) || 5));
+      const rankBy = s.rank_by || 'amount';
+      if (by === 'payment') {
+        const list = rows.slice().sort((a, b) => (s.rank === 'bottom' ? a.amount - b.amount : b.amount - a.amount)).slice(0, limit);
+        return { ...base, breakdownUnit: 'money', breakdown: list.map(r => ({ label: r.name, value: r.amount, sub: shortDate(r.date) })),
+          big: fmt2(list[0].amount), unit: `${list[0].name} · ${dateLabel(list[0].date)}`,
+          text: list.map((r, i) => `${i + 1}. ${r.name} ${fmt2(r.amount)} (${shortDate(r.date)})`).join(' · '), bars, listTitle: `${s.rank === 'bottom' ? 'Smallest' : 'Biggest'} ${list.length}`, rows: list };
+      }
+      const keyOf = (r: Row): [string, string] => {
+        switch (by) {
+          case 'subcategory': return [`${r.t.categoryName}\u0001${r.t.subcategoryName}`, r.t.subcategoryName ? `${r.t.subcategoryName}` : `${r.t.categoryName || 'Other'} (no subcategory)`];
+          case 'place': { const k = merchantKey(r.name) || lc(r.name); return [k, r.name || 'Unknown']; }
+          case 'month': return [r.date.slice(0, 7), `${MONTHS[Number(r.date.slice(5, 7)) - 1]} ${r.date.slice(2, 4)}`];
+          case 'weekday': { const w = weekdayOf(r.date); return [String(w), WEEKDAYS[w - 1]]; }
+          case 'day': return [r.date, dateLabel(r.date)];
+          case 'bank': return [r.t.bankName || 'Other', r.t.bankName || 'Other'];
+          default: return [r.t.categoryName || 'Not categorised', r.t.categoryName || 'Not categorised'];
+        }
+      };
+      const g = new Map<string, { label: string; v: number; n: number }>();
+      rows.forEach(r => { const [k, label] = keyOf(r); const e = g.get(k) || { label, v: 0, n: 0 }; e.v += r.amount; e.n++; g.set(k, e); });
+      // Months with nothing still count when looking for the cheapest month
+      if (by === 'month') monthsIn(s.start, endToday).forEach(m => { if (!g.has(m.key)) g.set(m.key, { label: `${MONTHS[m.m]} ${String(m.y).slice(2)}`, v: 0, n: 0 }); });
+      const value = (k: string, e: { v: number; n: number }) => rankBy === 'count' ? e.n
+        : rankBy === 'average' ? (by === 'weekday' ? e.v / countWeekday(Number(k), s.start, endToday) : e.v / Math.max(1, e.n)) : e.v;
+      const ranked = Array.from(g.entries()).map(([k, e]) => ({ k, ...e, val: value(k, e) }))
+        .sort((a, b) => (s.rank === 'bottom' ? a.val - b.val : b.val - a.val)).slice(0, limit);
+      const top1 = ranked[0];
+      const unitWord = rankBy === 'count' ? '' : rankBy === 'average' ? (by === 'weekday' ? ' a day on average' : ' a payment on average') : '';
+      const show = (v: number) => (rankBy === 'count' ? `${v}×` : fmt(v));
+      return { ...base, breakdownUnit: rankBy === 'count' ? 'count' : 'money',
+        breakdown: ranked.map(e => ({ label: e.label, value: e.val, sub: rankBy === 'count' ? fmt(e.v) : pay(e.n) })),
+        big: top1.label, per: `${show(top1.val)}${unitWord}`, unit: `${s.rank === 'bottom' ? 'lowest' : 'highest'} of ${g.size} · ${fmt(total)} in total`,
+        text: ranked.map((e, i) => `${i + 1}. ${e.label} ${show(e.val)}`).join(' · '), bars, listTitle: `${pay(n)}, newest first`, rows };
     }
     case 'average':
       return { ...base, big: fmt2(total / n), unit: `per payment · ${pay(n)}`,
@@ -278,7 +471,7 @@ export const runSearch = (s: AskSearch, transactions: Transaction[], categories:
 
 // The names the AI may search by (no amounts or dates leave the app). Places by how often you
 // go; payers by how much they've paid you.
-export interface AskVocab { places: string[]; payers: string[]; categories: { name: string; subs: string[] }[] }
+export interface AskVocab { places: string[]; payers: string[]; categories: { name: string; subs: string[]; hidden?: boolean }[] }
 export const buildVocab = (transactions: Transaction[], categories: Category[]): AskVocab => {
   const rank = (type: Transaction['type'], by: 'n' | 'v') => {
     const m = new Map<string, { name: string; n: number; v: number }>();
@@ -293,7 +486,7 @@ export const buildVocab = (transactions: Transaction[], categories: Category[]):
   return {
     places: rank('EXPENSE', 'n').slice(0, 400),
     payers: rank('INCOME', 'v').slice(0, 150),
-    categories: categories.filter(c => c.id !== 'excluded').map(c => ({ name: c.name, subs: c.subcategories })),
+    categories: categories.map(c => ({ name: c.name, subs: c.subcategories, hidden: c.id === 'excluded' || c.name.trim().toLowerCase() === 'excluded' })),
   };
 };
 

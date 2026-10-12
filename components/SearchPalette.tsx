@@ -103,29 +103,35 @@ const QuickAnswer: React.FC<{ ans: AskAnswer; onSee?: () => void }> = ({ ans, on
   const bars = monthly && ans.bars.filter(b => b.value > 0).length >= 2 ? ans.bars : null;
   const big = roundBig(ans.big);
   // Budgeting answers carry one useful line (the verdict, or how much a day is left), so show it
-  const budgetLine = ['on_track', 'suggest_budget', 'budget_left', 'net'].includes(ans.metric) ? ans.text : '';
+  const budgetLine = ['on_track', 'suggest_budget', 'budget_left', 'net', 'compare_groups', 'share_of_income', 'what_if', 'projection', 'net_by_month', 'last_payment', 'new_places', 'duplicates'].includes(ans.metric) ? ans.text : '';
   const tone = ans.green ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-neutral-100';
   // "Each month" / "each day": the total, then a short row per month or day with a thin bar
   if (ans.breakdown && ans.breakdown.length) {
     const rows = ans.breakdown;
-    const max = Math.max(...rows.map(r => r.value), 1);
+    const max = Math.max(...rows.map(r => Math.abs(r.value)), 1);
+    const money = (v: number) => roundBig(`${v < 0 ? '−' : ''}${ans.big.startsWith('AED') || ans.unit.includes('AED') ? 'AED ' : '£'}${Math.abs(v).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+    const wideLabels = rows.some(r => r.label.length > 7);
     return (
       <div className="rounded-2xl bg-slate-50 dark:bg-neutral-700/40 px-3.5 py-3">
         <div className="flex items-end justify-between gap-3">
           <div className="min-w-0">
             <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">{ans.scope}</div>
-            <div className={`text-[22px] leading-tight font-bold ${tone}`}>{big}</div>
+            <div className="flex items-baseline gap-1.5 min-w-0">
+              <span className={`text-[22px] leading-tight font-bold truncate ${tone}`}>{big}</span>
+              {ans.per && <span className="text-[12px] text-slate-500 dark:text-neutral-400 whitespace-nowrap">{ans.per}</span>}
+            </div>
+            {budgetLine && ans.metric !== 'top' && <div className="mt-0.5 text-[12px] leading-snug text-slate-600 dark:text-neutral-300">{budgetLine}</div>}
           </div>
           {onSee && n > 0 && <button onClick={onSee} className="shrink-0 text-[11.5px] font-semibold text-indigo-600 dark:text-indigo-300">{seeText}</button>}
         </div>
         <div className="mt-2 flex flex-col gap-1 max-h-[180px] overflow-y-auto overscroll-contain">
           {rows.map((r, i) => (
-            <div key={i} className="grid grid-cols-[56px_1fr_auto] items-center gap-2 text-[12px]">
+            <div key={i} title={r.sub} className={`grid ${wideLabels ? 'grid-cols-[minmax(0,42%)_1fr_auto]' : 'grid-cols-[56px_1fr_auto]'} items-center gap-2 text-[12px]`}>
               <span className="text-slate-500 dark:text-neutral-400 truncate">{r.label}</span>
               <span className="h-1.5 rounded-full bg-slate-200/70 dark:bg-neutral-600/60 overflow-hidden">
-                <motion.span className={`block h-full rounded-full ${r.value === max ? 'bg-indigo-500' : 'bg-indigo-300 dark:bg-indigo-400/60'}`} initial={{ width: 0 }} animate={{ width: `${(r.value / max) * 100}%` }} transition={{ duration: 0.45, delay: 0.04 * i, ease: [0.22, 1, 0.36, 1] }} />
+                <motion.span className={`block h-full rounded-full ${r.value < 0 ? 'bg-rose-400' : Math.abs(r.value) === max ? 'bg-indigo-500' : 'bg-indigo-300 dark:bg-indigo-400/60'}`} initial={{ width: 0 }} animate={{ width: `${(Math.abs(r.value) / max) * 100}%` }} transition={{ duration: 0.45, delay: 0.04 * i, ease: [0.22, 1, 0.36, 1] }} />
               </span>
-              <span className="font-semibold text-slate-900 dark:text-neutral-100 tabular-nums">{roundBig(`${ans.big.startsWith('AED') ? 'AED ' : '£'}${r.value.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)}</span>
+              <span className={`font-semibold tabular-nums ${r.value < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-slate-900 dark:text-neutral-100'}`}>{ans.breakdownUnit === 'count' ? `${r.value}×` : money(r.value)}</span>
             </div>
           ))}
         </div>

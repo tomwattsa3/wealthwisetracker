@@ -25,8 +25,9 @@ const SEARCH_TOOL = {
     properties: {
       metric: {
         type: 'string',
-        enum: ['total', 'count', 'average', 'per_month', 'per_week', 'per_day', 'by_month', 'by_day', 'biggest_payment', 'biggest_day', 'compare', 'on_track', 'suggest_budget', 'budget_left', 'net', 'unsupported'],
-        description: 'total = add up amounts; count = how many payments; average = average payment (per payment); per_month / per_week / per_day = the total spread over the months / weeks / days in the range ("how much a month", "per week", "monthly average", "on average each month"); by_month / by_day = the total split into each month / each day ("each month", "month by month", "break it down by month", "each day this week"); biggest_payment = the single largest payment; biggest_day = the day with the highest total; compare = total in range A vs range B; on_track = how this month is going against a usual month, with a month-end projection; suggest_budget = a sensible monthly budget from recent months; budget_left = what is left of a budget the user names (budget_amount) and how much a day that leaves; net = money in minus money out (what they saved); unsupported = the question cannot be answered from transactions.',
+        enum: ['total', 'count', 'average', 'per_month', 'per_week', 'per_day', 'by_month', 'by_day', 'biggest_payment', 'biggest_day', 'compare', 'on_track', 'suggest_budget', 'budget_left', 'net',
+          'compare_groups', 'top', 'list', 'last_payment', 'share_of_income', 'net_by_month', 'what_if', 'projection', 'duplicates', 'new_places', 'unsupported'],
+        description: 'total = add up amounts; count = how many payments; average = average payment (per payment); per_month / per_week / per_day = the total spread over the months / weeks / days in the range ("how much a month", "per week", "monthly average", "on average each month"); by_month / by_day = the total split into each month / each day ("each month", "month by month", "break it down by month", "each day this week"); biggest_payment = the single largest payment; biggest_day = the day with the highest total; compare = total in range A vs range B; on_track = how this month is going against a usual month, with a month-end projection; suggest_budget = a sensible monthly budget from recent months; budget_left = what is left of a budget the user names (budget_amount) and how much a day that leaves; net = money in minus money out (what they saved); compare_groups = two or more things side by side over the same dates (fill groups); top = a ranking (fill group_by, rank, rank_by, limit); list = show the matching payments; last_payment = when they last paid; share_of_income = the matched spending as a % of income over the same dates; net_by_month = money in minus out for each month (savings rate, months they overspent); what_if = yearly saving from changing the matched spending by change_pct; projection = where the total will end up by the end date at the pace so far; duplicates = possible double charges (same place, amount and day); new_places = places paid for the first time in the range; unsupported = the question cannot be answered from transactions.',
       },
       direction: { type: 'string', enum: ['out', 'in', 'both'], description: 'out = spending, in = money received. Default out unless the question is about being paid, income, refunds or money in.' },
       places: { type: 'array', items: { type: 'string' }, description: 'Exact names from the PLACES/PAYERS lists to match. Empty for any.' },
@@ -40,11 +41,110 @@ const SEARCH_TOOL = {
       understood: { type: 'string', description: 'One plain-English sentence restating the search, e.g. "Spending at Uber from 1 to 31 August 2026".' },
       reason: { type: 'string', description: 'For unsupported only: a short, friendly reason. Empty string otherwise.' },
       budget_amount: { type: 'number', description: 'For budget_left: the budget the user gave, in their own currency (e.g. 500 for "I have £500 for food"). 0 otherwise.' },
+      groups: {
+        type: 'array',
+        description: 'For compare_groups: each thing to compare, with its own names. Empty array otherwise.',
+        items: {
+          type: 'object',
+          properties: {
+            label: { type: 'string', description: 'Short name to show, e.g. "Meals Out".' },
+            places: { type: 'array', items: { type: 'string' } },
+            categories: { type: 'array', items: { type: 'string' } },
+            subcategories: { type: 'array', items: { type: 'string' } },
+          },
+          required: ['label', 'places', 'categories', 'subcategories'],
+          additionalProperties: false,
+        },
+      },
+      group_by: { type: 'string', enum: ['', 'category', 'subcategory', 'place', 'month', 'weekday', 'day', 'payment', 'bank'], description: 'For top: what to rank. payment = individual transactions. Empty string otherwise.' },
+      rank: { type: 'string', enum: ['top', 'bottom'], description: 'For top: top = highest first, bottom = lowest first ("cheapest month"). Use top otherwise.' },
+      rank_by: { type: 'string', enum: ['amount', 'count', 'average'], description: 'For top: amount = money, count = how often ("most often", "most visited"), average = average per payment, or per day for weekdays ("what do I usually spend on Fridays"). Use amount otherwise.' },
+      limit: { type: 'number', description: 'For top: how many (e.g. 5 for "top 5"). 5 if not said. 0 otherwise.' },
+      min_amount: { type: 'number', description: 'Only payments of at least this much ("over £200"). 0 for no limit.' },
+      max_amount: { type: 'number', description: 'Only payments of at most this much ("under £10"). 0 for no limit.' },
+      weekdays: { type: 'array', items: { type: 'integer' }, description: 'Only these days of the week, 1 = Monday … 7 = Sunday ("on Fridays" = [5], "weekends" = [6, 7]). Empty for any.' },
+      days_of_month: { type: 'array', items: { type: 'integer' }, description: 'Only these days of the month ("on the 1st" = [1], "first week of each month" = [1..7]). Empty for any.' },
+      include_hidden: { type: 'boolean', description: 'true when the question is about payments left out of spending totals: refunds, transfers, credit card payments, reimbursements, duplicates, loans, debt payments, or anything in a category marked (not counted). false otherwise.' },
+      uncategorised: { type: 'boolean', description: 'true only for "uncategorised" / "not categorised" payments.' },
+      change_pct: { type: 'number', description: 'For what_if: the change as a percentage, e.g. -50 for "cut by half", -100 for "stop". 0 otherwise.' },
     },
-    required: ['metric', 'direction', 'places', 'categories', 'subcategories', 'start', 'end', 'compare_start', 'compare_end', 'title', 'understood', 'reason', 'budget_amount'],
+    required: ['metric', 'direction', 'places', 'categories', 'subcategories', 'start', 'end', 'compare_start', 'compare_end', 'title', 'understood', 'reason', 'budget_amount',
+      'groups', 'group_by', 'rank', 'rank_by', 'limit', 'min_amount', 'max_amount', 'weekdays', 'days_of_month', 'include_hidden', 'uncategorised', 'change_pct'],
     additionalProperties: false,
   },
 } as const;
+
+// How to read the kinds of question people ask, with worked examples. Kept in the cached part of
+// the prompt. Names in the examples are illustrations; always use the user's own lists.
+const MASTER = `How to answer the common kinds of question (fill every field; unused ones are "" / [] / 0 / false):
+
+1. One category, subcategory or place over a period → total.
+   "How much did I spend on Food last month?" → total, categories [Food], last month.
+   "What's my total on Meals Out this year?" → total, subcategories [Meals Out].
+   "Uber/Taxi in the last 30 days" → total, subcategories [Uber/Taxi], today and the 29 days before.
+   A name can be both a category and a subcategory (e.g. Food, or Clothes / Amazon / Dentist in two categories): if they name the parent too ("Clothes in Shopping"), use groups; otherwise match the subcategory everywhere it appears.
+
+2. Two or more things side by side → compare_groups, one group per thing, same dates.
+   "Food Delivery vs Meals Out last month" → groups [{label Food Delivery, subcategories [Food Delivery]}, {label Meals Out, subcategories [Meals Out]}].
+   "Uber/Taxi compared with Fuel and Parking combined" → groups [{Uber/Taxi}, {label "Fuel + Parking", subcategories [Fuel, Parking]}].
+   "Amazon under Shopping vs Amazon under Personal" → groups [{label "Amazon · Shopping", categories [Shopping], subcategories [Amazon]}, {label "Amazon · Personal", categories [Personal], subcategories [Amazon]}].
+   "Shell vs BP" / "ChatGPT vs Claude" → groups with places.
+   "Groceries vs Food: am I eating out more than cooking?" → groups: groceries (the grocery subcategories) vs eating out (meals out, delivery).
+   For "combined total" questions still use compare_groups; the answer shows the total too.
+
+3. A specific day or range → list (to show what was bought) or total (if they ask "how much").
+   "What did I spend on 14 September?" → list, start = end = 14 Sep. "Yesterday", "last weekend", "1 to 7 October" the same way.
+   "Christmas week last year" → 24–31 Dec last year. "Q3" → 1 Jul – 30 Sep. "Q1" Jan–Mar, "Q2" Apr–Jun, "Q4" Oct–Dec.
+   "The first week of each month this year" → total with days_of_month [1..7], this year. "On the 1st of the month" → days_of_month [1].
+   "January to June vs July to December" → compare (start/end = Jul–Dec, compare = Jan–Jun).
+
+4. Rankings → top with group_by.
+   "Top 5 categories this month" → top, group_by category, limit 5. "Top 10 merchants this year" → group_by place, limit 10.
+   "Biggest 10 transactions in the last 90 days" → top, group_by payment, limit 10.
+   "Which restaurant have I spent the most at?" → top, group_by place, subcategories [Meals Out], limit 5.
+   "Which merchant do I visit most often?" → top, group_by place, rank_by count.
+   "Most expensive month this year" → top, group_by month, limit 1. "Cheapest month" → same with rank bottom.
+   "Rank my Housing subcategories" → top, group_by subcategory, categories [Housing], limit 10.
+   "Which day of the week do I spend the most on?" → top, group_by weekday, rank_by average, limit 7.
+   "Fridays vs Mondays" → top, group_by weekday, rank_by average, weekdays [5, 1].
+   "Biggest single day" → biggest_day. "Which category grew the most compared to last month?" → compare (this month vs last month); the answer lists the biggest changes.
+
+5. Merchants.
+   "How many times did I order from Talabat in September?" → count, places [Talabat].
+   "Average spend per Talabat order" → average. "When did I last pay at the barber?" → last_payment (use the Haircuts subcategory or the barber's name).
+   "Show every transaction at Tesco in 2026" → list. "Grab, rides vs food" → compare_groups by subcategory with places [Grab].
+
+6. Trends and averages.
+   "Average monthly spend on Food" → per_month. "Average weekly grocery spend" → per_week. "Average daily spend" → per_day, no names.
+   "Is X going up or down?" / "how has X changed month by month" / "month-by-month breakdown" → by_month over this year (or the last 6–12 months).
+   "Average cost per meal out" → average. "Run rate for this month" → on_track. "On current pace, what will I spend on Food this year?" → projection, start 1 Jan, end 31 Dec.
+   "Is my subscription total higher than 6 months ago?" → compare (this month vs the same month 6 months ago).
+
+7. Subscriptions and recurring payments: use the subscription categories/subcategories by name.
+   "List my subscriptions and what they cost" → top, group_by place, the subscription categories, rank_by amount, limit 15, over the last 3 months.
+   "Total monthly subscription bill" → per_month over the last 3 full months. "Annual cost of my Apple charges" → total over the last 12 months, places [Apple].
+   "Which subscriptions renewed this month?" → list this month with the subscription categories. "New subscriptions in the last 3 months" → new_places with the subscription categories.
+   Price rises and "paying twice for the same subscription" can't be judged reliably: use top by place over 6 months so they can see it, and say so in understood.
+
+8. Checks.
+   "Unusually large transactions" / "over £200 this month" → list with min_amount (200 if not said). "Charged twice?" → duplicates.
+   "Marked as Duplicate" / "Random Expenses I should recategorise" → list with those names (include_hidden for hidden ones). "Uncategorised" → list, uncategorised true.
+   "Fines this year, and what for" → list, subcategories [Fines]. "Merchants I've never used before" → new_places.
+   "Foreign currency transactions with high fees" → list, subcategories [Currency Exchange Fees].
+
+9. Money left out of spending (refunds, transfers, credit card payments, reimbursements, loans, debt payments): set include_hidden true.
+   "Refunds this year" → total, include_hidden, the refunds subcategory, direction both. "Net Amazon after refunds" → compare_groups (Amazon spending vs Amazon refunds, direction both).
+   "Spending excluding transfers and card payments" → total with no names and include_hidden false (they're already left out).
+
+10. Income and cash flow.
+   "Total income last month" → total, direction in. "Income vs spending this month" → net. "Savings Interest this year" → total, direction in, that subcategory.
+   "What % of my income goes on Housing?" → share_of_income, categories [Housing]. "Savings rate per month" / "which month did I spend more than I earned" → net_by_month. "Left over after spending in September" → net.
+
+11. What if.
+   "Cut Food Delivery by half: how much a year?" → what_if, change_pct -50, over the last 6 full months. "Cancel X" → change_pct -100.
+   "Am I over my usual Food spend this month?" → on_track. "What could I cut to save £300 a month?" → top, group_by subcategory, last 3 full months, limit 8 (shows the biggest areas).
+
+Not answerable from transactions alone → unsupported with a short, helpful reason: trips and travel days ("my last trip", "while in the UK", "days I had a flight"), birthdays and personal dates they haven't given, "between my rent payment and…" (ask for the dates), currency split by original currency, and anything needing information the app doesn't have. If they give the dates, answer it.`;
 
 const list = (v: unknown, max: number) => (Array.isArray(v) ? v.filter(x => typeof x === 'string').map(x => x.slice(0, 80)).slice(0, max) : []);
 
@@ -73,7 +173,7 @@ async function answer(req: any, res: any) {
   if (!question) { res.status(400).json({ error: 'Ask a question' }); return; }
   const today = /^\d{4}-\d{2}-\d{2}$/.test(body.today) ? body.today : new Date().toISOString().slice(0, 10);
   const categories = Array.isArray(body.categories)
-    ? body.categories.slice(0, 60).map((c: any) => `${String(c?.name || '').slice(0, 60)}${Array.isArray(c?.subs) && c.subs.length ? ` (${list(c.subs, 40).join(', ')})` : ''}`)
+    ? body.categories.slice(0, 60).map((c: any) => `${String(c?.name || '').slice(0, 60)}${Array.isArray(c?.subs) && c.subs.length ? ` (${list(c.subs, 40).join(', ')})` : ''}${c?.hidden ? ' [not counted in spending: needs include_hidden]' : ''}`)
     : [];
   const places = list(body.places, 400);
   const payers = list(body.payers, 150);
@@ -99,7 +199,8 @@ async function answer(req: any, res: any) {
       '- "I have £X (for Y) this month, how much is left / how much can I spend a day" = budget_left with budget_amount = X and start/end = the whole of that month (this month if not said).',
       '- "How much did I save", "net", "income minus spending", "did I spend more than I earned" = net with direction both.',
     ].join('\n'),
-    'For "more/less than last year" questions use compare, with the same days of last year as compare_start/compare_end.',
+    'For "more/less than last year" questions use compare, with the same days of last year as compare_start/compare_end. "This October vs last October" = compare with October last year.',
+    MASTER,
     `CATEGORIES (subcategories in brackets):\n${categories.join('\n')}`,
     `PLACES (where they spend):\n${places.join(' | ')}`,
     `PAYERS (who pays them):\n${payers.join(' | ')}`,

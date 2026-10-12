@@ -121,6 +121,21 @@ const AskPage: React.FC<AskPageProps> = ({ transactions, categories, currency, o
               <span className="text-sm text-slate-600 dark:text-neutral-300">{answer.per && !answer.unit.startsWith(answer.per) ? <><b className="font-semibold">{answer.per}</b> · </> : null}{answer.unit}</span>
             </div>
             <p className="mt-2 text-[14.5px] leading-relaxed text-slate-700 dark:text-neutral-300">{answer.text}</p>
+            {/* Rankings, side by side and month by month: one row each */}
+            {answer.breakdown && answer.breakdown.length > 0 && (() => {
+              const max = Math.max(...answer.breakdown.map(r => Math.abs(r.value)), 1);
+              return (
+                <div className="mt-4 flex flex-col gap-1.5 max-w-xl">
+                  {answer.breakdown.map((r, i) => (
+                    <div key={i} className="grid grid-cols-[minmax(0,38%)_1fr_auto] items-center gap-3 text-[13px]">
+                      <span className="min-w-0"><span className="block truncate text-slate-700 dark:text-neutral-200">{r.label}</span>{r.sub && <span className="block truncate text-[11px] text-slate-400 dark:text-neutral-500">{r.sub}</span>}</span>
+                      <span className="h-2 rounded-full bg-slate-100 dark:bg-neutral-700 overflow-hidden"><span className={`block h-full rounded-full ${r.value < 0 ? 'bg-rose-400' : 'bg-indigo-500'}`} style={{ width: `${(Math.abs(r.value) / max) * 100}%` }} /></span>
+                      <span className={`font-semibold tabular-nums ${r.value < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-slate-900 dark:text-neutral-100'}`}>{answer.breakdownUnit === 'count' ? `${r.value}×` : `${r.value < 0 ? '−' : ''}${fmt2(Math.abs(r.value))}`}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
 
             {answer.bars.length > 1 && (
               <div className="mt-5 flex items-end gap-1.5 h-[92px]">
