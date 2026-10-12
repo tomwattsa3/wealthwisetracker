@@ -387,7 +387,7 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                                   <span className="text-xs text-slate-500 dark:text-neutral-400 whitespace-nowrap">{d.getDate()} {MONTHS[d.getMonth()]}</span>
                                   <span className="min-w-0">
                                     <span className="block text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={r.desc}>{r.desc}</span>
-                                    <span className="block text-[11px] text-slate-500 dark:text-neutral-400 truncate">{r.sub !== NO_SUB ? `${r.sub} · ` : ''}{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]}</span>
+                                    {r.sub !== NO_SUB && <span className="block text-[11px] text-slate-500 dark:text-neutral-400 truncate">{r.sub}</span>}
                                     {r.note && <span className="block text-[11px] italic text-amber-800 dark:text-amber-300 truncate" title={r.note}>📝 {r.note}</span>}
                                   </span>
                                   <span className="text-[13px] font-semibold text-right text-slate-900 dark:text-neutral-100">{fmt(r.amount, 2)}</span>
@@ -404,11 +404,9 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                               >
                                 <span className="text-xs text-slate-500 dark:text-neutral-400 whitespace-nowrap">{shortDate(r.date)}</span>
                                 <div className="min-w-0">
-                                  <div className="text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate flex items-center gap-1.5" title={r.desc}>
-                                    <span className="truncate">{r.desc}</span>
-                                    {r.hasNote && <span title="Has a note" className="w-1.5 h-1.5 shrink-0 rounded-full bg-amber-500" />}
-                                  </div>
+                                  <div className="text-[13px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={r.desc}>{r.desc}</div>
                                   {r.sub !== NO_SUB && <div className="text-[11px] text-slate-500 dark:text-neutral-400 truncate">{r.sub}</div>}
+                                  {r.note && <div className="text-[11px] italic text-amber-800 dark:text-amber-300 truncate">📝 {r.note}</div>}
                                 </div>
                                 <span className="text-[13px] font-semibold text-right text-slate-900 dark:text-neutral-100">{fmt(r.amount, 2)}</span>
                               </button>

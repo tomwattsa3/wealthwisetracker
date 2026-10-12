@@ -796,7 +796,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                 </div>
               );
             })() : view === 'total' ? (
-              <div className="relative overflow-x-auto">
+              <motion.div className="relative overflow-x-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25, ease: 'easeOut' }}>
                 <div
                   className={`relative grid items-end ${win.single ? 'gap-[3px]' : monthIdxs.length >= 12 ? 'gap-2.5' : 'gap-4 xl:gap-5'}`}
                   style={{ gridTemplateColumns: `repeat(${shownBuckets.length}, minmax(${win.single ? 6 : 28}px, ${win.single ? '1fr' : '104px'}))`, justifyContent: 'center', height: BAR_H + (win.single ? 40 : 56) }}
@@ -819,16 +819,25 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                         {!win.single && (
                           <span className={`relative z-[2] self-center px-1 rounded bg-white dark:bg-neutral-800 text-xs font-semibold text-center whitespace-nowrap ${isFocus ? 'text-indigo-700 dark:text-indigo-300' : dim ? 'text-slate-300 dark:text-neutral-600' : 'text-slate-500 dark:text-neutral-400'}`}>{b.total > 0 ? <Swap text={fmt(b.total)} /> : ''}</span>
                         )}
+                        {/* Like the phone: a full-height bar slides up from behind the bottom edge when the
+                            chart appears (rounded corners never squash); later the box glides to new heights */}
                         <span
-                          className={`block w-full mx-auto ${win.single ? 'rounded-sm' : 'rounded-[10px] max-w-[64px]'} transition-[height,background-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${b.total === 0 ? 'bg-slate-100 dark:bg-neutral-700' : isFocus ? 'bg-indigo-600' : dim ? 'bg-indigo-100 dark:bg-indigo-950 group-hover:bg-indigo-200' : 'bg-indigo-400 dark:bg-indigo-500 group-hover:bg-indigo-500'}`}
+                          className={`relative block w-full mx-auto overflow-hidden ${win.single ? 'rounded-sm' : 'rounded-[10px] max-w-[64px]'} transition-[height] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]`}
                           style={{ height: b.total > 0 ? Math.max(4, Math.round((b.total / maxBucket) * BAR_H)) : 4, transitionDelay: `${Math.min(bi, 12) * 30}ms` }}
-                        />
+                        >
+                          <motion.span
+                            className={`absolute inset-0 ${win.single ? 'rounded-sm' : 'rounded-[10px]'} transition-colors duration-300 will-change-transform ${b.total === 0 ? 'bg-slate-100 dark:bg-neutral-700' : isFocus ? 'bg-indigo-600' : dim ? 'bg-indigo-100 dark:bg-indigo-950 group-hover:bg-indigo-200' : 'bg-indigo-400 dark:bg-indigo-500 group-hover:bg-indigo-500'}`}
+                            initial={{ y: '100%' }}
+                            animate={{ y: '0%' }}
+                            transition={{ duration: 0.5, delay: 0.05 + Math.min(bi, 12) * 0.03, ease: [0.22, 1, 0.36, 1] }}
+                          />
+                        </span>
                         <span className={`h-[18px] text-xs text-center ${isFocus ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'} ${win.single && b.key !== 1 && Number(b.key) % 5 !== 0 && !isFocus ? 'invisible' : ''}`}>{b.label}</span>
                       </button>
                     );
                   })}
                 </div>
-              </div>
+              </motion.div>
             ) : (
               <div className="flex flex-col">
                 {/* What's under the pointer (or the picked month), else the whole period */}
