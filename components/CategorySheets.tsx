@@ -42,6 +42,7 @@ interface Row {
   desc: string;
   amount: number;
   hasNote: boolean;
+  note: string; // what you wrote (shown under the merchant on desktop)
 }
 
 // Subcategories as one row of evenly spaced tabs (name, amount under it; long names wrap onto
@@ -153,6 +154,7 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
       desc: (t.description || 'Unknown').trim(),
       amount: Math.abs(currency === 'GBP' ? t.amountGBP : t.amountAED) || 0,
       hasNote: !!userNote(t.notes),
+      note: userNote(t.notes),
     }))
     .filter(r => r.amount > 0), [transactions, currency]);
   // The payment tapped in the panel, shown in its own pop-up (details and a note).
@@ -261,6 +263,8 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheet, sub, win, inRange, pm, sortBy]);
+  // Summarise by merchant only applies with more than one payment (so a single one never hides its date)
+  const grouped = summarise && !!panel && panel.tx.length > 1;
 
   const card = 'bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-2xl';
   const pct = (v: number) => (total > 0 ? `${((v / total) * 100).toFixed(1)}%` : '0%');
@@ -343,14 +347,14 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                         <div className="flex justify-between items-center">
                           <SegmentedControl
                             layoutId="sheetsPanelSortPill"
-                            options={[{ id: 'date', label: 'Date' }, { id: 'amount', label: 'Amount' }]}
-                            value={sortBy}
-                            onChange={(id) => setSortBy(id as 'date' | 'amount')}
+                            options={isPhone || panel.tx.length < 2 ? [{ id: 'date', label: 'Date' }, { id: 'amount', label: 'Amount' }] : [{ id: 'date', label: 'Date' }, { id: 'amount', label: 'Amount' }, { id: 'merchant', label: 'By merchant' }]}
+                            value={grouped && !isPhone ? 'merchant' : sortBy}
+                            onChange={(id) => { if (id === 'merchant') setSummarise(true); else { setSummarise(false); setSortBy(id as 'date' | 'amount'); } }}
                             activeTextClassName="text-[#635bff] dark:text-[#8b85ff]"
                             inactiveTextClassName="text-slate-500 dark:text-neutral-400 hover:text-slate-700 dark:hover:text-neutral-300"
                             optionClassName="text-[11px]"
                           />
-                          {panel.tx.length > 1 && (
+                          {isPhone && (panel.tx.length > 1 || summarise) && (
                             <button onClick={() => setSummarise(v => !v)} aria-pressed={summarise} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${summarise ? 'bg-[#635bff] border-[#635bff] text-white' : 'bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-600 text-slate-700 dark:text-neutral-300'}`}>
                               Summarise by merchant
                             </button>
@@ -360,7 +364,7 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
 
                       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5">
                         {panel.tx.length === 0 && <p className="py-10 text-center text-sm text-slate-400">No transactions</p>}
-                        {summarise
+                        {grouped
                           ? panel.merchants.map(m => (
                               <div key={m.name} className="grid grid-cols-[44px_minmax(0,1fr)_90px] gap-3 items-center py-2.5 border-b border-slate-100 dark:border-neutral-700">
                                 <span className="text-xs text-slate-500 dark:text-neutral-400">×{m.count}</span>
@@ -371,6 +375,29 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                                 <span className="text-[13px] font-semibold text-right text-slate-900 dark:text-neutral-100">{fmt(m.total, 2)}</span>
                               </div>
                             ))
+                          : !isPhone ? panel.tx.map(r => {
+                              const d = new Date(`${r.date}T12:00:00`);
+                              return (
+                                <button
+                                  key={r.id}
+                                  onClick={() => setTxOpen(r.id)}
+                                  aria-haspopup="dialog"
+                                  className={`w-full text-left grid grid-cols-[44px_minmax(0,1fr)_auto_10px] gap-3 items-center py-2.5 px-1 border-b border-slate-100 dark:border-neutral-700 rounded-md hover:bg-slate-50 dark:hover:bg-neutral-700/40 ${txOpen === r.id ? 'bg-indigo-50/70 dark:bg-indigo-950/30' : ''}`}
+                                >
+                                  <span className="text-center leading-tight">
+                                    <span className="block text-[15px] font-bold text-slate-900 dark:text-neutral-100">{d.getDate()}</span>
+                                    <span className="block text-[10px] uppercase text-slate-500 dark:text-neutral-400">{MONTHS[d.getMonth()]}</span>
+                                  </span>
+                                  <span className="min-w-0">
+                                    <span className="block text-[14px] font-medium text-slate-900 dark:text-neutral-100 truncate" title={r.desc}>{r.desc}</span>
+                                    <span className="block text-[11.5px] text-slate-500 dark:text-neutral-400 truncate">{r.sub !== NO_SUB ? `${r.sub} · ` : ''}{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]}</span>
+                                    {r.note && <span className="block text-[11.5px] italic text-amber-800 dark:text-amber-300 truncate" title={r.note}>📝 {r.note}</span>}
+                                  </span>
+                                  <span className="text-[14px] font-semibold text-right text-slate-900 dark:text-neutral-100">{fmt(r.amount, 2)}</span>
+                                  <span className="text-slate-300 dark:text-neutral-500">›</span>
+                                </button>
+                              );
+                            })
                           : panel.tx.map(r => (
                               <button
                                 key={r.id}
@@ -393,7 +420,7 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
 
                       <div className="px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] border-t border-slate-200 dark:border-neutral-700 flex items-center justify-between gap-3">
                         <span className="text-xs text-slate-500 dark:text-neutral-400">
-                          {panel.tx.length} {panel.tx.length === 1 ? 'transaction' : 'transactions'}{summarise ? ` · ${panel.merchants.length} merchants` : ''}
+                          {panel.tx.length} {panel.tx.length === 1 ? 'transaction' : 'transactions'}{grouped ? ` · ${panel.merchants.length} merchants` : ''}
                         </span>
                         <button
                           onClick={() => { onViewTransactions(sheet.catId, sub === 'all' || sub === NO_SUB ? null : sub, start, end); setOpen(null); }}
