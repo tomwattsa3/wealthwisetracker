@@ -18,7 +18,7 @@ const CategoryManager = lazy(() => import('./components/CategoryManager'));
 const ImportCsvModal = lazy(() => import('./components/ImportCsvModal'));
 import { usePrivacy } from './lib/privacy';
 import BlurStrengthSlider from './components/BlurStrengthSlider';
-import { TxActionsContext } from './components/TxDetail';
+import { TxActionsContext, AUTO_NOTE } from './components/TxDetail';
 import MoreSheet from './components/MoreSheet';
 const SettingsManager = lazy(() => import('./components/SettingsManager'));
 const BreakdownTab = lazy(() => import('./components/BreakdownTab'));
@@ -2570,10 +2570,14 @@ const App: React.FC = () => {
                           {/* Merchant/Description, with an optional note saved alongside it */}
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-slate-900 truncate" title={t.description}>{t.description}</p>
+                            {/* Just your words: the auto-categorised tag stays on the payment, out of the box */}
                             <input
                               type="text"
-                              value={t.notes || ''}
-                              onChange={(e) => updatePendingTransaction(t.id, { notes: e.target.value })}
+                              value={(t.notes || '').replace(` ${AUTO_NOTE}`, '').replace(AUTO_NOTE, '')}
+                              onChange={(e) => {
+                                const text = e.target.value;
+                                updatePendingTransaction(t.id, { notes: (t.notes || '').includes(AUTO_NOTE) ? `${text}${text ? ' ' : ''}${AUTO_NOTE}` : text });
+                              }}
                               placeholder="＋ Add a note"
                               aria-label={`Note for ${t.description}`}
                               className="mt-1 w-full max-w-[320px] h-7 px-2 rounded-md border border-dashed border-slate-300 focus:border-indigo-400 focus:border-solid bg-transparent text-xs text-slate-700 placeholder:text-indigo-500/80 outline-none"

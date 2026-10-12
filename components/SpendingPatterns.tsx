@@ -11,6 +11,7 @@ import PlaceSheet, { PlacePick, PLACE_TINTS } from './PlaceSheet';
 import { DebtsCard } from './DebtsPage';
 import type { Debt } from './DebtsPage';
 import CategorySheets from './CategorySheets';
+import Swap from './Swap';
 import { useMixedMerchants } from './MixedMerchants';
 import { needsReview } from './TransactionsView';
 interface SpendingPatternsProps {
@@ -87,6 +88,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   // Your saved views: named sets of categories, one tap to switch to.
   const [views, setViews] = useState<{ name: string; cats: string[] }[]>(() => (Array.isArray(saved.views) ? saved.views.filter(v => v && v.name && Array.isArray(v.cats)) : []));
   const [savingView, setSavingView] = useState(false);
+  const [pickedView, setPickedView] = useState('');
   // Hero card: how much of its width the left side takes on wide screens (drag the divider).
   const HERO_DEFAULT = 0.4;
   const [heroSplit, setHeroSplit] = useState<number>(() => (typeof saved.heroSplit === 'number' && saved.heroSplit >= 0.25 && saved.heroSplit <= 0.65 ? saved.heroSplit : HERO_DEFAULT));
@@ -643,12 +645,12 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
         <div ref={heroRow} className="flex flex-col lg:flex-row gap-8 lg:gap-0 p-6 md:p-8 md:pb-5">
           <div className="min-w-0 flex flex-col" style={heroWide ? { flex: `0 0 ${heroSplit * 100}%` } : undefined}>
             <div className="text-[13px] font-medium text-slate-500 dark:text-neutral-400">{focus ? `Spent in ${focusLabel}` : `Spent · ${periodLabel.toLowerCase()}`}</div>
-            <div className="text-[44px] xl:text-[52px] leading-[1.05] font-bold tracking-tight text-slate-900 dark:text-neutral-100 mt-1.5">{fmt(focus ? focus.total : total)}</div>
-            <div className={`text-[15px] font-semibold mt-1.5 ${heroSub.cls}`}>{heroSub.text}</div>
+            <div className="text-[44px] xl:text-[52px] leading-[1.05] font-bold tracking-tight text-slate-900 dark:text-neutral-100 mt-1.5"><Swap text={fmt(focus ? focus.total : total)} /></div>
+            <div className={`text-[15px] font-semibold mt-1.5 ${heroSub.cls}`}><Swap text={heroSub.text} /></div>
             <div className="text-[13px] text-slate-500 dark:text-neutral-400 mt-0.5">
-              {focus
+              <Swap text={focus
                 ? `${total > 0 ? Math.round((focus.total / total) * 100) : 0}% of ${periodLabel.toLowerCase()}`
-                : selected.size && peak.total > 0 ? `Busiest ${unit}: ${peak.label} · ${fmt(peak.total)}` : ''}
+                : selected.size && peak.total > 0 ? `Busiest ${unit}: ${peak.label} · ${fmt(peak.total)}` : ''} />
             </div>
 
             {/* In and out: money in against everything spent in the same period (or the month you
@@ -664,16 +666,16 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                 <div className="mt-3 rounded-xl bg-slate-50 dark:bg-neutral-700/40 px-3.5 pt-2.5 pb-2.5">
                   <div className="text-[11px] font-semibold text-slate-900 dark:text-neutral-100">In and out</div>
                   <div className="mt-1.5">
-                    <div className="flex justify-between text-[11px]"><span className="text-slate-500 dark:text-neutral-400">Money in</span><span className="font-semibold text-emerald-700 dark:text-emerald-400">{fmt(income.total)}</span></div>
+                    <div className="flex justify-between text-[11px]"><span className="text-slate-500 dark:text-neutral-400">Money in</span><span className="font-semibold text-emerald-700 dark:text-emerald-400"><Swap text={fmt(income.total)} /></span></div>
                     {bar(income.total, 'bg-emerald-500')}
                   </div>
                   <div className="mt-1.5">
-                    <div className="flex justify-between text-[11px]"><span className="text-slate-500 dark:text-neutral-400">{unselected.size ? 'All spending' : 'Spent'}</span><span className="font-semibold text-slate-900 dark:text-neutral-100">{fmt(spentAll)}</span></div>
+                    <div className="flex justify-between text-[11px]"><span className="text-slate-500 dark:text-neutral-400">{unselected.size ? 'All spending' : 'Spent'}</span><span className="font-semibold text-slate-900 dark:text-neutral-100"><Swap text={fmt(spentAll)} /></span></div>
                     {bar(spentAll, 'bg-indigo-500')}
                   </div>
                   <div className="mt-2 pt-1.5 border-t border-slate-200 dark:border-neutral-600 flex justify-between text-[11px]">
                     <span className="text-slate-500 dark:text-neutral-400">{netV < 0 ? 'From savings' : 'Left over'}</span>
-                    <span className={`font-semibold ${netV < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>{netV < 0 ? '−' : '+'}{fmt(Math.abs(netV))}</span>
+                    <span className={`font-semibold ${netV < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}><Swap text={`${netV < 0 ? '−' : '+'}${fmt(Math.abs(netV))}`} /></span>
                   </div>
                 </div>
               );
@@ -800,9 +802,9 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                   style={{ gridTemplateColumns: `repeat(${shownBuckets.length}, minmax(${win.single ? 6 : 28}px, ${win.single ? '1fr' : '104px'}))`, justifyContent: 'center', height: BAR_H + (win.single ? 40 : 56) }}
                 >
                   {selected.size > 0 && total > 0 && (
-                    <div aria-hidden className="absolute left-0 right-0 border-t-2 border-dashed border-slate-400/70 pointer-events-none z-[1]" style={{ bottom: Math.round((avg / maxBucket) * BAR_H) + 26 }} />
+                    <div aria-hidden className="absolute left-0 right-0 border-t-2 border-dashed border-slate-400/70 pointer-events-none z-[1] transition-[bottom] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ bottom: Math.round((avg / maxBucket) * BAR_H) + 26 }} />
                   )}
-                  {shownBuckets.map(b => {
+                  {shownBuckets.map((b, bi) => {
                     const isFocus = focus?.key === b.key;
                     const dim = !!focus && !isFocus;
                     return (
@@ -815,11 +817,11 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                         className="flex flex-col items-stretch justify-end gap-2 h-full group disabled:cursor-default min-w-0"
                       >
                         {!win.single && (
-                          <span className={`relative z-[2] self-center px-1 rounded bg-white dark:bg-neutral-800 text-xs font-semibold text-center whitespace-nowrap ${isFocus ? 'text-indigo-700 dark:text-indigo-300' : dim ? 'text-slate-300 dark:text-neutral-600' : 'text-slate-500 dark:text-neutral-400'}`}>{b.total > 0 ? fmt(b.total) : ''}</span>
+                          <span className={`relative z-[2] self-center px-1 rounded bg-white dark:bg-neutral-800 text-xs font-semibold text-center whitespace-nowrap ${isFocus ? 'text-indigo-700 dark:text-indigo-300' : dim ? 'text-slate-300 dark:text-neutral-600' : 'text-slate-500 dark:text-neutral-400'}`}>{b.total > 0 ? <Swap text={fmt(b.total)} /> : ''}</span>
                         )}
                         <span
-                          className={`block w-full mx-auto ${win.single ? 'rounded-sm' : 'rounded-[10px] max-w-[64px]'} transition-colors ${b.total === 0 ? 'bg-slate-100 dark:bg-neutral-700' : isFocus ? 'bg-indigo-600' : dim ? 'bg-indigo-100 dark:bg-indigo-950 group-hover:bg-indigo-200' : 'bg-indigo-400 dark:bg-indigo-500 group-hover:bg-indigo-500'}`}
-                          style={{ height: b.total > 0 ? Math.max(4, Math.round((b.total / maxBucket) * BAR_H)) : 4 }}
+                          className={`block w-full mx-auto ${win.single ? 'rounded-sm' : 'rounded-[10px] max-w-[64px]'} transition-[height,background-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${b.total === 0 ? 'bg-slate-100 dark:bg-neutral-700' : isFocus ? 'bg-indigo-600' : dim ? 'bg-indigo-100 dark:bg-indigo-950 group-hover:bg-indigo-200' : 'bg-indigo-400 dark:bg-indigo-500 group-hover:bg-indigo-500'}`}
+                          style={{ height: b.total > 0 ? Math.max(4, Math.round((b.total / maxBucket) * BAR_H)) : 4, transitionDelay: `${Math.min(bi, 12) * 30}ms` }}
                         />
                         <span className={`h-[18px] text-xs text-center ${isFocus ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'} ${win.single && b.key !== 1 && Number(b.key) % 5 !== 0 && !isFocus ? 'invisible' : ''}`}>{b.label}</span>
                       </button>
@@ -851,9 +853,9 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                     onMouseLeave={() => setHoverKey(null)}
                   >
                     {selected.size > 0 && total > 0 && (
-                      <div aria-hidden className="absolute left-0 right-0 border-t-[1.5px] border-dashed border-slate-300 dark:border-neutral-600 pointer-events-none z-[1]" style={{ bottom: Math.round((avg / maxBucket) * (BAR_H - 28)) + 26 }} />
+                      <div aria-hidden className="absolute left-0 right-0 border-t-[1.5px] border-dashed border-slate-300 dark:border-neutral-600 pointer-events-none z-[1] transition-[bottom] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ bottom: Math.round((avg / maxBucket) * (BAR_H - 28)) + 26 }} />
                     )}
-                    {shownBuckets.map(b => {
+                    {shownBuckets.map((b, bi) => {
                       const isFocus = focus?.key === b.key;
                       const lit = readKey === null || readKey === b.key;
                       const h = b.total > 0 ? Math.max(4, Math.round((b.total / maxBucket) * (BAR_H - 28))) : 4;
@@ -871,8 +873,8 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                           className="flex flex-col items-center justify-end gap-2.5 h-full disabled:cursor-default min-w-0"
                         >
                           <span
-                            className={`w-full ${win.single ? 'rounded-sm' : 'max-w-[64px] rounded-xl'} overflow-hidden flex flex-col-reverse gap-[1.5px] transition-opacity duration-150 ${lit ? '' : 'opacity-35'} ${b.total === 0 ? 'bg-slate-100 dark:bg-neutral-700' : ''}`}
-                            style={{ height: h }}
+                            className={`w-full ${win.single ? 'rounded-sm' : 'max-w-[64px] rounded-xl'} overflow-hidden flex flex-col-reverse gap-[1.5px] transition-[height,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${lit ? '' : 'opacity-35'} ${b.total === 0 ? 'bg-slate-100 dark:bg-neutral-700' : ''}`}
+                            style={{ height: h, transitionDelay: `${Math.min(bi, 12) * 30}ms` }}
                           >
                             {b.total > 0 && stackGroups.groups.map(g => {
                               const v = parts?.get(g.name) || 0;
@@ -916,11 +918,15 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
           };
           return (
             <div className="border-t border-slate-100 dark:border-neutral-700 px-6 md:px-8 py-4 flex flex-wrap items-center gap-2">
-              {allViews.map(v => {
-                const on = isCurrent(v.cats);
+              {allViews.map((v, vi) => {
+                // Only one pill lights up, even when two views pick the same categories: the one you
+                // clicked, else the first that matches
+                const clicked = allViews.findIndex(x => x.name === pickedView && isCurrent(x.cats));
+                const on = vi === (clicked >= 0 ? clicked : allViews.findIndex(x => isCurrent(x.cats)));
                 return (
-                  <span key={v.name} className={`group flex items-center min-h-[36px] rounded-full border text-[13px] transition-colors ${on ? 'bg-slate-900 border-slate-900 text-white dark:bg-neutral-100 dark:border-neutral-100 dark:text-neutral-900' : 'bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-600 text-slate-800 dark:text-neutral-200 hover:border-slate-300'}`}>
-                    <button onClick={() => setOnly(v.cats)} aria-pressed={on} className={`min-h-[34px] pl-3.5 ${v.builtIn ? 'pr-3.5' : 'pr-1.5'} flex items-center gap-1.5`}>
+                  <span key={v.name} className={`group relative isolate flex items-center min-h-[36px] rounded-full border text-[13px] transition-colors duration-300 ${on ? 'border-slate-900 text-white dark:border-neutral-100 dark:text-neutral-900' : 'bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-600 text-slate-800 dark:text-neutral-200 hover:border-slate-300'}`}>
+                    {on && <motion.span layoutId="deskViewPill" transition={{ type: 'spring', stiffness: 420, damping: 36 }} className="absolute -inset-px -z-10 rounded-full bg-slate-900 dark:bg-neutral-100" />}
+                    <button onClick={() => { setPickedView(v.name); setOnly(v.cats); }} aria-pressed={on} className={`min-h-[34px] pl-3.5 ${v.builtIn ? 'pr-3.5' : 'pr-1.5'} flex items-center gap-1.5`}>
                       <span className={on ? 'font-semibold' : ''}>{v.name}</span>
                       <span className={on ? 'text-white/60 dark:text-neutral-900/60' : 'text-slate-400 dark:text-neutral-500'}>{fmt(totalOf(v.cats))}</span>
                     </button>
