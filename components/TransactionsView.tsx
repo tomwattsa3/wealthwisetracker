@@ -1082,8 +1082,11 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
   const allTime = [t, ...others];
   // The list under the details: every payment at this merchant, newest first, this one included.
   const history = useMemo(() => [...allTime].sort((a, b) => b.date.localeCompare(a.date)), [t, others]); // eslint-disable-line react-hooks/exhaustive-deps
-  const allTotal = netOf(allTime);
-  const allRefunds = allTime.filter(x => !isHidden(x) && x.type === 'INCOME').length;
+  // Seen from this payment's side: for money out (a shop) money in counts as refunds taken off;
+  // for money in (someone who pays you) it's the other way round, and the total is what you received.
+  const paidIn = t.type === 'INCOME';
+  const allTotal = paidIn ? -netOf(allTime) : netOf(allTime);
+  const allRefunds = allTime.filter(x => !isHidden(x) && x.type === (paidIn ? 'EXPENSE' : 'INCOME')).length;
   const allHidden = allTime.filter(isHidden).length;
   // Only the other payments that Remember would actually change (filed somewhere else).
   const toRefile = others.filter(x => !isHidden(x) && (x.categoryId !== catId || (x.subcategoryName || '') !== sub));
@@ -1256,11 +1259,11 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ t, sheet, allTransactions, ca
       <div className="flex-1 min-h-0 flex flex-col border-t border-slate-100 dark:border-neutral-700">
         <div className="shrink-0 px-5 pt-3 pb-1 flex justify-between items-baseline gap-2">
           <h3 className="text-[13.5px] font-semibold text-slate-900 dark:text-neutral-100 truncate">{shortName} payments</h3>
-          <span className="shrink-0 text-xs text-slate-500 dark:text-neutral-400">{others.length ? <>All time <strong className="font-semibold text-slate-700 dark:text-neutral-200">{allTime.length} · {gbp(allTotal)}</strong></> : 'First time'}</span>
+          <span className="shrink-0 text-xs text-slate-500 dark:text-neutral-400">{others.length ? <>All time <strong className={`font-semibold ${paidIn && allTotal > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-700 dark:text-neutral-200'}`}>{allTime.length} · {allTotal < 0 ? '−' : paidIn ? '+' : ''}{gbp(Math.abs(allTotal))}</strong></> : 'First time'}</span>
         </div>
         {others.length > 0 && (allRefunds > 0 || allHidden > 0) && (
           <p className="shrink-0 px-5 pb-1.5 text-[11.5px] text-slate-500 dark:text-neutral-400">
-            {[allRefunds > 0 && `${allRefunds} ${allRefunds === 1 ? 'refund' : 'refunds'} taken off`, allHidden > 0 && `${allHidden} hidden not counted`].filter(Boolean).join(' · ')}
+            {[allRefunds > 0 && (paidIn ? `${allRefunds} ${allRefunds === 1 ? 'payment' : 'payments'} out taken off` : `${allRefunds} ${allRefunds === 1 ? 'refund' : 'refunds'} taken off`), allHidden > 0 && `${allHidden} hidden not counted`].filter(Boolean).join(' · ')}
           </p>
         )}
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pb-[max(18px,env(safe-area-inset-bottom))]">
