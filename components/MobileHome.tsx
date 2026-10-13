@@ -157,7 +157,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const goYear = () => { setExtra([]); setMode('ytd'); };
   const [showAllCats, setShowAllCats] = useState(false);
   // The category tapped in "Where it went", shown in the same panel as Sheets' See all.
-  const [catPanel, setCatPanel] = useState<{ cat: string; year: number; month: number | null; sub?: string; n: number } | null>(null);
+  const [catPanel, setCatPanel] = useState<{ cat: string; year: number; month: number | null; months?: number[]; sub?: string; n: number } | null>(null);
   // Extra places opened under the top five, ten at a time.
   const [extraPlaces, setExtraPlaces] = useState(0);
   // The place tapped in Top places, shown in its own slide-up sheet.
@@ -259,7 +259,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const catRow = (c: { key: string; name: string; cat: string; id: string; v: number }) => (
           <button
             key={c.key}
-            onClick={() => setCatPanel({ cat: c.cat, year, month: ytd || multi ? null : sel, sub: whereLevel === 'sub' ? (c.key.split('\u0001')[1] || 'No subcategory') : undefined, n: Date.now() })}
+            onClick={() => setCatPanel({ cat: c.cat, year, month: ytd || multi ? null : sel, months: multi ? idxs : undefined, sub: whereLevel === 'sub' ? (c.key.split('\u0001')[1] || 'No subcategory') : undefined, n: Date.now() })}
             className="w-full grid grid-cols-[30px_minmax(0,1fr)_auto] gap-2.5 items-center py-2 border-t border-slate-100 dark:border-neutral-700 text-left"
           >
             <span className="w-[30px] h-[30px] rounded-[9px] bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-[15px]">
@@ -312,7 +312,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const placeRow = (p: typeof allPlaces[number], _i: number) => (
     <button
       key={p.key}
-      onClick={() => setPlacePick({ key: p.key, name: p.name, catName: p.catName, catId: p.catId, tint: tintOf(p.key), year, month: ytd || multi ? null : sel })}
+      onClick={() => setPlacePick({ key: p.key, name: p.name, catName: p.catName, catId: p.catId, tint: tintOf(p.key), year, month: ytd || multi ? null : sel, months: multi ? idxs : undefined })}
       className="w-full text-left grid grid-cols-[30px_minmax(0,1fr)_auto] gap-2.5 items-center py-2 border-t border-slate-100 dark:border-neutral-700 active:bg-slate-50 dark:active:bg-neutral-700/40"
     >
       <span className={`w-[30px] h-[30px] rounded-[9px] flex items-center justify-center text-[13px] font-bold ${tintOf(p.key)}`}>
@@ -906,7 +906,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         const sources = Array.from(bySource.values()).sort((a, b) => b.total - a.total);
         const SHOWN = 4;
         const shortType = (t: string) => t.replace(/ interest$/i, '');
-        const openSource = (src: typeof sources[number]) => setPlacePick({ key: src.key, name: src.name, catName: src.type, catId: '', tint: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300', year, month: ytd || multi ? null : sel, income: true });
+        const openSource = (src: typeof sources[number]) => setPlacePick({ key: src.key, name: src.name, catName: src.type, catId: '', tint: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300', year, month: ytd || multi ? null : sel, months: multi ? idxs : undefined, income: true });
         const sourceRow = (src: typeof sources[number]) => (
           <button
             key={src.key}

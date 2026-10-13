@@ -66,6 +66,9 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   // Chart style: one bar per month/day (click one for its breakdown), or a category × time table.
   const [view, setView] = useState<'total' | 'category'>(saved.view === 'category' ? 'category' : 'total');
   const [focusKey, setFocusKey] = useState<number | null>(null);
+  // More months added to the one clicked (e.g. Sep + Oct), like the phone Home
+  const [extraKeys, setExtraKeys] = useState<number[]>([]);
+  useEffect(() => { if (focusKey === null) setExtraKeys([]); }, [focusKey]);
   // A month picked on the Totals chart opens its days; this is the day clicked there (1–31)
   const [dayPick, setDayPick] = useState<number | null>(null);
   useEffect(() => { setDayPick(null); }, [focusKey]);
@@ -81,7 +84,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   // The place clicked in Top places, shown in a panel from the right (its months and payments).
   const [placePick, setPlacePick] = useState<PlacePick | null>(null);
   // The category clicked in "Where it went", shown in the same panel as Category Sheets' See all.
-  const [catPanel, setCatPanel] = useState<{ cat: string; year: number; month: number | null; sub?: string; n: number } | null>(null);
+  const [catPanel, setCatPanel] = useState<{ cat: string; year: number; month: number | null; months?: number[]; sub?: string; n: number } | null>(null);
   const [periodMenu, setPeriodMenu] = useState(false);
   const [pickerMenu, setPickerMenu] = useState(false);
   // How the category line reads: "everything except …" (chips = left out) or "only …" (chips = shown).
@@ -336,8 +339,25 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
 
   // The month (or day) clicked in the Totals chart, if any. The chart breakdown and the merchant
   // list both follow it.
-  const focusBucket = buckets.find(b => b.key === focusKey && b.total > 0) || null;
-  const inFocusBucket = (s: Spend) => !focusBucket || (win.single ? Number(s.date.slice(8, 10)) === focusBucket.key : s.monthIdx === focusBucket.key);
+  const primaryBucket = buckets.find(b => b.key === focusKey && b.total > 0) || null;
+  // Every month picked: the one clicked first, plus any added (months only, not days)
+  const focusKeys = !primaryBucket ? [] : win.single ? [primaryBucket.key]
+    : Array.from(new Set([primaryBucket.key, ...extraKeys.filter(k => buckets.some(b => b.key === k && b.total > 0))])).sort((a, b) => a - b);
+  const multiFocus = focusKeys.length > 1;
+  const keyIn = (k: number) => focusKeys.includes(k);
+  const focusBucket = !primaryBucket ? null : !multiFocus ? primaryBucket
+    : { ...primaryBucket, total: sum(buckets.filter(b => keyIn(b.key)).map(b => b.total)) };
+  // From the whole period a click picks a month; with months picked a click adds or removes one
+  const toggleFocus = (k: number) => {
+    if (focusKey === null || !primaryBucket || win.single) { setExtraKeys([]); setFocusKey(focusKey === k ? null : k); return; }
+    if (k === focusKey) {
+      if (extraKeys.length) { setFocusKey(extraKeys[extraKeys.length - 1]); setExtraKeys(extraKeys.slice(0, -1)); }
+      else setFocusKey(null);
+      return;
+    }
+    setExtraKeys(cur => (cur.includes(k) ? cur.filter(x => x !== k) : [...cur, k]));
+  };
+  const inFocusBucket = (s: Spend) => !focusBucket || (win.single ? Number(s.date.slice(8, 10)) === focusBucket.key : keyIn(s.monthIdx));
   // Column of the mini charts that the focused bar falls in (weeks for a single-month period).
   const focusCol = focusBucket ? (win.single ? cols[(() => { const d = Number(focusBucket.key); return d <= 7 ? 0 : d <= 14 ? 1 : d <= 21 ? 2 : 3; })()].key : focusBucket.key) : null;
 
@@ -384,7 +404,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
     const periodTop = topGroup ? { name: mostCommon(topGroup.map(r => r.desc)), periodTotal: sum(topGroup.map(r => r.amount)) } : null;
     return { merchants: all.sort((a, b) => b.total - a.total), periodTopMerchant: periodTop };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chosen, cols, colOf, focusBucket?.key, win.single]);
+  }, [chosen, cols, colOf, focusBucket?.key, focusKeys.join(), win.single]); // eslint-disable-line react-hooks/exhaustive-deps
   // One ranked list, flowed across two columns on desktop (#1–8 left, #9–16 right).
   // Most visits breaks ties by money, so a 4× bill still ranks above 4 coffees.
   const rankedMerchants = (placeRank === 'visits' ? [...merchants].sort((a, b) => b.count - a.count || b.total - a.total) : merchants).slice(0, 40);
@@ -413,7 +433,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
     };
     const perCol = cols.map(c => sum(incomeRows.filter(r => colOfDate(r.date, r.monthIdx) === c.key).map(r => r.amount)));
     const scoped = focusBucket
-      ? incomeRows.filter(r => (win.single ? Number(r.date.slice(8, 10)) === focusBucket.key : r.monthIdx === focusBucket.key))
+      ? incomeRows.filter(r => (win.single ? Number(r.date.slice(8, 10)) === focusBucket.key : keyIn(r.monthIdx)))
       : incomeRows;
     const byType = new Map<string, number>();
     scoped.forEach(r => byType.set(r.type, (byType.get(r.type) || 0) + r.amount));
@@ -426,7 +446,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
     });
     const scopedTotal = sum(scoped.map(r => r.amount));
     // Coverage is against all spending in the same window (every category), not just the ticked ones.
-    const spendAll = sum(inRange.filter(s => !focusBucket || (win.single ? Number(s.date.slice(8, 10)) === focusBucket.key : s.monthIdx === focusBucket.key)).map(s => s.amount));
+    const spendAll = sum(inRange.filter(s => !focusBucket || (win.single ? Number(s.date.slice(8, 10)) === focusBucket.key : keyIn(s.monthIdx))).map(s => s.amount));
     const dataCols = perCol.filter((_, i) => win.single || inRange.some(s => s.monthIdx === cols[i].key)).length || 1;
     return {
       perCol,
@@ -438,7 +458,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
       sources: Array.from(bySource.values()).sort((a, b) => b.total - a.total),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [incomeRows, cols, focusBucket?.key, win, inRange]);
+  }, [incomeRows, cols, focusBucket?.key, focusKeys.join(), win, inRange]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // "vs your average" card: the selected month (or single-month period, or else the latest month
   // in the period) against your average of the OTHER imported months, for the ticked categories.
@@ -449,7 +469,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
     spends.filter(isIncluded).forEach(s => byMonth.set(s.monthIdx, (byMonth.get(s.monthIdx) || 0) + s.amount));
     const inPeriod = inRange.map(s => s.monthIdx);
     const subject = win.single ? monthIdxs[0] : focusBucket ? focusBucket.key : (inPeriod.length ? Math.max(...inPeriod) : null);
-    if (subject === null) return null;
+    if (subject === null || multiFocus) return null;
     const others = dataMonths.filter(m => m !== subject && m <= lastIdx);
     if (others.length === 0) return null;
     const partial = period === 'mtd' ? win.dayLimit / daysIn(subject) : 1;
@@ -457,7 +477,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
     const now = win.single ? total : byMonth.get(subject) || 0;
     return { subject, now, base, diff: base > 0 ? (now - base) / base : null, partial: partial < 1 };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spends, unselected, inRange, win, monthIdxs, focusBucket?.key, lastIdx, period, total]);
+  }, [spends, unselected, inRange, win, monthIdxs, focusBucket?.key, multiFocus, lastIdx, period, total]);
   const trendText = trend === null ? '' : Math.abs(trend) < 0.05 ? 'about the same' : `${trend > 0 ? 'up' : 'down'} ${Math.round(Math.abs(trend) * 100)}%`;
   const trendClause = trend === null ? '' : trendLabel.startsWith('vs ')
     ? ` That's ${trendText} ${trendLabel.replace('vs ', Math.abs(trend) < 0.05 ? 'as ' : 'on ')}.`
@@ -483,7 +503,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   const groupOf = (s: Spend) => (level === 'category' ? s.cat : subKey(s.cat, s.sub));
   const focusRows = useMemo(() => {
     const inFocus = focus
-      ? chosen.filter(s => (win.single ? Number(s.date.slice(8, 10)) === focus.key : s.monthIdx === focus.key))
+      ? chosen.filter(s => (win.single ? Number(s.date.slice(8, 10)) === focus.key : keyIn(s.monthIdx)))
       : chosen;
     const map = new Map<string, { key: string; cat: string; sub: string | null; value: number }>();
     inFocus.forEach(s => {
@@ -494,9 +514,10 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
     });
     return Array.from(map.values()).sort((a, b) => b.value - a.value);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chosen, focus?.key, win.single, level]);
+  }, [chosen, focus?.key, focusKeys.join(), win.single, level]); // eslint-disable-line react-hooks/exhaustive-deps
   const focusTotal = focus ? focus.total : total;
-  const focusName = focus ? (win.single ? focus.longLabel : `${FULL_MONTHS[focus.key % 12]} ${Math.floor(focus.key / 12)}`) : win.label;
+  const multiName = (() => { const cross = focusKeys.some(k => Math.floor(k / 12) !== Math.floor(focusKeys[0] / 12)); return focusKeys.length <= 3 ? `${focusKeys.map(k => MONTHS[k % 12]).join(' + ')}${cross ? '' : ` ${Math.floor(focusKeys[0] / 12)}`}` : `${focusKeys.length} months`; })();
+  const focusName = focus ? (win.single ? focus.longLabel : multiFocus ? multiName : `${FULL_MONTHS[focus.key % 12]} ${Math.floor(focus.key / 12)}`) : win.label;
   const allLabel = win.single ? 'all days' : 'all months';
 
   // By-category table: a row per selected category, a column per month (or per week for a
@@ -529,14 +550,16 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   // Colours that tie each category's chip, dot and bars together (busiest first).
   const CAT_COLORS = ['#4F46E5', '#0EA5E9', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
   const catColor = (name: string) => { const i = catStats.findIndex(c => c.name === name); return i >= 0 && i < CAT_COLORS.length ? CAT_COLORS[i] : '#94A3B8'; };
-  const focusLabel = focus ? (win.single ? focus.longLabel : `${FULL_MONTHS[focus.key % 12]} ${Math.floor(focus.key / 12)}`) : '';
+  const focusLabel = focus ? (win.single ? focus.longLabel : multiFocus ? multiName : `${FULL_MONTHS[focus.key % 12]} ${Math.floor(focus.key / 12)}`) : '';
   const periodLabel = PERIODS.find(p => p.id === period)?.label || win.label;
   // The month a panel opens on: the bar you picked, or a one-month period; otherwise the whole year.
-  const panelMonth = win.single ? monthIdxs[0] : focus ? focus.key : null;
+  const panelMonth = win.single ? monthIdxs[0] : focus && !multiFocus ? focus.key : null;
+  const panelMonths = multiFocus ? focusKeys : undefined;
   const panelYear = Math.floor((panelMonth ?? Math.max(...inRange.map(s => s.monthIdx), lastIdx)) / 12);
   const shortTrend = trend === null ? '' : `${trendText.charAt(0).toUpperCase()}${trendText.slice(1)} ${trendLabel.startsWith('vs ') ? trendLabel : `in ${trendLabel.replace(' vs ', ' compared with ')}`}`;
   const heroSub = focus && vsAvg && vsAvg.diff !== null
     ? { text: Math.abs(vsAvg.diff) < 0.05 ? 'About your average' : `${vsAvg.diff > 0 ? '↑' : '↓'} ${Math.round(Math.abs(vsAvg.diff) * 100)}% ${vsAvg.diff > 0 ? 'above' : 'below'} your average`, cls: Math.abs(vsAvg.diff) < 0.05 ? 'text-slate-600 dark:text-neutral-300' : vsAvg.diff > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400' }
+    : multiFocus && focus ? { text: `Average ${fmt(focus.total / focusKeys.length)} a month`, cls: 'text-slate-600 dark:text-neutral-300' }
     : { text: `Average ${fmt(avg)} a ${unit}`, cls: 'text-slate-600 dark:text-neutral-300' };
   const chipCats = catStats.slice(0, 4);
   const shownRows = moreCats ? focusRows : focusRows.slice(0, 8);
@@ -548,7 +571,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
   const activeSrc = income.types.some(t => t.name === srcType) ? srcType : 'all';
   const srcList = (activeSrc === 'all' ? income.sources : income.sources.filter(x => x.type === activeSrc)).slice(0, 8);
   // In and out for what's on screen: the picked month, or the whole period.
-  const inScope = (s: Spend) => !focus || (win.single ? Number(s.date.slice(8, 10)) === focus.key : s.monthIdx === focus.key);
+  const inScope = (s: Spend) => !focus || (win.single ? Number(s.date.slice(8, 10)) === focus.key : keyIn(s.monthIdx));
   const spentAll = sum(inRange.filter(inScope).map(s => s.amount));
   const netV = income.total - spentAll;
   // The chart shows only imported months (no empty slots for months you haven't imported yet).
@@ -571,7 +594,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
     const groups = [...top3.map((name, i) => ({ name, color: STACK_COLORS[i] })), { name: 'Everything else', color: '' }];
     return { groups, per, totals: groups.map(g => ({ ...g, v: sum(Array.from(per.values()).map(m => m.get(g.name) || 0)) })) };
   })();
-  const readKey = hoverKey ?? focus?.key ?? null;
+  const readKey = hoverKey ?? (multiFocus ? null : focus?.key ?? null);
   const readBucket = readKey === null ? null : buckets.find(b => b.key === readKey) || null;
   const pct = (v: number, of: number) => (of > 0 ? (v / of < 0.005 ? '<1' : Math.round((v / of) * 100)) : 0);
   const pill = (on: boolean) => `min-h-[32px] px-3.5 rounded-full text-[13px] transition-colors whitespace-nowrap ${on ? 'bg-white dark:bg-neutral-600 font-semibold text-slate-900 dark:text-neutral-100 shadow-sm' : 'text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-neutral-200'}`;
@@ -700,11 +723,11 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
             {/* One line: what's going on (cut short if needed) · average · chart switch */}
             <div className="flex items-center justify-between gap-3 mb-2">
               {(() => {
-                const note = focus && !win.single && view === 'total' ? `${FULL_MONTHS[focus.key % 12]} ${Math.floor(focus.key / 12)} by day · click a day to see what you spent` : focus ? `Click ${win.single ? 'that day' : MONTHS[focus.key % 12]} again, or Back, for the whole period` : `${shortTrend}${shortTrend ? ' · ' : ''}click a ${win.single ? 'day' : 'month'} to see just that ${win.single ? 'day' : 'month'}`;
+                const note = multiFocus ? `${multiName} · click months to add or remove them` : focus && !win.single && view === 'total' ? `${FULL_MONTHS[focus.key % 12]} ${Math.floor(focus.key / 12)} by day · click a day to see what you spent` : focus ? `Click ${win.single ? 'that day' : MONTHS[focus.key % 12]} again, or Back, for the whole period` : `${shortTrend}${shortTrend ? ' · ' : ''}click a ${win.single ? 'day' : 'month'} to see just that ${win.single ? 'day' : 'month'}`;
                 return <p title={note} className="min-w-0 truncate text-[13px] text-slate-500 dark:text-neutral-400">{note}</p>;
               })()}
               <div className="shrink-0 flex items-center gap-3">
-                {selected.size > 0 && total > 0 && !(focus && !win.single && view === 'total') && (
+                {selected.size > 0 && total > 0 && !(focus && !win.single && view === 'total' && !multiFocus) && (
                   <span className="hidden xl:flex items-center gap-2 text-xs text-slate-500 dark:text-neutral-400 whitespace-nowrap"><span className="w-[18px] border-t-2 border-dashed border-slate-400" />Avg {fmt(avg)}</span>
                 )}
                 <div role="group" aria-label="Chart view" className="flex gap-0.5 p-[3px] bg-slate-100 dark:bg-neutral-700/60 rounded-full">
@@ -715,7 +738,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
               </div>
             </div>
 
-            {view === 'total' && focus && !win.single ? (() => {
+            {view === 'total' && focus && !win.single && !multiFocus ? (() => {
               // A month picked inside a longer period: that month's days, like on the phone.
               const mi = focus.key;
               const y = Math.floor(mi / 12), m = mi % 12;
@@ -737,7 +760,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                   <div className="flex items-center gap-1.5 mb-3 overflow-x-auto hide-scrollbar">
                     <button onClick={() => setFocusKey(null)} className="shrink-0 h-[30px] px-3 rounded-full bg-slate-100 dark:bg-neutral-700/60 text-[12.5px] font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-slate-200">← {periodLabel}</button>
                     {shownBuckets.filter(b => b.total > 0).map(b => (
-                      <button key={b.key} onClick={() => setFocusKey(b.key)} aria-pressed={b.key === mi} className={`shrink-0 h-[30px] px-3 rounded-full text-[12.5px] transition-colors ${b.key === mi ? 'bg-slate-900 text-white font-semibold dark:bg-neutral-100 dark:text-neutral-900' : 'text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-700/50'}`}>{MONTHS[b.key % 12]}</button>
+                      <button key={b.key} onClick={() => toggleFocus(b.key)} aria-pressed={b.key === mi} className={`shrink-0 h-[30px] px-3 rounded-full text-[12.5px] transition-colors ${b.key === mi ? 'bg-slate-900 text-white font-semibold dark:bg-neutral-100 dark:text-neutral-900' : 'text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-700/50'}`}>{MONTHS[b.key % 12]}</button>
                     ))}
                     <span className="ml-auto shrink-0 flex items-center gap-2 text-xs text-slate-500 dark:text-neutral-400 whitespace-nowrap pl-3"><span className="w-[18px] border-t-2 border-dashed border-slate-400" />Avg {fmt(dayAvg)} a day</span>
                   </div>
@@ -805,12 +828,12 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                     <div aria-hidden className="absolute left-0 right-0 border-t-2 border-dashed border-slate-400/70 pointer-events-none z-[1] transition-[bottom] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ bottom: Math.round((avg / maxBucket) * BAR_H) + 26 }} />
                   )}
                   {shownBuckets.map((b, bi) => {
-                    const isFocus = focus?.key === b.key;
+                    const isFocus = !!focus && keyIn(b.key);
                     const dim = !!focus && !isFocus;
                     return (
                       <button
                         key={b.key}
-                        onClick={() => b.total > 0 && setFocusKey(isFocus ? null : b.key)}
+                        onClick={() => b.total > 0 && toggleFocus(b.key)}
                         disabled={b.total === 0}
                         aria-pressed={isFocus}
                         aria-label={`${b.longLabel}: ${fmt(b.total, 2)}`}
@@ -865,14 +888,14 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                       <div aria-hidden className="absolute left-0 right-0 border-t-[1.5px] border-dashed border-slate-300 dark:border-neutral-600 pointer-events-none z-[1] transition-[bottom] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ bottom: Math.round((avg / maxBucket) * (BAR_H - 28)) + 26 }} />
                     )}
                     {shownBuckets.map((b, bi) => {
-                      const isFocus = focus?.key === b.key;
+                      const isFocus = !!focus && keyIn(b.key);
                       const lit = readKey === null || readKey === b.key;
                       const h = b.total > 0 ? Math.max(4, Math.round((b.total / maxBucket) * (BAR_H - 28))) : 4;
                       const parts = stackGroups.per.get(b.key);
                       return (
                         <button
                           key={b.key}
-                          onClick={() => b.total > 0 && setFocusKey(isFocus ? null : b.key)}
+                          onClick={() => b.total > 0 && toggleFocus(b.key)}
                           onMouseEnter={() => setHoverKey(b.key)}
                           onFocus={() => setHoverKey(b.key)}
                           onBlur={() => setHoverKey(null)}
@@ -912,7 +935,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
             ...views.map(v => ({ ...v, builtIn: false })),
           ];
           // With a month (or day) picked on the chart, the amounts are for that month, not the whole period.
-          const focusRows = focusBucket ? inRange.filter(r => (win.single ? Number(r.date.slice(8, 10)) : r.monthIdx) === focusBucket.key) : null;
+          const focusRows = focusBucket ? inRange.filter(r => (win.single ? Number(r.date.slice(8, 10)) === focusBucket.key : keyIn(r.monthIdx))) : null;
           const totalOf = (cats: string[]) => focusRows
             ? sum(focusRows.filter(r => cats.includes(r.cat)).map(r => r.amount))
             : sum(catStats.filter(c => cats.includes(c.name)).map(c => c.total));
@@ -1058,7 +1081,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                 {shownRows.map(r => (
                   <button
                     key={r.key}
-                    onClick={() => setCatPanel({ cat: r.cat, year: panelYear, month: panelMonth, sub: r.sub || undefined, n: Date.now() })}
+                    onClick={() => setCatPanel({ cat: r.cat, year: panelYear, month: panelMonth, months: panelMonths, sub: r.sub || undefined, n: Date.now() })}
                     title={`Open ${r.cat}`}
                     className="grid grid-cols-[10px_minmax(0,1.15fr)_minmax(0,1fr)_40px_96px] gap-3.5 items-center min-h-[44px] px-2 -mx-2 rounded-xl border-t border-slate-100 dark:border-neutral-700/70 text-left hover:bg-slate-50 dark:hover:bg-neutral-700/30"
                   >
@@ -1102,7 +1125,8 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                     key: m.key, name: m.name, catName: m.cat, catId: m.catId,
                     tint: PLACE_TINTS[i % PLACE_TINTS.length],
                     year: Math.floor((focus && !win.single ? focus.key : m.lastMonth) / 12),
-                    month: focus && !win.single ? focus.key : win.single ? m.lastMonth : null,
+                    month: focus && !win.single && !multiFocus ? focus.key : win.single ? m.lastMonth : null,
+                    months: panelMonths,
                   })}
                   className="grid grid-cols-[36px_minmax(0,1fr)_auto] gap-3.5 items-center min-h-[56px] px-2 -mx-2 rounded-xl border-t border-slate-100 dark:border-neutral-700/70 text-left hover:bg-slate-50 dark:hover:bg-neutral-700/30"
                 >
@@ -1169,12 +1193,12 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                 <div className="grid items-end gap-3 h-[180px]" style={{ gridTemplateColumns: `repeat(${cols.length}, minmax(0, 1fr))` }}>
                   {cols.map((c, i) => {
                     const mx = Math.max(...income.perCol, ...outPerCol, 1);
-                    const on = focusCol === null || c.key === focusCol;
+                    const on = focusCol === null || (multiFocus ? keyIn(c.key as number) : c.key === focusCol);
                     const h = (v: number) => (v > 0 ? Math.max(4, Math.round((v / mx) * 140)) : 3);
                     return (
                       <button
                         key={c.key}
-                        onClick={() => !win.single && (income.perCol[i] > 0 || outPerCol[i] > 0) && setFocusKey(focus?.key === c.key ? null : (c.key as number))}
+                        onClick={() => !win.single && (income.perCol[i] > 0 || outPerCol[i] > 0) && toggleFocus(c.key as number)}
                         disabled={win.single}
                         aria-label={`${c.label}: ${fmt(income.perCol[i])} in, ${fmt(outPerCol[i])} out`}
                         title={`${c.label}: ${fmt(income.perCol[i], 2)} in · ${fmt(outPerCol[i], 2)} out`}
@@ -1184,7 +1208,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                           <span className="block w-[38%] max-w-[26px] rounded-md bg-emerald-500" style={{ height: h(income.perCol[i]) }} />
                           <span className="block w-[38%] max-w-[26px] rounded-md bg-slate-300 dark:bg-neutral-500" style={{ height: h(outPerCol[i]) }} />
                         </span>
-                        <span className={`h-[18px] text-xs text-center ${c.key === focusCol ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'}`}>{c.label}</span>
+                        <span className={`h-[18px] text-xs text-center ${(multiFocus ? keyIn(c.key as number) : c.key === focusCol) ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'}`}>{c.label}</span>
                       </button>
                     );
                   })}
@@ -1241,7 +1265,7 @@ const SpendingPatterns: React.FC<SpendingPatternsProps> = ({ transactions, categ
                   onClick={() => setPlacePick({
                     key: src.key, name: src.name, catName: src.type, catId: '',
                     tint: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
-                    year: panelYear, month: panelMonth, income: true,
+                    year: panelYear, month: panelMonth, months: panelMonths, income: true,
                   })}
                   className="grid grid-cols-[36px_minmax(0,1fr)_auto] gap-3.5 items-center min-h-[56px] px-2 -mx-2 rounded-xl border-t border-slate-100 dark:border-neutral-700/70 text-left hover:bg-slate-50 dark:hover:bg-neutral-700/30"
                 >

@@ -29,6 +29,7 @@ export interface PlacePick {
   tint: string;         // badge colours from the Top places row
   year: number;
   month: number | null; // month index (year * 12 + m) to start on, or null for the whole year
+  months?: number[]; // several months to start on (e.g. Sep + Oct picked on Home)
   income?: boolean;     // a source of money in (its payments in), rather than a place you spend
 }
 
@@ -57,7 +58,10 @@ const Body: React.FC<Omit<PlaceSheetProps, 'place' | 'onClose' | 'firstIdx' | 'l
     .sort((a, b) => b.t.date.localeCompare(a.t.date)), [transactions, currency, place.key, place.income]);
 
   const [year, setYear] = useState(place.year);
-  const [month, setMonth] = useState<number | null>(place.month);
+  // Months picked (empty = the whole year): tap one, tap more to add, tap a picked one to take it off
+  const [picks, setPicks] = useState<number[]>(() => (place.months?.length ? [...place.months].sort((a, b) => a - b) : place.month != null ? [place.month] : []));
+  const month = picks.length ? picks[0] : null;
+  const setMonth = (m: number | null) => setPicks(m === null ? [] : [m]);
   const years = useMemo(() => Array.from(new Set(visits.map(v => Math.floor(v.idx / 12)))).sort(), [visits]);
   const canPrev = years.some(y => y < year);
   const canNext = years.some(y => y > year);
@@ -80,14 +84,16 @@ const Body: React.FC<Omit<PlaceSheetProps, 'place' | 'onClose' | 'firstIdx' | 'l
   const active = cols.filter(c => c.count > 0);
   const avgMonth = active.length ? active.reduce((s, c) => s + c.total, 0) / active.length : 0;
 
-  const shown = visits.filter(v => (month === null ? Math.floor(v.idx / 12) === year : v.idx === month));
+  const shown = visits.filter(v => (picks.length === 0 ? Math.floor(v.idx / 12) === year : picks.includes(v.idx)));
   const total = shown.reduce((s, v) => s + v.a, 0);
-  const periodLabel = month === null ? String(year) : `${MONTHS[month % 12]} ${year}`;
-  const toggle = (i: number) => setMonth(m => (m === i ? null : i));
+  const periodLabel = picks.length === 0 ? String(year)
+    : picks.length === 1 ? `${MONTHS[picks[0] % 12]} ${year}`
+    : picks.length <= 3 ? `${picks.map(m => MONTHS[m % 12]).join(' + ')} ${year}` : `${picks.length} months`;
+  const toggle = (i: number) => setPicks(cur => (cur.includes(i) ? cur.filter(x => x !== i) : [...cur, i].sort((a, b) => a - b)));
   // Ten payments at first, more on request (back to ten when the period changes).
   const PAGE = 10;
   const [listShown, setListShown] = useState(PAGE);
-  useEffect(() => setListShown(PAGE), [year, month]);
+  useEffect(() => setListShown(PAGE), [year, picks]);
   // The list keeps room for the most it ever shows for this place (up to ten rows, plus the
   // Show more button if any year has more), so the sheet stays the same height when you switch
   // between the whole year and a single month.
@@ -121,7 +127,7 @@ const Body: React.FC<Omit<PlaceSheetProps, 'place' | 'onClose' | 'firstIdx' | 'l
         )}
       </div>
 
-      {/* Month bars: tap one to see just that month, tap it again for the whole year */}
+      {/* Month bars: tap one to see just that month, tap more to add them, tap a picked one to take it off */}
       <div className="shrink-0 px-5 pt-2 pb-3 border-t border-slate-100 dark:border-neutral-700">
         <div className="flex items-center justify-between h-8">
           <div className="flex items-center -ml-2">
@@ -140,7 +146,7 @@ const Body: React.FC<Omit<PlaceSheetProps, 'place' | 'onClose' | 'firstIdx' | 'l
         </div>
         <div className={`mt-1.5 flex items-end h-[84px] ${cols.length > 8 ? 'gap-1' : 'gap-2'}`}>
           {cols.map(c => {
-            const on = month === c.i;
+            const on = picks.includes(c.i);
             return (
               <button
                 key={c.i}
@@ -218,7 +224,7 @@ const PlaceSheet: React.FC<PlaceSheetProps> = ({ place, side, ...rest }) => {
               exit={{ x: '100%' }}
               transition={SHEET_SPRING}
             >
-              <Body key={`${place.key}-${place.year}-${place.month}`} place={place} transactions={rest.transactions} currency={rest.currency} getCategoryEmoji={rest.getCategoryEmoji} onClose={rest.onClose} />
+              <Body key={`${place.key}-${place.year}-${place.month}-${(place.months || []).join('.')}`} place={place} transactions={rest.transactions} currency={rest.currency} getCategoryEmoji={rest.getCategoryEmoji} onClose={rest.onClose} />
             </motion.aside>
           </motion.div>
         )}
@@ -229,7 +235,7 @@ const PlaceSheet: React.FC<PlaceSheetProps> = ({ place, side, ...rest }) => {
   // Money in sources open taller (most of the screen), however few payments there are.
   return (
     <Sheet open={!!place} onClose={rest.onClose} label={`${shown?.name || 'Place'} details`} heightClass={shown?.income ? 'h-[80dvh]' : 'max-h-[86dvh]'}>
-      {shown && <Body key={`${shown.key}-${shown.year}-${shown.month}`} place={shown} transactions={rest.transactions} currency={rest.currency} getCategoryEmoji={rest.getCategoryEmoji} />}
+      {shown && <Body key={`${shown.key}-${shown.year}-${shown.month}-${(shown.months || []).join('.')}`} place={shown} transactions={rest.transactions} currency={rest.currency} getCategoryEmoji={rest.getCategoryEmoji} />}
     </Sheet>
   );
 };

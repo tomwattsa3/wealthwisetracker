@@ -22,7 +22,7 @@ interface CategorySheetsProps {
   onViewTransactions: (categoryId: string, subcategory: string | null, start: string, end: string) => void;
   // Render only the See all panel for one category (e.g. opened from the phone Home), on a year
   // and optionally one month of it. onPanelClose runs once it has slid away.
-  panelOnly?: { cat: string; year: number; month: number | null; sub?: string } | null;
+  panelOnly?: { cat: string; year: number; month: number | null; months?: number[]; sub?: string } | null;
   onPanelClose?: () => void;
   // Phones: the Search pill (same as Home), under the year picker
   onSearch?: () => void;
@@ -106,12 +106,17 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
   }, [period]);
 
   // The open "See all" panel and its filters. Laid out like the Breakdown panel: a side panel on
-  // desktop, a bottom sheet on phones. `pm` narrows it to one month (null = the whole scope).
+  // desktop, a bottom sheet on phones. `pms` narrows it to the months picked (empty = the whole scope).
   const [open, setOpen] = useState<string | null>(panelOnly?.cat ?? null);
   // Phones: extra places opened under a card's top six, ten at a time (by category).
   const [extraPlaces, setExtraPlaces] = useState<Record<string, number>>({});
   const [sub, setSub] = useState<string>(panelOnly?.sub ?? 'all');
-  const [pm, setPm] = useState<number | null>(panelOnly?.month ?? null);
+  // The months picked inside the panel (empty = the whole scope). Tap a month to pick it, tap
+  // more to add them, tap a picked one to take it off.
+  const [pms, setPms] = useState<number[]>(() => (panelOnly?.months?.length ? [...panelOnly.months].sort((a, b) => a - b) : panelOnly?.month != null ? [panelOnly.month] : []));
+  const pm = pms.length === 1 ? pms[0] : null; // exactly one month picked
+  const setPm = (m: number | null) => setPms(m === null ? [] : [m]);
+  const togglePm = (m: number) => setPms(cur => (cur.includes(m) ? cur.filter(x => x !== m) : [...cur, m].sort((a, b) => a - b)));
   // Date/Amount and Summarise share the Breakdown panel's saved choices.
   const [sortBy, setSortBy] = useState<'date' | 'amount'>(() => {
     try { return localStorage.getItem('breakdownDetailSort') === 'amount' ? 'amount' : 'date'; } catch { return 'date'; }
@@ -239,13 +244,13 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scoped]);
 
-  const openSheet = (cat: string) => { setOpen(cat); setSub('all'); setPm(selSorted.length === 1 ? selSorted[0] : null); };
+  const openSheet = (cat: string) => { setOpen(cat); setSub('all'); setPms(selSorted); };
   const sheet = open ? sheets.find(s => s.cat === open) || null : null;
   const panel = useMemo(() => {
     if (!sheet) return null;
     const catAll = inRange.filter(r => r.cat === sheet.cat);
     // One month when picked, otherwise whatever the page is scoped to.
-    const base = pm !== null ? catAll.filter(r => r.monthIdx === pm) : sheet.list;
+    const base = pms.length ? catAll.filter(r => pms.includes(r.monthIdx)) : sheet.list;
     const subs = new Map<string, number>();
     base.forEach(r => subs.set(r.sub, (subs.get(r.sub) || 0) + r.amount));
     const filtered = base.filter(r => sub === 'all' || r.sub === sub);
@@ -262,7 +267,7 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
       merchants, tx, perCol, baseTotal: sum(base.map(r => r.amount)), filteredTotal: sum(filtered.map(r => r.amount)),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sheet, sub, win, inRange, pm, sortBy]);
+  }, [sheet, sub, win, inRange, pms, sortBy]);
   // Summarise by merchant only applies with more than one payment (so a single one never hides its date)
   const grouped = summarise && !!panel && panel.tx.length > 1;
 
@@ -276,11 +281,14 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
     if (!sheet || !panel) return null;
                   const idx = pm !== null ? win.monthIdxs.indexOf(pm) : -1;
                   const months = win.single ? [] : win.monthIdxs;
-                  const prev = pm === null ? months[months.length - 1] : idx > 0 ? months[idx - 1] : undefined;
+                  const prev = pms.length === 0 ? months[months.length - 1] : pm !== null && idx > 0 ? months[idx - 1] : undefined;
                   const next = pm !== null && idx < months.length - 1 ? months[idx + 1] : undefined;
-                  const title = pm !== null ? `${MONTHS[pm % 12]} ${Math.floor(pm / 12)}` : scopeLabel;
-                  const start = pm !== null ? `${indexToKey(pm)}-01` : scopeStart;
-                  const end = pm !== null ? `${indexToKey(pm)}-${String(daysIn(pm)).padStart(2, '0')}` : scopeEnd;
+                  const crossYear = pms.some(m => Math.floor(m / 12) !== Math.floor(pms[0] / 12));
+                  const title = pm !== null ? `${MONTHS[pm % 12]} ${Math.floor(pm / 12)}`
+                    : pms.length > 1 ? (pms.length <= 3 ? `${pms.map(m => MONTHS[m % 12]).join(' + ')}${crossYear ? '' : ` ${Math.floor(pms[0] / 12)}`}` : `${pms.length} months`)
+                    : scopeLabel;
+                  const start = pms.length ? `${indexToKey(pms[0])}-01` : scopeStart;
+                  const end = pms.length ? `${indexToKey(pms[pms.length - 1])}-${String(daysIn(pms[pms.length - 1])).padStart(2, '0')}` : scopeEnd;
                   const mx = Math.max(...panel.perCol, 1);
                   const avgMonth = panel.perCol.reduce((a, b) => a + b, 0) / Math.max(panel.perCol.length, 1);
                   return (
@@ -289,11 +297,11 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5">
                             {months.length > 1 && <button onClick={() => prev !== undefined && setPm(prev)} disabled={prev === undefined} aria-label="Previous month" className="w-8 h-8 relative after:absolute after:-inset-1.5 after:content-[''] rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 disabled:opacity-30">‹</button>}
-                            <button onClick={() => setPm(null)} disabled={pm === null} className="min-w-[84px] px-1 text-center text-[13px] font-semibold text-indigo-700 dark:text-indigo-300" title={pm !== null ? 'Show the whole period' : undefined}>{title}</button>
+                            <button onClick={() => setPm(null)} disabled={pms.length === 0} className="min-w-[84px] px-1 text-center text-[13px] font-semibold text-indigo-700 dark:text-indigo-300" title={pms.length ? 'Show the whole period' : undefined}>{title}</button>
                             {months.length > 1 && <button onClick={() => next !== undefined && setPm(next)} disabled={next === undefined} aria-label="Next month" className="w-8 h-8 relative after:absolute after:-inset-1.5 after:content-[''] rounded-lg border border-slate-200 dark:border-neutral-600 text-slate-500 disabled:opacity-30">›</button>}
                           </div>
                           <div className="flex items-center gap-1.5">
-                            {pm !== null && (
+                            {pms.length > 0 && (
                               <button onClick={() => setPm(null)} className="h-8 px-3 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 text-xs font-semibold whitespace-nowrap hover:bg-indigo-100 dark:hover:bg-indigo-900/50">
                                 ← All months
                               </button>
@@ -307,7 +315,7 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                               {getCategoryEmoji && sheet.catId ? <span className="mr-1.5">{getCategoryEmoji(sheet.catId)}</span> : null}{sheet.cat}
                             </h2>
                             <p className="text-xs mt-0.5 text-slate-500 dark:text-neutral-400">
-                              {panel.base.length} {panel.base.length === 1 ? 'transaction' : 'transactions'}{pm === null ? ` · ${pct(panel.baseTotal)} of spending` : ''}
+                              {panel.base.length} {panel.base.length === 1 ? 'transaction' : 'transactions'}{pms.length === 0 ? ` · ${pct(panel.baseTotal)} of spending` : ''}
                             </p>
                           </div>
                           <span className="text-2xl font-bold whitespace-nowrap text-slate-900 dark:text-neutral-100">{fmt(panel.filteredTotal, 2)}</span>
@@ -322,18 +330,18 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                         )}
                         <div className="grid gap-1.5 items-end h-[92px]" style={{ gridTemplateColumns: `repeat(${cols.length}, minmax(0, 1fr))` }}>
                           {panel.perCol.map((v, i) => {
-                            const on = !win.single && pm === cols[i].key;
-                            const inScope = win.single || (pm === null && (!selMonths.size || selMonths.has(cols[i].key)));
+                            const on = !win.single && pms.includes(cols[i].key as number);
+                            const inScope = win.single || (pms.length === 0 && (!selMonths.size || selMonths.has(cols[i].key)));
                             return (
                               <button
                                 key={cols[i].key}
-                                onClick={() => { if (!win.single) setPm(on ? null : cols[i].key); }}
+                                onClick={() => { if (!win.single) togglePm(cols[i].key as number); }}
                                 aria-pressed={on}
                                 aria-label={`${cols[i].label}: ${fmt(v, 2)}`}
                                 className="flex flex-col items-center justify-end gap-1 h-full group"
                               >
                                 <span className={`text-[10px] font-semibold whitespace-nowrap ${on ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-500 dark:text-neutral-400'} ${cols.length > 9 ? 'hidden' : ''}`}>{v > 0 ? fmt(v) : '–'}</span>
-                                <span className={`w-full rounded-t ${v <= 0 ? 'bg-slate-100 dark:bg-neutral-700' : on || (inScope && pm === null) ? 'bg-indigo-600' : 'bg-indigo-200 dark:bg-indigo-900 group-hover:bg-indigo-300'}`} style={{ height: v > 0 ? Math.max(3, Math.round((v / mx) * 52)) : 2 }} />
+                                <span className={`w-full rounded-t ${v <= 0 ? 'bg-slate-100 dark:bg-neutral-700' : on || (inScope && pms.length === 0) ? 'bg-indigo-600' : 'bg-indigo-200 dark:bg-indigo-900 group-hover:bg-indigo-300'}`} style={{ height: v > 0 ? Math.max(3, Math.round((v / mx) * 52)) : 2 }} />
                                 <span className={`text-[10px] ${on ? 'font-bold text-slate-900 dark:text-neutral-100' : 'text-slate-500 dark:text-neutral-400'}`}>{cols[i].label}</span>
                               </button>
                             );
