@@ -140,12 +140,21 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   // A day tapped in the month's day chart (its payments slide up), and a payment opened from it.
   const [dayPick, setDayPick] = useState<number | null>(null);
   const [dayTx, setDayTx] = useState<string | null>(null);
-  // Tapping a month opens it; tapping the month that's already open goes back to the year.
+  // More months added to the one that's open (e.g. September + October).
+  const [extra, setExtra] = useState<number[]>([]);
+  // From the year, tapping a month opens it. With a month open, tapping another adds it; tapping
+  // a picked one removes it (removing the last goes back to the year).
   const toggleMonth = (i: number) => {
-    if (mode === 'month' && i === (picked ?? lastIdx)) { setMode('ytd'); return; }
-    setPicked(i);
-    setMode('month');
+    if (mode !== 'month') { setPicked(i); setExtra([]); setMode('month'); return; }
+    const cur = picked ?? lastIdx;
+    if (i === cur) {
+      if (extra.length) { setPicked(extra[extra.length - 1]); setExtra(extra.slice(0, -1)); }
+      else setMode('ytd');
+      return;
+    }
+    setExtra(extra.includes(i) ? extra.filter(x => x !== i) : [...extra, i]);
   };
+  const goYear = () => { setExtra([]); setMode('ytd'); };
   const [showAllCats, setShowAllCats] = useState(false);
   // The category tapped in "Where it went", shown in the same panel as Sheets' See all.
   const [catPanel, setCatPanel] = useState<{ cat: string; year: number; month: number | null; sub?: string; n: number } | null>(null);
@@ -194,10 +203,16 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
 
   const ytd = mode === 'ytd';
   const year = Math.floor(sel / 12);
-  // The months being summed: just the picked month, or every imported month of its year so far.
+  // Several months picked (see toggleMonth)
+  const multi = !ytd && extra.length > 0;
+  // The months being summed: the picked month(s), or every imported month of its year so far.
   const idxs = ytd
     ? Array.from({ length: 12 }, (_, i) => year * 12 + i).filter(i => i >= firstIdx && i <= lastIdx)
-    : [sel];
+    : Array.from(new Set([sel, ...extra])).sort((a, b) => a - b);
+  // "September", or "Sep + Oct", or "4 months"
+  const crossYear = idxs.some(i => Math.floor(i / 12) !== Math.floor(idxs[0] / 12));
+  const monthName = (i: number) => `${MONTHS[i % 12]}${crossYear ? ` ’${String(Math.floor(i / 12)).slice(2)}` : ''}`;
+  const pickLabel = !multi ? FULL_MONTHS[sel % 12] : idxs.length <= 3 ? idxs.map(monthName).join(' + ') : `${idxs.length} months`;
   const sumOver = (m: Map<number, number> | undefined, list: number[]) => list.reduce((s, i) => s + (m?.get(i) || 0), 0);
   const out = sumOver(outByMonth, idxs);
   const inc = sumOver(inByMonth, idxs);
@@ -209,7 +224,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const hasPrevYear = ytd && prevYearIdxs.every(i => i >= firstIdx);
   const usual = ytd
     ? (hasPrevYear ? sumOver(outByMonth, prevYearIdxs) : 0)
-    : usualMonths.length > 1 ? usualMonths.reduce((s, i) => s + (outByMonth.get(i) || 0), 0) / usualMonths.length : 0;
+    : usualMonths.length > 1 ? (usualMonths.reduce((s, i) => s + (outByMonth.get(i) || 0), 0) / usualMonths.length) * idxs.length : 0;
   const diff = usual ? (out - usual) / usual : 0;
   const near = Math.abs(diff) < 0.05;
   const partialYear = ytd && idxs.length > 0 && idxs[idxs.length - 1] % 12 !== 11;
@@ -225,7 +240,8 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   // Month: six bars ending at the latest month, sliding back when you step further than that.
   // YTD: one bar per month of the year; tapping one opens that month.
   const barEnd = Math.max(sel, Math.min(lastIdx, sel + 5));
-  const barIdxs = ytd ? idxs : Array.from({ length: 6 }, (_, i) => barEnd - 5 + i);
+  const multiStart = Math.max(firstIdx, Math.min(idxs[0] ?? lastIdx, lastIdx - 11));
+  const barIdxs = ytd ? idxs : multi ? Array.from({ length: lastIdx - multiStart + 1 }, (_, i) => multiStart + i).slice(-15) : Array.from({ length: 6 }, (_, i) => barEnd - 5 + i);
   const barMax = Math.max(...barIdxs.map(i => outByMonth.get(i) || 0), 1);
 
   const catRows = Array.from(catByMonth.entries())
@@ -248,7 +264,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const catRow = (c: { key: string; name: string; cat: string; id: string; v: number }) => (
           <button
             key={c.key}
-            onClick={() => setCatPanel({ cat: c.cat, year, month: ytd ? null : sel, sub: whereLevel === 'sub' ? (c.key.split('\u0001')[1] || 'No subcategory') : undefined, n: Date.now() })}
+            onClick={() => setCatPanel({ cat: c.cat, year, month: ytd || multi ? null : sel, sub: whereLevel === 'sub' ? (c.key.split('\u0001')[1] || 'No subcategory') : undefined, n: Date.now() })}
             className="w-full grid grid-cols-[30px_minmax(0,1fr)_auto] gap-2.5 items-center py-2 border-t border-slate-100 dark:border-neutral-700 text-left"
           >
             <span className="w-[30px] h-[30px] rounded-[9px] bg-slate-100 dark:bg-neutral-700 flex items-center justify-center text-[15px]">
@@ -301,7 +317,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const placeRow = (p: typeof allPlaces[number], _i: number) => (
     <button
       key={p.key}
-      onClick={() => setPlacePick({ key: p.key, name: p.name, catName: p.catName, catId: p.catId, tint: tintOf(p.key), year, month: ytd ? null : sel })}
+      onClick={() => setPlacePick({ key: p.key, name: p.name, catName: p.catName, catId: p.catId, tint: tintOf(p.key), year, month: ytd || multi ? null : sel })}
       className="w-full text-left grid grid-cols-[30px_minmax(0,1fr)_auto] gap-2.5 items-center py-2 border-t border-slate-100 dark:border-neutral-700 active:bg-slate-50 dark:active:bg-neutral-700/40"
     >
       <span className={`w-[30px] h-[30px] rounded-[9px] flex items-center justify-center text-[13px] font-bold ${tintOf(p.key)}`}>
@@ -324,10 +340,10 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const lastSel = idxs[idxs.length - 1] ?? sel;
   const start = `${indexToKey(firstSel)}-01`;
   const end = `${indexToKey(lastSel)}-${String(daysIn(lastSel)).padStart(2, '0')}`;
-  const periodShort = ytd ? String(year) : MONTHS[sel % 12];
+  const periodShort = ytd ? String(year) : multi ? pickLabel : MONTHS[sel % 12];
   const canPrev = ytd ? year * 12 > firstIdx : sel > firstIdx;
   const canNext = ytd ? year * 12 + 11 < lastIdx : sel < lastIdx;
-  const step = (dir: -1 | 1) => setPicked(ytd ? Math.min(lastIdx, Math.max(firstIdx, sel + dir * 12)) : sel + dir);
+  const step = (dir: -1 | 1) => { setExtra([]); setPicked(ytd ? Math.min(lastIdx, Math.max(firstIdx, sel + dir * 12)) : sel + dir); };
 
   // ---- Month by month (money in vs out for every month of the selected year) ----
   const todayIdx = keyToIndex(monthKey(localToday()));
@@ -351,7 +367,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const yearImported = yearCols.filter(c => c.imported);
   const detail = ytd
     ? { title: `${year} so far${yearImported.length ? ` (${FULL_MONTHS[yearImported[0].i % 12].slice(0, 3)} – ${FULL_MONTHS[yearImported[yearImported.length - 1].i % 12].slice(0, 3)})` : ''}`, vin: inc, vout: out }
-    : { title: `${FULL_MONTHS[sel % 12]} ${year}`, vin: inc, vout: out };
+    : { title: multi ? `${pickLabel}${crossYear ? '' : ` ${year}`}` : `${FULL_MONTHS[sel % 12]} ${year}`, vin: inc, vout: out };
   const detailNet = detail.vin - detail.vout;
 
   // Full breakdown opens on what Home is showing: the picked month, or the year's imported months.
@@ -371,7 +387,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         <div className="col-start-3 justify-self-end flex items-center gap-1.5">
           <div className="flex items-center bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl p-0.5">
             <button onClick={() => step(-1)} disabled={!canPrev} aria-label={ytd ? 'Previous year' : 'Previous month'} className="w-6 h-8 relative after:absolute after:-inset-y-1.5 after:-inset-x-2 after:content-[''] rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">‹</button>
-            <span className="min-w-[48px] text-center text-[13px] font-semibold text-slate-900 dark:text-neutral-100">{ytd ? year : `${MONTHS[sel % 12]} ${year}`}</span>
+            <span className="min-w-[48px] text-center text-[13px] font-semibold text-slate-900 dark:text-neutral-100">{ytd ? year : multi ? pickLabel : `${MONTHS[sel % 12]} ${year}`}</span>
             <button onClick={() => step(1)} disabled={!canNext} aria-label={ytd ? 'Next year' : 'Next month'} className="w-6 h-8 relative after:absolute after:-inset-y-1.5 after:-inset-x-2 after:content-[''] rounded-lg text-lg text-slate-900 dark:text-neutral-100 disabled:text-slate-300 dark:disabled:text-neutral-600">›</button>
           </div>
         </div>
@@ -490,13 +506,12 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
       <section className={`${card} p-4 flex flex-col gap-3.5`}>
         <div className="flex justify-between items-start gap-3">
           <div className="flex-1 min-w-0">
-            <div className="text-xs text-slate-500 dark:text-neutral-400">Spent in {ytd ? `${year}${partialYear ? ' so far' : ''}` : FULL_MONTHS[sel % 12]}</div>
+            <div className="text-xs text-slate-500 dark:text-neutral-400">Spent in {ytd ? `${year}${partialYear ? ' so far' : ''}` : pickLabel}</div>
             <div className="text-[34px] leading-tight font-bold text-slate-900 dark:text-neutral-100"><Glide value={out} format={fmt} /></div>
             {!ytd ? (() => {
               // A picked month: one quiet line — against your average month, and spend per day
               const today = localToday();
-              const isCurrent = indexToKey(sel) === today.slice(0, 7);
-              const daysCounted = isCurrent ? Number(today.slice(8, 10)) : daysIn(sel);
+              const daysCounted = idxs.reduce((n, i) => n + (indexToKey(i) === today.slice(0, 7) ? Number(today.slice(8, 10)) : daysIn(i)), 0);
               const perDay = out / Math.max(daysCounted, 1);
               return (
                 <div className="mt-2 flex flex-wrap gap-1">
@@ -545,14 +560,14 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         <AutoHeight>
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.div
-            key={ytd ? 'year' : 'month'}
+            key={ytd ? 'year' : multi ? 'months' : 'month'}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
             className="w-full"
           >
-          {ytd ? (
+          {ytd || multi ? (
           <>
         {/* Switching between the year and six months: bars that leave shrink away and the rest widen
               smoothly into the space (and back), rather than jumping. */}
@@ -560,7 +575,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
             <AnimatePresence initial={false} mode="popLayout">
             {barIdxs.map(i => {
               const v = outByMonth.get(i) || 0;
-              const on = ytd || i === sel;
+              const on = ytd || idxs.includes(i);
               const inRange = i >= firstIdx && i <= lastIdx;
               return (
                 <motion.button
@@ -601,6 +616,12 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
             })}
             </AnimatePresence>
           </div>
+          {multi && (
+            <div className="flex items-center gap-2 mt-3">
+              <button onClick={goYear} className="shrink-0 h-9 px-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-[12px] font-semibold text-indigo-700 dark:text-indigo-300 active:scale-95 transition-transform">← {year}</button>
+              <span className="text-[11.5px] text-slate-500 dark:text-neutral-400">Tap months to add or remove them</span>
+            </div>
+          )}
           </>
           ) : (
           <>
@@ -655,7 +676,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
               </div>
               {/* "← year" goes back to the whole year; the months beside it jump straight to that month */}
               <div className="flex items-center gap-1 mt-3">
-                <button onClick={() => setMode('ytd')} className="shrink-0 h-9 px-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-[12px] font-semibold text-indigo-700 dark:text-indigo-300 active:scale-95 transition-transform">← {year}</button>
+                <button onClick={goYear} className="shrink-0 h-9 px-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-[12px] font-semibold text-indigo-700 dark:text-indigo-300 active:scale-95 transition-transform">← {year}</button>
                 {/* Every month you have, from the first; swipe sideways for earlier ones (opens on the one you're on) */}
                 <div
                   ref={monthRowRef}
@@ -843,7 +864,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
               ))}
               <div className="absolute inset-0 grid grid-cols-12 gap-0.5 items-end">
                 {yearCols.map(c => {
-                  const on = !ytd && c.i === sel;
+                  const on = !ytd && idxs.includes(c.i);
                   const faded = !ytd && !on && c.imported;
                   return (
                     <button
@@ -869,7 +890,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
             </div>
             <div className="grid grid-cols-12 gap-0.5 mt-1.5">
               {yearCols.map(c => (
-                <span key={c.i} className={`text-center text-[10.5px] ${!ytd && c.i === sel ? 'font-bold text-slate-900 dark:text-neutral-100' : c.missing ? 'font-medium text-amber-700 dark:text-amber-400' : c.imported ? 'text-slate-500 dark:text-neutral-400' : 'text-slate-300 dark:text-neutral-600'}`}>
+                <span key={c.i} className={`text-center text-[10.5px] ${!ytd && idxs.includes(c.i) ? 'font-bold text-slate-900 dark:text-neutral-100' : c.missing ? 'font-medium text-amber-700 dark:text-amber-400' : c.imported ? 'text-slate-500 dark:text-neutral-400' : 'text-slate-300 dark:text-neutral-600'}`}>
                   {FULL_MONTHS[c.i % 12][0]}
                 </span>
               ))}
@@ -915,7 +936,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
         const sources = Array.from(bySource.values()).sort((a, b) => b.total - a.total);
         const SHOWN = 4;
         const shortType = (t: string) => t.replace(/ interest$/i, '');
-        const openSource = (src: typeof sources[number]) => setPlacePick({ key: src.key, name: src.name, catName: src.type, catId: '', tint: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300', year, month: ytd ? null : sel, income: true });
+        const openSource = (src: typeof sources[number]) => setPlacePick({ key: src.key, name: src.name, catName: src.type, catId: '', tint: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300', year, month: ytd || multi ? null : sel, income: true });
         const sourceRow = (src: typeof sources[number]) => (
           <button
             key={src.key}
@@ -940,7 +961,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
             <section aria-label="Money in" className={`${card} p-4`}>
               <div className="flex items-center justify-between">
                 <h2 className="text-[15px] font-semibold text-slate-900 dark:text-neutral-100">Money in</h2>
-                <span className="text-xs text-slate-500 dark:text-neutral-400">{ytd ? `${year} so far` : `${FULL_MONTHS[sel % 12]} ${year}`}</span>
+                <span className="text-xs text-slate-500 dark:text-neutral-400">{ytd ? `${year} so far` : multi ? pickLabel : `${FULL_MONTHS[sel % 12]} ${year}`}</span>
               </div>
               <div className="flex items-baseline justify-between gap-3 mt-1">
                 <span className="text-[30px] leading-tight font-bold tracking-tight text-emerald-700 dark:text-emerald-400"><Glide value={inV} format={fmt} /></span>
@@ -959,7 +980,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
               {chartIdxs.length > 0 && (
                 <>
                   <div className="mt-4 flex items-center justify-between">
-                    <span className="text-xs text-slate-600 dark:text-neutral-300">{ytd ? 'Each month · tap one' : `${MONTHS[sel % 12]}: ${fmt(inV)} in · ${fmt(outV)} out`}</span>
+                    <span className="text-xs text-slate-600 dark:text-neutral-300">{ytd ? 'Each month · tap one' : `${multi ? pickLabel : MONTHS[sel % 12]}: ${fmt(inV)} in · ${fmt(outV)} out`}</span>
                     <span className="flex gap-2.5 text-[11px] text-slate-500 dark:text-neutral-400">
                       <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] bg-emerald-500" />In</span>
                       <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] bg-slate-300 dark:bg-neutral-500" />Out</span>
@@ -968,7 +989,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
                   <div className={`mt-2 flex items-end h-28 ${chartIdxs.length > 6 ? 'gap-1' : 'gap-1.5'}`}>
                     {chartIdxs.map(i => {
                       const vin = inOf(i), vout = outByMonth.get(i) || 0;
-                      const on = !ytd && i === sel;
+                      const on = !ytd && idxs.includes(i);
                       const dim = !ytd && !on;
                       const h = (v: number) => (v > 0 ? Math.max(3, Math.round((v / chartMax) * 84)) : 3);
                       return (
