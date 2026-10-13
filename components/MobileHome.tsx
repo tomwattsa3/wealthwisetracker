@@ -216,6 +216,11 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const sumOver = (m: Map<number, number> | undefined, list: number[]) => list.reduce((s, i) => s + (m?.get(i) || 0), 0);
   const out = sumOver(outByMonth, idxs);
   const inc = sumOver(inByMonth, idxs);
+  // All spending in the same months (every category, whatever the view above shows), for what's left
+  const allOut = Array.from(catAllByMonth.values()).reduce((s, m) => s + sumOver(m, idxs), 0);
+  const left = inc - allOut;
+  // Rounded to £k for the little line under it, e.g. £11.1k
+  const short = (v: number) => (v >= 1000 ? `${currency === 'GBP' ? '£' : 'AED '}${(v / 1000).toFixed(1)}k` : fmt(v));
 
   // Month: vs the monthly average of that year so far (January up to your latest import).
   // YTD: vs the same months last year, when those were imported too.
@@ -547,11 +552,14 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
               <div className={`text-[12.5px] font-semibold mt-0.5 ${compareTone}`}><Swap text={compareLine} /></div>
             )}
           </div>
-          {/* Money in for the same year or month, small and quiet (the full breakdown is further down) */}
-          {inc > 0 && (
-            <span className="shrink-0 mt-0.5 inline-flex items-center h-[26px] px-2.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-[12px] font-semibold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">
-              <Swap text={`+${fmt(inc)} in`} />
-            </span>
+          {/* What's left: money in minus all spending for the same months (small; the full breakdown is further down) */}
+          {(inc > 0 || allOut > 0) && (
+            <div className="shrink-0 mt-0.5 flex flex-col items-end gap-1">
+              <span className={`inline-flex items-center h-[26px] px-2.5 rounded-full text-[12px] font-semibold whitespace-nowrap ${left >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400'}`}>
+                <Swap text={left >= 0 ? `+${fmt(left)} left` : `−${fmt(-left)} over`} />
+              </span>
+              <span className="text-[9px] tracking-[0.01em] text-slate-400 dark:text-neutral-500 whitespace-nowrap"><Swap text={`${short(inc)} in · ${short(allOut)} out`} /></span>
+            </div>
           )}
         </div>
         {/* The year: a bar per month (tap one to open it). A picked month: its days instead. */}
