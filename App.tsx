@@ -251,6 +251,9 @@ const App: React.FC = () => {
       document.documentElement.classList.remove('dark');
     }
     localStorage.setItem('darkMode', String(darkMode));
+    // The strip behind the clock and camera (Android's status bar, iPhone Safari's top) takes the
+    // same colour as the page underneath, so it blends in
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', darkMode ? '#171717' : '#f1f5f9');
   }, [darkMode]);
 
   // Mobile custom date picker state
@@ -1822,7 +1825,7 @@ const App: React.FC = () => {
       },
     }}>
     <div
-      className="bg-slate-50 dark:bg-neutral-900 h-[100dvh] font-['Poppins'] text-slate-900 dark:text-neutral-200 overflow-hidden"
+      className="bg-slate-100 dark:bg-neutral-900 h-[100dvh] font-['Poppins'] text-slate-900 dark:text-neutral-200 overflow-hidden"
       // iPhones (newer iOS) soften the strip just under the clock with a blur that spills a little
       // into the page, which smudged the first row of controls. Start the page a bit lower there.
       style={{ paddingTop: IS_IOS ? 'calc(env(safe-area-inset-top) + 14px)' : 'env(safe-area-inset-top)' }}
