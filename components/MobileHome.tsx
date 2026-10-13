@@ -216,9 +216,17 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   const sumOver = (m: Map<number, number> | undefined, list: number[]) => list.reduce((s, i) => s + (m?.get(i) || 0), 0);
   const out = sumOver(outByMonth, idxs);
   const inc = sumOver(inByMonth, idxs);
-  // All spending in the same months (every category, whatever the view above shows), for what's left
-  const allOut = Array.from(catAllByMonth.values()).reduce((s, m) => s + sumOver(m, idxs), 0);
-  const left = inc - allOut;
+  // What's left: all money in, minus the spending the card is showing (all of it, or the view
+  // you've picked, e.g. Food). Named after the view when one is picked.
+  const left = inc - out;
+  const allCatNames = Array.from(catAllByMonth.keys());
+  const onCats = allCatNames.filter(n => !homeOff.has(n));
+  const viewOn = (cats: string[]) => allCatNames.every(n => cats.includes(n) === !homeOff.has(n));
+  const rankedCats = allCatNames.map(n => ({ n, v: sumOver(catAllByMonth.get(n), idxs) })).filter(c => c.v > 0).sort((a, b) => b.v - a.v).map(c => c.n);
+  const spendLabel = onCats.length === allCatNames.length ? 'out'
+    : onCats.length === 1 ? onCats[0]
+    : views.find(v => viewOn(v.cats))?.name
+      || (rankedCats[0] && viewOn(allCatNames.filter(n => n !== rankedCats[0])) ? `excl. ${rankedCats[0]}` : viewOn(rankedCats.slice(0, 3)) ? 'Top 3' : 'picked');
   // Rounded to £k for the little line under it, e.g. £11.1k
   const short = (v: number) => (v >= 1000 ? `${currency === 'GBP' ? '£' : 'AED '}${(v / 1000).toFixed(1)}k` : fmt(v));
 
@@ -553,12 +561,12 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
             )}
           </div>
           {/* What's left: money in minus all spending for the same months (small; the full breakdown is further down) */}
-          {(inc > 0 || allOut > 0) && (
+          {(inc > 0 || out > 0) && (
             <div className="shrink-0 mt-0.5 flex flex-col items-end gap-1">
               <span className={`inline-flex items-center h-[26px] px-2.5 rounded-full text-[12px] font-semibold whitespace-nowrap ${left >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400'}`}>
                 <Swap text={left >= 0 ? `+${fmt(left)} left` : `−${fmt(-left)} over`} />
               </span>
-              <span className="text-[9px] tracking-[0.01em] text-slate-400 dark:text-neutral-500 whitespace-nowrap"><Swap text={`${short(inc)} in · ${short(allOut)} out`} /></span>
+              <span className="max-w-[180px] truncate text-[9px] tracking-[0.01em] text-slate-400 dark:text-neutral-500 whitespace-nowrap"><Swap text={`${short(inc)} in · ${short(out)} ${spendLabel}`} /></span>
             </div>
           )}
         </div>
