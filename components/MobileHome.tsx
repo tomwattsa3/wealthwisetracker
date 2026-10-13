@@ -532,6 +532,12 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
               <div className={`text-[12.5px] font-semibold mt-0.5 ${compareTone}`}><Swap text={compareLine} /></div>
             )}
           </div>
+          {/* Money in for the same year or month, small and quiet (the full breakdown is further down) */}
+          {inc > 0 && (
+            <span className="shrink-0 mt-0.5 inline-flex items-center h-[26px] px-2.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-[12px] font-semibold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">
+              <Swap text={`+${fmt(inc)} in`} />
+            </span>
+          )}
         </div>
         {/* The year: a bar per month (tap one to open it). A picked month: its days instead. */}
         {/* The two views cross-fade (no blank gap), the card eases to its new height, and the bars
