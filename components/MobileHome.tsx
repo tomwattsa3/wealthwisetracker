@@ -562,11 +562,11 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
           </div>
           {/* What's left: money in minus all spending for the same months (small; the full breakdown is further down) */}
           {(inc > 0 || out > 0) && (
-            <div className="shrink-0 mt-0.5 flex flex-col items-end gap-1">
-              <span className={`inline-flex items-center h-[26px] px-2.5 rounded-full text-[12px] font-semibold whitespace-nowrap ${left >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400'}`}>
-                <Swap text={left >= 0 ? `+${fmt(left)} left` : `−${fmt(-left)} over`} />
+            <div className="shrink-0 mt-1 flex flex-col items-end gap-[3px]">
+              <span className={`inline-flex items-center h-[20px] px-2 rounded-full text-[11px] font-semibold whitespace-nowrap ${left >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400'}`}>
+                <Swap text={left >= 0 ? `+${short(left)}` : `−${short(-left)}`} />
               </span>
-              <span className="max-w-[180px] truncate text-[9px] tracking-[0.01em] text-slate-400 dark:text-neutral-500 whitespace-nowrap"><Swap text={`${short(inc)} in · ${short(out)} ${spendLabel}`} /></span>
+              <span className="max-w-[170px] truncate text-[8.5px] tracking-[0.01em] text-slate-400 dark:text-neutral-500 whitespace-nowrap"><Swap text={`${short(inc)} in · ${short(out)} ${spendLabel}`} /></span>
             </div>
           )}
         </div>
