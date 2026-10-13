@@ -13,7 +13,7 @@ import { supabase } from '../supabaseClient';
 import { MONTHS, FULL_MONTHS, monthKey, keyToIndex, indexToKey, daysIn, localToday, merchantKey, sum } from '../lib/periods';
 
 // The phone Home screen: one month at a time, fitting on a single screen. How much went out vs
-// your usual month, six month bars to jump between, and the top categories
+// money in and what's left, six month bars to jump between, and the top categories
 // with their share of the month, then the places you went most (or spent most at). A Month / YTD
 // switch shows the same cards for the whole year so far.
 // The full Dashboard (SpendingPatterns) stays on tablet and desktop.
@@ -230,25 +230,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
   // Rounded to £k for the little line under it, e.g. £11.1k
   const short = (v: number) => (v >= 1000 ? `${currency === 'GBP' ? '£' : 'AED '}${(v / 1000).toFixed(1)}k` : fmt(v));
 
-  // Month: vs the monthly average of that year so far (January up to your latest import).
-  // YTD: vs the same months last year, when those were imported too.
-  const usualMonths = Array.from({ length: 12 }, (_, i) => sel - (sel % 12) + i).filter(i => i <= lastIdx && (outByMonth.get(i) || 0) > 0);
-  const prevYearIdxs = idxs.map(i => i - 12);
-  const hasPrevYear = ytd && prevYearIdxs.every(i => i >= firstIdx);
-  const usual = ytd
-    ? (hasPrevYear ? sumOver(outByMonth, prevYearIdxs) : 0)
-    : usualMonths.length > 1 ? (usualMonths.reduce((s, i) => s + (outByMonth.get(i) || 0), 0) / usualMonths.length) * idxs.length : 0;
-  const diff = usual ? (out - usual) / usual : 0;
-  const near = Math.abs(diff) < 0.05;
   const partialYear = ytd && idxs.length > 0 && idxs[idxs.length - 1] % 12 !== 11;
-  const compareLine = ytd
-    ? !usual
-      ? `Avg ${fmt(out / Math.max(idxs.length, 1))} a month`
-      : near
-        ? 'About the same as last year'
-        : `${diff > 0 ? '↑' : '↓'} ${fmt(Math.abs(out - usual))} vs ${partialYear ? 'this point ' : ''}last year (${fmt(usual)})`
-    : !usual ? 'First month of the year' : near ? 'About your average month' : `${diff > 0 ? '↑' : '↓'} ${fmt(Math.abs(out - usual))}`;
-  const compareTone = !usual || near ? 'text-slate-500 dark:text-neutral-400' : diff > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400';
 
   // Month: six bars ending at the latest month, sliding back when you step further than that.
   // YTD: one bar per month of the year; tapping one opens that month.
@@ -521,53 +503,25 @@ const MobileHome: React.FC<MobileHomeProps> = ({ transactions, currency, getCate
           <div className="flex-1 min-w-0">
             <div className="text-xs text-slate-500 dark:text-neutral-400">Spent in {ytd ? `${year}${partialYear ? ' so far' : ''}` : pickLabel}</div>
             <div className="text-[34px] leading-tight font-bold text-slate-900 dark:text-neutral-100"><Glide value={out} format={fmt} /></div>
-            {!ytd ? (() => {
-              // A picked month: one quiet line — against your average month, and spend per day
+            {/* Three small chips: a month's (or a day's) average, all money in, and what's left */}
+            {(() => {
               const today = localToday();
               const daysCounted = idxs.reduce((n, i) => n + (indexToKey(i) === today.slice(0, 7) ? Number(today.slice(8, 10)) : daysIn(i)), 0);
-              const perDay = out / Math.max(daysCounted, 1);
+              const avgChip = ytd || multi ? `${short(out / Math.max(idxs.length, 1))}/month` : `${short(out / Math.max(daysCounted, 1))}/day`;
+              const chip = 'inline-flex items-center h-[22px] px-2 rounded-md text-[11px] whitespace-nowrap';
               return (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {usual > 0 && (
-                    <span className={`inline-flex items-center h-[22px] px-2 rounded-full text-[11px] font-semibold ${near ? 'bg-slate-100 text-slate-600 dark:bg-neutral-700 dark:text-neutral-300' : diff > 0 ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'}`}>
-                      <Swap text={near ? 'About average' : `${diff > 0 ? '↑' : '↓'} ${fmt(Math.abs(out - usual))} ${diff > 0 ? 'over' : 'under'} avg`} />
-                    </span>
-                  )}
-                  <span className="inline-flex items-center h-[22px] px-2 rounded-full bg-slate-100 dark:bg-neutral-700 text-[11px] font-medium text-slate-600 dark:text-neutral-300">
-                    <Swap text={`${fmt(perDay)} / day`} />
-                  </span>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {inc > 0 && <span className={`${chip} font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400`}><Swap text={`+${short(inc)} in`} /></span>}
+                  <span className={`${chip} bg-slate-100 dark:bg-neutral-700 text-slate-600 dark:text-neutral-300`}><Swap text={avgChip} /></span>
                 </div>
               );
-            })() : usual > 0 ? (() => {
-              // How far through your usual month (or last year) you are; the tick is your usual.
-              const scale = Math.max(out, usual) * 1.04;
-              const tick = (usual / scale) * 100;
-              const fill = near ? 'bg-slate-400 dark:bg-neutral-400' : diff > 0 ? 'bg-amber-500' : 'bg-emerald-500';
-              return (
-                <div className="mt-2 max-w-[150px]" aria-label={`${fmt(out)} spent; average ${fmt(usual)}`}>
-                  <div className="relative h-2 rounded-full bg-slate-100 dark:bg-neutral-700">
-                    <span className={`absolute inset-y-0 left-0 rounded-full transition-[width,background-color] duration-[1100ms] delay-150 ease-[cubic-bezier(0.22,1,0.36,1)] ${fill}`} style={{ width: `${(out / scale) * 100}%` }} />
-                    <span className="absolute -top-1 -bottom-1 w-0.5 rounded-full bg-slate-900 dark:bg-neutral-100 transition-[left] duration-[1100ms] delay-150 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ left: `calc(${tick}% - 1px)` }} />
-                  </div>
-                  <div className="relative h-4 mt-1 text-[10.5px] text-slate-500 dark:text-neutral-400">
-                    <span className="absolute whitespace-nowrap" style={tick < 18 ? { left: 0 } : { left: `${tick}%`, transform: 'translateX(-50%)' }}>
-                      {ytd ? 'Last year' : 'Avg'} {fmt(usual)}
-                    </span>
-                  </div>
-                </div>
-              );
-            })() : (
-              <div className={`text-[12.5px] font-semibold mt-0.5 ${compareTone}`}><Swap text={compareLine} /></div>
-            )}
+            })()}
           </div>
-          {/* What's left: money in minus all spending for the same months (small; the full breakdown is further down) */}
+          {/* What's left: all money in minus the spending shown (the view you've picked, or everything) */}
           {(inc > 0 || out > 0) && (
-            <div className="shrink-0 mt-1 flex flex-col items-end gap-[3px]">
-              <span className={`inline-flex items-center h-[20px] px-2 rounded-full text-[11px] font-semibold whitespace-nowrap ${left >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400'}`}>
-                <Swap text={left >= 0 ? `+${short(left)}` : `−${short(-left)}`} />
-              </span>
-              <span className="max-w-[170px] truncate text-[8.5px] tracking-[0.01em] text-slate-400 dark:text-neutral-500 whitespace-nowrap"><Swap text={`${short(inc)} in · ${short(out)} ${spendLabel}`} /></span>
-            </div>
+            <span title={`${fmt(inc)} in − ${fmt(out)} ${spendLabel === 'out' ? 'spent' : spendLabel}`} className={`shrink-0 mt-0.5 inline-flex items-center h-[22px] px-2 rounded-md text-[11px] font-semibold whitespace-nowrap ${left >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400'}`}>
+              <Swap text={left >= 0 ? `+${short(left)} left` : `−${short(-left)}`} />
+            </span>
           )}
         </div>
         {/* The year: a bar per month (tap one to open it). A picked month: its days instead. */}
