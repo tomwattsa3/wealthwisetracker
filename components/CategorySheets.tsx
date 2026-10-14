@@ -290,7 +290,9 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                   const start = pms.length ? `${indexToKey(pms[0])}-01` : scopeStart;
                   const end = pms.length ? `${indexToKey(pms[pms.length - 1])}-${String(daysIn(pms[pms.length - 1])).padStart(2, '0')}` : scopeEnd;
                   const mx = Math.max(...panel.perCol, 1);
-                  const avgMonth = panel.perCol.reduce((a, b) => a + b, 0) / Math.max(panel.perCol.length, 1);
+                  // Average over the months you've picked (two or more), otherwise over all the months shown
+                  const avgCols = pms.length > 1 ? panel.perCol.filter((_, i) => pms.includes(cols[i].key as number)) : panel.perCol;
+                  const avgMonth = avgCols.reduce((a, b) => a + b, 0) / Math.max(avgCols.length, 1);
                   return (
                     <>
                       <div className={`px-5 ${isPhone ? 'pt-1' : 'pt-5'} pb-3 flex flex-col gap-3 border-b border-slate-100 dark:border-neutral-700`}>
@@ -325,7 +327,7 @@ const CategorySheets: React.FC<CategorySheetsProps> = ({ transactions, currency,
                             The label shows the average month over the period. */}
                         {!win.single && panel.perCol.length > 1 && (
                           <div className="-mb-1.5 flex justify-end items-center gap-1.5 text-[11.5px] text-slate-500 dark:text-neutral-400">
-                            <span>Avg <strong className="font-semibold text-slate-800 dark:text-neutral-100">{fmt(avgMonth)}</strong> / month · {panel.perCol.length} months</span>
+                            <span>Avg <strong className="font-semibold text-slate-800 dark:text-neutral-100">{fmt(avgMonth)}</strong> / month · {avgCols.length} {pms.length > 1 ? 'picked months' : 'months'}</span>
                           </div>
                         )}
                         <div className="grid gap-1.5 items-end h-[92px]" style={{ gridTemplateColumns: `repeat(${cols.length}, minmax(0, 1fr))` }}>

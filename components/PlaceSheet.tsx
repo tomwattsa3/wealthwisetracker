@@ -82,7 +82,9 @@ const Body: React.FC<Omit<PlaceSheetProps, 'place' | 'onClose' | 'firstIdx' | 'l
   });
   const max = Math.max(...cols.map(c => c.total), 1);
   const active = cols.filter(c => c.count > 0);
-  const avgMonth = active.length ? active.reduce((s, c) => s + c.total, 0) / active.length : 0;
+  // Two or more months picked: the average over those; otherwise over the months you went
+  const avgOver = picks.length > 1 ? cols.filter(c => picks.includes(c.i)) : active;
+  const avgMonth = avgOver.length ? avgOver.reduce((s, c) => s + c.total, 0) / avgOver.length : 0;
 
   const shown = visits.filter(v => (picks.length === 0 ? Math.floor(v.idx / 12) === year : picks.includes(v.idx)));
   const total = shown.reduce((s, v) => s + v.a, 0);
